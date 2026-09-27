@@ -1050,3 +1050,117 @@ fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
         .map_err(|_| Error::Usage(format!("{field} must be an integer, got `{v}`")))
 }
 
+fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<()> {
+    let text = |v: &str| -> Option<String> { Some(v.trim().to_string()).filter(|s| !s.is_empty()) };
+    match field {
+        "name" => {
+            let v = text(value).ok_or_else(|| Error::Usage("name cannot be empty".into()))?;
+            conn.execute("UPDATE nodes SET name = ?1 WHERE id = ?2", params![v, n.id])?;
+        }
+        "code" => {
+            let v = text(value);
+            let folded = v
+                .as_deref()
+                .map(|c| check_code(conn, c, Some(n.id)))
+                .transpose()?;
+            conn.execute(
+                "UPDATE nodes SET code = ?1, code_folded = ?2 WHERE id = ?3",
+                params![v, folded, n.id],
+            )?;
+        }
+        "kind" => {
+            let k: Kind = value.parse()?;
+            check_placement(conn, k, n.parent_id, n.lost, None)?;
+            if n.address.is_some() && k != Kind::Home {
+                return Err(refused(
+                    "only a home has an address; clear it first",
+                    Value::Null,
+                ));
+            }
+            if !matches!(k, Kind::Home | Kind::Room) {
+                let rooms: Vec<i64> = ids(
+                    conn,
+                    "SELECT id FROM nodes WHERE parent_id = ?1 AND kind = 'room' AND state != 'gone'",
+                    [n.id],
+                )?;
+                if !rooms.is_empty() {
+                    return Err(refused(
+                        format!("{} holds rooms, so it must stay a home or a room", label(n)),
+                        Value::Null,
+                    ));
+                }
+            }
+            conn.execute(
+                "UPDATE nodes SET kind = ?1 WHERE id = ?2",
+                params![k.as_str(), n.id],
+            )?;
+        }
+        "address" => {
+            let v = text(value);
+            if v.is_some() && n.kind != Kind::Home {
+                return Err(refused("only a home has an address", Value::Null));
+            }
+            conn.execute(
+                "UPDATE nodes SET address = ?1 WHERE id = ?2",
+                params![v, n.id],
+            )?;
+        }
+        "note" | "theme" => {
+            conn.execute(
+                &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),
+                params![text(value), n.id],
+            )?;
+        }
+        "qty" | "fill" => {
+            let v = parse_int(field, value)?;
+            let (q, f) = if field == "qty" { (v, None) } else { (None, v) };
+            check_ranges(q, f)?;
+            conn.execute(
+                &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),
+                params![v, n.id],
+            )?;
+        }
+        "tags" => {
+            let (op, t) = split_op(field, value)?;
+            let t = normalize_tag(t)?;
+            if op == '+' {
+                conn.execute(
+                    "INSERT OR IGNORE INTO tags (node_id, tag) VALUES (?1, ?2)",
+                    params![n.id, t],
+                )?;
+            } else {
+                conn.execute(
+                    "DELETE FROM tags WHERE node_id = ?1 AND tag = ?2",
+                    params![n.id, t],
+                )?;
+            }
+        }
+        "photos" => {
+            let (op, p) = split_op(field, value)?;
+            let p = absolute(p)?;
+            if op == '+' {
+                let next: i64 = conn.query_row(
+                    "SELECT COALESCE(MAX(position) + 1, 0) FROM photos WHERE node_id = ?1",
+                    [n.id],
+                    |r| r.get(0),
+                )?;
+                conn.execute(
+                    "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ?3)",
+                    params![n.id, next, p],
+                )?;
+            } else {
+                conn.execute(
+                    "DELETE FROM photos WHERE node_id = ?1 AND path = ?2",
+                    params![n.id, p],
+                )?;
+            }
+        }
+        other => {
+            return Err(Error::Usage(format!(
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos"
+            )));
+        }
+    }
+    Ok(())
+}
+

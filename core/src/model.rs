@@ -141,4 +141,8 @@ pub struct NewNode {
     pub tags: Vec<String>,
     #[serde(default)]
     pub photos: Vec<String>,
+    #[serde(default)]
+    pub to: Option<String>,
+    #[serde(default)]
+    pub owner: Option<String>,
 }

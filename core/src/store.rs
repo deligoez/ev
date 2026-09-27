@@ -412,6 +412,8 @@ impl Inventory {
         show(&self.conn, node.id)
     }
 
+    /// Every candidate grouped by disposition. A candidate held by another candidate leaves
+    /// with it (spec §12.1), so it is listed under its outermost candidate as a part.
     pub fn disposals(&self, filter: Option<Disposition>) -> Result<Value> {
         let mut groups = serde_json::Map::new();
         for d in [Disposition::Trash, Disposition::Give, Disposition::Sell] {

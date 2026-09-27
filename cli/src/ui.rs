@@ -210,6 +210,9 @@ struct App {
     search_rows: Vec<Row>,
     status: String,
     quit: bool,
+    list_area: Rect,
+    tabs_area: Rect,
+    last_click: Option<(usize, Instant)>,
 }
 
 impl App {
@@ -244,6 +247,9 @@ impl App {
             search_rows: Vec::new(),
             status: String::new(),
             quit: false,
+            list_area: Rect::default(),
+            tabs_area: Rect::default(),
+            last_click: None,
         };
         app.rebuild()?;
         Ok(app)
@@ -266,7 +272,10 @@ impl App {
                     self.flatten(r, 0, &mut out);
                 }
                 for u in &self.snap.unplaced {
-                    out.push(self.row(u, 0, "(yeri bilinmiyor) "));
+                    let mut row = self.tree_row(u, 0);
+                    row.spans
+                        .insert(0, Span::styled("(yeri bilinmiyor) ", Style::new().fg(LOST)));
+                    out.push(row);
                 }
                 out
             }
@@ -277,9 +286,10 @@ impl App {
                     .into_iter()
                     .flatten()
                     .map(|m| {
+                        let to = m["to"]["path_text"].as_str().unwrap_or_default();
                         self.list_row(
                             &m["node"],
-                            &format!("  → {}", m["to"]["path_text"].as_str().unwrap_or_default()),
+                            vec![Span::styled(format!("  → {to}"), Style::new().fg(MARK))],
                         )
                     })
                     .collect()
@@ -289,13 +299,18 @@ impl App {
                 let mut out = Vec::new();
                 for (d, list) in v["disposals"].as_object().into_iter().flatten() {
                     for n in list.as_array().into_iter().flatten() {
+                        let mut extra = vec![Span::styled(
+                            format!("  [{}]", disposition_tr(d)),
+                            Style::new().fg(MARK),
+                        )];
                         let parts = n["parts"].as_array().map_or(0, Vec::len);
-                        let extra = if parts > 0 {
-                            format!(" (+{parts} parça)")
-                        } else {
-                            String::new()
-                        };
-                        out.push(self.list_row(n, &format!("  [{}]{extra}", disposition_tr(d))));
+                        if parts > 0 {
+                            extra.push(Span::styled(
+                                format!("  (+{parts} parça)"),
+                                Style::new().fg(MUTED),
+                            ));
+                        }
+                        out.push(self.list_row(n, extra));
                     }
                 }
                 out
@@ -310,7 +325,13 @@ impl App {
                         let seen = m["last_seen"]["path_text"]
                             .as_str()
                             .unwrap_or("hiç bilinmiyor");
-                        self.list_row(&m["node"], &format!("  (son görüldüğü: {seen})"))
+                        self.list_row(
+                            &m["node"],
+                            vec![Span::styled(
+                                format!("  (son görüldüğü: {seen})"),
+                                Style::new().fg(LOST),
+                            )],
+                        )
                     })
                     .collect()
             }
@@ -326,13 +347,18 @@ impl App {
 
     fn row(&self, n: &Value, depth: usize, prefix: &str) -> Row {
         let id = n["id"].as_i64().unwrap_or_default();
+        let kids = children(n).len();
+        let expanded = self.expanded.contains(&id);
+        let mut spans = node_spans(n, &self.snap);
+        if kids > 0 && !expanded {
+            spans.push(Span::styled(format!("  ({kids})"), Style::new().fg(MUTED)));
+        }
         Row {
             id,
             depth,
-            text: format!("{prefix}{}{}", label(n), suffix(n, &self.snap)),
-            expandable: !children(n).is_empty(),
-            expanded: self.expanded.contains(&id),
-            muted: n["state"] == "candidate",
+            spans,
+            expandable: kids > 0,
+            expanded,
         }
     }
 
@@ -340,15 +366,14 @@ impl App {
         Row {
             id: n["id"].as_i64().unwrap_or_default(),
             depth: 0,
-            text: format!("{}{extra}", n["path_text"].as_str().unwrap_or_default()),
+            spans,
             expandable: false,
             expanded: false,
-            muted: false,
         }
     }
 
     fn flatten(&self, n: &Value, depth: usize, out: &mut Vec<Row>) {
-        let row = self.row(n, depth, "");
+        let row = self.tree_row(n, depth);
         let open = row.expanded;
         out.push(row);
         if open {
@@ -387,7 +412,7 @@ impl App {
             }
         }
         self.snap = next;
-        self.status = format!("güncellendi {}", chrono_like_now());
+        self.status = format!("güncellendi {}", clock_now());
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
@@ -407,7 +432,7 @@ impl App {
             .as_array()
             .into_iter()
             .flatten()
-            .map(|n| self.list_row(n, &suffix(n, &self.snap)))
+            .map(|n| self.list_row(n, marker_spans(n, &self.snap)))
             .collect();
         self.status = format!("\"{}\": {} sonuç", self.query, self.search_rows.len());
         Ok(())
@@ -434,15 +459,27 @@ impl App {
         if self.rows.is_empty() {
             return Ok(());
         }
-        let cur = self.state.selected().unwrap_or(0) as isize;
-        let next = (cur + delta).clamp(0, self.rows.len() as isize - 1) as usize;
-        self.state.select(Some(next));
+        self.state.select(Some(i.min(self.rows.len() - 1)));
         self.load_details()
     }
 
     fn switch(&mut self, tab: Tab) -> Result<()> {
         self.tab = tab;
         self.state.select(None);
+        self.rebuild()
+    }
+
+    /// Expands or collapses in the tree; in a list, jumps to the node in the tree.
+    fn activate(&mut self) -> Result<()> {
+        let Some(id) = self.selected_id() else {
+            return Ok(());
+        };
+        if self.tab != Tab::Tree {
+            return self.reveal(id);
+        }
+        if !self.expanded.remove(&id) {
+            self.expanded.insert(id);
+        }
         self.rebuild()
     }
 
@@ -470,8 +507,8 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.step(-1)?,
             KeyCode::PageDown => self.step(15)?,
             KeyCode::PageUp => self.step(-15)?,
-            KeyCode::Home | KeyCode::Char('g') => self.step(isize::MIN / 2)?,
-            KeyCode::End | KeyCode::Char('G') => self.step(isize::MAX / 2)?,
+            KeyCode::Home | KeyCode::Char('g') => self.select(0)?,
+            KeyCode::End | KeyCode::Char('G') => self.select(usize::MAX)?,
             KeyCode::Tab => self.switch(Tab::from_index(self.tab.index() + 1))?,
             KeyCode::BackTab => self.switch(Tab::from_index(self.tab.index() + TABS.len() - 1))?,
             KeyCode::Char(c @ '1'..='5') => {
@@ -512,6 +549,7 @@ impl App {
             Constraint::Length(1),
         ])
         .areas(f.area());
+        self.tabs_area = top;
         let tabs = Tabs::new(
             TABS.iter()
                 .enumerate()
@@ -524,9 +562,11 @@ impl App {
         let [left, right] =
             Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .areas(body);
+        self.list_area = left;
         let now = Instant::now();
         self.changed
             .retain(|_, t| now.duration_since(*t) < HIGHLIGHT_FOR);
+        let flash = Style::new().bg(Color::Yellow).fg(Color::Black);
         let items: Vec<ListItem> = self
             .rows
             .iter()
@@ -536,17 +576,15 @@ impl App {
                     (true, false) => "▸ ",
                     _ => "  ",
                 };
-                let mut style = Style::new();
-                if r.muted {
-                    style = style.fg(Color::DarkGray);
-                }
+                let mut spans = vec![
+                    Span::raw("  ".repeat(r.depth)),
+                    Span::styled(marker, Style::new().fg(MUTED)),
+                ];
+                spans.extend(r.spans.iter().cloned());
                 if self.changed.contains_key(&r.id) {
-                    style = style.bg(Color::Yellow).fg(Color::Black);
+                    spans = spans.into_iter().map(|s| s.patch_style(flash)).collect();
                 }
-                ListItem::new(Line::from(Span::styled(
-                    format!("{}{marker}{}", "  ".repeat(r.depth), r.text),
-                    style,
-                )))
+                ListItem::new(Line::from(spans))
             })
             .collect();
         let list = List::new(items)
@@ -563,11 +601,11 @@ impl App {
             format!("Ara: {}▏  (Enter ara · Esc vazgeç)", self.query)
         } else {
             format!(
-                "↑↓ gez · → aç · ← kapat · Enter git · Tab/1-5 sekme · / ara · q çık    {}",
+                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-5 sekme · / ara · q çık    {}",
                 self.status
             )
         };
-        f.render_widget(Paragraph::new(help).dim(), bottom);
+        f.render_widget(Paragraph::new(help).fg(MUTED), bottom);
     }
 
     fn details_text(&self) -> Text<'static> {
@@ -575,35 +613,34 @@ impl App {
             return Text::from("(boş)");
         };
         let n = &v["node"];
-        let mut lines = vec![
-            Line::from(n["path_text"].as_str().unwrap_or_default().to_string()).bold(),
-            Line::raw(""),
-        ];
-        let mut field = |k: &str, val: String| {
-            lines.push(Line::from(vec![format!("{k}: ").dim(), Span::raw(val)]))
+        let mut title = path_spans(n["path_text"].as_str().unwrap_or_default());
+        if let Some(last) = title.last_mut() {
+            *last = last.clone().bold();
+        }
+        let mut lines = vec![Line::from(title), Line::raw("")];
+        let mut field = |k: &str, val: Span<'static>| {
+            lines.push(Line::from(vec![
+                Span::styled(format!("{k}: "), Style::new().fg(MUTED)),
+                val,
+            ]))
         };
-        field("tür", n["kind"].as_str().unwrap_or_default().to_string());
-        field("id", n["id"].to_string());
+        field("tür", Span::raw(str_of(n, "kind")));
+        field("id", Span::raw(n["id"].to_string()));
         if let Some(c) = n["code"].as_str() {
-            field("kod", c.to_string());
+            field("kod", Span::styled(c.to_string(), Style::new().fg(CODE)));
         }
         if let Some(q) = n["qty"].as_i64() {
-            field("adet", q.to_string());
+            field("adet", Span::styled(q.to_string(), Style::new().fg(QTY)));
         }
+        let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
         match n["state"].as_str() {
             Some("candidate") => field(
                 "durum",
-                format!(
-                    "aday ({})",
-                    disposition_tr(n["disposition"].as_str().unwrap_or_default())
-                ),
+                Span::styled(format!("aday ({d})"), Style::new().fg(MARK)),
             ),
             Some("gone") => field(
                 "durum",
-                format!(
-                    "gitti ({})",
-                    disposition_tr(n["disposition"].as_str().unwrap_or_default())
-                ),
+                Span::styled(format!("gitti ({d})"), Style::new().fg(MUTED)),
             ),
             _ => {}
         }
@@ -611,18 +648,24 @@ impl App {
             let seen = v["last_seen"]["path_text"]
                 .as_str()
                 .unwrap_or("hiç bilinmiyor");
-            field("kayıp", format!("son görüldüğü: {seen}"));
+            field(
+                "kayıp",
+                Span::styled(format!("son görüldüğü: {seen}"), Style::new().fg(LOST)),
+            );
         }
         if let Some(p) = v["pending"]["path_text"].as_str() {
-            field("gidecek", p.to_string());
+            field(
+                "gidecek",
+                Span::styled(p.to_string(), Style::new().fg(MARK)),
+            );
         }
         for (k, key) in [("tema", "theme"), ("not", "note"), ("adres", "address")] {
             if let Some(x) = n[key].as_str() {
-                field(k, x.to_string());
+                field(k, Span::raw(x.to_string()));
             }
         }
         if let Some(fill) = n["fill"].as_i64() {
-            field("doluluk", format!("%{fill}"));
+            field("doluluk", Span::raw(format!("%{fill}")));
         }
         let tags: Vec<&str> = n["tags"]
             .as_array()
@@ -631,25 +674,26 @@ impl App {
             .filter_map(Value::as_str)
             .collect();
         if !tags.is_empty() {
-            field("etiketler", tags.join(", "));
+            field("etiketler", Span::raw(tags.join(", ")));
         }
         for p in n["photos"].as_array().into_iter().flatten() {
-            field("foto", p.as_str().unwrap_or_default().to_string());
+            field(
+                "foto",
+                Span::raw(p.as_str().unwrap_or_default().to_string()),
+            );
         }
         field(
             "güncellendi",
-            n["updated_at"].as_str().unwrap_or_default().to_string(),
+            Span::styled(str_of(n, "updated_at"), Style::new().fg(MUTED)),
         );
         let kids = v["children"].as_array().cloned().unwrap_or_default();
         if !kids.is_empty() {
             lines.push(Line::raw(""));
             lines.push(Line::from(format!("İçindekiler ({})", kids.len())).bold());
             for c in &kids {
-                lines.push(Line::raw(format!(
-                    "  {}{}",
-                    label(c),
-                    suffix(c, &self.snap)
-                )));
+                let mut spans = vec![Span::raw("  ")];
+                spans.extend(node_spans(c, &self.snap));
+                lines.push(Line::from(spans));
             }
         }
         Text::from(lines)
@@ -660,10 +704,10 @@ impl App {
         while !self.quit {
             terminal.draw(|f| self.draw(f)).map_err(io)?;
             if event::poll(POLL).map_err(io)? {
-                if let Event::Key(k) = event::read().map_err(io)?
-                    && k.kind == KeyEventKind::Press
-                {
-                    self.key(k)?;
+                match event::read().map_err(io)? {
+                    Event::Key(k) if k.kind == KeyEventKind::Press => self.key(k)?,
+                    Event::Mouse(m) => self.mouse(m)?,
+                    _ => {}
                 }
             } else {
                 self.refresh_if_changed()?;

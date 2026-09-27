@@ -55,3 +55,434 @@ CREATE TABLE events (
     type TEXT NOT NULL,
     data TEXT NOT NULL
 );
+CREATE INDEX events_node ON events(node_id);
+PRAGMA user_version = 1;
+COMMIT;
+";
+
+const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
+     state, disposition, lost, pending_to, created_at, updated_at";
+
+pub struct Inventory {
+    conn: Connection,
+}
+
+impl Inventory {
+    /// Opens or creates the database; refuses a file written by a newer schema (exit 6).
+    pub fn open(path: &Path) -> Result<Self> {
+        if let Some(dir) = path.parent()
+            && !dir.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| Error::Internal(format!("cannot create {}: {e}", dir.display())))?;
+        }
+        let conn = Connection::open(path)?;
+        conn.busy_timeout(Duration::from_secs(5))?;
+        let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version > SCHEMA_VERSION {
+            return Err(Error::NewerSchema {
+                found: version,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        if version < 1 {
+            conn.execute_batch(SCHEMA_V1)?;
+        }
+        Ok(Self { conn })
+    }
+
+    pub fn resolve(&self, reference: &str, include_gone: bool) -> Result<i64> {
+        resolve(&self.conn, reference, include_gone)
+    }
+
+    pub fn node(&self, id: i64) -> Result<Node> {
+        load(&self.conn, id)
+    }
+
+    pub fn brief(&self, id: i64) -> Result<NodeRef> {
+        brief(&self.conn, id)
+    }
+
+    pub fn add(&mut self, new: NewNode) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let parent = match new.parent.as_deref() {
+            Some(r) if r.starts_with('@') => {
+                return Err(Error::Usage(
+                    "`@key` references only work inside a batch".into(),
+                ));
+            }
+            Some(r) => Some(resolve(&tx, r, false)?),
+            None => None,
+        };
+        let id = add_one(&tx, &new, parent)?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    /// Adds every line or none (spec §6, §11.5).
+    pub fn add_batch(&mut self, lines: Vec<NewNode>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut keys: HashMap<String, i64> = HashMap::new();
+        let mut created = Vec::with_capacity(lines.len());
+        for (i, new) in lines.iter().enumerate() {
+            let line = i + 1;
+            let parent = match new.parent.as_deref() {
+                Some(r) if r.starts_with('@') => Some(*keys.get(&r[1..]).ok_or_else(|| {
+                    Error::Usage(format!("unknown batch key `{r}`")).at_line(line)
+                })?),
+                Some(r) => Some(resolve(&tx, r, false).map_err(|e| e.at_line(line))?),
+                None => None,
+            };
+            let id = add_one(&tx, new, parent).map_err(|e| e.at_line(line))?;
+            if let Some(key) = &new.key
+                && keys.insert(key.clone(), id).is_some()
+            {
+                return Err(Error::Usage(format!("duplicate batch key `{key}`")).at_line(line));
+            }
+            created.push(id);
+        }
+        tx.commit()?;
+        let nodes = created
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "created": nodes }))
+    }
+
+    pub fn show(&self, reference: &str, include_gone: bool) -> Result<Value> {
+        let id = resolve(&self.conn, reference, include_gone)?;
+        show(&self.conn, id)
+    }
+
+    pub fn tree(&self, reference: Option<&str>, depth: Option<usize>) -> Result<Value> {
+        let depth = depth.unwrap_or(usize::MAX);
+        match reference {
+            Some(r) => {
+                let id = resolve(&self.conn, r, false)?;
+                Ok(json!({ "tree": [subtree(&self.conn, id, depth)?] }))
+            }
+            None => {
+                let homes: Vec<i64> = ids(
+                    &self.conn,
+                    "SELECT id FROM nodes WHERE kind = 'home' AND state != 'gone' ORDER BY id",
+                    [],
+                )?;
+                let tree = homes
+                    .iter()
+                    .map(|id| subtree(&self.conn, *id, depth))
+                    .collect::<Result<Vec<_>>>()?;
+                let unplaced: Vec<i64> = ids(
+                    &self.conn,
+                    "SELECT id FROM nodes WHERE parent_id IS NULL AND kind != 'home' AND state != 'gone' ORDER BY id",
+                    [],
+                )?;
+                let unplaced = unplaced
+                    .iter()
+                    .map(|id| brief(&self.conn, *id))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({ "tree": tree, "unplaced": unplaced }))
+            }
+        }
+    }
+
+    pub fn find(
+        &self,
+        text: &str,
+        tag: Option<&str>,
+        kind: Option<Kind>,
+        include_gone: bool,
+    ) -> Result<Value> {
+        let needle = fold(text);
+        if needle.is_empty() {
+            return Err(Error::Usage("search text is empty".into()));
+        }
+        let tag = tag.map(|t| t.trim().to_lowercase());
+        let mut results = Vec::new();
+        for id in ids(&self.conn, "SELECT id FROM nodes ORDER BY id", [])? {
+            let n = load(&self.conn, id)?;
+            if (n.state == State::Gone && !include_gone)
+                || kind.is_some_and(|k| k != n.kind)
+                || tag.as_ref().is_some_and(|t| !n.tags.contains(t))
+            {
+                continue;
+            }
+            let haystacks = [
+                Some(&n.name),
+                n.code.as_ref(),
+                n.note.as_ref(),
+                n.theme.as_ref(),
+            ];
+            let hit = haystacks
+                .iter()
+                .flatten()
+                .any(|h| fold(h).contains(&needle))
+                || n.tags.iter().any(|t| fold(t).contains(&needle));
+            if hit {
+                results.push(brief(&self.conn, id)?);
+            }
+        }
+        Ok(json!({ "query": text, "results": results }))
+    }
+
+    /// Applies `field=value` assignments (spec §6, §11.6).
+    pub fn edit(&mut self, reference: &str, assignments: &[String]) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        let mut changes = serde_json::Map::new();
+        for a in assignments {
+            let (field, value) = a
+                .split_once('=')
+                .ok_or_else(|| Error::Usage(format!("`{a}` is not field=value")))?;
+            let field = field.trim();
+            let before = load(&tx, id)?;
+            apply_edit(&tx, &before, field, value)?;
+            let after = load(&tx, id)?;
+            let (b, a2) = (field_value(&before, field), field_value(&after, field));
+            if b != a2 {
+                changes.insert(field.to_string(), json!({ "before": b, "after": a2 }));
+            }
+        }
+        if !changes.is_empty() {
+            touch(&tx, id)?;
+            event(&tx, id, "edit", Value::Object(changes))?;
+        }
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    pub fn move_to(&mut self, reference: &str, to: &str, plan: bool) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let target = resolve(&tx, to, false)?;
+        if plan {
+            if let Some(p) = node.pending_to {
+                return Err(refused(
+                    format!(
+                        "{} already has a pending move; cancel it first",
+                        label(&node)
+                    ),
+                    json!({ "pending": brief(&tx, p)? }),
+                ));
+            }
+            tx.execute(
+                "UPDATE nodes SET pending_to = ?1 WHERE id = ?2",
+                params![target, node.id],
+            )?;
+            touch(&tx, node.id)?;
+            event(&tx, node.id, "plan", json!({ "to": target }))?;
+        } else {
+            apply_move(&tx, &node, target, "move")?;
+        }
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn pending(&self) -> Result<Value> {
+        let mut moves = Vec::new();
+        let rows: Vec<(i64, i64)> = pairs(
+            &self.conn,
+            "SELECT id, pending_to FROM nodes WHERE pending_to IS NOT NULL AND state != 'gone' ORDER BY id",
+        )?;
+        for (id, to) in rows {
+            moves.push(json!({ "node": brief(&self.conn, id)?, "to": brief(&self.conn, to)? }));
+        }
+        Ok(json!({ "pending": moves }))
+    }
+
+    pub fn done(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let target = node
+            .pending_to
+            .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+        apply_move(&tx, &node, target, "done")?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn cancel(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let target = node
+            .pending_to
+            .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+        tx.execute(
+            "UPDATE nodes SET pending_to = NULL WHERE id = ?1",
+            [node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(&tx, node.id, "cancel", json!({ "to": target }))?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn dispose(&mut self, reference: &str, disposition: Disposition) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.state != State::Active {
+            return Err(refused(
+                format!(
+                    "{} is already a candidate; use `ev gone` or `ev restore`",
+                    label(&node)
+                ),
+                Value::Null,
+            ));
+        }
+        require_empty(&tx, &node)?;
+        set_candidate(&tx, node.id, disposition)?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn restore(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.state != State::Candidate {
+            return Err(refused(
+                format!("{} is not a candidate", label(&node)),
+                Value::Null,
+            ));
+        }
+        tx.execute(
+            "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
+            [node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(&tx, node.id, "restore", json!({ "was": node.disposition }))?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    /// Final step of spec §3.3; one step from active when `--as` is given.
+    pub fn gone(&mut self, reference: &str, disposition: Option<Disposition>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.state == State::Active && disposition.is_none() {
+            return Err(refused(
+                format!(
+                    "{} is active; say how it left with --as trash|give|sell",
+                    label(&node)
+                ),
+                Value::Null,
+            ));
+        }
+        require_empty(&tx, &node)?;
+        let final_disposition = match (node.state, disposition) {
+            (State::Active, Some(d)) => {
+                set_candidate(&tx, node.id, d)?;
+                d
+            }
+            (_, Some(d)) => d,
+            (_, None) => node.disposition.unwrap_or(Disposition::Trash),
+        };
+        tx.execute(
+            "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
+            params![final_disposition.as_str(), node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(
+            &tx,
+            node.id,
+            "gone",
+            json!({ "as": final_disposition, "dropped_pending": node.pending_to }),
+        )?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn disposals(&self, filter: Option<Disposition>) -> Result<Value> {
+        let mut groups = serde_json::Map::new();
+        for d in [Disposition::Trash, Disposition::Give, Disposition::Sell] {
+            if filter.is_some_and(|f| f != d) {
+                continue;
+            }
+            let list: Vec<i64> = ids(
+                &self.conn,
+                "SELECT id FROM nodes WHERE state = 'candidate' AND disposition = ?1 ORDER BY id",
+                [d.as_str()],
+            )?;
+            let list = list
+                .iter()
+                .map(|id| brief(&self.conn, *id))
+                .collect::<Result<Vec<_>>>()?;
+            groups.insert(d.as_str().into(), json!(list));
+        }
+        Ok(json!({ "disposals": groups }))
+    }
+
+    pub fn mark_lost(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.kind == Kind::Home {
+            return Err(refused("a home cannot be lost", Value::Null));
+        }
+        if !node.lost {
+            tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
+            touch(&tx, node.id)?;
+            event(&tx, node.id, "lost", json!({ "last_seen": node.parent_id }))?;
+        }
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn found(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if !node.lost {
+            return Err(refused(
+                format!("{} is not lost", label(&node)),
+                Value::Null,
+            ));
+        }
+        if node.parent_id.is_none() {
+            return Err(refused(
+                format!(
+                    "{} has no known place; use `ev move` to put it somewhere",
+                    label(&node)
+                ),
+                Value::Null,
+            ));
+        }
+        tx.execute("UPDATE nodes SET lost = 0 WHERE id = ?1", [node.id])?;
+        touch(&tx, node.id)?;
+        event(&tx, node.id, "found", json!({ "at": node.parent_id }))?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn lost_list(&self) -> Result<Value> {
+        let mut out = Vec::new();
+        for id in ids(
+            &self.conn,
+            "SELECT id FROM nodes WHERE lost = 1 AND state != 'gone' ORDER BY id",
+            [],
+        )? {
+            let n = load(&self.conn, id)?;
+            let last_seen = n.parent_id.map(|p| brief(&self.conn, p)).transpose()?;
+            out.push(json!({ "node": brief(&self.conn, id)?, "last_seen": last_seen }));
+        }
+        Ok(json!({ "lost": out }))
+    }
+
+    pub fn history(&self, reference: &str) -> Result<Value> {
+        let id = resolve(&self.conn, reference, true)?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT at, type, data FROM events WHERE node_id = ?1 ORDER BY id")?;
+        let events = stmt
+            .query_map([id], |r| {
+                let data: String = r.get(2)?;
+                Ok(json!({
+                    "at": r.get::<_, String>(0)?,
+                    "type": r.get::<_, String>(1)?,
+                    "data": serde_json::from_str::<Value>(&data).unwrap_or(Value::Null),
+                }))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(json!({ "node": brief(&self.conn, id)?, "events": events }))
+    }
+}
+
+// ---------- reading ----------
+

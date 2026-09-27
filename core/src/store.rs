@@ -615,3 +615,26 @@ fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
     })
 }
 
+fn show(conn: &Connection, id: i64) -> Result<Value> {
+    let n = load(conn, id)?;
+    let segments = path(conn, id)?;
+    let mut node = serde_json::to_value(&n).map_err(|e| Error::Internal(e.to_string()))?;
+    node["path_text"] = json!(path_text(&segments));
+    node["path"] = json!(segments);
+    let children: Vec<i64> = ids(
+        conn,
+        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
+        [id],
+    )?;
+    let children = children
+        .iter()
+        .map(|c| brief(conn, *c))
+        .collect::<Result<Vec<_>>>()?;
+    let pending = n.pending_to.map(|p| brief(conn, p)).transpose()?;
+    let last_seen = match (n.lost, n.parent_id) {
+        (true, Some(p)) => Some(brief(conn, p)?),
+        _ => None,
+    };
+    Ok(json!({ "node": node, "children": children, "pending": pending, "last_seen": last_seen }))
+}
+

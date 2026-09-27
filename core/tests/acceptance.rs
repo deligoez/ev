@@ -68,3 +68,20 @@ fn a1_find_returns_full_path() {
     );
 }
 
+#[test]
+fn a2_move_into_own_descendant_is_refused() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(
+        &mut inv,
+        "Samla",
+        "container",
+        Some("K4x4-15-A"),
+        Some("S5-01"),
+    );
+    let e = inv.move_to("K4x4-15-A", "S5-01", false).unwrap_err();
+    assert_eq!(code_of(&e), 5);
+    let v = inv.show("K4x4-15-A", false).unwrap();
+    assert_eq!(v["node"]["path_text"], "Ev › Salon › K4x4 › K4x4-15-A");
+}
+

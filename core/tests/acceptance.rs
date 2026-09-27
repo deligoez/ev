@@ -178,3 +178,16 @@ fn a8_a9_code_reuse_after_gone_only() {
     );
 }
 
+#[test]
+fn a10_digit_only_code_is_refused() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    assert_eq!(
+        code_of(
+            &inv.add(node("Kutu", "container", Some("Kiler"), Some("12")))
+                .unwrap_err()
+        ),
+        5
+    );
+}
+

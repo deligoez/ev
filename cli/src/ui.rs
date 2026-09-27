@@ -113,3 +113,12 @@ fn signature(n: &Value, parent: Option<i64>) -> String {
     )
 }
 
+fn disposition_tr(d: &str) -> &'static str {
+    match d {
+        "trash" => "çöp",
+        "give" => "ver",
+        "sell" => "sat",
+        _ => "?",
+    }
+}
+

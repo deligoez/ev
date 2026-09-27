@@ -409,3 +409,14 @@ fn a_bundle_of_candidates_is_disposed_and_leaves_together() {
             .is_empty()
     );
 }
+
+#[test]
+fn data_version_moves_when_another_connection_writes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ev.db");
+    let reader = Inventory::open(&path).unwrap();
+    let mut writer = Inventory::open(&path).unwrap();
+    let before = reader.data_version().unwrap();
+    writer.add(node("Ev", "home", None, None)).unwrap();
+    assert_ne!(reader.data_version().unwrap(), before);
+}

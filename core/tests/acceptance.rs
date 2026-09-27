@@ -263,3 +263,21 @@ fn lost_without_place_and_found_in_place() {
     assert_eq!(v["node"]["lost"], false);
 }
 
+#[test]
+fn a15_batch_is_all_or_nothing() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let mut first = node("Kutu", "container", Some("Kiler"), Some("S5-09"));
+    first.key = Some("k".into());
+    let second = node("Kalem", "item", Some("@k"), None);
+    let third = node("Bozuk", "container", Some("Kiler"), Some("S5-09"));
+    let e = inv
+        .add_batch(vec![first.clone(), second.clone(), third])
+        .unwrap_err();
+    assert_eq!(code_of(&e), 5);
+    assert!(e.to_string().starts_with("line 3:"), "{e}");
+    assert_eq!(code_of(&inv.show("S5-09", false).unwrap_err()), 3);
+    let v = inv.add_batch(vec![first, second]).unwrap();
+    assert_eq!(v["created"][1]["path_text"], "Ev › Kiler › S5-09 › Kalem");
+}
+

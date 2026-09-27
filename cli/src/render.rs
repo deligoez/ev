@@ -36,6 +36,48 @@ fn line(n: &Value) -> String {
     out
 }
 
+fn place_marks(n: &Value) -> String {
+    let mut out = String::new();
+    if let Some(x) = n["to"].as_str() {
+        let _ = write!(out, "  (to: {x})");
+    }
+    if let Some(x) = n["owner"].as_str() {
+        let _ = write!(out, "  (owner: {x})");
+    }
+    if let Some(x) = n["with"].as_str() {
+        let _ = write!(out, "  (with: {x})");
+    }
+    out
+}
+
+fn place_head(p: &Value) -> String {
+    let aliases: Vec<&str> = p["aliases"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    format!("{}  ({})", s(p, "name"), aliases.join(", "))
+}
+
+fn errands(out: &mut String, e: &Value) {
+    let _ = writeln!(out, "{}", place_head(&e["place"]));
+    for (key, title) in [
+        ("take", "take"),
+        ("return", "return (theirs)"),
+        ("collect", "collect (lent)"),
+    ] {
+        let list = e[key].as_array().cloned().unwrap_or_default();
+        if list.is_empty() {
+            continue;
+        }
+        let _ = writeln!(out, "  {title}:");
+        for n in &list {
+            let _ = writeln!(out, "    {}", s(n, "path_text"));
+        }
+    }
+}
+
 fn tree(out: &mut String, n: &Value, indent: usize) {
     let label = match n["code"].as_str() {
         Some(c) => format!("{c}  {}", s(n, "name")),

@@ -131,3 +131,18 @@ fn batch_from_stdin_with_keys() {
     assert_eq!(v["node"]["fill"], 20);
 }
 
+#[test]
+fn db_flag_wins_over_env() {
+    let ev = seeded();
+    let other = tempfile::tempdir().unwrap();
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env("EV_DB", other.path().join("other.db"))
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["find", "anten"])
+        .output()
+        .unwrap();
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["results"].as_array().unwrap().len(), 2);
+}

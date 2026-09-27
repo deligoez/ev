@@ -4,8 +4,12 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use ev_core::{Error, Inventory, Result};
-use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::layout::{Constraint, Layout};
+use ratatui::crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+    KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
+use ratatui::crossterm::execute;
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Tabs, Wrap};
@@ -14,6 +18,7 @@ use serde_json::Value;
 
 const POLL: Duration = Duration::from_millis(500);
 const HIGHLIGHT_FOR: Duration = Duration::from_secs(6);
+const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 const TABS: [&str; 5] = ["Ağaç", "Bekleyen", "Çıkış", "Kayıp", "Ara"];
 
 #[derive(Clone, Copy, PartialEq, Eq)]

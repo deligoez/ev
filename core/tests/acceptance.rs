@@ -121,3 +121,16 @@ fn a5_gone_without_disposition_is_refused_for_active() {
     assert_eq!(code_of(&inv.gone("Flipper Zero", None).unwrap_err()), 5);
 }
 
+#[test]
+fn a6_gone_with_disposition_in_one_step() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let v = inv.gone("Flipper Zero", Some(Disposition::Trash)).unwrap();
+    assert_eq!(v["node"]["state"], "gone");
+    assert_eq!(v["node"]["disposition"], "trash");
+    assert_eq!(
+        event_types(&inv, "Flipper Zero"),
+        ["create", "dispose", "gone"]
+    );
+}
+

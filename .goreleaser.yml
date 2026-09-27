@@ -2,10 +2,6 @@ version: 2
 
 project_name: ev
 
-before:
-  hooks:
-    - cargo test --locked
-
 builds:
   - id: ev
     builder: rust

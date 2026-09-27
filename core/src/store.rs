@@ -583,3 +583,11 @@ fn path(conn: &Connection, id: i64) -> Result<Vec<PathSegment>> {
     Ok(segments)
 }
 
+fn path_text(segments: &[PathSegment]) -> String {
+    segments
+        .iter()
+        .map(|s| s.code.clone().unwrap_or_else(|| s.name.clone()))
+        .collect::<Vec<_>>()
+        .join(" › ")
+}
+

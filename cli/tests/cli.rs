@@ -104,3 +104,30 @@ fn errors_go_to_stderr_with_fixed_codes() {
     assert_eq!(code, 2);
 }
 
+#[test]
+fn batch_from_stdin_with_keys() {
+    let ev = seeded();
+    let lines = concat!(
+        "{\"key\":\"s\",\"name\":\"Ses ve kablo\",\"kind\":\"container\",\"in\":\"Salon\",\"code\":\"S5-01\",\"fill\":20}\n",
+        "{\"name\":\"Belkin çoklayıcı\",\"kind\":\"item\",\"in\":\"@s\"}\n",
+        "{\"name\":\"Ses adaptörü\",\"kind\":\"item\",\"in\":\"@s\",\"qty\":3}\n",
+    );
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .args(["--db"])
+        .arg(&ev.db)
+        .args(["add", "--stdin"])
+        .write_stdin(lines)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v = ev.ok(&["show", "s5-01"]);
+    assert_eq!(v["children"].as_array().unwrap().len(), 2);
+    assert_eq!(v["node"]["fill"], 20);
+}
+

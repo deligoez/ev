@@ -486,3 +486,9 @@ impl Inventory {
 
 // ---------- reading ----------
 
+fn db_enum<T: std::str::FromStr<Err = Error>>(idx: usize, s: String) -> rusqlite::Result<T> {
+    s.parse::<T>().map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(idx, rusqlite::types::Type::Text, Box::new(e))
+    })
+}
+

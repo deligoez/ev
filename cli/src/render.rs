@@ -40,9 +40,19 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
         Some(c) => format!("{c}  {}", s(n, "name")),
         None => s(n, "name"),
     };
+    let mut extra = String::new();
+    if let Some(q) = n["qty"].as_i64() {
+        let _ = write!(extra, "  ×{q}");
+    }
+    if s(n, "state") == "candidate" {
+        let _ = write!(extra, "  (candidate: {})", s(n, "disposition"));
+    }
+    if n["lost"].as_bool() == Some(true) {
+        extra.push_str("  (lost)");
+    }
     let _ = writeln!(
         out,
-        "{}{label}  #{} ({})",
+        "{}{label}  #{} ({}){extra}",
         "  ".repeat(indent),
         n["id"],
         s(n, "kind")

@@ -242,7 +242,13 @@ impl App {
                 let mut out = Vec::new();
                 for (d, list) in v["disposals"].as_object().into_iter().flatten() {
                     for n in list.as_array().into_iter().flatten() {
-                        out.push(self.list_row(n, &format!("  [{}]", disposition_tr(d))));
+                        let parts = n["parts"].as_array().map_or(0, Vec::len);
+                        let extra = if parts > 0 {
+                            format!(" (+{parts} parça)")
+                        } else {
+                            String::new()
+                        };
+                        out.push(self.list_row(n, &format!("  [{}]{extra}", disposition_tr(d))));
                     }
                 }
                 out

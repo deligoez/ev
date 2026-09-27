@@ -68,7 +68,7 @@ expanding their parents so they are in view.
 | ↑ ↓ / j k, PgUp PgDn, g G | move |
 | → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
 | ← / h | collapse, or go to the parent |
-| Tab, Shift-Tab, 1–6 | tabs: tree, pending moves, disposals, lost, places, search |
+| Tab, Shift-Tab, 1–6 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search |
 | / | search (same folding as `ev find`), Enter to run, Esc to cancel |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | q / Esc | quit |

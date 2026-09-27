@@ -896,3 +896,9 @@ fn absolute(p: &str) -> Result<String> {
         .map_err(|e| Error::Usage(format!("photo path `{p}`: {e}")))
 }
 
+fn non_empty(v: &Option<String>) -> Option<String> {
+    v.as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+

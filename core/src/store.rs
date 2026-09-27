@@ -329,7 +329,7 @@ impl Inventory {
                 Value::Null,
             ));
         }
-        require_empty(&tx, &node)?;
+        require_no_active_inside(&tx, &node)?;
         set_candidate(&tx, node.id, disposition)?;
         tx.commit()?;
         show(&self.conn, node.id)
@@ -367,7 +367,7 @@ impl Inventory {
                 Value::Null,
             ));
         }
-        require_empty(&tx, &node)?;
+        let inside = require_no_active_inside(&tx, &node)?;
         let final_disposition = match (node.state, disposition) {
             (State::Active, Some(d)) => {
                 set_candidate(&tx, node.id, d)?;
@@ -387,6 +387,20 @@ impl Inventory {
             "gone",
             json!({ "as": final_disposition, "dropped_pending": node.pending_to }),
         )?;
+        // Candidates inside leave with it, each keeping its own disposition.
+        for n in &inside {
+            tx.execute(
+                "UPDATE nodes SET state = 'gone', pending_to = NULL WHERE id = ?1",
+                [n.id],
+            )?;
+            touch(&tx, n.id)?;
+            event(
+                &tx,
+                n.id,
+                "gone",
+                json!({ "as": n.disposition, "with": node.id, "dropped_pending": n.pending_to }),
+            )?;
+        }
         tx.commit()?;
         show(&self.conn, node.id)
     }

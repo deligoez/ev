@@ -149,3 +149,18 @@ pub fn human(v: &Value) -> String {
     out
 }
 
+pub fn error(e: &Error) -> String {
+    let mut out = format!("error: {e}\n");
+    let v = e.to_json();
+    for c in v["error"]["candidates"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", line(c));
+    }
+    for c in v["error"]["details"]["children"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        let _ = writeln!(out, "  holds {}", line(c));
+    }
+    out
+}

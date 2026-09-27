@@ -53,3 +53,18 @@ Errors print nothing on stdout; stderr carries
 ## Event types
 
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found.
+
+## `ev ui`
+
+A read-only terminal browser. It never writes; it polls SQLite's `data_version` every half
+second and re-reads when another process has written, highlighting the nodes that changed and
+expanding their parents so they are in view.
+
+| Key | Action |
+|---|---|
+| ↑ ↓ / j k, PgUp PgDn, g G | move |
+| → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
+| ← / h | collapse, or go to the parent |
+| Tab, Shift-Tab, 1–5 | tabs: tree, pending moves, disposals, lost, search |
+| / | search (same folding as `ev find`), Enter to run, Esc to cancel |
+| q / Esc | quit |

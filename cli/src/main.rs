@@ -154,6 +154,12 @@ struct AddArgs {
     tags: Vec<String>,
     #[arg(long = "photo")]
     photos: Vec<String>,
+    /// Place this node should be taken to.
+    #[arg(long)]
+    to: Option<String>,
+    /// Place this node belongs to when it is not ours.
+    #[arg(long)]
+    owner: Option<String>,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,

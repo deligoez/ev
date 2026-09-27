@@ -134,3 +134,21 @@ fn a6_gone_with_disposition_in_one_step() {
     );
 }
 
+#[test]
+fn a7_gone_refuses_a_box_that_still_holds_something() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "Kutu", "container", Some("Kiler"), Some("B1"));
+    add(&mut inv, "Kalem", "item", Some("B1"), None);
+    assert_eq!(
+        code_of(&inv.dispose("B1", Disposition::Give).unwrap_err()),
+        5
+    );
+    let e = inv.gone("B1", Some(Disposition::Give)).unwrap_err();
+    assert_eq!(code_of(&e), 5);
+    assert_eq!(
+        e.to_json()["error"]["details"]["children"][0]["name"],
+        "Kalem"
+    );
+}
+

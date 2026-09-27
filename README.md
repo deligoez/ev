@@ -7,7 +7,7 @@ moves, a give/sell/trash pipeline, lost items and a full history.
 ## Install
 
 ```bash
-cargo install --path cli        # the `ev` binary (Homebrew formula to follow)
+brew install deligoez/tap/ev     # the `ev` binary (or: cargo install --path cli)
 npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx skills update -g`
 ```
 

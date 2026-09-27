@@ -764,7 +764,21 @@ impl App {
     }
 }
 
-fn chrono_like_now() -> String {
+/// Which tab title sits at `x`, given ratatui's default padding of one space each side
+/// and a one-cell divider between titles.
+fn tab_at(x: u16) -> Option<Tab> {
+    let mut start = 0u16;
+    for (i, t) in TABS.iter().enumerate() {
+        let width = format!("{} {t}", i + 1).chars().count() as u16 + 2;
+        if x >= start && x < start + width {
+            return Some(Tab::from_index(i));
+        }
+        start += width + 1;
+    }
+    None
+}
+
+fn clock_now() -> String {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())

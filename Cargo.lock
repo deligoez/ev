@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "ev-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "rusqlite",

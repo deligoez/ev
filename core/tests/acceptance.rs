@@ -505,3 +505,114 @@ fn returning_what_is_not_ours_is_a_disposition() {
             .is_empty()
     );
 }
+
+#[test]
+fn suggest_lists_every_holder_and_where_alike_things_are() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let screws = add(&mut inv, "Vida kutusu", "container", Some("K4x4"), None);
+    add(
+        &mut inv,
+        "Havşa vida 2 cm",
+        "item",
+        Some(&screws.to_string()),
+        None,
+    );
+    add(
+        &mut inv,
+        "Boş gridfinity kutu",
+        "container",
+        Some("Kiler"),
+        None,
+    );
+    let bag = add(&mut inv, "Çanta", "item", Some("Kiler"), None);
+    add(&mut inv, "Şarj aleti", "item", Some(&bag.to_string()), None);
+    inv.rule_add("Pahalı eşya kilere gitmez").unwrap();
+
+    let v = inv.suggest("uzun vida", None).unwrap();
+    assert_eq!(v["rules"][0]["text"], "Pahalı eşya kilere gitmez");
+    assert_eq!(v["similar"][0]["container"]["id"], screws);
+
+    // Completeness: every room, furniture, container and item that holds something is listed,
+    // including the empty box and the bag, and nothing else.
+    let listed: Vec<i64> = v["containers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_i64().unwrap())
+        .collect();
+    for name in [
+        "Salon",
+        "Kiler",
+        "K4x4",
+        "K4x4-15-A",
+        "Vida kutusu",
+        "Boş gridfinity kutu",
+        "Çanta",
+    ] {
+        let id = inv.resolve(name, false).unwrap();
+        assert!(listed.contains(&id), "{name} missing from suggest");
+    }
+    let flipper = inv.resolve("Flipper Zero", false).unwrap();
+    assert!(!listed.contains(&flipper));
+    assert_eq!(v["complete"]["containers"], listed.len());
+    assert_eq!(code_of(&inv.suggest("  ", None).unwrap_err()), 2);
+}
+
+#[test]
+fn audit_finds_alike_things_split_up_and_gaps() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let a = add(&mut inv, "Çekmece A", "container", Some("K4x4"), None);
+    let b = add(&mut inv, "Çekmece B", "container", Some("K4x4"), None);
+    add(
+        &mut inv,
+        "SanDisk hafıza kartı",
+        "item",
+        Some(&a.to_string()),
+        None,
+    );
+    add(
+        &mut inv,
+        "Transcend hafıza kartı",
+        "item",
+        Some(&b.to_string()),
+        None,
+    );
+    add(&mut inv, "Sehpada duran kalem", "item", Some("Salon"), None);
+    let v = inv.audit().unwrap();
+    let words: Vec<&str> = v["spread"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["word"].as_str().unwrap())
+        .collect();
+    assert!(words.contains(&"hafiza"), "{words:?}");
+    assert!(
+        v["loose"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["name"] == "Sehpada duran kalem")
+    );
+    assert!(
+        v["no_theme"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["id"] == a)
+    );
+}
+
+#[test]
+fn rules_are_added_listed_and_removed() {
+    let (_d, mut inv) = inv();
+    let v = inv.rule_add("Çekmeceler günlük kullanım içindir").unwrap();
+    let id = v["rules"][0]["id"].as_i64().unwrap();
+    assert_eq!(
+        inv.rule_list().unwrap()["rules"].as_array().unwrap().len(),
+        1
+    );
+    inv.rule_remove(id).unwrap();
+    assert_eq!(code_of(&inv.rule_remove(id).unwrap_err()), 3);
+}

@@ -296,3 +296,39 @@ fn a16_newer_schema_is_refused_and_untouched() {
     assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
+#[test]
+fn reference_table_of_section_4() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(
+        &mut inv,
+        "Ses ve kablo",
+        "container",
+        Some("Kiler"),
+        Some("S5-01"),
+    );
+    add(
+        &mut inv,
+        "Çekmece",
+        "container",
+        Some("K4x4"),
+        Some("K4x4-07-Ü"),
+    );
+    let masa = add(&mut inv, "Masa", "furniture", Some("Salon"), None);
+    add(&mut inv, "Anten", "item", Some("K4x4-07-Ü"), None);
+    add(&mut inv, "Anten", "item", Some(&masa.to_string()), None);
+
+    let s501 = inv.resolve("S5-01", false).unwrap();
+    assert_eq!(inv.resolve(&s501.to_string(), false).unwrap(), s501);
+    assert_eq!(inv.resolve("s5-01", false).unwrap(), s501);
+    let k = inv.resolve("k4x4-07-u", false).unwrap();
+    assert_eq!(inv.brief(k).unwrap().code.as_deref(), Some("K4x4-07-Ü"));
+    let f = inv.resolve("flipper zero", false).unwrap();
+    assert_eq!(inv.brief(f).unwrap().name, "Flipper Zero");
+    assert_eq!(code_of(&inv.resolve("flipper", false).unwrap_err()), 3);
+    let e = inv.resolve("anten", false).unwrap_err();
+    assert_eq!(code_of(&e), 4);
+    let v: Value = e.to_json();
+    assert_eq!(v["error"]["candidates"].as_array().unwrap().len(), 2);
+}
+

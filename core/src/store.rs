@@ -991,3 +991,26 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
     Ok(())
 }
 
+fn require_empty(conn: &Connection, node: &Node) -> Result<()> {
+    let kids: Vec<i64> = ids(
+        conn,
+        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
+        [node.id],
+    )?;
+    if kids.is_empty() {
+        return Ok(());
+    }
+    let children = kids
+        .iter()
+        .map(|k| brief_json(conn, *k))
+        .collect::<Result<Vec<_>>>()?;
+    Err(refused(
+        format!(
+            "{} still holds {} node(s); move or dispose of them first",
+            label(node),
+            kids.len()
+        ),
+        json!({ "children": children }),
+    ))
+}
+

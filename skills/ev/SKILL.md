@@ -33,6 +33,16 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 5. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
+## Going somewhere
+
+Whenever the person says they are going somewhere or meeting someone ("yarın Mahmutlara
+gidiyorum", "Ayşe gelecek"), run `ev for <place>` with the Turkish case suffix removed
+(`Mahmutlara` → `Mahmutlar`) and tell them what to take, return and collect, with where each
+thing is. Record new intentions as they come up: `ev edit X to=<place>` (take it there),
+`ev edit X owner=<place>` (it is theirs), `ev lend X --to <place>` / `ev back X` (lent out).
+Different names for the same household are aliases of one place (`ev place alias`); if two
+places turn out to be the same, `ev place merge`.
+
 ## Let the person watch
 
 Suggest `ev ui` in a second terminal at the start of a session: it is read-only and

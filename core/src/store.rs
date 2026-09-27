@@ -562,3 +562,24 @@ fn pairs(conn: &Connection, sql: &str) -> Result<Vec<(i64, i64)>> {
     Ok(rows)
 }
 
+fn path(conn: &Connection, id: i64) -> Result<Vec<PathSegment>> {
+    let mut segments = Vec::new();
+    let mut cur = Some(id);
+    while let Some(c) = cur {
+        if segments.len() > MAX_DEPTH {
+            return Err(Error::Internal(format!(
+                "parent chain of node {id} does not end"
+            )));
+        }
+        let (code, name, parent): (Option<String>, String, Option<i64>) = conn.query_row(
+            "SELECT code, name, parent_id FROM nodes WHERE id = ?1",
+            [c],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+        segments.push(PathSegment { id: c, code, name });
+        cur = parent;
+    }
+    segments.reverse();
+    Ok(segments)
+}
+

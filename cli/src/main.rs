@@ -262,6 +262,13 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Found { reference } => inv.found(&reference),
         Cmd::History { reference } => inv.history(&reference),
         Cmd::Ui => ui::run(inv).map(|()| Value::Null),
+        Cmd::Lend { reference, to } => inv.lend(&reference, &to),
+        Cmd::Back { reference } => inv.back(&reference),
+        Cmd::For { place } => inv.errands(place.as_deref()),
+        Cmd::Place(PlaceCmd::Add { name, aliases }) => inv.place_add(&name, &aliases),
+        Cmd::Place(PlaceCmd::Alias { place, alias }) => inv.place_alias(&place, &alias),
+        Cmd::Place(PlaceCmd::List) => inv.place_list(),
+        Cmd::Place(PlaceCmd::Merge { from, into }) => inv.place_merge(&from, &into),
     }
 }
 

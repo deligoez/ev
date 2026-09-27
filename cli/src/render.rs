@@ -50,6 +50,10 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
     if n["lost"].as_bool() == Some(true) {
         extra.push_str("  (lost)");
     }
+    let total = n["items"].as_i64().unwrap_or(0);
+    if total > 0 {
+        let _ = write!(extra, "  [{total} items]");
+    }
     let _ = writeln!(
         out,
         "{}{label}  #{} ({}){extra}",

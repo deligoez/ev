@@ -140,6 +140,64 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    if let Some(rules) = v.get("rules").and_then(Value::as_array) {
+        if !rules.is_empty() || v.get("containers").is_none() {
+            let _ = writeln!(out, "Rules:");
+            for r in rules {
+                let _ = writeln!(out, "  {}. {}", r["id"], s(r, "text"));
+            }
+        }
+        if v.get("containers").is_none() {
+            return out;
+        }
+        let _ = writeln!(out, "Similar things are in:");
+        for x in v["similar"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {}  ({}: {})",
+                s(&x["container"], "path_text"),
+                x["count"],
+                x["matches"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        let _ = writeln!(
+            out,
+            "All {} places that can hold something:",
+            v["complete"]["containers"]
+        );
+        for c in v["containers"].as_array().into_iter().flatten() {
+            let theme = c["theme"]
+                .as_str()
+                .map(|t| format!("  [{t}]"))
+                .unwrap_or_default();
+            let _ = writeln!(out, "  {}{theme}  {} items", s(c, "path_text"), c["items"]);
+        }
+        return out;
+    }
+    if v.get("spread").is_some() && v.get("no_theme").is_some() {
+        let _ = writeln!(out, "Alike things in several places:");
+        for x in v["spread"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", s(x, "word"));
+            for p in x["places"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "    {}", s(p, "path_text"));
+            }
+        }
+        let _ = writeln!(out, "Holders without a theme:");
+        for n in v["no_theme"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", s(n, "path_text"));
+        }
+        let _ = writeln!(out, "Items lying loose in a room or on furniture:");
+        for n in v["loose"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", s(n, "path_text"));
+        }
+        return out;
+    }
     if v.get("take").is_some() && v.get("place").is_some() {
         errands(&mut out, v);
         return out;

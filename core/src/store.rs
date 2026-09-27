@@ -1566,6 +1566,294 @@ fn add_alias(conn: &Connection, place: i64, alias: &str) -> Result<()> {
     Ok(())
 }
 
+// ---------- placement: rules, suggest, audit (spec §14) ----------
+
+/// Words too common to say two items are alike.
+const STOPWORDS: &[&str] = &[
+    "icin",
+    "ile",
+    "veya",
+    "gibi",
+    "olan",
+    "adet",
+    "kutu",
+    "kutusu",
+    "plastik",
+    "beyaz",
+    "siyah",
+    "mavi",
+    "sari",
+    "turuncu",
+    "kucuk",
+    "buyuk",
+    "uzun",
+    "kisa",
+    "the",
+    "and",
+    "for",
+    "with",
+    "birkac",
+    "metal",
+    "olabilir",
+    "seffaf",
+    "diger",
+    "kirmizi",
+    "yesil",
+    "gri",
+    "mor",
+    "mini",
+    "renkli",
+    "cesitli",
+    "karisik",
+    "tane",
+    "kutulu",
+    "uzerinde",
+    "poset",
+    "posette",
+    "posetli",
+    "posetlerde",
+    "eski",
+    "yeni",
+    "iki",
+    "tek",
+    "muhtemelen",
+    "belirsiz",
+    "net",
+    "degil",
+    "parca",
+    "parcalar",
+    "parcasi",
+    "gorunumlu",
+    "benzeri",
+    "turu",
+    "tipi",
+    "set",
+    "seti",
+    "bir",
+    "cok",
+    "az",
+    "icerik",
+    "fotografta",
+    "fotograftan",
+    "sayida",
+    "bordo",
+    "erkek",
+];
+
+fn words(text: &str) -> Vec<String> {
+    fold(text)
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() >= 3 && !STOPWORDS.contains(w))
+        .map(str::to_string)
+        .collect()
+}
+
+fn node_text(n: &Node) -> String {
+    let mut t = n.name.clone();
+    for x in [&n.note, &n.theme, &n.code].into_iter().flatten() {
+        t.push(' ');
+        t.push_str(x);
+    }
+    for tag in &n.tags {
+        t.push(' ');
+        t.push_str(tag);
+    }
+    t
+}
+
+fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
+    ids(
+        conn,
+        "SELECT id FROM nodes WHERE state != 'gone' ORDER BY id",
+        [],
+    )?
+    .into_iter()
+    .map(|id| load(conn, id))
+    .collect()
+}
+
+/// Anything something can be put into: every node that is not a home and is either not an
+/// item or already holds something.
+fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>) -> bool {
+    n.kind != Kind::Home && (n.kind != Kind::Item || has_children.contains(&n.id))
+}
+
+fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
+    let segments = path(conn, n.id)?;
+    let inside: Vec<&str> = all
+        .iter()
+        .filter(|c| c.parent_id == Some(n.id) && c.kind == Kind::Item)
+        .map(|c| c.name.as_str())
+        .collect();
+    let mut v = json!({
+        "id": n.id,
+        "code": n.code,
+        "name": n.name,
+        "kind": n.kind,
+        "path_text": path_text(&segments),
+        "items": item_total(conn, n.id)?,
+        "sample": inside.iter().take(6).collect::<Vec<_>>(),
+    });
+    for (k, val) in [("theme", &n.theme), ("note", &n.note)] {
+        if let Some(x) = val {
+            v[k] = json!(x);
+        }
+    }
+    if let Some(f) = n.fill {
+        v["fill"] = json!(f);
+    }
+    if n.lost {
+        v["lost"] = json!(true);
+    }
+    Ok(v)
+}
+
+fn rules_json(conn: &Connection) -> Result<Vec<Value>> {
+    let mut stmt = conn.prepare("SELECT id, text FROM rules ORDER BY id")?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(json!({ "id": r.get::<_, i64>(0)?, "text": r.get::<_, String>(1)? }))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+impl Inventory {
+    pub fn rule_add(&mut self, text: &str) -> Result<Value> {
+        let t = text.trim();
+        if t.is_empty() {
+            return Err(Error::Usage("rule text is empty".into()));
+        }
+        self.conn.execute(
+            "INSERT INTO rules (text, created_at) VALUES (?1, ?2)",
+            params![t, now()],
+        )?;
+        Ok(json!({ "rules": rules_json(&self.conn)? }))
+    }
+
+    pub fn rule_list(&self) -> Result<Value> {
+        Ok(json!({ "rules": rules_json(&self.conn)? }))
+    }
+
+    pub fn rule_remove(&mut self, id: i64) -> Result<Value> {
+        if self.conn.execute("DELETE FROM rules WHERE id = ?1", [id])? == 0 {
+            return Err(Error::NotFound(format!("no rule with id {id}")));
+        }
+        Ok(json!({ "rules": rules_json(&self.conn)? }))
+    }
+
+    /// Where could this go: the rules, where similar things already are, and every place in
+    /// the tree that can hold something. Nothing is ranked away; the agent decides.
+    pub fn suggest(&self, text: &str, tag: Option<&str>) -> Result<Value> {
+        let wanted = words(text);
+        let tag = tag.map(|t| t.trim().to_lowercase());
+        if wanted.is_empty() && tag.is_none() {
+            return Err(Error::Usage(
+                "describe the thing to place (at least one word of 3+ letters)".into(),
+            ));
+        }
+        let all = live_nodes(&self.conn)?;
+        let has_children: std::collections::HashSet<i64> =
+            all.iter().filter_map(|n| n.parent_id).collect();
+        let mut similar: HashMap<i64, Vec<String>> = HashMap::new();
+        for n in all.iter().filter(|n| n.kind == Kind::Item) {
+            let own = words(&node_text(n));
+            let hit = wanted.iter().any(|w| {
+                own.iter()
+                    .any(|o| o.contains(w.as_str()) || w.contains(o.as_str()))
+            }) || tag.as_ref().is_some_and(|t| n.tags.contains(t));
+            if let (true, Some(p)) = (hit, n.parent_id) {
+                similar.entry(p).or_default().push(n.name.clone());
+            }
+        }
+        let mut similar: Vec<(i64, Vec<String>)> = similar.into_iter().collect();
+        similar.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
+        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+        let similar = similar
+            .into_iter()
+            .map(|(p, names)| {
+                Ok(json!({ "container": holder_json(&self.conn, by_id[&p], &all)?, "count": names.len(), "matches": names }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let holders = all
+            .iter()
+            .filter(|n| is_holder(n, &has_children))
+            .map(|n| holder_json(&self.conn, n, &all))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({
+            "query": text,
+            "rules": rules_json(&self.conn)?,
+            "similar": similar,
+            "containers": holders,
+            "complete": { "containers": holders.len(), "note": "every place in the tree that can hold something is listed" },
+        }))
+    }
+
+    /// Where the inventory could be tidier: alike things split across places, holders without
+    /// a theme, and items lying directly in a room or on furniture.
+    pub fn audit(&self) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+        let has_children: std::collections::HashSet<i64> =
+            all.iter().filter_map(|n| n.parent_id).collect();
+        let mut spread: std::collections::BTreeMap<
+            String,
+            std::collections::BTreeMap<i64, Vec<String>>,
+        > = Default::default();
+        for n in all.iter().filter(|n| n.kind == Kind::Item) {
+            let Some(p) = n.parent_id else { continue };
+            let mut ws = words(&n.name);
+            ws.extend(n.tags.iter().flat_map(|t| words(t)));
+            ws.sort();
+            ws.dedup();
+            for w in ws.into_iter().filter(|w| w.chars().count() >= 4) {
+                spread
+                    .entry(w)
+                    .or_default()
+                    .entry(p)
+                    .or_default()
+                    .push(n.name.clone());
+            }
+        }
+        let mut spread: Vec<Value> = spread
+            .into_iter()
+            .filter(|(_, places)| (2..=8).contains(&places.len()))
+            .map(|(w, places)| {
+                let list = places
+                    .iter()
+                    .map(|(p, names)| {
+                        let segs = path(&self.conn, *p)?;
+                        Ok(json!({ "path_text": path_text(&segs), "items": names }))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({ "word": w, "places": list }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        spread.sort_by_key(|v| std::cmp::Reverse(v["places"].as_array().map_or(0, Vec::len)));
+        spread.truncate(40);
+        let no_theme = all
+            .iter()
+            .filter(|n| is_holder(n, &has_children) && n.kind != Kind::Room && n.theme.is_none())
+            .filter(|n| {
+                all.iter()
+                    .any(|c| c.parent_id == Some(n.id) && c.kind == Kind::Item)
+            })
+            .map(|n| brief_json(&self.conn, n.id))
+            .collect::<Result<Vec<_>>>()?;
+        let loose = all
+            .iter()
+            .filter(|n| n.kind == Kind::Item)
+            .filter(|n| {
+                n.parent_id
+                    .and_then(|p| by_id.get(&p))
+                    .is_some_and(|p| matches!(p.kind, Kind::Home | Kind::Room | Kind::Furniture))
+            })
+            .map(|n| brief_json(&self.conn, n.id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "spread": spread, "no_theme": no_theme, "loose": loose }))
+    }
+}
+
 #[cfg(test)]
 mod migration_tests {
     use super::{Inventory, SCHEMA_V1};

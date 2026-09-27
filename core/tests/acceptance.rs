@@ -281,3 +281,18 @@ fn a15_batch_is_all_or_nothing() {
     assert_eq!(v["created"][1]["path_text"], "Ev › Kiler › S5-09 › Kalem");
 }
 
+#[test]
+fn a16_newer_schema_is_refused_and_untouched() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ev.db");
+    drop(Inventory::open(&path).unwrap());
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute_batch("PRAGMA user_version = 99;")
+        .unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let e = Inventory::open(&path).err().unwrap();
+    assert_eq!(code_of(&e), 6);
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+}
+

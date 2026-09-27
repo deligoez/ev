@@ -1,2 +1,3 @@
 /target
 *.db
+.zig-cache/

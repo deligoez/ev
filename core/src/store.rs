@@ -1311,3 +1311,269 @@ fn split_op<'a>(field: &str, value: &'a str) -> Result<(char, &'a str)> {
         ))),
     }
 }
+
+// ---------- places (spec §13) ----------
+
+/// Folded place key; apostrophes are dropped so "Saliha'lar" and "Salihalar" match.
+fn place_key(text: &str) -> String {
+    fold(text).replace(['\'', '’'], "")
+}
+
+/// The place whose name or alias folds to `text`, if any.
+fn find_place(conn: &Connection, text: &str) -> Result<Option<i64>> {
+    let folded = place_key(text);
+    if folded.is_empty() {
+        return Err(Error::Usage("place name is empty".into()));
+    }
+    Ok(conn
+        .query_row(
+            "SELECT place_id FROM place_aliases WHERE alias_folded = ?1",
+            [folded],
+            |r| r.get(0),
+        )
+        .optional()?)
+}
+
+fn place_or_create(conn: &Connection, text: &str) -> Result<i64> {
+    if let Some(id) = find_place(conn, text)? {
+        return Ok(id);
+    }
+    let name = text.trim();
+    conn.execute(
+        "INSERT INTO places (name, created_at) VALUES (?1, ?2)",
+        params![name, now()],
+    )?;
+    let id = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO place_aliases (place_id, alias, alias_folded) VALUES (?1, ?2, ?3)",
+        params![id, name, place_key(name)],
+    )?;
+    Ok(id)
+}
+
+fn place_json(conn: &Connection, id: i64) -> Result<Value> {
+    let name: String =
+        conn.query_row("SELECT name FROM places WHERE id = ?1", [id], |r| r.get(0))?;
+    let aliases = strings(
+        conn,
+        "SELECT alias FROM place_aliases WHERE place_id = ?1 ORDER BY rowid",
+        id,
+    )?;
+    Ok(json!({ "id": id, "name": name, "aliases": aliases }))
+}
+
+fn resolve_place(conn: &Connection, text: &str) -> Result<i64> {
+    find_place(conn, text)?.ok_or_else(|| {
+        Error::NotFound(format!(
+            "no place named `{}`; `ev place list` shows them",
+            text.trim()
+        ))
+    })
+}
+
+fn nodes_at(conn: &Connection, column: &str, place: i64) -> Result<Vec<Value>> {
+    let list = ids(
+        conn,
+        &format!("SELECT id FROM nodes WHERE {column} = ?1 AND state != 'gone' ORDER BY id"),
+        [place],
+    )?;
+    list.iter().map(|id| brief_json(conn, *id)).collect()
+}
+
+fn place_errands(conn: &Connection, place: i64) -> Result<Value> {
+    Ok(json!({
+        "place": place_json(conn, place)?,
+        "take": nodes_at(conn, "to_place", place)?,
+        "return": nodes_at(conn, "owner_place", place)?,
+        "collect": nodes_at(conn, "with_place", place)?,
+    }))
+}
+
+impl Inventory {
+    /// Creates a place with extra aliases; an alias already used elsewhere is refused.
+    pub fn place_add(&mut self, name: &str, aliases: &[String]) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        if let Some(existing) = find_place(&tx, name)? {
+            return Err(refused(
+                format!("`{}` already names a place", name.trim()),
+                json!({ "place": place_json(&tx, existing)? }),
+            ));
+        }
+        let id = place_or_create(&tx, name)?;
+        for a in aliases {
+            add_alias(&tx, id, a)?;
+        }
+        tx.commit()?;
+        place_json(&self.conn, id)
+    }
+
+    pub fn place_alias(&mut self, place: &str, alias: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve_place(&tx, place)?;
+        add_alias(&tx, id, alias)?;
+        tx.commit()?;
+        place_json(&self.conn, id)
+    }
+
+    /// Folds `from` into `into`: every reference and alias moves, `from` disappears.
+    pub fn place_merge(&mut self, from: &str, into: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let a = resolve_place(&tx, from)?;
+        let b = resolve_place(&tx, into)?;
+        if a == b {
+            return Err(refused(
+                "both names already point to the same place",
+                Value::Null,
+            ));
+        }
+        for column in ["owner_place", "with_place", "to_place"] {
+            tx.execute(
+                &format!("UPDATE nodes SET {column} = ?1 WHERE {column} = ?2"),
+                params![b, a],
+            )?;
+        }
+        tx.execute(
+            "UPDATE place_aliases SET place_id = ?1 WHERE place_id = ?2",
+            params![b, a],
+        )?;
+        tx.execute("DELETE FROM places WHERE id = ?1", [a])?;
+        tx.commit()?;
+        place_json(&self.conn, b)
+    }
+
+    pub fn place_list(&self) -> Result<Value> {
+        let list = ids(&self.conn, "SELECT id FROM places ORDER BY name", [])?;
+        let mut out = Vec::new();
+        for id in list {
+            let mut p = place_json(&self.conn, id)?;
+            for (key, column) in [
+                ("take", "to_place"),
+                ("return", "owner_place"),
+                ("collect", "with_place"),
+            ] {
+                let n: i64 = self.conn.query_row(
+                    &format!("SELECT COUNT(*) FROM nodes WHERE {column} = ?1 AND state != 'gone'"),
+                    [id],
+                    |r| r.get(0),
+                )?;
+                p[key] = json!(n);
+            }
+            out.push(p);
+        }
+        Ok(json!({ "places": out }))
+    }
+
+    /// What to take to, return to, or collect from a place; every place when none is given.
+    pub fn errands(&self, place: Option<&str>) -> Result<Value> {
+        match place {
+            Some(p) => {
+                let id = resolve_place(&self.conn, p)?;
+                place_errands(&self.conn, id)
+            }
+            None => {
+                let list = ids(
+                    &self.conn,
+                    "SELECT DISTINCT p.id FROM places p JOIN nodes n
+                       ON p.id IN (n.to_place, n.owner_place, n.with_place)
+                     WHERE n.state != 'gone' ORDER BY p.name",
+                    [],
+                )?;
+                let all = list
+                    .iter()
+                    .map(|id| place_errands(&self.conn, *id))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({ "errands": all }))
+            }
+        }
+    }
+
+    /// Lends a node of ours to a place; it stays in the tree where it returns to.
+    pub fn lend(&mut self, reference: &str, to: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.owner.is_some() {
+            return Err(refused(
+                format!("{} is not ours; it cannot be lent out", label(&node)),
+                Value::Null,
+            ));
+        }
+        let place = place_or_create(&tx, to)?;
+        tx.execute(
+            "UPDATE nodes SET with_place = ?1 WHERE id = ?2",
+            params![place, node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(
+            &tx,
+            node.id,
+            "lend",
+            json!({ "to": place_json(&tx, place)?["name"] }),
+        )?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+
+    pub fn back(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let Some(with) = node.with.clone() else {
+            return Err(refused(
+                format!("{} is not lent out", label(&node)),
+                Value::Null,
+            ));
+        };
+        tx.execute(
+            "UPDATE nodes SET with_place = NULL WHERE id = ?1",
+            [node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(&tx, node.id, "back", json!({ "from": with }))?;
+        tx.commit()?;
+        show(&self.conn, node.id)
+    }
+}
+
+fn add_alias(conn: &Connection, place: i64, alias: &str) -> Result<()> {
+    let a = alias.trim();
+    if let Some(other) = find_place(conn, a)? {
+        if other == place {
+            return Ok(());
+        }
+        return Err(refused(
+            format!("`{a}` already names another place; use `ev place merge`"),
+            json!({ "place": place_json(conn, other)? }),
+        ));
+    }
+    conn.execute(
+        "INSERT INTO place_aliases (place_id, alias, alias_folded) VALUES (?1, ?2, ?3)",
+        params![place, a, place_key(a)],
+    )?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::{Inventory, SCHEMA_V1};
+
+    #[test]
+    fn a_version_1_file_is_migrated_and_keeps_its_nodes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ev.db");
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute_batch(SCHEMA_V1).unwrap();
+        c.execute(
+            "INSERT INTO nodes (name, kind, created_at, updated_at) VALUES ('Ev', 'home', 'x', 'x')",
+            [],
+        )
+        .unwrap();
+        drop(c);
+        let mut inv = Inventory::open(&path).unwrap();
+        let v: i64 = rusqlite::Connection::open(&path)
+            .unwrap()
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(v, 2);
+        inv.edit("Ev", &["owner=Mahmutlar".into()]).unwrap();
+        assert_eq!(inv.node(1).unwrap().owner.as_deref(), Some("Mahmutlar"));
+    }
+}

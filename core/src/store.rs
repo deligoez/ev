@@ -1035,6 +1035,15 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         ],
     )?;
     let id = conn.last_insert_rowid();
+    for (column, text) in [("to_place", &new.to), ("owner_place", &new.owner)] {
+        if let Some(t) = non_empty(text) {
+            let place = place_or_create(conn, &t)?;
+            conn.execute(
+                &format!("UPDATE nodes SET {column} = ?1 WHERE id = ?2"),
+                params![place, id],
+            )?;
+        }
+    }
     for t in &tags {
         conn.execute(
             "INSERT OR IGNORE INTO tags (node_id, tag) VALUES (?1, ?2)",

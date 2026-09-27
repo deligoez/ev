@@ -878,3 +878,11 @@ fn check_ranges(qty: Option<i64>, fill: Option<i64>) -> Result<()> {
     Ok(())
 }
 
+fn normalize_tag(t: &str) -> Result<String> {
+    let t = t.trim().to_lowercase();
+    if t.is_empty() {
+        return Err(Error::Usage("tag is empty".into()));
+    }
+    Ok(t)
+}
+

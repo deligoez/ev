@@ -1875,7 +1875,7 @@ mod migration_tests {
             .unwrap()
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(v, 2);
+        assert_eq!(v, super::SCHEMA_VERSION);
         inv.edit("Ev", &["owner=Mahmutlar".into()]).unwrap();
         assert_eq!(inv.node(1).unwrap().owner.as_deref(), Some("Mahmutlar"));
     }

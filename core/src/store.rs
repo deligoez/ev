@@ -813,3 +813,58 @@ fn is_descendant(conn: &Connection, node: i64, ancestor: i64) -> Result<bool> {
     Ok(false)
 }
 
+/// Placement rules of spec §3.2 (1–4, 7) and §11.10.
+fn check_placement(
+    conn: &Connection,
+    kind: Kind,
+    parent: Option<i64>,
+    lost: bool,
+    moving: Option<i64>,
+) -> Result<()> {
+    if kind == Kind::Home {
+        return match parent {
+            Some(_) => Err(refused(
+                "a home cannot be placed inside another node",
+                Value::Null,
+            )),
+            None if lost => Err(refused("a home cannot be lost", Value::Null)),
+            None => Ok(()),
+        };
+    }
+    let Some(pid) = parent else {
+        return if lost {
+            Ok(())
+        } else {
+            Err(refused(
+                format!("a {kind} needs a place: give --in, or --lost if its place is unknown"),
+                Value::Null,
+            ))
+        };
+    };
+    let p = load(conn, pid)?;
+    if p.state == State::Gone {
+        return Err(refused(
+            format!("{} is gone and cannot hold anything", label(&p)),
+            Value::Null,
+        ));
+    }
+    if kind == Kind::Room && !matches!(p.kind, Kind::Home | Kind::Room) {
+        return Err(refused(
+            format!(
+                "a room can only be inside a home or another room, not a {}",
+                p.kind
+            ),
+            json!({ "parent": brief_json(conn, pid)? }),
+        ));
+    }
+    if let Some(m) = moving
+        && (pid == m || is_descendant(conn, pid, m)?)
+    {
+        return Err(refused(
+            "a node cannot be moved into itself or into something it contains",
+            json!({ "target": brief_json(conn, pid)? }),
+        ));
+    }
+    Ok(())
+}
+

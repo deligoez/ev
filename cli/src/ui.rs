@@ -21,6 +21,14 @@ const HIGHLIGHT_FOR: Duration = Duration::from_secs(6);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 const TABS: [&str; 5] = ["Ağaç", "Bekleyen", "Çıkış", "Kayıp", "Ara"];
 
+// Named colours follow the terminal's own palette, so light and dark themes both work.
+const CODE: Color = Color::Cyan;
+const FURNITURE: Color = Color::Yellow;
+const QTY: Color = Color::Green;
+const MARK: Color = Color::Magenta;
+const LOST: Color = Color::Red;
+const MUTED: Color = Color::DarkGray;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Tree,
@@ -50,10 +58,9 @@ impl Tab {
 struct Row {
     id: i64,
     depth: usize,
-    text: String,
+    spans: Vec<Span<'static>>,
     expandable: bool,
     expanded: bool,
-    muted: bool,
 }
 
 /// Everything learned from one full read of the tree.

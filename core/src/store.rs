@@ -492,3 +492,49 @@ fn db_enum<T: std::str::FromStr<Err = Error>>(idx: usize, s: String) -> rusqlite
     })
 }
 
+fn load(conn: &Connection, id: i64) -> Result<Node> {
+    let node = conn
+        .query_row(
+            &format!("SELECT {NODE_COLUMNS} FROM nodes WHERE id = ?1"),
+            [id],
+            |r| {
+                Ok(Node {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    kind: db_enum(2, r.get(2)?)?,
+                    parent_id: r.get(3)?,
+                    code: r.get(4)?,
+                    address: r.get(5)?,
+                    qty: r.get(6)?,
+                    note: r.get(7)?,
+                    theme: r.get(8)?,
+                    fill: r.get(9)?,
+                    tags: Vec::new(),
+                    photos: Vec::new(),
+                    state: db_enum(10, r.get(10)?)?,
+                    disposition: r
+                        .get::<_, Option<String>>(11)?
+                        .map(|s| db_enum(11, s))
+                        .transpose()?,
+                    lost: r.get(12)?,
+                    pending_to: r.get(13)?,
+                    created_at: r.get(14)?,
+                    updated_at: r.get(15)?,
+                })
+            },
+        )
+        .optional()?;
+    let mut node = node.ok_or_else(|| Error::NotFound(format!("no node with id {id}")))?;
+    node.tags = strings(
+        conn,
+        "SELECT tag FROM tags WHERE node_id = ?1 ORDER BY tag",
+        id,
+    )?;
+    node.photos = strings(
+        conn,
+        "SELECT path FROM photos WHERE node_id = ?1 ORDER BY position",
+        id,
+    )?;
+    Ok(node)
+}
+

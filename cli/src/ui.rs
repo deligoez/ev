@@ -465,6 +465,11 @@ impl App {
         self.load_details()
     }
 
+    fn step(&mut self, delta: isize) -> Result<()> {
+        let cur = self.state.selected().unwrap_or(0) as isize;
+        self.select((cur + delta).max(0) as usize)
+    }
+
     fn switch(&mut self, tab: Tab) -> Result<()> {
         self.tab = tab;
         self.state.select(None);

@@ -106,3 +106,10 @@ fn label(n: &Value) -> String {
     }
 }
 
+fn signature(n: &Value, parent: Option<i64>) -> String {
+    format!(
+        "{parent:?}|{}|{}|{}|{}",
+        n["updated_at"], n["state"], n["lost"], n["pending_to"]
+    )
+}
+

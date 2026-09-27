@@ -291,6 +291,11 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Place(PlaceCmd::Alias { place, alias }) => inv.place_alias(&place, &alias),
         Cmd::Place(PlaceCmd::List) => inv.place_list(),
         Cmd::Place(PlaceCmd::Merge { from, into }) => inv.place_merge(&from, &into),
+        Cmd::Suggest { text, tag } => inv.suggest(&text, tag.as_deref()),
+        Cmd::Audit => inv.audit(),
+        Cmd::Rule(RuleCmd::Add { text }) => inv.rule_add(&text),
+        Cmd::Rule(RuleCmd::List) => inv.rule_list(),
+        Cmd::Rule(RuleCmd::Remove { id }) => inv.rule_remove(id),
     }
 }
 

@@ -579,6 +579,9 @@ fn load(conn: &Connection, id: i64) -> Result<Node> {
                     pending_to: r.get(13)?,
                     created_at: r.get(14)?,
                     updated_at: r.get(15)?,
+                    owner: r.get(16)?,
+                    with: r.get(17)?,
+                    to: r.get(18)?,
                 })
             },
         )

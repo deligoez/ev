@@ -114,3 +114,10 @@ fn a3_a4_planned_move_then_done() {
     );
 }
 
+#[test]
+fn a5_gone_without_disposition_is_refused_for_active() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    assert_eq!(code_of(&inv.gone("Flipper Zero", None).unwrap_err()), 5);
+}
+

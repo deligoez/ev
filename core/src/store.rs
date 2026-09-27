@@ -1157,6 +1157,9 @@ fn field_value(n: &Node, field: &str) -> Value {
         "fill" => json!(n.fill),
         "tags" => json!(n.tags),
         "photos" => json!(n.photos),
+        "to" => json!(n.to),
+        "owner" => json!(n.owner),
+        "with" => json!(n.with),
         _ => Value::Null,
     }
 }

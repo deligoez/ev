@@ -970,3 +970,24 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     Ok(id)
 }
 
+fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result<()> {
+    check_placement(conn, node.kind, Some(target), false, Some(node.id))?;
+    conn.execute(
+        "UPDATE nodes SET parent_id = ?1, pending_to = NULL, lost = 0 WHERE id = ?2",
+        params![target, node.id],
+    )?;
+    touch(conn, node.id)?;
+    let dropped = if kind == "move" {
+        node.pending_to
+    } else {
+        None
+    };
+    event(
+        conn,
+        node.id,
+        kind,
+        json!({ "from": node.parent_id, "to": target, "dropped_pending": dropped, "was_lost": node.lost }),
+    )?;
+    Ok(())
+}
+

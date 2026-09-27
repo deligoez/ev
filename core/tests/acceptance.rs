@@ -361,3 +361,22 @@ fn edit_fields_and_history() {
     assert_eq!(event_types(&inv, "Flipper Zero"), ["create", "edit"]);
 }
 
+#[test]
+fn disposals_and_restore() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    inv.dispose("Flipper Zero", Disposition::Sell).unwrap();
+    assert_eq!(
+        code_of(&inv.dispose("Flipper Zero", Disposition::Give).unwrap_err()),
+        5
+    );
+    let v = inv.disposals(None).unwrap();
+    assert_eq!(v["disposals"]["sell"][0]["name"], "Flipper Zero");
+    inv.restore("Flipper Zero").unwrap();
+    assert!(
+        inv.disposals(None).unwrap()["disposals"]["sell"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

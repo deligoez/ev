@@ -62,3 +62,45 @@ fn stdout_is_json_when_piped() {
     assert_eq!(v["results"][0]["path_text"], "Ev › Salon › Anten");
 }
 
+#[test]
+fn errors_go_to_stderr_with_fixed_codes() {
+    let ev = seeded();
+
+    let (code, out, err) = ev.run(&["show", "drone"]);
+    assert_eq!((code, out), (3, Value::Null));
+    let e: Value = serde_json::from_str(err.trim()).unwrap();
+    assert_eq!(e["error"]["kind"], "not_found");
+
+    let (code, _, err) = ev.run(&["show", "anten"]);
+    assert_eq!(code, 4);
+    let e: Value = serde_json::from_str(err.trim()).unwrap();
+    assert_eq!(e["error"]["candidates"].as_array().unwrap().len(), 2);
+
+    let (code, _, _) = ev.run(&[
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "Salon",
+        "--code",
+        "12",
+    ]);
+    assert_eq!(code, 5);
+
+    let (code, _, _) = ev.run(&["add", "Kutu", "--kind", "box", "--in", "Salon"]);
+    assert_eq!(code, 2);
+
+    let (code, _, _) = ev.run(&[
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "Salon",
+        "--fill",
+        "101",
+    ]);
+    assert_eq!(code, 2);
+}
+

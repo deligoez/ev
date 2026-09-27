@@ -1164,3 +1164,12 @@ fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<(
     Ok(())
 }
 
+fn split_op<'a>(field: &str, value: &'a str) -> Result<(char, &'a str)> {
+    let v = value.trim();
+    match v.chars().next() {
+        Some(c @ ('+' | '-')) => Ok((c, &v[1..])),
+        _ => Err(Error::Usage(format!(
+            "{field} takes +value or -value, got `{v}`"
+        ))),
+    }
+}

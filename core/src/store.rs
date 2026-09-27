@@ -1833,7 +1833,12 @@ impl Inventory {
         spread.truncate(40);
         let no_theme = all
             .iter()
-            .filter(|n| is_holder(n, &has_children) && n.kind != Kind::Room && n.theme.is_none())
+            .filter(|n| {
+                is_holder(n, &has_children)
+                    && n.kind != Kind::Room
+                    && n.theme.is_none()
+                    && n.state != State::Candidate
+            })
             .filter(|n| {
                 all.iter()
                     .any(|c| c.parent_id == Some(n.id) && c.kind == Kind::Item)

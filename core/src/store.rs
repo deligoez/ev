@@ -701,6 +701,7 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
         v["pending_to"] = json!(p);
     }
     v["updated_at"] = json!(n.updated_at);
+    v["items"] = json!(item_total(conn, id)?);
     let children = if depth == 0 {
         Vec::new()
     } else {

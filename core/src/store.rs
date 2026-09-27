@@ -554,3 +554,11 @@ fn ids<P: rusqlite::Params>(conn: &Connection, sql: &str, p: P) -> Result<Vec<i6
     Ok(rows)
 }
 
+fn pairs(conn: &Connection, sql: &str) -> Result<Vec<(i64, i64)>> {
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+

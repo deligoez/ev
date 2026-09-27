@@ -1040,3 +1040,13 @@ fn field_value(n: &Node, field: &str) -> Value {
     }
 }
 
+fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
+    let v = value.trim();
+    if v.is_empty() {
+        return Ok(None);
+    }
+    v.parse::<i64>()
+        .map(Some)
+        .map_err(|_| Error::Usage(format!("{field} must be an integer, got `{v}`")))
+}
+

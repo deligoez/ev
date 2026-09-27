@@ -165,3 +165,7 @@ fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".ev").join("ev.db"))
 }
 
+fn disposition(s: &str) -> Result<Disposition> {
+    s.parse()
+}
+

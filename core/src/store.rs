@@ -902,3 +902,71 @@ fn non_empty(v: &Option<String>) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64> {
+    let kind: Kind = new.kind.parse()?;
+    let name = new.name.trim();
+    if name.is_empty() {
+        return Err(Error::Usage("name is empty".into()));
+    }
+    check_ranges(new.qty, new.fill)?;
+    let address = non_empty(&new.address);
+    if address.is_some() && kind != Kind::Home {
+        return Err(refused("only a home has an address", Value::Null));
+    }
+    check_placement(conn, kind, parent, new.lost, None)?;
+    let code = non_empty(&new.code);
+    let code_folded = code
+        .as_deref()
+        .map(|c| check_code(conn, c, None))
+        .transpose()?;
+    let tags = new
+        .tags
+        .iter()
+        .map(|t| normalize_tag(t))
+        .collect::<Result<Vec<_>>>()?;
+    let photos = new
+        .photos
+        .iter()
+        .map(|p| absolute(p))
+        .collect::<Result<Vec<_>>>()?;
+    let at = now();
+    conn.execute(
+        "INSERT INTO nodes (name, kind, parent_id, code, code_folded, address, qty, note, theme, fill, lost, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)",
+        params![
+            name,
+            kind.as_str(),
+            parent,
+            code,
+            code_folded,
+            address,
+            new.qty,
+            non_empty(&new.note),
+            non_empty(&new.theme),
+            new.fill,
+            new.lost,
+            at
+        ],
+    )?;
+    let id = conn.last_insert_rowid();
+    for t in &tags {
+        conn.execute(
+            "INSERT OR IGNORE INTO tags (node_id, tag) VALUES (?1, ?2)",
+            params![id, t],
+        )?;
+    }
+    for (i, p) in photos.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ?3)",
+            params![id, i as i64, p],
+        )?;
+    }
+    event(
+        conn,
+        id,
+        "create",
+        json!({ "name": name, "kind": kind, "parent": parent, "code": code, "lost": new.lost }),
+    )?;
+    Ok(id)
+}
+

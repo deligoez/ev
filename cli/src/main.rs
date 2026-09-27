@@ -111,6 +111,28 @@ enum Cmd {
     /// Places: people, households or anywhere outside the tree, with aliases.
     #[command(subcommand)]
     Place(PlaceCmd),
+    /// Where could this go: rules, where similar things are, and every place that can hold it.
+    Suggest {
+        text: String,
+        #[arg(long)]
+        tag: Option<String>,
+    },
+    /// Where the inventory could be tidier: alike things split up, holders without a theme,
+    /// items lying loose in a room or on furniture.
+    Audit,
+    /// Placement rules weighed on every suggestion.
+    #[command(subcommand)]
+    Rule(RuleCmd),
+}
+
+#[derive(Subcommand)]
+enum RuleCmd {
+    /// Add a rule in plain words.
+    Add { text: String },
+    /// Every rule with its id.
+    List,
+    /// Remove a rule by id.
+    Remove { id: i64 },
 }
 
 #[derive(Subcommand)]

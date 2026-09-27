@@ -591,3 +591,10 @@ fn path_text(segments: &[PathSegment]) -> String {
         .join(" › ")
 }
 
+fn label(n: &Node) -> String {
+    match &n.code {
+        Some(c) => format!("{c} ({})", n.name),
+        None => format!("#{} {}", n.id, n.name),
+    }
+}
+

@@ -72,3 +72,17 @@ expanding their parents so they are in view.
 | / | search (same folding as `ev find`), Enter to run, Esc to cancel |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | q / Esc | quit |
+
+## Places
+
+| Command | Does |
+|---|---|
+| `ev place add <name> [--alias a]…` | create a place with aliases |
+| `ev place alias <place> <alias>` | add an alias; one already used elsewhere exits 5 |
+| `ev place list` | every place with aliases and counts of take / return / collect |
+| `ev place merge <from> <into>` | move every reference and alias of `from` into `into` |
+| `ev for [<place>]` | `take`, `return`, `collect` lists for a place, or `errands` for every place |
+| `ev lend <ref> --to <place>` / `ev back <ref>` | lend a node out / it came back |
+
+Place names match folded with apostrophes ignored; an unknown name in `to`/`owner`/`with`
+creates the place.

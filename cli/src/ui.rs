@@ -353,6 +353,30 @@ impl App {
                     })
                     .collect()
             }
+            Tab::Places => {
+                let v = self.inv.errands(None)?;
+                let mut out = Vec::new();
+                for e in v["errands"].as_array().into_iter().flatten() {
+                    let place = str_of(&e["place"], "name");
+                    for (key, what, color) in [
+                        ("take", "götür", MARK),
+                        ("return", "iade", Color::Blue),
+                        ("collect", "geri al", Color::Blue),
+                    ] {
+                        for n in e[key].as_array().into_iter().flatten() {
+                            let mut row = self.list_row(n, Vec::new());
+                            let mut head = vec![
+                                Span::styled(place.clone(), Style::new().bold()),
+                                Span::styled(format!(" · {what}  "), Style::new().fg(color)),
+                            ];
+                            head.append(&mut row.spans);
+                            row.spans = head;
+                            out.push(row);
+                        }
+                    }
+                }
+                out
+            }
             Tab::Search => self.search_rows.clone(),
         };
         let idx = keep
@@ -540,7 +564,7 @@ impl App {
             KeyCode::End | KeyCode::Char('G') => self.select(usize::MAX)?,
             KeyCode::Tab => self.switch(Tab::from_index(self.tab.index() + 1))?,
             KeyCode::BackTab => self.switch(Tab::from_index(self.tab.index() + TABS.len() - 1))?,
-            KeyCode::Char(c @ '1'..='5') => {
+            KeyCode::Char(c @ '1'..='6') => {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
             KeyCode::Char('/') => {
@@ -683,7 +707,7 @@ impl App {
             format!("Ara: {}▏  (Enter ara · Esc vazgeç)", self.query)
         } else {
             format!(
-                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-5 sekme · / ara · q çık    {}",
+                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-6 sekme · / ara · q çık    {}",
                 self.status
             )
         };

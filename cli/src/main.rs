@@ -169,3 +169,59 @@ fn disposition(s: &str) -> Result<Disposition> {
     s.parse()
 }
 
+fn run(cli: Cli) -> Result<Value> {
+    let mut inv = Inventory::open(&db_path(cli.db)?)?;
+    match cli.cmd {
+        Cmd::Add(a) => add(&mut inv, *a),
+        Cmd::Show {
+            reference,
+            include_gone,
+        } => inv.show(&reference, include_gone),
+        Cmd::Tree { reference, depth } => inv.tree(reference.as_deref(), depth),
+        Cmd::Find {
+            text,
+            tag,
+            kind,
+            include_gone,
+        } => {
+            let kind = kind.map(|k| k.parse::<Kind>()).transpose()?;
+            inv.find(&text, tag.as_deref(), kind, include_gone)
+        }
+        Cmd::Edit {
+            reference,
+            assignments,
+        } => {
+            warn_missing_photos(
+                assignments
+                    .iter()
+                    .filter_map(|a| a.strip_prefix("photos=+")),
+            );
+            inv.edit(&reference, &assignments)
+        }
+        Cmd::Move {
+            reference,
+            to,
+            plan,
+        } => inv.move_to(&reference, &to, plan),
+        Cmd::Pending => inv.pending(),
+        Cmd::Done { reference } => inv.done(&reference),
+        Cmd::Cancel { reference } => inv.cancel(&reference),
+        Cmd::Dispose {
+            reference,
+            disposition: d,
+        } => inv.dispose(&reference, disposition(&d)?),
+        Cmd::Restore { reference } => inv.restore(&reference),
+        Cmd::Gone {
+            reference,
+            disposition: d,
+        } => inv.gone(&reference, d.as_deref().map(disposition).transpose()?),
+        Cmd::Disposals { disposition: d } => {
+            inv.disposals(d.as_deref().map(disposition).transpose()?)
+        }
+        Cmd::Lost { reference: Some(r) } => inv.mark_lost(&r),
+        Cmd::Lost { reference: None } => inv.lost_list(),
+        Cmd::Found { reference } => inv.found(&reference),
+        Cmd::History { reference } => inv.history(&reference),
+    }
+}
+

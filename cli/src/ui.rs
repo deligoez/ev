@@ -19,7 +19,7 @@ use serde_json::Value;
 const POLL: Duration = Duration::from_millis(500);
 const HIGHLIGHT_FOR: Duration = Duration::from_secs(6);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
-const TABS: [&str; 6] = ["Ağaç", "Bekleyen", "Çıkış", "Kayıp", "Yerler", "Ara"];
+const TABS: [&str; 6] = ["Ağaç", "Bekleyen", "Çıkış", "Kayıp", "Götür/İade", "Ara"];
 
 // Named colours follow the terminal's own palette, so light and dark themes both work.
 const CODE: Color = Color::Cyan;

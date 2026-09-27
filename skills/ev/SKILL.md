@@ -33,6 +33,18 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 5. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
+## Where should this go?
+
+Never answer from memory. Run `ev suggest "<what it is>"` first and decide over its whole
+output: the rules, where alike things already are, and every holder in `containers`
+(`complete.containers` says how many; all of them are there). Say what you weighed —
+"looked at N holders, rules X and Y; alike things are in A" — so the person can see the
+answer was not recalled. Prefer putting a thing with its kind; mind the rules; offer an
+empty or lightly filled holder when nothing alike exists. When the person corrects a
+placement, record the reason as `ev rule add` or a container `theme`, so the next session
+knows it. Run `ev audit` now and then to find alike things split up and holders without a
+theme, and give holders a theme whenever you learn what they are for.
+
 ## Going somewhere
 
 Whenever the person says they are going somewhere or meeting someone ("yarın Mahmutlara

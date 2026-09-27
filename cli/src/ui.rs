@@ -174,6 +174,21 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     if n["lost"] == true {
         out.push(Span::styled("  [kayıp]", Style::new().fg(LOST)));
     }
+    if let Some(x) = n["to"].as_str() {
+        out.push(Span::styled(format!("  ⇒ {x}"), Style::new().fg(MARK)));
+    }
+    if let Some(x) = n["owner"].as_str() {
+        out.push(Span::styled(
+            format!("  [sahibi: {x}]"),
+            Style::new().fg(Color::Blue),
+        ));
+    }
+    if let Some(x) = n["with"].as_str() {
+        out.push(Span::styled(
+            format!("  [{x}'de]"),
+            Style::new().fg(Color::Blue),
+        ));
+    }
     if let Some(p) = n["pending_to"].as_i64() {
         let to = snap
             .label

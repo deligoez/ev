@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -80,6 +80,18 @@ PRAGMA user_version = 2;
 COMMIT;
 ";
 
+/// Placement rules the agent must weigh on every suggestion (spec §14).
+const SCHEMA_V3: &str = "
+BEGIN;
+CREATE TABLE rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+PRAGMA user_version = 3;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -114,6 +126,9 @@ impl Inventory {
         }
         if version < 2 {
             conn.execute_batch(SCHEMA_V2)?;
+        }
+        if version < 3 {
+            conn.execute_batch(SCHEMA_V3)?;
         }
         Ok(Self { conn })
     }

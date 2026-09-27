@@ -549,6 +549,46 @@ impl App {
         Ok(())
     }
 
+    fn mouse(&mut self, m: MouseEvent) -> Result<()> {
+        let inside = |r: Rect| {
+            m.column >= r.x && m.column < r.x + r.width && m.row >= r.y && m.row < r.y + r.height
+        };
+        match m.kind {
+            MouseEventKind::ScrollDown if inside(self.list_area) => self.step(3),
+            MouseEventKind::ScrollUp if inside(self.list_area) => self.step(-3),
+            MouseEventKind::Down(MouseButton::Left) if inside(self.tabs_area) => {
+                match tab_at(m.column.saturating_sub(self.tabs_area.x)) {
+                    Some(t) => self.switch(t),
+                    None => Ok(()),
+                }
+            }
+            MouseEventKind::Down(MouseButton::Left) if inside(self.list_area) => {
+                // The list block has a one-cell border on every side.
+                if m.row == self.list_area.y
+                    || m.row + 1 >= self.list_area.y + self.list_area.height
+                {
+                    return Ok(());
+                }
+                let i = self.state.offset() + (m.row - self.list_area.y - 1) as usize;
+                if i >= self.rows.len() {
+                    return Ok(());
+                }
+                let now = Instant::now();
+                let again = self.state.selected() == Some(i)
+                    || self
+                        .last_click
+                        .is_some_and(|(j, t)| j == i && now.duration_since(t) < DOUBLE_CLICK);
+                self.last_click = Some((i, now));
+                if again {
+                    self.activate()
+                } else {
+                    self.select(i)
+                }
+            }
+            _ => Ok(()),
+        }
+    }
+
     fn draw(&mut self, f: &mut Frame) {
         let [top, body, bottom] = Layout::vertical([
             Constraint::Length(1),

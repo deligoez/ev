@@ -1,0 +1,158 @@
+use std::io::{IsTerminal, Read};
+use std::path::PathBuf;
+use std::process::ExitCode;
+
+use clap::{Args, Parser, Subcommand};
+use ev_core::{Disposition, Error, Inventory, Kind, NewNode, Result};
+use serde_json::Value;
+
+mod render;
+
+/// Agent-first home inventory.
+#[derive(Parser)]
+#[command(name = "ev", version, about)]
+struct Cli {
+    /// Force JSON output even on a terminal.
+    #[arg(long, global = true)]
+    json: bool,
+
+    /// Database file; wins over EV_DB. Defaults to ~/.ev/ev.db.
+    #[arg(long, global = true, env = "EV_DB")]
+    db: Option<PathBuf>,
+
+    #[command(subcommand)]
+    cmd: Cmd,
+}
+
+#[derive(Subcommand)]
+enum Cmd {
+    /// Create a node, or many with --batch/--stdin (all or none).
+    Add(Box<AddArgs>),
+    /// One node with its path, children, pending move and disposition.
+    Show {
+        reference: String,
+        #[arg(long)]
+        include_gone: bool,
+    },
+    /// The subtree under a node, or every home.
+    Tree {
+        reference: Option<String>,
+        #[arg(long)]
+        depth: Option<usize>,
+    },
+    /// Folded search over name, code, note, theme and tags.
+    Find {
+        text: String,
+        #[arg(long)]
+        tag: Option<String>,
+        #[arg(long)]
+        kind: Option<String>,
+        #[arg(long)]
+        include_gone: bool,
+    },
+    /// Change fields: name, code, kind, address, qty, note, theme, fill, tags=+x/-x, photos=+p/-p.
+    Edit {
+        reference: String,
+        #[arg(required = true)]
+        assignments: Vec<String>,
+    },
+    /// Move now, or plan a move with --plan.
+    Move {
+        reference: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        plan: bool,
+    },
+    /// List pending moves.
+    Pending,
+    /// Apply a node's pending move.
+    Done { reference: String },
+    /// Drop a node's pending move.
+    Cancel { reference: String },
+    /// Mark a node as a candidate to leave: trash, give or sell.
+    Dispose {
+        reference: String,
+        #[arg(long = "as")]
+        disposition: String,
+    },
+    /// Return a candidate to active.
+    Restore { reference: String },
+    /// A node leaves the home; --as is required when it is not a candidate yet.
+    Gone {
+        reference: String,
+        #[arg(long = "as")]
+        disposition: Option<String>,
+    },
+    /// Every candidate, grouped by disposition.
+    Disposals {
+        #[arg(long = "as")]
+        disposition: Option<String>,
+    },
+    /// Mark a node lost, or list lost nodes when no reference is given.
+    Lost { reference: Option<String> },
+    /// Clear a node's lost flag where it was last seen.
+    Found { reference: String },
+    /// A node's events, oldest first.
+    History { reference: String },
+}
+
+#[derive(Args)]
+struct AddArgs {
+    name: Option<String>,
+    #[arg(long)]
+    kind: Option<String>,
+    #[arg(long = "in")]
+    parent: Option<String>,
+    #[arg(long)]
+    lost: bool,
+    #[arg(long)]
+    code: Option<String>,
+    #[arg(long)]
+    address: Option<String>,
+    #[arg(long)]
+    qty: Option<i64>,
+    #[arg(long)]
+    note: Option<String>,
+    #[arg(long)]
+    theme: Option<String>,
+    #[arg(long)]
+    fill: Option<i64>,
+    #[arg(long = "tag")]
+    tags: Vec<String>,
+    #[arg(long = "photo")]
+    photos: Vec<String>,
+    /// NDJSON file, one node per line.
+    #[arg(long, conflicts_with = "stdin")]
+    batch: Option<PathBuf>,
+    /// Read NDJSON lines from stdin.
+    #[arg(long)]
+    stdin: bool,
+}
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+    let json = cli.json || !std::io::stdout().is_terminal();
+    match run(cli) {
+        Ok(value) => {
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).unwrap_or_default()
+                );
+            } else {
+                print!("{}", render::human(&value));
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            if json {
+                eprintln!("{}", e.to_json());
+            } else {
+                eprint!("{}", render::error(&e));
+            }
+            ExitCode::from(e.code() as u8)
+        }
+    }
+}
+

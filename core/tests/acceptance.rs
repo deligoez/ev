@@ -152,3 +152,29 @@ fn a7_gone_refuses_a_box_that_still_holds_something() {
     );
 }
 
+#[test]
+fn a8_a9_code_reuse_after_gone_only() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "Eski", "container", Some("Kiler"), Some("S5-02"));
+    let clash = inv
+        .add(node("Kutu", "container", Some("Kiler"), Some("S5-02")))
+        .unwrap_err();
+    assert_eq!(code_of(&clash), 5);
+    inv.gone("S5-02", Some(Disposition::Trash)).unwrap();
+    inv.add(node("Kutu", "container", Some("Kiler"), Some("S5-02")))
+        .unwrap();
+    // After reuse the active node wins when gone nodes are included (§11.4).
+    let id = inv.resolve("S5-02", true).unwrap();
+    assert_eq!(inv.brief(id).unwrap().name, "Kutu");
+    // Codes compare folded (§11.3): Ü and U collide.
+    add(&mut inv, "Ç", "container", Some("K4x4"), Some("K4x4-07-Ü"));
+    assert_eq!(
+        code_of(
+            &inv.add(node("X", "container", Some("K4x4"), Some("k4x4-07-u")))
+                .unwrap_err()
+        ),
+        5
+    );
+}
+

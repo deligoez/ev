@@ -191,3 +191,37 @@ fn a10_digit_only_code_is_refused() {
     );
 }
 
+#[test]
+fn a11_a12_rooms_nest_only_in_homes_and_rooms() {
+    let (_d, mut inv) = inv();
+    add(&mut inv, "Ev", "home", None, None);
+    add(&mut inv, "Yatak odası", "room", Some("Ev"), None);
+    inv.add(node("Giyinme odası", "room", Some("Yatak odası"), None))
+        .unwrap();
+    add(
+        &mut inv,
+        "Gardırop",
+        "furniture",
+        Some("Giyinme odası"),
+        None,
+    );
+    assert_eq!(
+        code_of(
+            &inv.add(node("Oda", "room", Some("Gardırop"), None))
+                .unwrap_err()
+        ),
+        5
+    );
+    assert_eq!(
+        code_of(
+            &inv.move_to("Yatak odası", "Giyinme odası", false)
+                .unwrap_err()
+        ),
+        5
+    );
+    assert_eq!(
+        code_of(&inv.move_to("Giyinme odası", "Gardırop", false).unwrap_err()),
+        5
+    );
+}
+

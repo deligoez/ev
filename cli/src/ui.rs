@@ -98,3 +98,11 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+fn label(n: &Value) -> String {
+    let name = n["name"].as_str().unwrap_or_default();
+    match n["code"].as_str() {
+        Some(c) => format!("{c}  {name}"),
+        None => name.to_string(),
+    }
+}
+

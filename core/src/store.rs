@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -60,8 +60,31 @@ PRAGMA user_version = 1;
 COMMIT;
 ";
 
+/// Places (spec §13): a person, a household or anywhere outside the tree, with aliases.
+const SCHEMA_V2: &str = "
+BEGIN;
+CREATE TABLE places (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE place_aliases (
+    place_id INTEGER NOT NULL REFERENCES places(id),
+    alias TEXT NOT NULL,
+    alias_folded TEXT NOT NULL UNIQUE
+);
+ALTER TABLE nodes ADD COLUMN owner_place INTEGER REFERENCES places(id);
+ALTER TABLE nodes ADD COLUMN with_place INTEGER REFERENCES places(id);
+ALTER TABLE nodes ADD COLUMN to_place INTEGER REFERENCES places(id);
+PRAGMA user_version = 2;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
-     state, disposition, lost, pending_to, created_at, updated_at";
+     state, disposition, lost, pending_to, created_at, updated_at, \
+     (SELECT name FROM places WHERE id = owner_place), \
+     (SELECT name FROM places WHERE id = with_place), \
+     (SELECT name FROM places WHERE id = to_place)";
 
 pub struct Inventory {
     conn: Connection,
@@ -88,6 +111,9 @@ impl Inventory {
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
         if version < 1 {
             conn.execute_batch(SCHEMA_V1)?;
+        }
+        if version < 2 {
+            conn.execute_batch(SCHEMA_V2)?;
         }
         Ok(Self { conn })
     }

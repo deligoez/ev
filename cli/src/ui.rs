@@ -132,6 +132,7 @@ fn disposition_tr(d: &str) -> &'static str {
         "trash" => "çöp",
         "give" => "ver",
         "sell" => "sat",
+        "return" => "iade",
         _ => "?",
     }
 }

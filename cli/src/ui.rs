@@ -350,8 +350,12 @@ impl App {
         let kids = children(n).len();
         let expanded = self.expanded.contains(&id);
         let mut spans = node_spans(n, &self.snap);
-        if kids > 0 && !expanded {
-            spans.push(Span::styled(format!("  ({kids})"), Style::new().fg(MUTED)));
+        let total = n["items"].as_i64().unwrap_or(0);
+        if total > 0 {
+            spans.push(Span::styled(
+                format!("  {total} eşya"),
+                Style::new().fg(MUTED),
+            ));
         }
         Row {
             id,

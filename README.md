@@ -17,6 +17,7 @@ npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx 
 ev add Ev --kind home
 ev add Salon --kind room --in Ev
 ev find flipper
+ev ui                           # read-only browser that follows the database live
 ```
 
 The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it). JSON when piped,

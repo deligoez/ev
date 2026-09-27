@@ -616,6 +616,19 @@ impl App {
             Constraint::Length(1),
         ])
         .areas(f.area());
+        let brand = format!(" EV {} ", env!("CARGO_PKG_VERSION"));
+        let [brand_area, top] = Layout::horizontal([
+            Constraint::Length(brand.chars().count() as u16 + 1),
+            Constraint::Min(0),
+        ])
+        .areas(top);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                brand,
+                Style::new().bold().fg(Color::Black).bg(Color::Cyan),
+            )),
+            brand_area,
+        );
         self.tabs_area = top;
         let tabs = Tabs::new(
             TABS.iter()
@@ -726,7 +739,14 @@ impl App {
                 Span::styled(p.to_string(), Style::new().fg(MARK)),
             );
         }
-        for (k, key) in [("tema", "theme"), ("not", "note"), ("adres", "address")] {
+        for (k, key) in [
+            ("götürülecek", "to"),
+            ("sahibi", "owner"),
+            ("ödünçte", "with"),
+            ("tema", "theme"),
+            ("not", "note"),
+            ("adres", "address"),
+        ] {
             if let Some(x) = n[key].as_str() {
                 field(k, Span::raw(x.to_string()));
             }

@@ -246,3 +246,20 @@ fn a13_a14_lost_then_moved() {
     );
 }
 
+#[test]
+fn lost_without_place_and_found_in_place() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let mut n = node("Etiket makinesi", "item", None, None);
+    n.lost = true;
+    inv.add(n).unwrap();
+    assert_eq!(code_of(&inv.found("Etiket makinesi").unwrap_err()), 5);
+    assert_eq!(
+        code_of(&inv.add(node("Sahipsiz", "item", None, None)).unwrap_err()),
+        5
+    );
+    inv.mark_lost("Flipper Zero").unwrap();
+    let v = inv.found("Flipper Zero").unwrap();
+    assert_eq!(v["node"]["lost"], false);
+}
+

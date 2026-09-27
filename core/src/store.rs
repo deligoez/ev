@@ -1279,9 +1279,23 @@ fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<(
                 )?;
             }
         }
+        "to" | "owner" | "with" => {
+            let column = format!("{field}_place");
+            let place = text(value).map(|t| place_or_create(conn, &t)).transpose()?;
+            if field == "with" && place.is_some() && n.owner.is_some() {
+                return Err(refused(
+                    format!("{} is not ours; it cannot be lent out", label(n)),
+                    Value::Null,
+                ));
+            }
+            conn.execute(
+                &format!("UPDATE nodes SET {column} = ?1 WHERE id = ?2"),
+                params![place, n.id],
+            )?;
+        }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with"
             )));
         }
     }

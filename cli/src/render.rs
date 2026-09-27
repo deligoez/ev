@@ -114,7 +114,7 @@ pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
         let _ = writeln!(out, "{}", line(node));
-        for key in ["kind", "note", "theme", "address"] {
+        for key in ["kind", "note", "theme", "address", "to", "owner", "with"] {
             if let Some(x) = node[key].as_str() {
                 let _ = writeln!(out, "  {key}: {x}");
             }
@@ -138,6 +138,36 @@ pub fn human(v: &Value) -> String {
         for c in v["children"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  └ {}", line(c));
         }
+        return out;
+    }
+    if v.get("take").is_some() && v.get("place").is_some() {
+        errands(&mut out, v);
+        return out;
+    }
+    if let Some(list) = v.get("errands").and_then(Value::as_array) {
+        if list.is_empty() {
+            out.push_str("(nothing to take, return or collect)\n");
+        }
+        for e in list {
+            errands(&mut out, e);
+        }
+        return out;
+    }
+    if let Some(list) = v.get("places").and_then(Value::as_array) {
+        for p in list {
+            let _ = writeln!(
+                out,
+                "{}  take {} · return {} · collect {}",
+                place_head(p),
+                p["take"],
+                p["return"],
+                p["collect"]
+            );
+        }
+        return out;
+    }
+    if v.get("aliases").is_some() && v.get("name").is_some() {
+        let _ = writeln!(out, "{}", place_head(v));
         return out;
     }
     if let Some(t) = v.get("tree").and_then(Value::as_array) {

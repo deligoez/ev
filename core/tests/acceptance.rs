@@ -397,6 +397,14 @@ fn a_bundle_of_candidates_is_disposed_and_leaves_together() {
     );
     inv.dispose(&cable.to_string(), Disposition::Sell).unwrap();
     inv.dispose(&set.to_string(), Disposition::Sell).unwrap();
+    let v = inv.disposals(None).unwrap();
+    let sell = v["disposals"]["sell"].as_array().unwrap();
+    assert_eq!(
+        sell.len(),
+        1,
+        "a part is listed under its set, not beside it"
+    );
+    assert_eq!(sell[0]["parts"][0]["id"], cable);
     inv.gone(&set.to_string(), None).unwrap();
     let h = inv.history(&cable.to_string()).unwrap();
     let last = h["events"].as_array().unwrap().last().unwrap().clone();

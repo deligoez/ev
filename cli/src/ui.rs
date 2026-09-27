@@ -81,9 +81,8 @@ impl Snapshot {
             unplaced: v["unplaced"].as_array().cloned().unwrap_or_default(),
             ..Default::default()
         };
-        let roots = s.roots.clone();
-        for r in &roots {
-            s.index(r, None);
+        for r in s.roots.clone() {
+            s.index(&r, None);
         }
         for u in s.unplaced.clone() {
             let id = u["id"].as_i64().unwrap_or_default();

@@ -225,3 +225,64 @@ fn run(cli: Cli) -> Result<Value> {
     }
 }
 
+fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
+    if a.batch.is_some() || a.stdin {
+        if a.name.is_some() {
+            return Err(Error::Usage(
+                "give either a name or --batch/--stdin, not both".into(),
+            ));
+        }
+        let text = match &a.batch {
+            Some(path) => std::fs::read_to_string(path)
+                .map_err(|e| Error::Usage(format!("cannot read {}: {e}", path.display())))?,
+            None => {
+                let mut s = String::new();
+                std::io::stdin()
+                    .read_to_string(&mut s)
+                    .map_err(|e| Error::Usage(format!("cannot read stdin: {e}")))?;
+                s
+            }
+        };
+        let mut lines = Vec::new();
+        for (i, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let node: NewNode = serde_json::from_str(line)
+                .map_err(|e| Error::Usage(format!("line {}: {e}", i + 1)))?;
+            lines.push(node);
+        }
+        if lines.is_empty() {
+            return Err(Error::Usage("the batch is empty".into()));
+        }
+        warn_missing_photos(
+            lines
+                .iter()
+                .flat_map(|l| l.photos.iter().map(String::as_str)),
+        );
+        return inv.add_batch(lines);
+    }
+    let name = a
+        .name
+        .ok_or_else(|| Error::Usage("a name is required".into()))?;
+    let kind = a
+        .kind
+        .ok_or_else(|| Error::Usage("--kind is required".into()))?;
+    warn_missing_photos(a.photos.iter().map(String::as_str));
+    inv.add(NewNode {
+        key: None,
+        name,
+        kind,
+        parent: a.parent,
+        lost: a.lost,
+        code: a.code,
+        address: a.address,
+        qty: a.qty,
+        note: a.note,
+        theme: a.theme,
+        fill: a.fill,
+        tags: a.tags,
+        photos: a.photos,
+    })
+}
+

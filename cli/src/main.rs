@@ -7,6 +7,7 @@ use ev_core::{Disposition, Error, Inventory, Kind, NewNode, Result};
 use serde_json::Value;
 
 mod render;
+mod ui;
 
 /// Agent-first home inventory.
 #[derive(Parser)]
@@ -95,6 +96,8 @@ enum Cmd {
     Found { reference: String },
     /// A node's events, oldest first.
     History { reference: String },
+    /// Read-only terminal browser that follows the database as it changes.
+    Ui,
 }
 
 #[derive(Args)]

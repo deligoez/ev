@@ -422,14 +422,24 @@ impl Inventory {
             }
             let list: Vec<i64> = ids(
                 &self.conn,
-                "SELECT id FROM nodes WHERE state = 'candidate' AND disposition = ?1 ORDER BY id",
+                "SELECT n.id FROM nodes n LEFT JOIN nodes p ON p.id = n.parent_id
+                 WHERE n.state = 'candidate' AND n.disposition = ?1
+                   AND (p.id IS NULL OR p.state != 'candidate')
+                 ORDER BY n.id",
                 [d.as_str()],
             )?;
-            let list = list
-                .iter()
-                .map(|id| brief(&self.conn, *id))
-                .collect::<Result<Vec<_>>>()?;
-            groups.insert(d.as_str().into(), json!(list));
+            let mut entries = Vec::with_capacity(list.len());
+            for id in list {
+                let mut entry = brief_json(&self.conn, id)?;
+                let parts = live_descendants(&self.conn, id)?
+                    .into_iter()
+                    .filter(|n| n.state == State::Candidate)
+                    .map(|n| brief_json(&self.conn, n.id))
+                    .collect::<Result<Vec<_>>>()?;
+                entry["parts"] = json!(parts);
+                entries.push(entry);
+            }
+            groups.insert(d.as_str().into(), json!(entries));
         }
         Ok(json!({ "disposals": groups }))
     }

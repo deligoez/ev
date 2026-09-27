@@ -671,6 +671,20 @@ fn show(conn: &Connection, id: i64) -> Result<Value> {
     Ok(json!({ "node": node, "children": children, "pending": pending, "last_seen": last_seen }))
 }
 
+/// Items anywhere below `id` that are not gone, counting each item's quantity.
+fn item_total(conn: &Connection, id: i64) -> Result<i64> {
+    Ok(conn.query_row(
+        "WITH RECURSIVE d(id) AS (
+             SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone'
+             UNION ALL
+             SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id WHERE n.state != 'gone'
+         )
+         SELECT COALESCE(SUM(COALESCE(qty, 1)), 0) FROM nodes WHERE kind = 'item' AND id IN d",
+        [id],
+        |r| r.get(0),
+    )?)
+}
+
 fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     let n = load(conn, id)?;
     let mut v = json!({

@@ -35,3 +35,20 @@ fn line(n: &Value) -> String {
     out
 }
 
+fn tree(out: &mut String, n: &Value, indent: usize) {
+    let label = match n["code"].as_str() {
+        Some(c) => format!("{c}  {}", s(n, "name")),
+        None => s(n, "name"),
+    };
+    let _ = writeln!(
+        out,
+        "{}{label}  #{} ({})",
+        "  ".repeat(indent),
+        n["id"],
+        s(n, "kind")
+    );
+    for c in n["children"].as_array().into_iter().flatten() {
+        tree(out, c, indent + 1);
+    }
+}
+

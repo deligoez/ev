@@ -868,3 +868,13 @@ fn check_placement(
     Ok(())
 }
 
+fn check_ranges(qty: Option<i64>, fill: Option<i64>) -> Result<()> {
+    if qty.is_some_and(|q| q < 1) {
+        return Err(Error::Usage("qty must be at least 1".into()));
+    }
+    if fill.is_some_and(|f| !(0..=100).contains(&f)) {
+        return Err(Error::Usage("fill must be between 0 and 100".into()));
+    }
+    Ok(())
+}
+

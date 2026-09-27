@@ -737,3 +737,7 @@ fn ambiguous(conn: &Connection, r: &str, hits: impl Iterator<Item = i64>) -> Res
 
 // ---------- writing ----------
 
+fn now() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+

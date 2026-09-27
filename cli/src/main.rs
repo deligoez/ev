@@ -156,3 +156,12 @@ fn main() -> ExitCode {
     }
 }
 
+fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
+    if let Some(p) = flag {
+        return Ok(p);
+    }
+    let home = std::env::var_os("HOME")
+        .ok_or_else(|| Error::Internal("HOME is not set; pass --db".into()))?;
+    Ok(PathBuf::from(home).join(".ev").join("ev.db"))
+}
+

@@ -226,6 +226,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Lost { reference: None } => inv.lost_list(),
         Cmd::Found { reference } => inv.found(&reference),
         Cmd::History { reference } => inv.history(&reference),
+        Cmd::Ui => ui::run(inv).map(|()| Value::Null),
     }
 }
 

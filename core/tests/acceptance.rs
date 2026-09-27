@@ -380,3 +380,32 @@ fn disposals_and_restore() {
             .is_empty()
     );
 }
+
+#[test]
+fn a_bundle_of_candidates_is_disposed_and_leaves_together() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let set = add(&mut inv, "Dock seti", "item", Some("Kiler"), None);
+    let cable = add(&mut inv, "Kablo", "item", Some(&set.to_string()), None);
+    // An active part still blocks the set.
+    assert_eq!(
+        code_of(
+            &inv.dispose(&set.to_string(), Disposition::Sell)
+                .unwrap_err()
+        ),
+        5
+    );
+    inv.dispose(&cable.to_string(), Disposition::Sell).unwrap();
+    inv.dispose(&set.to_string(), Disposition::Sell).unwrap();
+    inv.gone(&set.to_string(), None).unwrap();
+    let h = inv.history(&cable.to_string()).unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["type"], "gone");
+    assert_eq!(last["data"]["with"], set);
+    assert!(
+        inv.disposals(None).unwrap()["disposals"]["sell"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

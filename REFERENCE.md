@@ -86,3 +86,11 @@ expanding their parents so they are in view.
 
 Place names match folded with apostrophes ignored; an unknown name in `to`/`owner`/`with`
 creates the place.
+
+## Placement
+
+| Command | Does |
+|---|---|
+| `ev suggest <text> [--tag t]` | `rules`, `similar` (holders of alike items, most matches first), `containers` (every holder, with `path_text`, `theme`, `fill`, `items`, `sample`), `complete.containers` |
+| `ev rule add <text>` / `ev rule list` / `ev rule remove <id>` | placement rules in plain words |
+| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home) |

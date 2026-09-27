@@ -32,6 +32,7 @@ fn line(n: &Value) -> String {
     if n["lost"].as_bool() == Some(true) {
         out.push_str("  (lost)");
     }
+    out.push_str(&place_marks(n));
     out
 }
 

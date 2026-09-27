@@ -345,7 +345,7 @@ impl App {
         self.load_details()
     }
 
-    fn row(&self, n: &Value, depth: usize, prefix: &str) -> Row {
+    fn tree_row(&self, n: &Value, depth: usize) -> Row {
         let id = n["id"].as_i64().unwrap_or_default();
         let kids = children(n).len();
         let expanded = self.expanded.contains(&id);

@@ -92,6 +92,13 @@ impl Inventory {
         Ok(Self { conn })
     }
 
+    /// Changes whenever another connection commits a write; used to refresh readers.
+    pub fn data_version(&self) -> Result<i64> {
+        Ok(self
+            .conn
+            .query_row("PRAGMA data_version", [], |r| r.get(0))?)
+    }
+
     pub fn resolve(&self, reference: &str, include_gone: bool) -> Result<i64> {
         resolve(&self.conn, reference, include_gone)
     }

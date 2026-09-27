@@ -1024,3 +1024,19 @@ fn set_candidate(conn: &Connection, id: i64, d: Disposition) -> Result<()> {
     Ok(())
 }
 
+fn field_value(n: &Node, field: &str) -> Value {
+    match field {
+        "name" => json!(n.name),
+        "code" => json!(n.code),
+        "kind" => json!(n.kind),
+        "address" => json!(n.address),
+        "qty" => json!(n.qty),
+        "note" => json!(n.note),
+        "theme" => json!(n.theme),
+        "fill" => json!(n.fill),
+        "tags" => json!(n.tags),
+        "photos" => json!(n.photos),
+        _ => Value::Null,
+    }
+}
+

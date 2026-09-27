@@ -98,6 +98,35 @@ enum Cmd {
     History { reference: String },
     /// Read-only terminal browser that follows the database as it changes.
     Ui,
+    /// Lend a node of ours to a place; it stays in the tree where it returns to.
+    Lend {
+        reference: String,
+        #[arg(long)]
+        to: String,
+    },
+    /// A lent node came back.
+    Back { reference: String },
+    /// What to take to, return to or collect from a place; every place when none is given.
+    For { place: Option<String> },
+    /// Places: people, households or anywhere outside the tree, with aliases.
+    #[command(subcommand)]
+    Place(PlaceCmd),
+}
+
+#[derive(Subcommand)]
+enum PlaceCmd {
+    /// Create a place with optional aliases.
+    Add {
+        name: String,
+        #[arg(long = "alias")]
+        aliases: Vec<String>,
+    },
+    /// Give an existing place another name.
+    Alias { place: String, alias: String },
+    /// Every place with its aliases and open errands.
+    List,
+    /// Fold one place into another; references and aliases move.
+    Merge { from: String, into: String },
 }
 
 #[derive(Args)]

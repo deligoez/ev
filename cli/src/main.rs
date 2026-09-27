@@ -330,6 +330,8 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         fill: a.fill,
         tags: a.tags,
         photos: a.photos,
+        to: a.to,
+        owner: a.owner,
     })
 }
 

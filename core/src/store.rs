@@ -729,6 +729,11 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     if let Some(p) = n.pending_to {
         v["pending_to"] = json!(p);
     }
+    for (k, val) in [("owner", &n.owner), ("with", &n.with), ("to", &n.to)] {
+        if let Some(x) = val {
+            v[k] = json!(x);
+        }
+    }
     v["updated_at"] = json!(n.updated_at);
     v["items"] = json!(item_total(conn, id)?);
     let children = if depth == 0 {

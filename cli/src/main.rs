@@ -286,3 +286,10 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
     })
 }
 
+fn warn_missing_photos<'a>(paths: impl Iterator<Item = &'a str>) {
+    for p in paths {
+        if !std::path::Path::new(p.trim()).exists() {
+            eprintln!("warning: photo path does not exist: {p}");
+        }
+    }
+}

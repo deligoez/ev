@@ -638,3 +638,33 @@ fn show(conn: &Connection, id: i64) -> Result<Value> {
     Ok(json!({ "node": node, "children": children, "pending": pending, "last_seen": last_seen }))
 }
 
+fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
+    let n = load(conn, id)?;
+    let mut v = json!({
+        "id": n.id, "code": n.code, "name": n.name, "kind": n.kind,
+        "state": n.state, "lost": n.lost,
+    });
+    if let Some(q) = n.qty {
+        v["qty"] = json!(q);
+    }
+    if let Some(d) = n.disposition {
+        v["disposition"] = json!(d);
+    }
+    let children = if depth == 0 {
+        Vec::new()
+    } else {
+        let kids: Vec<i64> = ids(
+            conn,
+            "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
+            [id],
+        )?;
+        kids.iter()
+            .map(|k| subtree(conn, *k, depth - 1))
+            .collect::<Result<Vec<_>>>()?
+    };
+    v["children"] = json!(children);
+    Ok(v)
+}
+
+// ---------- references (spec §4, §11.4) ----------
+

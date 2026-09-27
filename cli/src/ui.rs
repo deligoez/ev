@@ -629,3 +629,14 @@ fn chrono_like_now() -> String {
     format!("{:02}:{:02}:{:02} UTC", s / 3600, (s % 3600) / 60, s % 60)
 }
 
+pub fn run(inv: Inventory) -> Result<()> {
+    use std::io::IsTerminal;
+    if !std::io::stdout().is_terminal() {
+        return Err(Error::Usage("`ev ui` needs a terminal".into()));
+    }
+    let mut app = App::new(inv)?;
+    let mut terminal = ratatui::init();
+    let result = app.run(&mut terminal);
+    ratatui::restore();
+    result
+}

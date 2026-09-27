@@ -668,3 +668,57 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
 
 // ---------- references (spec §4, §11.4) ----------
 
+fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64> {
+    let r = reference.trim();
+    if r.is_empty() {
+        return Err(Error::Usage("empty reference".into()));
+    }
+    if r.chars().all(|c| c.is_ascii_digit()) {
+        let state: Option<String> = r
+            .parse::<i64>()
+            .ok()
+            .map(|id| {
+                conn.query_row("SELECT state FROM nodes WHERE id = ?1", [id], |x| x.get(0))
+                    .optional()
+            })
+            .transpose()?
+            .flatten();
+        return match state {
+            Some(s) if include_gone || s != "gone" => Ok(r.parse().unwrap_or_default()),
+            _ => Err(Error::NotFound(format!("no node with id {r}"))),
+        };
+    }
+    let wanted = fold(r);
+    let mut stmt = conn.prepare("SELECT id, code, name, state FROM nodes ORDER BY id")?;
+    let rows: Vec<(i64, Option<String>, String, String)> = stmt
+        .query_map([], |x| Ok((x.get(0)?, x.get(1)?, x.get(2)?, x.get(3)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    let visible: Vec<_> = rows
+        .into_iter()
+        .filter(|x| include_gone || x.3 != "gone")
+        .collect();
+
+    let code_hits: Vec<_> = visible
+        .iter()
+        .filter(|x| x.1.as_deref().map(fold) == Some(wanted.clone()))
+        .collect();
+    if !code_hits.is_empty() {
+        if code_hits.len() == 1 {
+            return Ok(code_hits[0].0);
+        }
+        let active: Vec<_> = code_hits.iter().filter(|x| x.3 != "gone").collect();
+        if active.len() == 1 {
+            return Ok(active[0].0);
+        }
+        return ambiguous(conn, r, code_hits.iter().map(|x| x.0));
+    }
+    let name_hits: Vec<_> = visible.iter().filter(|x| fold(&x.2) == wanted).collect();
+    match name_hits.len() {
+        0 => Err(Error::NotFound(format!(
+            "no node matches `{r}`; search with `ev find` and retry with an id"
+        ))),
+        1 => Ok(name_hits[0].0),
+        _ => ambiguous(conn, r, name_hits.iter().map(|x| x.0)),
+    }
+}
+

@@ -1,0 +1,15 @@
+{
+  "spec": "spec/0.1.0.md",
+  "review_rounds": [
+    {
+      "round": 1,
+      "findings": 35,
+      "clean": false,
+      "recorded_at": "2026-09-27T19:09:31Z",
+      "file": "review-round-1.ndjson",
+      "spec_hash": "sha256:f5a3f507d4da0c4ac2b691c1e5db016050ea07a6f75d22663fe1f8a315e897b2",
+      "roles_hash": "builtin"
+    }
+  ],
+  "audit_rounds": []
+}

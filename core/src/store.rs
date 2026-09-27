@@ -1014,3 +1014,13 @@ fn require_empty(conn: &Connection, node: &Node) -> Result<()> {
     ))
 }
 
+fn set_candidate(conn: &Connection, id: i64, d: Disposition) -> Result<()> {
+    conn.execute(
+        "UPDATE nodes SET state = 'candidate', disposition = ?1 WHERE id = ?2",
+        params![d.as_str(), id],
+    )?;
+    touch(conn, id)?;
+    event(conn, id, "dispose", json!({ "as": d }))?;
+    Ok(())
+}
+

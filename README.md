@@ -4,8 +4,16 @@ Agent-first home inventory. An AI agent records what a person reports at the she
 answers "where is it?" — homes, rooms, furniture, boxes and items in one tree, with planned
 moves, a give/sell/trash pipeline, lost items and a full history.
 
+## Install
+
 ```bash
-cargo install --path cli        # installs the `ev` binary
+cargo install --path cli        # the `ev` binary (Homebrew formula to follow)
+npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx skills update -g`
+```
+
+## Use
+
+```bash
 ev add Ev --kind home
 ev add Salon --kind room --in Ev
 ev find flipper

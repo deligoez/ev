@@ -598,3 +598,20 @@ fn label(n: &Node) -> String {
     }
 }
 
+fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
+    let n = load(conn, id)?;
+    let segments = path(conn, id)?;
+    Ok(NodeRef {
+        id,
+        code: n.code,
+        name: n.name,
+        kind: n.kind,
+        state: n.state,
+        lost: n.lost,
+        disposition: n.disposition,
+        qty: n.qty,
+        path_text: path_text(&segments),
+        path: segments,
+    })
+}
+

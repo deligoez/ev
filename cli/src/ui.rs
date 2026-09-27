@@ -114,10 +114,9 @@ fn str_of(n: &Value, key: &str) -> String {
 }
 
 fn label(n: &Value) -> String {
-    let name = n["name"].as_str().unwrap_or_default();
     match n["code"].as_str() {
-        Some(c) => format!("{c}  {name}"),
-        None => name.to_string(),
+        Some(c) => format!("{c}  {}", str_of(n, "name")),
+        None => str_of(n, "name"),
     }
 }
 

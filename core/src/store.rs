@@ -538,3 +538,11 @@ fn load(conn: &Connection, id: i64) -> Result<Node> {
     Ok(node)
 }
 
+fn strings(conn: &Connection, sql: &str, id: i64) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt
+        .query_map([id], |r| r.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+    Ok(rows)
+}
+

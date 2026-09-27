@@ -14,7 +14,10 @@
 | fill | `--fill`, `edit fill=` | 0–100 estimate |
 | tags | `--tag` (repeatable), `edit tags=+x` / `tags=-x` | stored lowercase |
 | photos | `--photo` (repeatable), `edit photos=+p` / `photos=-p` | stored as absolute paths |
-| state | `dispose`, `restore`, `gone` | active, candidate, gone |
+| to | `--to`, `edit to=` | place the node should be taken to; empty clears |
+| owner | `--owner`, `edit owner=` | place the node belongs to when it is not ours |
+| with | `lend --to`, `back`, `edit with=` | place holding our lent node |
+| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, give, sell, return |
 | lost | `--lost`, `lost`, `found`, any move | |
 
 ## Batch lines (`ev add --batch file` / `--stdin`)

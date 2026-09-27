@@ -761,3 +761,32 @@ fn brief_json(conn: &Connection, id: i64) -> Result<Value> {
     serde_json::to_value(brief(conn, id)?).map_err(|e| Error::Internal(e.to_string()))
 }
 
+/// Validates a code and returns its folded form (spec §3.2 rule 5, §11.3).
+fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<String> {
+    let c = code.trim();
+    if c.is_empty() {
+        return Err(Error::Usage("code is empty".into()));
+    }
+    if c.chars().all(|ch| ch.is_ascii_digit()) {
+        return Err(refused(
+            format!("code `{c}` is only digits and would read as an id"),
+            json!({ "code": c }),
+        ));
+    }
+    let folded = fold(c);
+    let clash: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM nodes WHERE code_folded = ?1 AND state != 'gone' AND id != ?2",
+            params![folded, except.unwrap_or(-1)],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(other) = clash {
+        return Err(refused(
+            format!("code `{c}` is already in use"),
+            json!({ "node": brief_json(conn, other)? }),
+        ));
+    }
+    Ok(folded)
+}
+

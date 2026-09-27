@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "spec": "spec/0.1.0.md",
+  "created_at": "2026-09-27T18:47:59.99266Z",
+  "updated_at": "2026-09-27T18:47:59.992677Z",
+  "workflow": {
+    "commit_strategy": "hc"
+  },
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": []
+}

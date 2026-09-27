@@ -1,0 +1,6 @@
+{
+  "workflow": {
+    "quality_gate": "cargo fmt --check \u0026\u0026 cargo clippy --all-targets -- -D warnings \u0026\u0026 cargo test",
+    "commit_strategy": "hc"
+  }
+}

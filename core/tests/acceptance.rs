@@ -225,3 +225,24 @@ fn a11_a12_rooms_nest_only_in_homes_and_rooms() {
     );
 }
 
+#[test]
+fn a13_a14_lost_then_moved() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "Ses", "container", Some("Kiler"), Some("S5-01"));
+    inv.mark_lost("Flipper Zero").unwrap();
+    let v = inv.lost_list().unwrap();
+    assert_eq!(
+        v["lost"][0]["last_seen"]["path_text"],
+        "Ev › Salon › K4x4 › K4x4-15-A"
+    );
+    let v = inv.move_to("Flipper Zero", "S5-01", false).unwrap();
+    assert_eq!(v["node"]["lost"], false);
+    assert!(
+        inv.lost_list().unwrap()["lost"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+

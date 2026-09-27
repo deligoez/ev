@@ -33,6 +33,12 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 5. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
+## Let the person watch
+
+Suggest `ev ui` in a second terminal at the start of a session: it is read-only and
+refreshes on its own, highlighting whatever you just changed, so the person sees each
+record land as you make it.
+
 ## Exit codes
 
 | Exit | Meaning | What you do |

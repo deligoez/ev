@@ -109,6 +109,10 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+fn str_of(n: &Value, key: &str) -> String {
+    n[key].as_str().unwrap_or_default().to_string()
+}
+
 fn label(n: &Value) -> String {
     let name = n["name"].as_str().unwrap_or_default();
     match n["code"].as_str() {

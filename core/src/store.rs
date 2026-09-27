@@ -1005,24 +1005,50 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
     Ok(())
 }
 
-fn require_empty(conn: &Connection, node: &Node) -> Result<()> {
-    let kids: Vec<i64> = ids(
-        conn,
-        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
-        [node.id],
-    )?;
-    if kids.is_empty() {
-        return Ok(());
+/// Every non-gone node below `id`, depth first.
+fn live_descendants(conn: &Connection, id: i64) -> Result<Vec<Node>> {
+    let mut out = Vec::new();
+    let mut stack = vec![id];
+    while let Some(cur) = stack.pop() {
+        let kids: Vec<i64> = ids(
+            conn,
+            "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id DESC",
+            [cur],
+        )?;
+        for k in kids {
+            if out.len() > MAX_DEPTH {
+                return Err(Error::Internal(format!(
+                    "subtree of node {id} does not end"
+                )));
+            }
+            out.push(load(conn, k)?);
+            stack.push(k);
+        }
     }
-    let children = kids
+    Ok(out)
+}
+
+/// Refuses when anything below `node` is still active (spec §3.3, §12.1); candidates
+/// below it are already set aside and do not block.
+fn require_no_active_inside(conn: &Connection, node: &Node) -> Result<Vec<Node>> {
+    let below = live_descendants(conn, node.id)?;
+    let active: Vec<i64> = below
+        .iter()
+        .filter(|n| n.state == State::Active)
+        .map(|n| n.id)
+        .collect();
+    if active.is_empty() {
+        return Ok(below);
+    }
+    let children = active
         .iter()
         .map(|k| brief_json(conn, *k))
         .collect::<Result<Vec<_>>>()?;
     Err(refused(
         format!(
-            "{} still holds {} node(s); move or dispose of them first",
+            "{} still holds {} active node(s); move or dispose of them first",
             label(node),
-            kids.len()
+            active.len()
         ),
         json!({ "children": children }),
     ))

@@ -136,8 +136,33 @@ fn disposition_tr(d: &str) -> &'static str {
     }
 }
 
-fn suffix(n: &Value, snap: &Snapshot) -> String {
-    let mut s = String::new();
+fn name_style(n: &Value) -> Style {
+    let s = match n["kind"].as_str() {
+        Some("home" | "room") => Style::new().bold(),
+        Some("furniture") => Style::new().fg(FURNITURE),
+        _ => Style::new(),
+    };
+    if n["state"] == "candidate" {
+        s.fg(MUTED)
+    } else {
+        s
+    }
+}
+
+/// Code, name and state markers of a node as coloured spans.
+fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
+    let mut out = Vec::new();
+    if let Some(c) = n["code"].as_str() {
+        out.push(Span::styled(c.to_string(), Style::new().fg(CODE)));
+        out.push(Span::raw("  "));
+    }
+    out.push(Span::styled(str_of(n, "name"), name_style(n)));
+    out.extend(marker_spans(n, snap));
+    out
+}
+
+fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
+    let mut out = Vec::new();
     if let Some(q) = n["qty"].as_i64() {
         s.push_str(&format!("  ×{q}"));
     }

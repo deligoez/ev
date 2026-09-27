@@ -457,7 +457,7 @@ impl App {
         self.load_details()
     }
 
-    fn step(&mut self, delta: isize) -> Result<()> {
+    fn select(&mut self, i: usize) -> Result<()> {
         if self.rows.is_empty() {
             return Ok(());
         }

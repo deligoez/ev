@@ -794,7 +794,23 @@ pub fn run(inv: Inventory) -> Result<()> {
     }
     let mut app = App::new(inv)?;
     let mut terminal = ratatui::init();
+    let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
+    let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Tab, tab_at};
+
+    #[test]
+    fn tab_titles_are_hit_by_their_columns() {
+        // " 1 Ağaç " spans columns 0..8, then a divider, then " 2 Bekleyen ".
+        assert!(tab_at(0) == Some(Tab::Tree));
+        assert!(tab_at(7) == Some(Tab::Tree));
+        assert!(tab_at(8).is_none());
+        assert!(tab_at(9) == Some(Tab::Pending));
+    }
 }

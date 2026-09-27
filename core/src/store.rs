@@ -886,3 +886,13 @@ fn normalize_tag(t: &str) -> Result<String> {
     Ok(t)
 }
 
+fn absolute(p: &str) -> Result<String> {
+    let p = p.trim();
+    if p.is_empty() {
+        return Err(Error::Usage("photo path is empty".into()));
+    }
+    std::path::absolute(p)
+        .map(|a| a.to_string_lossy().into_owned())
+        .map_err(|e| Error::Usage(format!("photo path `{p}`: {e}")))
+}
+

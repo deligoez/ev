@@ -79,6 +79,12 @@ pub struct Node {
     pub disposition: Option<Disposition>,
     pub lost: bool,
     pub pending_to: Option<i64>,
+    /// Place the node belongs to when it is not ours (spec §13).
+    pub owner: Option<String>,
+    /// Place holding our node while it is lent out.
+    pub with: Option<String>,
+    /// Place the node should be taken to.
+    pub to: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

@@ -722,3 +722,18 @@ fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64
     }
 }
 
+fn ambiguous(conn: &Connection, r: &str, hits: impl Iterator<Item = i64>) -> Result<i64> {
+    let candidates = hits
+        .map(|id| {
+            brief(conn, id)
+                .and_then(|b| serde_json::to_value(b).map_err(|e| Error::Internal(e.to_string())))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Err(Error::Ambiguous {
+        message: format!("`{r}` matches {} nodes; retry with an id", candidates.len()),
+        candidates,
+    })
+}
+
+// ---------- writing ----------
+

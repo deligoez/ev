@@ -1,0 +1,113 @@
+{"unit_id": "u1", "anchor": "§1", "text_sha": "f9904fd33c12", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u2", "anchor": "§1", "text_sha": "919bcb684ad3", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u3", "anchor": "§1", "text_sha": "2a32b57c7f7a", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u4", "anchor": "§1", "text_sha": "f38955d2445f", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u6", "anchor": "§1", "text_sha": "76b6b300e11b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u10", "anchor": "§2", "text_sha": "2bf13f2ee49c", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u11", "anchor": "§2", "text_sha": "744fa414eab4", "ordinal": 1, "verdict": "PASS", "kind": "document", "tier": "read", "evidence": "cargo info tauri -> 'Make tiny, secure apps for all desktop platforms with Tauri', a Rust crate (rust-version 1.95, repo github.com/tauri-apps/tauri); a Tauri app backend is a Rust crate and can depend on a workspace `core` crate", "note": "'Rust over Go' and 'expected to be Tauri' are decisions/predictions; the checkable part (Tauri's app layer is Rust, so a Rust core can be shared) holds."}
+{"unit_id": "u15", "anchor": "§3.1", "text_sha": "de1a7222f263", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u18", "anchor": "§3.1", "text_sha": "bb0fe2431743", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u20", "anchor": "§3.1", "text_sha": "d116a82d517d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u21", "anchor": "§3.1", "text_sha": "d26d05418685", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u22", "anchor": "§3.1", "text_sha": "65332d77c98a", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u28", "anchor": "§3.1", "text_sha": "51931dd645bd", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u29", "anchor": "§3.1", "text_sha": "bfe28f13a9ca", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u30", "anchor": "§3.1", "text_sha": "db6f5882515f", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u31", "anchor": "§3.1", "text_sha": "2dcee2f0085e", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u32", "anchor": "§3.2", "text_sha": "a7d71f34faff", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u33", "anchor": "§3.2", "text_sha": "dd8a886dcffe", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u34", "anchor": "§3.2", "text_sha": "3ad9fc28176d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u35", "anchor": "§3.2", "text_sha": "7da18ec1e955", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u37", "anchor": "§3.2", "text_sha": "76cf2eee9a19", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u39", "anchor": "§3.2", "text_sha": "16dcb3c197f7", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u40", "anchor": "§3.2", "text_sha": "cb5146dad3d7", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u41", "anchor": "§3.2", "text_sha": "191224ce8472", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u42", "anchor": "§3.2", "text_sha": "df27db8d277a", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: applied §3.2 rules by hand/python to the §3.2 tree: Giyinme odası (room) under Gardırop (furniture) violates rule 2; Yatak odası into its child Giyinme odası violates rule 4", "note": "Also a decision (exit code 5); the rule attributions are consistent with the stated invariants."}
+{"unit_id": "u43", "anchor": "§3.3", "text_sha": "7fce8cb6abba", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u46", "anchor": "§3.3", "text_sha": "18e6cadac8b8", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u47", "anchor": "§3.3", "text_sha": "2ee8ddddf794", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u48", "anchor": "§3.3", "text_sha": "8cf2ac756b3c", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u49", "anchor": "§3.3", "text_sha": "c534df95a224", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u50", "anchor": "§3.3", "text_sha": "9d16311c8faf", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u51", "anchor": "§3.3", "text_sha": "3a5914e78084", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u53", "anchor": "§3.3", "text_sha": "a5547b32f991", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u55", "anchor": "§3.4", "text_sha": "b0f0b5ddc9f4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u57", "anchor": "§3.4", "text_sha": "583023f5fa84", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u58", "anchor": "§3.4", "text_sha": "369acddaa8e1", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u59", "anchor": "§3.4", "text_sha": "ff48987d4e3d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u60", "anchor": "§3.4", "text_sha": "669990d73c38", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u61", "anchor": "§3.4", "text_sha": "54a68dbc9cd5", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u63", "anchor": "§3.5", "text_sha": "907f201d4cfe", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u65", "anchor": "§3.6", "text_sha": "3458a664f943", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u67", "anchor": "§3.6", "text_sha": "18a4db153a46", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u68", "anchor": "§3.6", "text_sha": "a6714c2a9fd5", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u69", "anchor": "§3.6", "text_sha": "1b468b32278b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u73", "anchor": "§4", "text_sha": "3a1b4ac373ce", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u75", "anchor": "§4", "text_sha": "4cbf450f016c", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u76", "anchor": "§4", "text_sha": "03b8991ef0c7", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u77", "anchor": "§4", "text_sha": "4745006afd81", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u78", "anchor": "§4", "text_sha": "d89cbd9e3907", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u80", "anchor": "§4", "text_sha": "e251dbd266ca", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u81", "anchor": "§4", "text_sha": "40ee27982f85", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u82", "anchor": "§4", "text_sha": "949fd4fd4634", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u83", "anchor": "§4", "text_sha": "069ce305ea22", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u84", "anchor": "§4", "text_sha": "3587c16d565e", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u87", "anchor": "§4", "text_sha": "70fa529ee55b", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> '42' => node 42"}
+{"unit_id": "u88", "anchor": "§4", "text_sha": "4a9b1c624d45", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> 's5-01' => node 42 (code match)"}
+{"unit_id": "u89", "anchor": "§4", "text_sha": "bac5f7e1f310", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> 'k4x4-07-u' => node 57 (fold(K4x4-07-Ü)=k4x4-07-u)"}
+{"unit_id": "u90", "anchor": "§4", "text_sha": "ab3918454c04", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> 'flipper zero' => node 88"}
+{"unit_id": "u91", "anchor": "§4", "text_sha": "2baab90c76dc", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> 'flipper' => exit 3 (no exact code/name match; partial names never resolve)"}
+{"unit_id": "u92", "anchor": "§4", "text_sha": "f89d06b555fa", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 model of §4 resolver (digits->id; else folded exact match on codes, then names; 0 hits exit 3, >1 exit 4) over the §4 example database, fold = Turkish lowercase + NFD strip Mn + ı->i -> 'anten' => exit 4 [91, 92]"}
+{"unit_id": "u93", "anchor": "§5", "text_sha": "3aa5032d99e4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u94", "anchor": "§5", "text_sha": "b882be5489b4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u97", "anchor": "§5", "text_sha": "1fdf8f73b8c6", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Çekmece => cekmece"}
+{"unit_id": "u98", "anchor": "§5", "text_sha": "70c1249c3fe1", "ordinal": 1, "verdict": "PARTIAL", "partial_kind": "two-readings", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Turkish lowercase gives 'ışık', NFD+strip gives 'ısık' (U+0131 DOTLESS I has no decomposition: unicodedata.decomposition('ı')==''); default Unicode lowercase gives 'işik' -> 'isik'", "note": "'isik' is reached only if ı is additionally mapped to i (not a diacritic under Unicode) or if non-Turkish casing is used. Non-Turkish casing would break u104 (fold_std('ISIK')='isik' not in fold_std('ışık')='ısık'). The fold needs an explicit ı->i step the §5 rule does not state."}
+{"unit_id": "u99", "anchor": "§5", "text_sha": "844b2da14efb", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Turkish İ->i, ğ decomposes to g+U+0306 -> igne (std lowercase gives i+U+0307, also stripped to igne)"}
+{"unit_id": "u100", "anchor": "§5", "text_sha": "45b17f4608a1", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Kör => kor"}
+{"unit_id": "u101", "anchor": "§5", "text_sha": "705e5fcfbbaf", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Şarj => sarj"}
+{"unit_id": "u102", "anchor": "§5", "text_sha": "2030eb3aaee3", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Üst => ust"}
+{"unit_id": "u103", "anchor": "§5", "text_sha": "e89b0a374c21", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> Hâlâ => hala"}
+{"unit_id": "u104", "anchor": "§5", "text_sha": "47b18a834fba", "ordinal": 1, "verdict": "PASS", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping -> fold('cekmece') in fold('Çekmece') True; fold('ISIK')='ısık' in fold('ışık')='ısık' True (also True with an added ı->i step); with non-Turkish casing it is False"}
+{"unit_id": "u105", "anchor": "§6", "text_sha": "56cc6ddd9e17", "ordinal": 1, "verdict": "NOT-A-CLAIM", "note": "Decision. Rust std::io::IsTerminal (stable since 1.70) supplies the TTY check it relies on (not separately verified this round)."}
+{"unit_id": "u109", "anchor": "§6", "text_sha": "67322a43c6d4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u110", "anchor": "§6", "text_sha": "6fc02118fc0d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u111", "anchor": "§6", "text_sha": "917e35042829", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u112", "anchor": "§6", "text_sha": "9cff76281578", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u113", "anchor": "§6", "text_sha": "994184f5db30", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u114", "anchor": "§6", "text_sha": "e0d0b2a870eb", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u115", "anchor": "§6", "text_sha": "58aa99d60127", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u116", "anchor": "§6", "text_sha": "56c00b9d38c0", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u118", "anchor": "§6", "text_sha": "370b2db9968f", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u119", "anchor": "§6", "text_sha": "c7d3b5f19b7b", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u120", "anchor": "§6", "text_sha": "2977b6c1f8b4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u121", "anchor": "§6", "text_sha": "3602571e7730", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u122", "anchor": "§6", "text_sha": "11d00a0f6d96", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u123", "anchor": "§6", "text_sha": "f317b9ff8921", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u124", "anchor": "§6", "text_sha": "dcc9f19f0079", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u125", "anchor": "§6", "text_sha": "dc190efd363d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u126", "anchor": "§6", "text_sha": "0e829583476d", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u127", "anchor": "§6", "text_sha": "0751e1abd630", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u128", "anchor": "§6", "text_sha": "f4f9eb7e0a86", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u129", "anchor": "§6", "text_sha": "a354dbaf0ba4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u131", "anchor": "§7", "text_sha": "58eb45ff622a", "ordinal": 1, "verdict": "NOT-A-CLAIM", "kind": "behaviour", "tier": "run", "evidence": "sqlite3 t.db 'create table a(x)'; ls -> only t.db, journal_mode=delete; sqlite3 w.db 'pragma journal_mode=wal; ...'; ls -> w.db, w.db-shm, w.db-wal", "note": "Decision. SQLite is one file in the default rollback-journal mode; in WAL mode -wal/-shm sidecars appear next to it, so 'one file' holds only if ev does not use WAL (or accepts sidecars)."}
+{"unit_id": "u132", "anchor": "§7", "text_sha": "c01cfca6eea9", "ordinal": 1, "verdict": "NOT-A-CLAIM", "kind": "behaviour", "tier": "run", "evidence": "sqlite3 t.db 'pragma user_version=3'; sqlite3 t.db 'pragma user_version' -> 3", "note": "Decision; SQLite's user_version header field can carry the schema version."}
+{"unit_id": "u133", "anchor": "§7", "text_sha": "753ee0ec04e2", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u134", "anchor": "§8", "text_sha": "232e4b56faf3", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u135", "anchor": "§8", "text_sha": "e716d88a7a08", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u137", "anchor": "§9", "text_sha": "ea86907b1498", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u138", "anchor": "§9", "text_sha": "9c12521f2bff", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u139", "anchor": "§9", "text_sha": "dd840c498a50", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u140", "anchor": "§9", "text_sha": "c49029f95550", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u141", "anchor": "§9", "text_sha": "d3c2205cd226", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u142", "anchor": "§9", "text_sha": "23869a8b0ce7", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u143", "anchor": "§9", "text_sha": "714dffc4152e", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u144", "anchor": "§9", "text_sha": "b90b37272698", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u145", "anchor": "§9", "text_sha": "e6f70ecb1072", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u146", "anchor": "§9", "text_sha": "9260e7e04ce4", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u147", "anchor": "§9", "text_sha": "2b951ee1072c", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u148", "anchor": "§9", "text_sha": "37d63fb9d22e", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u149", "anchor": "§9", "text_sha": "4e802edabe4c", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u150", "anchor": "§9", "text_sha": "00434e540d54", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u151", "anchor": "§9", "text_sha": "c9366c9a6ffc", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u152", "anchor": "§9", "text_sha": "98b9e82f4447", "ordinal": 1, "verdict": "NOT-A-CLAIM"}
+{"unit_id": "u95", "anchor": "§5", "text_sha": "d96ceb263a93", "ordinal": 1, "verdict": "PARTIAL", "partial_kind": "two-readings", "kind": "mechanism", "tier": "probe", "evidence": "probe: python3 fold = Turkish lowercase (I->ı, İ->i, else str.lower) then NFD and drop category Mn; Rust probe (cargo new fold) comparing str::to_lowercase with Turkish mapping", "note": "Cut unit carrying a claim (text: 'Folding makes comparison case-insensitive with Turkish casing rules and removes diacritics:'). Turkish casing + Unicode diacritic removal (NFD, drop Mn) does not produce the table's IŞIK->isik: it gives 'ısık' because ı (U+0131) is not a decomposable letter. Holds only if 'removes diacritics' is read to include ı->i."}

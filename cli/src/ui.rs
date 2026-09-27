@@ -164,27 +164,35 @@ fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
 fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     let mut out = Vec::new();
     if let Some(q) = n["qty"].as_i64() {
-        s.push_str(&format!("  ×{q}"));
+        out.push(Span::styled(format!("  ×{q}"), Style::new().fg(QTY)));
     }
     if n["state"] == "candidate" {
-        s.push_str(&format!(
-            "  [{}]",
-            disposition_tr(n["disposition"].as_str().unwrap_or_default())
-        ));
+        let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
+        out.push(Span::styled(format!("  [{d}]"), Style::new().fg(MARK)));
     }
     if n["lost"] == true {
-        s.push_str("  [kayıp]");
+        out.push(Span::styled("  [kayıp]", Style::new().fg(LOST)));
     }
     if let Some(p) = n["pending_to"].as_i64() {
-        s.push_str(&format!(
-            "  → {}",
-            snap.label
-                .get(&p)
-                .cloned()
-                .unwrap_or_else(|| format!("#{p}"))
-        ));
+        let to = snap
+            .label
+            .get(&p)
+            .cloned()
+            .unwrap_or_else(|| format!("#{p}"));
+        out.push(Span::styled(format!("  → {to}"), Style::new().fg(MARK)));
     }
-    s
+    out
+}
+
+/// A path with its ancestors muted and its last segment prominent.
+fn path_spans(path_text: &str) -> Vec<Span<'static>> {
+    match path_text.rsplit_once(" › ") {
+        Some((head, last)) => vec![
+            Span::styled(format!("{head} › "), Style::new().fg(MUTED)),
+            Span::raw(last.to_string()),
+        ],
+        None => vec![Span::raw(path_text.to_string())],
+    }
 }
 
 struct App {

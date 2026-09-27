@@ -35,6 +35,7 @@ enum Tab {
     Pending,
     Disposals,
     Lost,
+    Places,
     Search,
 }
 
@@ -48,6 +49,7 @@ impl Tab {
             Tab::Pending,
             Tab::Disposals,
             Tab::Lost,
+            Tab::Places,
             Tab::Search,
         ][i % TABS.len()]
     }

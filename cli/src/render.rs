@@ -151,6 +151,9 @@ pub fn human(v: &Value) -> String {
             let _ = writeln!(out, "{d}:");
             for n in list.as_array().into_iter().flatten() {
                 let _ = writeln!(out, "  {}", line(n));
+                for p in n["parts"].as_array().into_iter().flatten() {
+                    let _ = writeln!(out, "      + {}", s(p, "name"));
+                }
             }
         }
         return out;

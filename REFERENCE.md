@@ -67,4 +67,5 @@ expanding their parents so they are in view.
 | ← / h | collapse, or go to the parent |
 | Tab, Shift-Tab, 1–5 | tabs: tree, pending moves, disposals, lost, search |
 | / | search (same folding as `ev find`), Enter to run, Esc to cancel |
+| click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | q / Esc | quit |

@@ -137,6 +137,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json || !std::io::stdout().is_terminal();
     match run(cli) {
+        Ok(Value::Null) => ExitCode::SUCCESS,
         Ok(value) => {
             if json {
                 println!(

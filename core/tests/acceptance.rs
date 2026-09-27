@@ -602,6 +602,19 @@ fn audit_finds_alike_things_split_up_and_gaps() {
             .iter()
             .any(|n| n["id"] == a)
     );
+    // A set being disposed of holds its parts but is not a place to put things.
+    let set = add(&mut inv, "Dock seti", "item", Some("Kiler"), None);
+    let part = add(&mut inv, "Kablo", "item", Some(&set.to_string()), None);
+    inv.dispose(&part.to_string(), Disposition::Sell).unwrap();
+    inv.dispose(&set.to_string(), Disposition::Sell).unwrap();
+    let v = inv.audit().unwrap();
+    assert!(
+        !v["no_theme"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["id"] == set)
+    );
 }
 
 #[test]

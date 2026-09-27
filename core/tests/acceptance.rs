@@ -85,3 +85,32 @@ fn a2_move_into_own_descendant_is_refused() {
     assert_eq!(v["node"]["path_text"], "Ev › Salon › K4x4 › K4x4-15-A");
 }
 
+#[test]
+fn a3_a4_planned_move_then_done() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let box_id = add(
+        &mut inv,
+        "Elektrik",
+        "container",
+        Some("Kiler"),
+        Some("S5-03"),
+    );
+    inv.move_to("Flipper Zero", "S5-03", true).unwrap();
+    let v = inv.show("Flipper Zero", false).unwrap();
+    assert_eq!(
+        v["node"]["path_text"],
+        "Ev › Salon › K4x4 › K4x4-15-A › Flipper Zero"
+    );
+    assert_eq!(v["pending"]["code"], "S5-03");
+
+    inv.done("Flipper Zero").unwrap();
+    let v = inv.show("Flipper Zero", false).unwrap();
+    assert_eq!(v["node"]["parent_id"], box_id);
+    assert!(v["pending"].is_null());
+    assert_eq!(
+        event_types(&inv, "Flipper Zero"),
+        ["create", "plan", "done"]
+    );
+}
+

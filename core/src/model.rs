@@ -57,6 +57,7 @@ label_enum!(Disposition, "disposition", {
     Trash => "trash",
     Give => "give",
     Sell => "sell",
+    Return => "return",
 });
 
 /// A stored node with every field of spec §3.1.

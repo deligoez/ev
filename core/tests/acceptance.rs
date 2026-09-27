@@ -332,3 +332,32 @@ fn reference_table_of_section_4() {
     assert_eq!(v["error"]["candidates"].as_array().unwrap().len(), 2);
 }
 
+#[test]
+fn edit_fields_and_history() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let v = inv
+        .edit(
+            "Flipper Zero",
+            &[
+                "note=Flipper için ESP kartı da var".into(),
+                "tags=+maker".into(),
+                "qty=2".into(),
+            ],
+        )
+        .unwrap();
+    assert_eq!(v["node"]["qty"], 2);
+    assert_eq!(v["node"]["tags"][0], "maker");
+    assert_eq!(
+        code_of(&inv.edit("Flipper Zero", &["fill=150".into()]).unwrap_err()),
+        2
+    );
+    assert_eq!(
+        code_of(&inv.edit("Flipper Zero", &["parent=1".into()]).unwrap_err()),
+        2
+    );
+    let found = inv.find("MAKER", Some("maker"), None, false).unwrap();
+    assert_eq!(found["results"].as_array().unwrap().len(), 1);
+    assert_eq!(event_types(&inv, "Flipper Zero"), ["create", "edit"]);
+}
+

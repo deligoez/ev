@@ -757,3 +757,7 @@ fn event(conn: &Connection, id: i64, kind: &str, data: Value) -> Result<()> {
     Ok(())
 }
 
+fn brief_json(conn: &Connection, id: i64) -> Result<Value> {
+    serde_json::to_value(brief(conn, id)?).map_err(|e| Error::Internal(e.to_string()))
+}
+

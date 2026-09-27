@@ -790,3 +790,26 @@ fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<Stri
     Ok(folded)
 }
 
+fn is_descendant(conn: &Connection, node: i64, ancestor: i64) -> Result<bool> {
+    let mut cur: Option<i64> =
+        conn.query_row("SELECT parent_id FROM nodes WHERE id = ?1", [node], |r| {
+            r.get(0)
+        })?;
+    let mut steps = 0;
+    while let Some(c) = cur {
+        if c == ancestor {
+            return Ok(true);
+        }
+        steps += 1;
+        if steps > MAX_DEPTH {
+            return Err(Error::Internal(format!(
+                "parent chain of node {node} does not end"
+            )));
+        }
+        cur = conn.query_row("SELECT parent_id FROM nodes WHERE id = ?1", [c], |r| {
+            r.get(0)
+        })?;
+    }
+    Ok(false)
+}
+

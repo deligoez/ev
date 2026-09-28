@@ -676,6 +676,27 @@ impl App {
                 Some(Span::styled(text, Style::new().fg(CODE)))
             }),
         ));
+        let mut shared = Vec::new();
+        for s in v["shared_photos"].as_array().into_iter().flatten() {
+            let names: Vec<String> = s["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| str_of(n, "name"))
+                .collect();
+            let first = s["nodes"][0]["id"].as_i64().unwrap_or(0);
+            shared.push(item(
+                first,
+                vec![
+                    Span::styled(
+                        format!("{} kayıtta aynı tam fotoğraf  ", names.len()),
+                        Style::new().fg(LOST).bold(),
+                    ),
+                    muted(names.join(", ")),
+                ],
+            ));
+        }
+        sections.push(("KESİLMEMİŞ ORTAK FOTOĞRAF", LOST, shared));
         sections.push(("BELİRSİZ KAYITLAR", MUTED, plain("unclear", &|_| None)));
 
         for (i, (title, color, rows)) in sections.into_iter().enumerate() {

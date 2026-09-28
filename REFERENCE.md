@@ -69,7 +69,7 @@ expanding their parents so they are in view.
 | ↑ ↓ / j k, PgUp PgDn, g G | move |
 | → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
 | ← / h | collapse, or go to the parent |
-| Tab, Shift-Tab, 1–6 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search |
+| Tab, Shift-Tab, 1–7 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search, everything waiting (Yapılacak) |
 | / | search (same folding as `ev find`), Enter to run; Esc clears the typed text, then closes the box; Ctrl-U clears |
 | x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |

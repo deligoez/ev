@@ -116,3 +116,30 @@ fn today() -> NaiveDate {
     chrono::Utc::now().date_naive()
 }
 
+fn need_json(conn: &Connection, id: i64) -> Result<Value> {
+    let row = conn
+        .query_row(
+            "SELECT text, qty, make, for_node, status, note, created_at, closed_at FROM needs WHERE id = ?1",
+            [id],
+            |r| {
+                Ok((
+                    json!({
+                        "id": id,
+                        "text": r.get::<_, String>(0)?,
+                        "qty": r.get::<_, Option<i64>>(1)?,
+                        "make": r.get::<_, bool>(2)?,
+                        "status": r.get::<_, String>(4)?,
+                        "note": r.get::<_, Option<String>>(5)?,
+                        "created_at": r.get::<_, String>(6)?,
+                        "closed_at": r.get::<_, Option<String>>(7)?,
+                    }),
+                    r.get::<_, Option<i64>>(3)?,
+                ))
+            },
+        )
+        .optional()?;
+    let (mut v, for_node) = row.ok_or_else(|| Error::NotFound(format!("no need with id {id}")))?;
+    v["for"] = json!(for_node.map(|n| brief_value(conn, n)).transpose()?);
+    Ok(v)
+}
+

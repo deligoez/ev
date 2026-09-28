@@ -107,3 +107,43 @@ fn observations_show_on_the_place_and_can_be_removed() {
     assert!(v["observations"].as_array().unwrap().is_empty());
 }
 
+#[test]
+fn tasks_keep_an_order_and_one_is_in_progress() {
+    let (_d, mut inv) = setup();
+    let a = inv
+        .task_add("Tour Alt", "bags", &["K1-01-A".into()], None)
+        .unwrap();
+    let b = inv
+        .task_add("Open box", "never opened", &["Karton kutu".into()], Some(1))
+        .unwrap();
+    let (a, b) = (a["id"].as_i64().unwrap(), b["id"].as_i64().unwrap());
+    let order = |inv: &Inventory| -> Vec<i64> {
+        inv.task_list(false).unwrap()["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["id"].as_i64().unwrap())
+            .collect()
+    };
+    assert_eq!(order(&inv), [b, a]);
+    inv.task_edit(a, None, None, &[], &[], Some(1)).unwrap();
+    assert_eq!(order(&inv), [a, b]);
+
+    inv.task_set(b, "doing", None).unwrap();
+    inv.task_set(a, "doing", None).unwrap();
+    assert_eq!(inv.task_show(b).unwrap()["status"], "open");
+
+    let done = inv.task_set(a, "done", Some("person said so")).unwrap();
+    assert!(done["position"].is_null() && done["closed_at"].is_string());
+    assert_eq!(order(&inv), [b]);
+    assert_eq!(
+        inv.task_list(true).unwrap()["tasks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(inv.task_add("  ", "why", &[], None).unwrap_err().code(), 2);
+    assert!(matches!(inv.task_show(99).unwrap_err(), Error::NotFound(_)));
+}
+

@@ -136,3 +136,11 @@ fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
         .optional()?)
 }
 
+fn task_nodes(conn: &Connection, task: i64) -> Result<Vec<i64>> {
+    ids(
+        conn,
+        "SELECT node_id FROM task_nodes WHERE task_id = ?1 ORDER BY node_id",
+        [task],
+    )
+}
+

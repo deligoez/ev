@@ -186,7 +186,15 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
                 |r| r.get(0),
             )
             .optional()?;
-        let photo_at = photo_at.flatten();
+        // The person may say the photo is still close enough after a small change; that
+        // counts as a fresh photo from then on.
+        let accepted = mark(conn, id, "photo_ok")?["at"]
+            .as_str()
+            .map(str::to_string);
+        let photo_at = match (photo_at.flatten(), accepted) {
+            (Some(p), Some(a)) => Some(p.max(a)),
+            (p, a) => p.or(a),
+        };
         let changed: Option<String> = conn.query_row(
             &format!(
                 "WITH RECURSIVE d(id) AS (

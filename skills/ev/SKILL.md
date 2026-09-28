@@ -37,9 +37,13 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
    not certainty). A gone node is still reachable by id: `ev show <id> --include-gone`,
    `ev history <id>`, and `ev edit <id> note=…` to annotate it later.
    `ev disposals` lists what is waiting in each pile.
-5. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
+5. **What the person tells you about a thing goes into its `note`** — what it is for, where it
+   came from, why they keep it ("a wrench that came with the kitchen tap, kept because it is
+   often needed"). That knowledge is what makes a later decision possible; record it the moment
+   they say it, in their words, with the date.
+6. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.
-6. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
+7. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
 ## The plan: start every session with `ev next`

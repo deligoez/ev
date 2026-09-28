@@ -241,6 +241,9 @@ struct App {
     photo_idx: usize,
     decoded: HashMap<String, Option<image::DynamicImage>>,
     shown: Option<(String, Rect, Protocol)>,
+    /// The selected node's current photo fills the screen (`o`); `O` hands it to the system.
+    fullscreen: bool,
+    photo_area: Rect,
 }
 
 impl App {
@@ -282,6 +285,8 @@ impl App {
             photo_idx: 0,
             decoded: HashMap::new(),
             shown: None,
+            fullscreen: false,
+            photo_area: Rect::default(),
         };
         app.rebuild()?;
         Ok(app)
@@ -555,10 +560,55 @@ impl App {
         self.rebuild()
     }
 
+    /// Forgets the query and its results; the Ara tab is left empty rather than stale.
+    fn clear_search(&mut self) -> Result<()> {
+        self.query.clear();
+        self.search_rows.clear();
+        self.status = "arama temizlendi".into();
+        if self.tab == Tab::Search {
+            self.rebuild()?;
+        }
+        Ok(())
+    }
+
+    fn has_search(&self) -> bool {
+        !self.query.is_empty() || !self.search_rows.is_empty()
+    }
+
+    fn step_photo(&mut self, delta: isize) {
+        let last = self.photo_count().saturating_sub(1);
+        let cur = self.photo_idx.min(last) as isize;
+        self.photo_idx = (cur + delta).clamp(0, last as isize) as usize;
+    }
+
+    fn open_external(&mut self) {
+        if let Some(p) = self.current_photo() {
+            let _ = std::process::Command::new("open").arg(p).spawn();
+        }
+    }
+
     fn key(&mut self, k: KeyEvent) -> Result<()> {
+        if self.fullscreen {
+            match k.code {
+                KeyCode::Esc | KeyCode::Char('q' | 'o') => self.fullscreen = false,
+                KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.quit = true
+                }
+                KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => self.step_photo(1),
+                KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => self.step_photo(-1),
+                KeyCode::Char('O') => self.open_external(),
+                _ => {}
+            }
+            return Ok(());
+        }
         if self.searching {
             match k.code {
+                // Esc empties a half-typed query first, and closes the box on an empty one.
+                KeyCode::Esc if !self.query.is_empty() => self.query.clear(),
                 KeyCode::Esc => self.searching = false,
+                KeyCode::Char('u') if k.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.query.clear()
+                }
                 KeyCode::Enter => {
                     self.searching = false;
                     self.run_search()?;
@@ -573,6 +623,10 @@ impl App {
             return Ok(());
         }
         match k.code {
+            // On the Ara tab, Esc and `x` clear the search instead of quitting.
+            KeyCode::Esc | KeyCode::Char('x') if self.tab == Tab::Search && self.has_search() => {
+                self.clear_search()?
+            }
             KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
             KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => self.quit = true,
             KeyCode::Down | KeyCode::Char('j') => self.step(1)?,
@@ -590,13 +644,10 @@ impl App {
                 self.searching = true;
                 self.query.clear();
             }
-            KeyCode::Char(']') => self.photo_idx = self.photo_idx.saturating_add(1),
-            KeyCode::Char('[') => self.photo_idx = self.photo_idx.saturating_sub(1),
-            KeyCode::Char('o') => {
-                if let Some(p) = self.current_photo() {
-                    let _ = std::process::Command::new("open").arg(p).spawn();
-                }
-            }
+            KeyCode::Char(']') => self.step_photo(1),
+            KeyCode::Char('[') => self.step_photo(-1),
+            KeyCode::Char('o') => self.fullscreen = self.current_photo().is_some(),
+            KeyCode::Char('O') => self.open_external(),
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter => {
                 if let Some(id) = self.selected_id() {
                     if self.tab == Tab::Tree {
@@ -625,7 +676,37 @@ impl App {
         let inside = |r: Rect| {
             m.column >= r.x && m.column < r.x + r.width && m.row >= r.y && m.row < r.y + r.height
         };
+        if self.fullscreen {
+            match m.kind {
+                MouseEventKind::ScrollDown => self.step_photo(1),
+                MouseEventKind::ScrollUp => self.step_photo(-1),
+                MouseEventKind::Down(MouseButton::Left) => self.fullscreen = false,
+                _ => {}
+            }
+            return Ok(());
+        }
         match m.kind {
+            MouseEventKind::ScrollDown if inside(self.photo_area) => {
+                self.step_photo(1);
+                Ok(())
+            }
+            MouseEventKind::ScrollUp if inside(self.photo_area) => {
+                self.step_photo(-1);
+                Ok(())
+            }
+            MouseEventKind::Down(MouseButton::Left) if inside(self.photo_area) => {
+                self.fullscreen = true;
+                Ok(())
+            }
+            // The list's top border carries the "✕ temizle" of a search.
+            MouseEventKind::Down(MouseButton::Left)
+                if self.tab == Tab::Search
+                    && self.has_search()
+                    && m.row == self.list_area.y
+                    && inside(self.list_area) =>
+            {
+                self.clear_search()
+            }
             MouseEventKind::ScrollDown if inside(self.list_area) => self.step(3),
             MouseEventKind::ScrollUp if inside(self.list_area) => self.step(-3),
             MouseEventKind::Down(MouseButton::Left) if inside(self.tabs_area) => {
@@ -661,7 +742,48 @@ impl App {
         }
     }
 
+    /// The current photo over the whole screen, titled with the node, its place in the node's
+    /// photos and the photo's own note.
+    fn draw_fullscreen(&mut self, f: &mut Frame, path: &str) {
+        let [main, bottom] =
+            Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
+        let count = self.photo_count();
+        let idx = self.photo_idx.min(count.saturating_sub(1));
+        let node = self.details.as_ref().map(|d| d["node"].clone());
+        let name = node.as_ref().map(|n| str_of(n, "name")).unwrap_or_default();
+        let note = node
+            .as_ref()
+            .and_then(|n| n["id"].as_i64())
+            .and_then(|id| self.inv.photo_list(&id.to_string()).ok())
+            .and_then(|v| v["photos"][idx]["note"].as_str().map(str::to_string));
+        let mut title = format!(" {name} · Fotoğraf {}/{count} ", idx + 1);
+        if let Some(n) = note {
+            title.push_str(&format!("· {n} "));
+        }
+        let block = Block::bordered().title(title);
+        let inner = block.inner(main);
+        f.render_widget(block, main);
+        if self.picker.is_some() {
+            self.render_photo(f, path, inner);
+        } else {
+            f.render_widget(
+                Paragraph::new("(bu terminal resim gösteremiyor — O ile dışarıda aç)").fg(MUTED),
+                inner,
+            );
+        }
+        f.render_widget(
+            Paragraph::new("[ ] ← → teker gez · O dışarıda aç · Esc/o/tık kapat").fg(MUTED),
+            bottom,
+        );
+    }
+
     fn draw(&mut self, f: &mut Frame) {
+        if self.fullscreen {
+            if let Some(path) = self.current_photo() {
+                return self.draw_fullscreen(f, &path);
+            }
+            self.fullscreen = false;
+        }
         let [top, body, bottom] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(0),
@@ -719,22 +841,29 @@ impl App {
                 ListItem::new(Line::from(spans))
             })
             .collect();
+        let title = if self.tab == Tab::Search && self.has_search() {
+            format!(" Ara: \"{}\" · ✕ temizle (x) ", self.query)
+        } else {
+            format!(" {} ", TABS[self.tab.index()])
+        };
         let list = List::new(items)
-            .block(Block::bordered().title(format!(" {} ", TABS[self.tab.index()])))
+            .block(Block::bordered().title(title))
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, left, &mut self.state);
 
+        self.photo_area = Rect::default();
         let text_area = match (self.current_photo(), self.picker.is_some()) {
             (Some(path), true) => {
                 let count = self.photo_count();
                 let [img_area, rest] =
                     Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
                 let block = Block::bordered().title(format!(
-                    " Fotoğraf {}/{}  ([ ] gez · o aç) ",
+                    " Fotoğraf {}/{}  ([ ] gez · o tam ekran · O dışarıda aç) ",
                     self.photo_idx.min(count - 1) + 1,
                     count
                 ));
                 let inner = block.inner(img_area);
+                self.photo_area = img_area;
                 f.render_widget(block, img_area);
                 self.render_photo(f, &path, inner);
                 rest
@@ -747,7 +876,10 @@ impl App {
         f.render_widget(details, text_area);
 
         let help = if self.searching {
-            format!("Ara: {}▏  (Enter ara · Esc vazgeç)", self.query)
+            format!(
+                "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",
+                self.query
+            )
         } else {
             format!(
                 "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-6 sekme · / ara · q çık    {}",

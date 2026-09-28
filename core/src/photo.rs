@@ -79,3 +79,18 @@ pub(crate) fn store_file(dir: &Path, file: &Path) -> Result<PathBuf> {
     store_bytes(dir, &bytes, &extension(file))
 }
 
+/// Decodes a photo the right way up, honouring its EXIF orientation.
+pub fn open_upright(file: &Path) -> Result<DynamicImage> {
+    let bad = |e: image::ImageError| Error::Usage(format!("{}: {e}", file.display()));
+    let mut decoder = ImageReader::open(file)
+        .map_err(io(file))?
+        .with_guessed_format()
+        .map_err(io(file))?
+        .into_decoder()
+        .map_err(bad)?;
+    let orientation = decoder.orientation().map_err(bad)?;
+    let mut img = DynamicImage::from_decoder(decoder).map_err(bad)?;
+    img.apply_orientation(orientation);
+    Ok(img)
+}
+

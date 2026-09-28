@@ -96,3 +96,19 @@ pub(crate) fn code_changed(conn: &Connection, id: i64, has_code: bool) -> Result
     }
 }
 
+/// A use-by date: `YYYY-MM-DD`, or `YYYY-MM` meaning the end of that month.
+fn parse_date(s: &str) -> Result<NaiveDate> {
+    let s = s.trim();
+    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Ok(d);
+    }
+    let bad = || Error::Usage(format!("`{s}` is not YYYY-MM-DD or YYYY-MM"));
+    let first = NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d").map_err(|_| bad())?;
+    let next = if first.month() == 12 {
+        NaiveDate::from_ymd_opt(first.year() + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(first.year(), first.month() + 1, 1)
+    };
+    next.and_then(|d| d.pred_opt()).ok_or_else(bad)
+}
+

@@ -652,6 +652,25 @@ impl App {
             FURNITURE,
             plain("stale", &|_| None),
         ));
+        sections.push((
+            "FOTOĞRAF GEREKLİ",
+            CODE,
+            plain("photos", &|n| {
+                let text = if n["photo_reason"] == "none" {
+                    "  hiç fotoğrafı yok".to_string()
+                } else {
+                    format!(
+                        "  fotoğraftan sonra değişti ({})",
+                        n["changed_at"]
+                            .as_str()
+                            .unwrap_or("")
+                            .get(..10)
+                            .unwrap_or("")
+                    )
+                };
+                Some(Span::styled(text, Style::new().fg(CODE)))
+            }),
+        ));
         sections.push(("BELİRSİZ KAYITLAR", MUTED, plain("unclear", &|_| None)));
 
         for (i, (title, color, rows)) in sections.into_iter().enumerate() {

@@ -808,7 +808,7 @@ pub(crate) fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
     })
 }
 
-fn show(conn: &Connection, id: i64) -> Result<Value> {
+pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let n = load(conn, id)?;
     let segments = path(conn, id)?;
     let mut node = serde_json::to_value(&n).map_err(|e| Error::Internal(e.to_string()))?;
@@ -828,7 +828,16 @@ fn show(conn: &Connection, id: i64) -> Result<Value> {
         (true, Some(p)) => Some(brief(conn, p)?),
         _ => None,
     };
-    Ok(json!({ "node": node, "children": children, "pending": pending, "last_seen": last_seen }))
+    let review = crate::plan::review_of(conn, id)?;
+    let observations = crate::plan::observations_of(conn, id)?;
+    Ok(json!({
+        "node": node,
+        "children": children,
+        "pending": pending,
+        "last_seen": last_seen,
+        "review": review,
+        "observations": observations,
+    }))
 }
 
 /// Items anywhere below `id` that are not gone, counting each item's quantity.

@@ -95,6 +95,10 @@ Record the kinds that have their own verbs as you meet them:
 - **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
 - **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …`,
   then `--reserved`; when it is sold, `ev gone <x>`.
+- **Photo of the current state:** every place should have a whole-view photo of how it is now.
+  `photos` in `ev todo` lists the places without one or changed since; after a move or a
+  tour, ask for a fresh photo of each place it touched and attach it with
+  `ev photo add <place> <file> --note "son hali, <date>"`. Older photos stay as history.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 

@@ -159,6 +159,80 @@ enum Cmd {
     Task(TaskCmd),
     /// Where to pick up: the current task with its places, progress and unplanned places.
     Next,
+    /// Everything waiting, in one list: tasks, moves, errands, disposals, labels, needs, repairs,
+    /// use-by dates, lost things, uninventoried and changed places, unclear records.
+    Todo,
+    /// Labels to print; with references, mark those printed (or --needed again).
+    Label {
+        references: Vec<String>,
+        #[arg(long)]
+        needed: bool,
+    },
+    /// Mark a node broken, with what is wrong.
+    Broken {
+        reference: String,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// A broken node was fixed.
+    Fixed { reference: String },
+    /// Record a use-by date (YYYY-MM-DD or YYYY-MM), or --clear it.
+    Expires {
+        reference: String,
+        date: Option<String>,
+        #[arg(long, conflicts_with = "date")]
+        clear: bool,
+    },
+    /// Where a sale stands for a sell candidate: --listed, --reserved or --clear.
+    Sale {
+        reference: String,
+        #[arg(long, group = "sale_state")]
+        listed: bool,
+        #[arg(long, group = "sale_state")]
+        reserved: bool,
+        #[arg(long, group = "sale_state")]
+        clear: bool,
+        #[arg(long)]
+        price: Option<i64>,
+        #[arg(long = "where")]
+        place: Option<String>,
+    },
+    /// Things to buy or make.
+    #[command(subcommand)]
+    Need(NeedCmd),
+}
+
+#[derive(Subcommand)]
+enum NeedCmd {
+    /// Something to buy (or --make, e.g. 3D print), optionally for a place.
+    Add {
+        text: String,
+        #[arg(long)]
+        qty: Option<i64>,
+        #[arg(long)]
+        make: bool,
+        #[arg(long = "for")]
+        for_ref: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Open needs; --all adds closed ones.
+    List {
+        #[arg(long)]
+        all: bool,
+    },
+    /// It was bought or made.
+    Got {
+        id: i64,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// It is no longer needed.
+    Drop {
+        id: i64,
+        #[arg(long)]
+        note: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

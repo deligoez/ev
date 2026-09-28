@@ -46,3 +46,4 @@ releasing.
 ## Upgrade notes
 
 - **Schema version 5** (the `unknown` flag, then photo provenance), migrated on open.
+- **`ev ui`: `o` changed meaning.** It used to open the system viewer; that is now `O`.

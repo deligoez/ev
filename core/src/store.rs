@@ -739,7 +739,7 @@ fn strings(conn: &Connection, sql: &str, id: i64) -> Result<Vec<String>> {
     Ok(rows)
 }
 
-fn ids<P: rusqlite::Params>(conn: &Connection, sql: &str, p: P) -> Result<Vec<i64>> {
+pub(crate) fn ids<P: rusqlite::Params>(conn: &Connection, sql: &str, p: P) -> Result<Vec<i64>> {
     let mut stmt = conn.prepare(sql)?;
     let rows = stmt
         .query_map(p, |r| r.get(0))?

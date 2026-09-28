@@ -122,6 +122,7 @@ other exits 5).
 | `ev photo add <ref> <file> [--crop x,y,w,h] [--note text]` | copy into `~/.ev/photos/` (hash-named) and attach; with `--crop` attach the cut-out, remembering the original |
 | `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
 | `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays) |
+| `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 
 In `ev ui`, `[` / `]` or the wheel over the photo step through the selected node's photos, `o` or a

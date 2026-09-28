@@ -70,11 +70,13 @@ expanding their parents so they are in view.
 | → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
 | ← / h | collapse, or go to the parent |
 | Tab, Shift-Tab, 1–6 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search |
-| / | search (same folding as `ev find`), Enter to run, Esc to cancel |
+| / | search (same folding as `ev find`), Enter to run; Esc clears the typed text, then closes the box; Ctrl-U clears |
+| x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
-| [ / ] | previous / next photo of the selected node |
-| o | open the current photo in the system viewer |
-| q / Esc | quit |
+| [ / ], wheel over the photo | previous / next photo of the selected node |
+| o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, Esc / o / click close |
+| O | open the current photo in the system viewer |
+| q / Esc | quit (Esc clears a search first) |
 
 ## Places
 

@@ -2,6 +2,7 @@
 
 mod error;
 mod fold;
+mod marks;
 mod model;
 mod photo;
 mod plan;

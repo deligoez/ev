@@ -48,6 +48,7 @@ enum Tab {
     Lost,
     Places,
     Search,
+    Plan,
 }
 
 impl Tab {
@@ -62,6 +63,7 @@ impl Tab {
             Tab::Lost,
             Tab::Places,
             Tab::Search,
+            Tab::Plan,
         ][i % TABS.len()]
     }
 }

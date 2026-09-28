@@ -65,3 +65,12 @@ pub(crate) fn store_bytes(dir: &Path, bytes: &[u8], ext: &str) -> Result<PathBuf
     Ok(target)
 }
 
+fn extension(path: &Path) -> String {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| ["jpg", "jpeg", "png", "webp", "heic"].contains(&e.as_str()))
+        .map(|e| if e == "jpeg" { "jpg".to_string() } else { e })
+        .unwrap_or_else(|| "jpg".to_string())
+}
+

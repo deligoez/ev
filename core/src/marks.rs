@@ -224,6 +224,14 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
 }
 
 impl Inventory {
+    /// The person says a place's newest photo still shows it well enough, despite changes
+    /// since; it leaves the photo-needed list until the next change.
+    pub fn photo_current(&mut self, reference: &str) -> Result<Value> {
+        let id = resolve(&self.conn, reference, false)?;
+        set_mark(&self.conn, id, "photo_ok", None, None, None)?;
+        show(&self.conn, id)
+    }
+
     /// Marks labels printed (or needed again). Without references, lists the labels to print.
     pub fn label(&mut self, references: &[String], printed: bool) -> Result<Value> {
         if references.is_empty() {

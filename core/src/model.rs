@@ -85,6 +85,8 @@ pub struct Node {
     pub with: Option<String>,
     /// Place the node should be taken to.
     pub to: Option<String>,
+    /// Contents were never inventoried; an empty count means nothing.
+    pub unknown: bool,
     pub created_at: String,
     pub updated_at: String,
 }

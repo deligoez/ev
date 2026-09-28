@@ -94,3 +94,31 @@ pub fn open_upright(file: &Path) -> Result<DynamicImage> {
     Ok(img)
 }
 
+/// Cuts `crop` out of `file` and stores it as a JPEG.
+pub(crate) fn store_crop(dir: &Path, file: &Path, crop: Crop) -> Result<PathBuf> {
+    let img = open_upright(file)?;
+    let (w, h) = (f64::from(img.width()), f64::from(img.height()));
+    let px = |v: f64, max: f64| (v * max).round().clamp(0.0, max) as u32;
+    let (x, y) = (px(crop.x, w), px(crop.y, h));
+    let cw = px(crop.w, w).min(img.width() - x).max(1);
+    let ch = px(crop.h, h).min(img.height() - y).max(1);
+    let cut = img.crop_imm(x, y, cw, ch).to_rgb8();
+    let mut buf = Cursor::new(Vec::new());
+    cut.write_with_encoder(JpegEncoder::new_with_quality(&mut buf, 88))
+        .map_err(|e| Error::Internal(format!("encoding crop: {e}")))?;
+    store_bytes(dir, buf.get_ref(), "jpg")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Crop;
+
+    #[test]
+    fn crops_parse_and_must_fit() {
+        assert!("0.1,0.2,0.3,0.4".parse::<Crop>().is_ok());
+        assert!("0.5,0,0.6,1".parse::<Crop>().is_err());
+        assert!("0,0,0,1".parse::<Crop>().is_err());
+        assert!("a,b,c,d".parse::<Crop>().is_err());
+        assert!("0,0,1".parse::<Crop>().is_err());
+    }
+}

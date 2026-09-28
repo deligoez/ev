@@ -117,4 +117,5 @@ other exits 5).
 | `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays) |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 
-In `ev ui`, `[` / `]` step through the selected node's photos and `o` opens the current one.
+In `ev ui`, `[` / `]` or the wheel over the photo step through the selected node's photos, `o` or a
+click shows the current one full screen (with its note), and `O` opens it in the system viewer.

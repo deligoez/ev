@@ -223,6 +223,35 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     Ok(out)
 }
 
+/// Whole (uncropped) photos attached to more than one live node, with the nodes: a group
+/// photo left on the things in it instead of crops.
+fn shared_photos(conn: &Connection) -> Result<Vec<Value>> {
+    let paths: Vec<String> = {
+        let mut stmt = conn.prepare(
+            "SELECT p.path FROM photos p JOIN nodes n ON n.id = p.node_id
+              WHERE p.crop IS NULL AND n.state != 'gone'
+              GROUP BY p.path HAVING COUNT(DISTINCT p.node_id) > 1 ORDER BY MIN(p.node_id)",
+        )?;
+        stmt.query_map([], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?
+    };
+    paths
+        .into_iter()
+        .map(|p| {
+            let nodes = ids(
+                conn,
+                "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
+                  WHERE p.path = ?1 AND p.crop IS NULL AND n.state != 'gone' ORDER BY p.node_id",
+                [&p],
+            )?
+            .into_iter()
+            .map(|n| brief_value(conn, n))
+            .collect::<Result<Vec<_>>>()?;
+            Ok(json!({ "path": p, "nodes": nodes }))
+        })
+        .collect()
+}
+
 impl Inventory {
     /// The person says a place's newest photo still shows it well enough, despite changes
     /// since; it leaves the photo-needed list until the next change.

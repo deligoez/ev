@@ -77,8 +77,12 @@ enum Cmd {
         #[arg(long = "as")]
         disposition: String,
     },
-    /// Return a candidate to active.
-    Restore { reference: String },
+    /// Return a candidate to active; with --correction, undo a gone recorded by mistake.
+    Restore {
+        reference: String,
+        #[arg(long)]
+        correction: Option<String>,
+    },
     /// A node leaves the home; --as is required when it is not a candidate yet.
     Gone {
         reference: String,

@@ -36,6 +36,11 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 6. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
+## Proposals the person can answer by number
+
+Every table or list of proposed actions starts each row with a number (`#` column), so the
+person can answer "did 1 and 3". Act only on the numbers they name; ask about the rest.
+
 ## Where should this go?
 
 Never answer from memory. Run `ev suggest "<what it is>"` first and decide over its whole

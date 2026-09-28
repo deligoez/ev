@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;

@@ -254,6 +254,7 @@ struct App {
     /// The selected node's current photo fills the screen (`o`); `O` hands it to the system.
     fullscreen: bool,
     photo_area: Rect,
+    plan_title: String,
 }
 
 impl App {
@@ -297,6 +298,7 @@ impl App {
             shown: None,
             fullscreen: false,
             photo_area: Rect::default(),
+            plan_title: String::new(),
         };
         app.rebuild()?;
         Ok(app)
@@ -407,6 +409,42 @@ impl App {
                 out
             }
             Tab::Search => self.search_rows.clone(),
+            Tab::Plan => {
+                let p = self.inv.progress()?;
+                self.plan_title = format!(
+                    " Plan · {} yerden {} gezildi, {} böyle kalsın ",
+                    p["units"], p["toured"], p["kept"]
+                );
+                let v = self.inv.task_list(false)?;
+                v["tasks"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|t| {
+                        let first = t["nodes"][0]["id"].as_i64();
+                        let mut spans = vec![Span::styled(
+                            format!("{}. ", t["position"]),
+                            Style::new().fg(MUTED),
+                        )];
+                        if t["status"] == "doing" {
+                            spans.push(Span::styled("▶ ", Style::new().fg(MARK).bold()));
+                        }
+                        spans.push(Span::styled(str_of(t, "title"), Style::new().bold()));
+                        spans.push(Span::styled(
+                            format!("  — {}", str_of(t, "why")),
+                            Style::new().fg(MUTED),
+                        ));
+                        Row {
+                            // A task without a place has nothing to show on the right.
+                            id: first.unwrap_or(0),
+                            depth: 0,
+                            spans,
+                            expandable: false,
+                            expanded: false,
+                        }
+                    })
+                    .collect()
+            }
         };
         let idx = keep
             .and_then(|id| self.rows.iter().position(|r| r.id == id))
@@ -467,8 +505,8 @@ impl App {
             self.photo_idx = 0;
         }
         self.details = match self.selected_id() {
-            Some(id) => Some(self.inv.show(&id.to_string(), true)?),
-            None => None,
+            Some(id) if id > 0 => Some(self.inv.show(&id.to_string(), true)?),
+            _ => None,
         };
         Ok(())
     }
@@ -522,6 +560,9 @@ impl App {
 
     /// Opens the tree tab on `id`, expanding every ancestor.
     fn reveal(&mut self, id: i64) -> Result<()> {
+        if id <= 0 {
+            return Ok(());
+        }
         let mut p = self.snap.parent.get(&id).copied();
         while let Some(x) = p {
             self.expanded.insert(x);
@@ -647,7 +688,7 @@ impl App {
             KeyCode::End | KeyCode::Char('G') => self.select(usize::MAX)?,
             KeyCode::Tab => self.switch(Tab::from_index(self.tab.index() + 1))?,
             KeyCode::BackTab => self.switch(Tab::from_index(self.tab.index() + TABS.len() - 1))?,
-            KeyCode::Char(c @ '1'..='6') => {
+            KeyCode::Char(c @ '1'..='7') => {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
             KeyCode::Char('/') => {
@@ -853,6 +894,8 @@ impl App {
             .collect();
         let title = if self.tab == Tab::Search && self.has_search() {
             format!(" Ara: \"{}\" · ✕ temizle (x) ", self.query)
+        } else if self.tab == Tab::Plan {
+            self.plan_title.clone()
         } else {
             format!(" {} ", TABS[self.tab.index()])
         };
@@ -892,7 +935,7 @@ impl App {
             )
         } else {
             format!(
-                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-6 sekme · / ara · q çık    {}",
+                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-7 sekme · / ara · q çık    {}",
                 self.status
             )
         };

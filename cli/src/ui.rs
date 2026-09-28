@@ -176,6 +176,9 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     if n["lost"] == true {
         out.push(Span::styled("  [kayıp]", Style::new().fg(LOST)));
     }
+    if n["unknown"] == true {
+        out.push(Span::styled("  [içi sayılmadı]", Style::new().fg(LOST)));
+    }
     if let Some(x) = n["to"].as_str() {
         out.push(Span::styled(format!("  ⇒ {x}"), Style::new().fg(MARK)));
     }

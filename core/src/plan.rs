@@ -41,3 +41,19 @@ pub(crate) fn review_of(conn: &Connection, id: i64) -> Result<Value> {
         .unwrap_or(Value::Null))
 }
 
+pub(crate) fn observations_of(conn: &Connection, id: i64) -> Result<Vec<Value>> {
+    let mut stmt = conn
+        .prepare("SELECT id, text, photo, at FROM observations WHERE node_id = ?1 ORDER BY id")?;
+    let rows = stmt
+        .query_map([id], |r| {
+            Ok(json!({
+                "id": r.get::<_, i64>(0)?,
+                "text": r.get::<_, String>(1)?,
+                "photo": r.get::<_, Option<String>>(2)?,
+                "at": r.get::<_, String>(3)?,
+            }))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+

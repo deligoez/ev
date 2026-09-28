@@ -314,7 +314,12 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Gone {
             reference,
             disposition: d,
-        } => inv.gone(&reference, d.as_deref().map(disposition).transpose()?),
+            why,
+        } => inv.gone_because(
+            &reference,
+            d.as_deref().map(disposition).transpose()?,
+            why.as_deref(),
+        ),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)
         }

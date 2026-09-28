@@ -213,3 +213,405 @@ fn non_empty<'a>(what: &str, s: &'a str) -> Result<&'a str> {
     Ok(t)
 }
 
+/// Renumbers the unfinished tasks 1..n in their current order, placing `moving` at `at`.
+fn rerank(conn: &Connection, moving: Option<i64>, at: Option<usize>) -> Result<()> {
+    let mut order = ids(
+        conn,
+        "SELECT id FROM tasks WHERE status IN ('open','doing') ORDER BY rank, id",
+        [],
+    )?;
+    if let Some(m) = moving {
+        order.retain(|x| *x != m);
+        let i = at.unwrap_or(usize::MAX).saturating_sub(1).min(order.len());
+        order.insert(i, m);
+    }
+    for (i, t) in order.iter().enumerate() {
+        conn.execute(
+            "UPDATE tasks SET rank = ?1 WHERE id = ?2",
+            params![i as i64 + 1, t],
+        )?;
+    }
+    Ok(())
+}
+
+impl Inventory {
+    /// The household's goal, or sets it when `goal` is given.
+    pub fn goal(&mut self, goal: Option<&str>) -> Result<Value> {
+        if let Some(g) = goal {
+            let g = g.trim().to_lowercase();
+            if !GOALS.contains(&g.as_str()) {
+                return Err(Error::Usage(format!(
+                    "goal must be one of {}",
+                    GOALS.join(", ")
+                )));
+            }
+            self.conn.execute(
+                "INSERT INTO settings (key, value) VALUES ('goal', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [g],
+            )?;
+        }
+        Ok(json!({ "goal": get_setting(&self.conn, "goal")? }))
+    }
+
+    /// Records something noticed about a place, optionally tied to one of its photos (1-based).
+    pub fn observe(&mut self, reference: &str, text: &str, photo: Option<usize>) -> Result<Value> {
+        let text = non_empty("observation", text)?;
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        let photo_path = match photo {
+            None => None,
+            Some(n) => Some(
+                tx.query_row(
+                    "SELECT path FROM photos WHERE node_id = ?1 ORDER BY position LIMIT 1 OFFSET ?2",
+                    params![id, n.saturating_sub(1) as i64],
+                    |r| r.get::<_, String>(0),
+                )
+                .optional()?
+                .ok_or_else(|| Error::NotFound(format!("node {id} has no photo {n}")))?,
+            ),
+        };
+        tx.execute(
+            "INSERT INTO observations (node_id, text, photo, at) VALUES (?1, ?2, ?3, ?4)",
+            params![id, text, photo_path, now()],
+        )?;
+        event(&tx, id, "observe", json!({ "text": text }))?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    /// Removes one observation that turned out wrong or no longer holds.
+    pub fn unobserve(&mut self, observation: i64) -> Result<Value> {
+        let node: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT node_id FROM observations WHERE id = ?1",
+                [observation],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let node = node.ok_or_else(|| Error::NotFound(format!("no observation {observation}")))?;
+        self.conn
+            .execute("DELETE FROM observations WHERE id = ?1", [observation])?;
+        show(&self.conn, node)
+    }
+
+    /// Marks how far a place has been gone through: `toured` (every thing in it looked at and
+    /// the person said it is done), `kept` (the person wants it left as it is), or `raw` to
+    /// clear it. Everything below the place inherits the mark.
+    pub fn review(&mut self, reference: &str, status: &str, note: Option<&str>) -> Result<Value> {
+        let status = status.trim().to_lowercase();
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        match status.as_str() {
+            "raw" => {
+                tx.execute("DELETE FROM reviews WHERE node_id = ?1", [id])?;
+            }
+            s if REVIEWS.contains(&s) => {
+                tx.execute(
+                    "INSERT INTO reviews (node_id, status, at, note) VALUES (?1, ?2, ?3, ?4)
+                     ON CONFLICT(node_id) DO UPDATE SET status = excluded.status,
+                       at = excluded.at, note = excluded.note",
+                    params![id, s, now(), note.map(str::trim).filter(|n| !n.is_empty())],
+                )?;
+            }
+            _ => {
+                return Err(Error::Usage(
+                    "review must be toured, kept or raw".to_string(),
+                ));
+            }
+        }
+        event(&tx, id, "review", json!({ "as": status, "note": note }))?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    /// Every unit (see `units`) with how far it has been gone through, and which toured ones
+    /// changed since.
+    pub fn progress(&self) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+        let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
+        let mut kids: HashMap<i64, Vec<&Node>> = HashMap::new();
+        for n in &all {
+            if let Some(p) = n.parent_id {
+                kids.entry(p).or_default().push(n);
+            }
+        }
+        let reviews = all_reviews(&self.conn)?;
+        let planned: HashSet<i64> = ids(
+            &self.conn,
+            "SELECT DISTINCT tn.node_id FROM task_nodes tn JOIN tasks t ON t.id = tn.task_id
+              WHERE t.status IN ('open','doing')",
+            [],
+        )?
+        .into_iter()
+        .collect();
+        let mut list = Vec::new();
+        let (mut toured, mut kept, mut raw, mut stale) = (0, 0, 0, 0);
+        for u in units(&all) {
+            let n = by_id[&u];
+            let mut v = serde_json::to_value(brief(&self.conn, u)?)
+                .map_err(|e| Error::Internal(e.to_string()))?;
+            let direct = kids.get(&u).map_or(0, Vec::len);
+            v["children"] = json!(direct);
+            v["unknown"] = json!(n.unknown);
+            v["observations"] = json!(observations_of(&self.conn, u)?.len());
+            v["planned"] = json!(planned.contains(&u));
+            match effective_review(u, &parent, &reviews) {
+                Some((from, status, at)) => {
+                    let changed = last_change(u, &kids, &by_id) > at;
+                    if status == "toured" {
+                        toured += 1;
+                    } else {
+                        kept += 1;
+                    }
+                    if changed && status == "toured" {
+                        stale += 1;
+                    }
+                    v["review"] = json!({ "status": status, "at": at, "from": from, "changed_since": changed });
+                }
+                None => {
+                    raw += 1;
+                    v["review"] = json!({ "status": "raw" });
+                }
+            }
+            list.push(v);
+        }
+        Ok(json!({
+            "goal": get_setting(&self.conn, "goal")?,
+            "units": list.len(),
+            "toured": toured,
+            "kept": kept,
+            "raw": raw,
+            "changed_since_tour": stale,
+            "places": list,
+        }))
+    }
+
+    /// Adds a task at position `at` (1-based among unfinished tasks; last when omitted).
+    pub fn task_add(
+        &mut self,
+        title: &str,
+        why: &str,
+        on: &[String],
+        at: Option<usize>,
+    ) -> Result<Value> {
+        let title = non_empty("title", title)?;
+        let why = non_empty("why", why)?;
+        let tx = self.conn.transaction()?;
+        let nodes = on
+            .iter()
+            .map(|r| resolve(&tx, r, false))
+            .collect::<Result<Vec<_>>>()?;
+        let t = now();
+        tx.execute(
+            "INSERT INTO tasks (title, why, rank, status, created_at, updated_at)
+             VALUES (?1, ?2, 1000000, 'open', ?3, ?3)",
+            params![title, why, t],
+        )?;
+        let id = tx.last_insert_rowid();
+        for n in nodes {
+            tx.execute(
+                "INSERT OR IGNORE INTO task_nodes (task_id, node_id) VALUES (?1, ?2)",
+                params![id, n],
+            )?;
+        }
+        rerank(&tx, Some(id), at)?;
+        tx.commit()?;
+        task_json(&self.conn, id)
+    }
+
+    /// Unfinished tasks in order; with `all`, finished and dropped ones after them.
+    pub fn task_list(&self, all: bool) -> Result<Value> {
+        let open = ids(
+            &self.conn,
+            "SELECT id FROM tasks WHERE status IN ('open','doing') ORDER BY rank, id",
+            [],
+        )?;
+        let mut tasks = open
+            .iter()
+            .map(|t| task_json(&self.conn, *t))
+            .collect::<Result<Vec<_>>>()?;
+        if all {
+            for t in ids(
+                &self.conn,
+                "SELECT id FROM tasks WHERE status IN ('done','dropped') ORDER BY closed_at DESC, id DESC",
+                [],
+            )? {
+                tasks.push(task_json(&self.conn, t)?);
+            }
+        }
+        Ok(json!({ "tasks": tasks }))
+    }
+
+    pub fn task_show(&self, id: i64) -> Result<Value> {
+        task_json(&self.conn, id)
+    }
+
+    /// Moves a task to `status`. `done` and `dropped` close it; `open`/`doing` reopen it.
+    pub fn task_set(&mut self, id: i64, status: &str, note: Option<&str>) -> Result<Value> {
+        if !TASK_STATES.contains(&status) {
+            return Err(Error::Usage(format!(
+                "status must be one of {}",
+                TASK_STATES.join(", ")
+            )));
+        }
+        let tx = self.conn.transaction()?;
+        task_json(&tx, id)?;
+        let closed = matches!(status, "done" | "dropped");
+        let t = now();
+        tx.execute(
+            "UPDATE tasks SET status = ?1, updated_at = ?2,
+               closed_at = CASE WHEN ?3 THEN ?2 ELSE NULL END,
+               note = COALESCE(?4, note)
+             WHERE id = ?5",
+            params![status, t, closed, note.map(str::trim), id],
+        )?;
+        if status == "doing" {
+            // One task at a time: whatever was in progress goes back to open.
+            tx.execute(
+                "UPDATE tasks SET status = 'open', updated_at = ?1 WHERE status = 'doing' AND id != ?2",
+                params![t, id],
+            )?;
+        }
+        rerank(&tx, None, None)?;
+        tx.commit()?;
+        task_json(&self.conn, id)
+    }
+
+    /// Changes a task's title, reason, position or the places it is about.
+    #[allow(clippy::too_many_arguments)]
+    pub fn task_edit(
+        &mut self,
+        id: i64,
+        title: Option<&str>,
+        why: Option<&str>,
+        add: &[String],
+        remove: &[String],
+        at: Option<usize>,
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let current = task_json(&tx, id)?;
+        if let Some(t) = title {
+            tx.execute(
+                "UPDATE tasks SET title = ?1 WHERE id = ?2",
+                params![non_empty("title", t)?, id],
+            )?;
+        }
+        if let Some(w) = why {
+            tx.execute(
+                "UPDATE tasks SET why = ?1 WHERE id = ?2",
+                params![non_empty("why", w)?, id],
+            )?;
+        }
+        for r in add {
+            let n = resolve(&tx, r, false)?;
+            tx.execute(
+                "INSERT OR IGNORE INTO task_nodes (task_id, node_id) VALUES (?1, ?2)",
+                params![id, n],
+            )?;
+        }
+        for r in remove {
+            let n = resolve(&tx, r, true)?;
+            tx.execute(
+                "DELETE FROM task_nodes WHERE task_id = ?1 AND node_id = ?2",
+                params![id, n],
+            )?;
+        }
+        if at.is_some() {
+            if current["position"].is_null() {
+                return Err(refused(
+                    format!("task {id} is closed; reopen it before moving it"),
+                    Value::Null,
+                ));
+            }
+            rerank(&tx, Some(id), at)?;
+        }
+        tx.execute(
+            "UPDATE tasks SET updated_at = ?1 WHERE id = ?2",
+            params![now(), id],
+        )?;
+        tx.commit()?;
+        task_json(&self.conn, id)
+    }
+
+    /// Where to pick up: the task in progress (or the first open one) with everything needed
+    /// to work on it — each of its places as `show` gives it, what is planned to move in or
+    /// out of them, and the rules — plus progress, and under `organize` the untoured places no
+    /// task covers yet, so gaps in the plan are visible.
+    pub fn next(&self) -> Result<Value> {
+        let goal = get_setting(&self.conn, "goal")?;
+        let current = ids(
+            &self.conn,
+            "SELECT id FROM tasks WHERE status IN ('open','doing')
+              ORDER BY CASE status WHEN 'doing' THEN 0 ELSE 1 END, rank, id LIMIT 1",
+            [],
+        )?;
+        let open_count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE status IN ('open','doing')",
+            [],
+            |r| r.get(0),
+        )?;
+        let task = match current.first() {
+            None => Value::Null,
+            Some(t) => {
+                let mut v = task_json(&self.conn, *t)?;
+                let mut places = Vec::new();
+                for n in task_nodes(&self.conn, *t)? {
+                    let mut p = show(&self.conn, n)?;
+                    p["arriving"] = json!(self.pending_into(n)?);
+                    places.push(p);
+                }
+                v["places"] = json!(places);
+                v
+            }
+        };
+        let progress = self.progress()?;
+        let unplanned: Vec<Value> = if goal.as_deref() == Some("track") {
+            Vec::new()
+        } else {
+            progress["places"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|p| p["review"]["status"] == "raw" && p["planned"] == false)
+                .cloned()
+                .collect()
+        };
+        Ok(json!({
+            "goal": goal,
+            "task": task,
+            "open_tasks": open_count,
+            "progress": {
+                "units": progress["units"],
+                "toured": progress["toured"],
+                "kept": progress["kept"],
+                "raw": progress["raw"],
+                "changed_since_tour": progress["changed_since_tour"],
+            },
+            "unplanned": unplanned,
+            "rules": rules_json(&self.conn)?,
+        }))
+    }
+
+    /// Nodes planned to move into `id` or anywhere below it.
+    fn pending_into(&self, id: i64) -> Result<Vec<Value>> {
+        let movers = ids(
+            &self.conn,
+            "WITH RECURSIVE d(id) AS (
+                 SELECT ?1 UNION ALL
+                 SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id WHERE n.state != 'gone'
+             )
+             SELECT id FROM nodes WHERE pending_to IN d AND state != 'gone' ORDER BY id",
+            [id],
+        )?;
+        movers
+            .into_iter()
+            .map(|m| {
+                serde_json::to_value(brief(&self.conn, m)?)
+                    .map_err(|e| Error::Internal(e.to_string()))
+            })
+            .collect()
+    }
+}

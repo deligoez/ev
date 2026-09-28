@@ -594,9 +594,10 @@ fn run(cli: Cli) -> Result<Value> {
             file,
             crop,
             note,
+            whole,
         }) => {
             let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
-            inv.photo_add(&reference, &file, crop, note.as_deref())
+            inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
         }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),

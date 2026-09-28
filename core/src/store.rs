@@ -546,6 +546,11 @@ impl Inventory {
         why: Option<&str>,
     ) -> Result<Value> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
+        if disposition == Some(Disposition::Mistake) && why.is_none() {
+            return Err(Error::Usage(
+                "say why the record was a mistake with --why".into(),
+            ));
+        }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if node.state == State::Active && disposition.is_none() {

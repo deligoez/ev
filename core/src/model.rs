@@ -58,6 +58,9 @@ label_enum!(Disposition, "disposition", {
     Give => "give",
     Sell => "sell",
     Return => "return",
+    // Closing a record that should never have existed (a misreading, a duplicate): it keeps its
+    // history but nothing actually left the home.
+    Mistake => "mistake",
 });
 
 /// A stored node with every field of spec §3.1.

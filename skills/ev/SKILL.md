@@ -24,7 +24,10 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
    `"in":"@b"`). Batches are all or nothing.
 2. **Propose, don't assume a move happened.** Plan it with `ev move <x> --to <y> --plan`,
    tell the person where it goes, and only after they say they did it run `ev done <x>`.
-   `ev pending` is the checklist.
+   `ev pending` is the checklist. A planned move is also how you park a thing whose right
+   place is not settled yet: plan it towards the likeliest holder, and when you later go
+   through that holder, bring up everything planned to arrive there so the person decides
+   whether it really belongs.
 3. **Nothing is finished until the person says so.** A photo of "the current state" is not
    "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
    reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.

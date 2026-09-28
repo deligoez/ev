@@ -33,7 +33,7 @@ const TABS: [&str; 7] = [
 ];
 
 /// The Yapılacak section that starts collapsed: unclear records are a long, low-priority list.
-const UNCLEAR_SECTION: i64 = -12;
+const UNCLEAR_SECTION: i64 = -13;
 
 // Named colours follow the terminal's own palette, so light and dark themes both work.
 const CODE: Color = Color::Cyan;

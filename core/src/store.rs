@@ -1380,6 +1380,9 @@ fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<(
                 "UPDATE nodes SET code = ?1, code_folded = ?2 WHERE id = ?3",
                 params![v, folded, n.id],
             )?;
+            if v != n.code {
+                crate::marks::code_changed(conn, n.id, v.is_some())?;
+            }
         }
         "kind" => {
             let k: Kind = value.parse()?;

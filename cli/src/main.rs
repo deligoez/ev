@@ -186,6 +186,9 @@ struct AddArgs {
     /// Place this node belongs to when it is not ours.
     #[arg(long)]
     owner: Option<String>,
+    /// Its contents have not been inventoried yet.
+    #[arg(long)]
+    unknown: bool,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,

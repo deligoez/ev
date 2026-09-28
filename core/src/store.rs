@@ -791,7 +791,7 @@ fn label(n: &Node) -> String {
     }
 }
 
-fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
+pub(crate) fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
     let n = load(conn, id)?;
     let segments = path(conn, id)?;
     Ok(NodeRef {

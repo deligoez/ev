@@ -195,6 +195,31 @@ fn a_place_needs_a_new_photo_once_its_contents_change() {
 }
 
 #[test]
+fn a_whole_photo_goes_on_one_node_and_crops_on_the_rest() {
+    let (d, mut inv) = setup();
+    let img = d.path().join("drawer.png");
+    image::RgbImage::from_pixel(16, 16, image::Rgb([5, 6, 7]))
+        .save(&img)
+        .unwrap();
+    inv.photo_add("S5-01", &img, None, None).unwrap();
+    // The same whole photo on a thing inside is the mistake: refused, pointing at the holder.
+    let e = inv.photo_add("Silikon", &img, None, None).unwrap_err();
+    assert_eq!(e.code(), 5);
+    // A crop is the fix; --whole is the deliberate exception.
+    inv.photo_add("Silikon", &img, Some("0,0,0.5,0.5".parse().unwrap()), None)
+        .unwrap();
+    assert_eq!(inv.todo().unwrap()["counts"]["shared_photos"], 0);
+    inv.photo_add_with("Kulaklık", &img, None, None, true)
+        .unwrap();
+    let t = inv.todo().unwrap();
+    assert_eq!(t["counts"]["shared_photos"], 1);
+    assert_eq!(
+        names(&t["shared_photos"][0]["nodes"]),
+        ["Samla", "Kulaklık"]
+    );
+}
+
+#[test]
 fn focus_names_a_node_and_its_last_photo_by_default() {
     let (d, mut inv) = setup();
     assert!(inv.focus_request().unwrap().is_null());

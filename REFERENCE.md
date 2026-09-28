@@ -136,5 +136,6 @@ click shows the current one full screen (with its note), and `O` opens it in the
 
 A unit is the innermost labelled holder, or an unlabelled holder standing on its own in a room
 or on furniture: a holder none of whose children carries a code. `ev show` carries the node's
-`review` and `observations`. In `ev ui`, tab 7 (Plan) lists the tasks with progress in its
+`review`, `observations` and `tasks`: the unfinished tasks linked to the node or to a place that
+holds it, each with `via`, the node the link is on. In `ev ui`, tab 7 (Plan) lists the tasks with progress in its
 title.

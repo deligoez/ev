@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 5;
+pub const SCHEMA_VERSION: i64 = 6;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -111,6 +111,48 @@ PRAGMA user_version = 5;
 COMMIT;
 ";
 
+/// The tidy-up plan (spec §17): how far each place has been gone through, what was noticed
+/// there, an ordered work list, and settings such as the household's goal.
+const SCHEMA_V6: &str = "
+BEGIN;
+CREATE TABLE reviews (
+    node_id INTEGER PRIMARY KEY REFERENCES nodes(id),
+    status TEXT NOT NULL,
+    at TEXT NOT NULL,
+    note TEXT
+);
+CREATE TABLE observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    text TEXT NOT NULL,
+    photo TEXT,
+    at TEXT NOT NULL
+);
+CREATE INDEX observations_node ON observations(node_id);
+CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    why TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    closed_at TEXT
+);
+CREATE TABLE task_nodes (
+    task_id INTEGER NOT NULL REFERENCES tasks(id),
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    PRIMARY KEY (task_id, node_id)
+);
+CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+PRAGMA user_version = 6;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -118,7 +160,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      (SELECT name FROM places WHERE id = to_place), unknown";
 
 pub struct Inventory {
-    conn: Connection,
+    pub(crate) conn: Connection,
     photo_dir: std::path::PathBuf,
 }
 
@@ -155,6 +197,9 @@ impl Inventory {
         }
         if version < 5 {
             conn.execute_batch(SCHEMA_V5)?;
+        }
+        if version < 6 {
+            conn.execute_batch(SCHEMA_V6)?;
         }
         let photo_dir = path
             .parent()

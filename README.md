@@ -53,12 +53,20 @@ It enumerates everything instead of ranking a few, so nothing is missed. `ev aud
 things split across places (Turkish word forms grouped), holders without a theme, loose items
 and holders whose contents were never inventoried (`unknown=true`).
 
+**A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
+counts the places a person opens one at a time (the innermost labelled holders) as raw,
+toured or kept as is, and flags toured ones that changed since. `ev observe` keeps what was
+noticed about a place; `ev task` is an ordered work list where every entry says why it
+matters; `ev next` hands over the current task with its places, what is planned to arrive
+there and the places no task covers yet. `ev goal organize|track` says whether the household
+wants a tidy-up at all — under `track` ev only keeps the records.
+
 **Photos.** `ev photo add X photo.jpg` copies a photo into the store and attaches it;
 `--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the
 original. `ev photo list|remove|adopt`.
 
 **Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, disposals,
-lost items, errands (Götür/İade) and search. It refreshes the moment another process writes,
+lost items, errands (Götür/İade), search and the plan. It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
 full screen with `o`, and in the system viewer with `O`. Mouse works for tabs, rows, the wheel
 and photos.

@@ -598,6 +598,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
         Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),
+        Cmd::Photo(PhotoCmd::Current { reference }) => inv.photo_current(&reference),
     }
 }
 

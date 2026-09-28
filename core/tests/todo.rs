@@ -125,6 +125,61 @@ fn only_a_sell_candidate_has_a_sale() {
 }
 
 #[test]
+fn a_mistaken_record_closes_with_a_reason_and_never_counts_as_leaving() {
+    let (_d, mut inv) = setup();
+    assert_eq!(
+        inv.gone_because("Kulaklık", Some(Disposition::Mistake), None)
+            .unwrap_err()
+            .code(),
+        2
+    );
+    assert_eq!(
+        inv.dispose("Kulaklık", Disposition::Mistake)
+            .unwrap_err()
+            .code(),
+        2
+    );
+    let v = inv
+        .gone_because(
+            "Kulaklık",
+            Some(Disposition::Mistake),
+            Some("counted twice"),
+        )
+        .unwrap();
+    assert_eq!(v["node"]["state"], "gone");
+    assert_eq!(v["node"]["disposition"], "mistake");
+    let d = inv.disposals(None).unwrap();
+    assert!(
+        d["disposals"]
+            .as_object()
+            .unwrap()
+            .values()
+            .all(|l| l.as_array().unwrap().is_empty())
+    );
+}
+
+#[test]
+fn focus_names_a_node_and_its_last_photo_by_default() {
+    let (d, mut inv) = setup();
+    assert!(inv.focus_request().unwrap().is_null());
+    let v = inv.focus(Some("Silikon"), None).unwrap();
+    assert!(v["focus"]["photo"].is_null());
+    let img = d.path().join("p.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&img)
+        .unwrap();
+    inv.photo_add("Silikon", &img, None, None).unwrap();
+    inv.photo_add("Silikon", &img, None, Some("second"))
+        .unwrap();
+    let v = inv.focus(Some("Silikon"), None).unwrap();
+    assert_eq!(v["focus"]["photo"], 2);
+    assert_eq!(inv.focus(Some("Silikon"), Some(3)).unwrap_err().code(), 3);
+    assert_eq!(inv.focus_request().unwrap()["photo"], 2);
+    inv.focus(None, None).unwrap();
+    assert!(inv.focus_request().unwrap().is_null());
+}
+
+#[test]
 fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Kutu", "container", Some("Oda"), None);

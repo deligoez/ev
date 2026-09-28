@@ -143,3 +143,15 @@ fn need_json(conn: &Connection, id: i64) -> Result<Value> {
     Ok(v)
 }
 
+/// Open needs meant for a node.
+pub(crate) fn needs_for(conn: &Connection, id: i64) -> Result<Vec<Value>> {
+    ids(
+        conn,
+        "SELECT id FROM needs WHERE for_node = ?1 AND status = 'open' ORDER BY id",
+        [id],
+    )?
+    .into_iter()
+    .map(|n| need_json(conn, n))
+    .collect()
+}
+

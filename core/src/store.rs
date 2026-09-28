@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -153,6 +153,34 @@ PRAGMA user_version = 6;
 COMMIT;
 ";
 
+/// Things to do that hang on one node (spec §18): a label to print, broken, a use-by date, a
+/// sale in progress — one row per node and kind — and a list of things to buy or make.
+const SCHEMA_V7: &str = "
+BEGIN;
+CREATE TABLE marks (
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    kind TEXT NOT NULL,
+    value TEXT,
+    amount INTEGER,
+    note TEXT,
+    at TEXT NOT NULL,
+    PRIMARY KEY (node_id, kind)
+);
+CREATE TABLE needs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    qty INTEGER,
+    make INTEGER NOT NULL DEFAULT 0,
+    for_node INTEGER REFERENCES nodes(id),
+    status TEXT NOT NULL DEFAULT 'open',
+    note TEXT,
+    created_at TEXT NOT NULL,
+    closed_at TEXT
+);
+PRAGMA user_version = 7;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -200,6 +228,9 @@ impl Inventory {
         }
         if version < 6 {
             conn.execute_batch(SCHEMA_V6)?;
+        }
+        if version < 7 {
+            conn.execute_batch(SCHEMA_V7)?;
         }
         let photo_dir = path
             .parent()
@@ -593,6 +624,7 @@ impl Inventory {
                     .map(|n| brief_json(&self.conn, n.id))
                     .collect::<Result<Vec<_>>>()?;
                 entry["parts"] = json!(parts);
+                entry["sale"] = crate::marks::mark(&self.conn, id, "sale")?;
                 entries.push(entry);
             }
             groups.insert(d.as_str().into(), json!(entries));

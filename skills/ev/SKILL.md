@@ -53,6 +53,16 @@ placement, record the reason as `ev rule add` or a container `theme`, so the nex
 knows it. Run `ev audit` now and then to find alike things split up and holders without a
 theme, and give holders a theme whenever you learn what they are for.
 
+## Photos
+
+When the person sends a photo of a drawer or box, first confirm its contents against the
+records. Then `ev photo add <holder> <photo>` for the whole view, and for each box or item in
+it `ev photo add <node> <photo> --crop x,y,w,h` with fractions of the upright photo. **Look at
+every crop you cut** (open the stored file) and redo it if it shows the wrong thing — the crop
+coordinates are your estimate, the check is what makes them right. Close-ups the person sends
+later (screw heads, labels) go to the item with plain `ev photo add`. Photos are copied into
+`~/.ev/photos`; the original may then be deleted.
+
 ## Going somewhere
 
 Whenever the person says they are going somewhere or meeting someone ("yarın Mahmutlara

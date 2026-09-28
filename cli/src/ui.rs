@@ -1601,6 +1601,50 @@ mod tests {
     }
 
     #[test]
+    fn ev_focus_from_another_process_shows_the_node_and_photo() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("ev.db");
+        let mut inv = Inventory::open(&db).unwrap();
+        for (name, kind, parent) in [
+            ("Ev", "home", None),
+            ("Oda", "room", Some("Ev")),
+            ("Kutu", "container", Some("Oda")),
+            ("Çekiç", "item", Some("Kutu")),
+        ] {
+            inv.add(NewNode {
+                name: name.into(),
+                kind: kind.into(),
+                parent: parent.map(Into::into),
+                ..Default::default()
+            })
+            .unwrap();
+        }
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(16, 16, image::Rgb([9, 9, 9]))
+            .save(&photo)
+            .unwrap();
+        inv.photo_add("Çekiç", &photo, None, Some("yakın")).unwrap();
+        let mut app = App::new(inv).unwrap();
+        press(&mut app, KeyCode::Char('3'));
+        assert!(!app.fullscreen);
+
+        // The agent points at the hammer from its own connection.
+        let mut agent = Inventory::open(&db).unwrap();
+        agent.focus(Some("Çekiç"), None).unwrap();
+        app.refresh_if_changed().unwrap();
+        assert!(app.tab == Tab::Tree);
+        let hammer = agent.resolve("Çekiç", false).unwrap();
+        assert_eq!(app.selected_id(), Some(hammer));
+        assert!(app.fullscreen);
+
+        // Shown once: closing it does not bring it back on the next refresh.
+        press(&mut app, KeyCode::Esc);
+        agent.observe("Kutu", "x", None).unwrap();
+        app.refresh_if_changed().unwrap();
+        assert!(!app.fullscreen);
+    }
+
+    #[test]
     fn a_search_can_be_cleared_without_quitting() {
         let dir = tempfile::tempdir().unwrap();
         let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();

@@ -1219,6 +1219,7 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         ],
     )?;
     let id = conn.last_insert_rowid();
+    crate::marks::code_changed(conn, id, code.is_some())?;
     if new.unknown {
         conn.execute("UPDATE nodes SET unknown = 1 WHERE id = ?1", [id])?;
     }

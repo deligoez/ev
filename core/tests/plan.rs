@@ -88,3 +88,22 @@ fn a_review_covers_everything_below_and_notices_later_changes() {
     assert_eq!(inv.review("K1-01-U", "done", None).unwrap_err().code(), 2);
 }
 
+#[test]
+fn observations_show_on_the_place_and_can_be_removed() {
+    let (_d, mut inv) = setup();
+    let v = inv
+        .observe("K1-01-A", "screws loose in a bag", None)
+        .unwrap();
+    let obs = v["observations"].as_array().unwrap();
+    assert_eq!(obs.len(), 1);
+    assert_eq!(obs[0]["text"], "screws loose in a bag");
+    assert_eq!(
+        inv.observe("K1-01-A", "x", Some(1)).unwrap_err().code(),
+        3,
+        "no photo 1"
+    );
+    let id = obs[0]["id"].as_i64().unwrap();
+    let v = inv.unobserve(id).unwrap();
+    assert!(v["observations"].as_array().unwrap().is_empty());
+}
+

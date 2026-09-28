@@ -1883,7 +1883,7 @@ fn node_text(n: &Node) -> String {
     t
 }
 
-fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
+pub(crate) fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
     ids(
         conn,
         "SELECT id FROM nodes WHERE state != 'gone' ORDER BY id",

@@ -102,3 +102,11 @@ fn effective_review(
     None
 }
 
+fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
+    let mut stmt = conn.prepare("SELECT node_id, status, at FROM reviews")?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get(0)?, (r.get(1)?, r.get(2)?))))?
+        .collect::<rusqlite::Result<HashMap<_, _>>>()?;
+    Ok(rows)
+}
+

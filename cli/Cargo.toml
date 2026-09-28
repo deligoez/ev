@@ -10,9 +10,12 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.6.7", features = ["derive", "env"] }
 ev-core = { path = "../core" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 ratatui = "0.30.2"
+ratatui-image = { version = "11.1.0", default-features = false, features = ["crossterm"] }
 serde_json = "1.0.151"
 
 [dev-dependencies]
 assert_cmd = "2.2.2"
+ev-core = { path = "../core" }
 tempfile = "3.27.0"

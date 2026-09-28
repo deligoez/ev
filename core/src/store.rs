@@ -830,7 +830,9 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     };
     let review = crate::plan::review_of(conn, id)?;
     let observations = crate::plan::observations_of(conn, id)?;
+    let tasks = crate::plan::tasks_of(conn, id)?;
     Ok(json!({
+        "tasks": tasks,
         "node": node,
         "children": children,
         "pending": pending,

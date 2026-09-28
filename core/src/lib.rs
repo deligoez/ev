@@ -4,6 +4,7 @@ mod error;
 mod fold;
 mod model;
 mod photo;
+mod plan;
 mod store;
 
 pub use error::{Error, Result};

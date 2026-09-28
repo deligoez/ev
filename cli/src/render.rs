@@ -149,6 +149,75 @@ fn progress_line(p: &Value) -> String {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    if v.get("open_tasks").is_some() {
+        let _ = writeln!(out, "Goal: {}", v["goal"].as_str().unwrap_or("(not set)"));
+        let _ = writeln!(out, "{}", progress_line(&v["progress"]));
+        if v["task"].is_object() {
+            let _ = writeln!(out, "\nNext task ({} open):", v["open_tasks"]);
+            task_line(&mut out, &v["task"]);
+            for p in v["task"]["places"].as_array().into_iter().flatten() {
+                let _ = writeln!(
+                    out,
+                    "\n  {} {}",
+                    s(&p["node"], "path_text"),
+                    review_mark(&p["review"])
+                );
+                for o in p["observations"].as_array().into_iter().flatten() {
+                    let _ = writeln!(out, "    observed: {}", s(o, "text"));
+                }
+                for c in p["children"].as_array().into_iter().flatten() {
+                    let _ = writeln!(out, "    └ {}", line(c));
+                }
+                for a in p["arriving"].as_array().into_iter().flatten() {
+                    let _ = writeln!(out, "    → arriving: {}", s(a, "path_text"));
+                }
+            }
+        } else {
+            out.push_str("\n(no open task)\n");
+        }
+        let un = v["unplanned"].as_array().map_or(0, Vec::len);
+        if un > 0 {
+            let _ = writeln!(out, "\nRaw places no task covers ({un}):");
+            for p in v["unplanned"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  {}", s(p, "path_text"));
+            }
+        }
+        return out;
+    }
+    if v.get("units").is_some() && v.get("places").is_some() {
+        let _ = writeln!(out, "{}", progress_line(v));
+        for p in v["places"].as_array().into_iter().flatten() {
+            let unknown = if p["unknown"] == true {
+                "  (contents unknown)"
+            } else {
+                ""
+            };
+            let _ = writeln!(
+                out,
+                "  {} {}{unknown}",
+                review_mark(&p["review"]),
+                s(p, "path_text")
+            );
+        }
+        return out;
+    }
+    if let Some(list) = v.get("tasks").and_then(Value::as_array) {
+        if list.is_empty() {
+            out.push_str("(no tasks)\n");
+        }
+        for t in list {
+            task_line(&mut out, t);
+        }
+        return out;
+    }
+    if v.get("why").is_some() && v.get("title").is_some() {
+        task_line(&mut out, v);
+        return out;
+    }
+    if v.get("goal").is_some() && v.as_object().is_some_and(|o| o.len() == 1) {
+        let _ = writeln!(out, "Goal: {}", v["goal"].as_str().unwrap_or("(not set)"));
+        return out;
+    }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
         let _ = writeln!(out, "{}", line(node));
         for key in ["kind", "note", "theme", "address", "to", "owner", "with"] {
@@ -171,6 +240,17 @@ pub fn human(v: &Value) -> String {
         }
         if v["last_seen"].is_object() {
             let _ = writeln!(out, "  last seen: {}", s(&v["last_seen"], "path_text"));
+        }
+        if v["review"].is_object() {
+            let _ = writeln!(
+                out,
+                "  review: {} ({})",
+                s(&v["review"], "status"),
+                s(&v["review"], "at")
+            );
+        }
+        for o in v["observations"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  observed #{}: {}", o["id"], s(o, "text"));
         }
         for c in v["children"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  └ {}", line(c));

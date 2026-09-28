@@ -57,3 +57,32 @@ pub(crate) fn observations_of(conn: &Connection, id: i64) -> Result<Vec<Value>> 
     Ok(rows)
 }
 
+/// The places a person opens one at a time: the innermost labelled holders, plus unlabelled
+/// holders standing on their own in a room or on furniture. A holder is a unit when none of its
+/// children carries a code (a code is a physical label, so a coded child is a place of its
+/// own); everything below a unit is gone through with it. `K4x4-08-A` is a unit and the boxes
+/// in it are not; `K4x4-08` is not, because its drawers are labelled.
+fn units(all: &[Node]) -> Vec<i64> {
+    let mut kids: HashMap<Option<i64>, Vec<&Node>> = HashMap::new();
+    for n in all {
+        kids.entry(n.parent_id).or_default().push(n);
+    }
+    let mut out = Vec::new();
+    let mut stack: Vec<&Node> = kids.get(&None).cloned().unwrap_or_default();
+    while let Some(n) = stack.pop() {
+        let children = kids.get(&Some(n.id)).cloned().unwrap_or_default();
+        let structural = matches!(n.kind, Kind::Home | Kind::Room);
+        let is_unit = !structural
+            && n.kind != Kind::Item
+            && n.state == State::Active
+            && !children.iter().any(|c| c.code.is_some());
+        if is_unit {
+            out.push(n.id);
+        } else {
+            stack.extend(children);
+        }
+    }
+    out.sort_unstable();
+    out
+}
+

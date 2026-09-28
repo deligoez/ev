@@ -125,7 +125,10 @@ When the person sends a photo of a drawer or box, first confirm its contents aga
 records. Then `ev photo add <holder> <photo>` for the whole view, and for each box or item in
 it `ev photo add <node> <photo> --crop x,y,w,h` with fractions of the upright photo. **Look at
 every crop you cut** (open the stored file) and redo it if it shows the wrong thing — the crop
-coordinates are your estimate, the check is what makes them right. Close-ups the person sends
+coordinates are your estimate, the check is what makes them right. **A group photo goes whole
+on one node only — the place — and every thing in it gets its own crop.** `ev photo add` refuses a
+whole photo that is already attached whole elsewhere; when it does, cut the crop — do not reach for
+`--whole` to get past it. `shared_photos` in `ev todo` lists any slip of this kind. Close-ups the person sends
 later (screw heads, labels) go to the item, cropped to the thing itself, and a photo of an
 empty holder goes to the holder. Photos are copied into
 `~/.ev/photos`; the original may then be deleted.

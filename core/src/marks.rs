@@ -26,3 +26,21 @@ fn brief_value(conn: &Connection, id: i64) -> Result<Value> {
     serde_json::to_value(brief(conn, id)?).map_err(|e| Error::Internal(e.to_string()))
 }
 
+pub(crate) fn mark(conn: &Connection, id: i64, kind: &str) -> Result<Value> {
+    Ok(conn
+        .query_row(
+            "SELECT value, amount, note, at FROM marks WHERE node_id = ?1 AND kind = ?2",
+            params![id, kind],
+            |r| {
+                Ok(json!({
+                    "value": r.get::<_, Option<String>>(0)?,
+                    "amount": r.get::<_, Option<i64>>(1)?,
+                    "note": r.get::<_, Option<String>>(2)?,
+                    "at": r.get::<_, String>(3)?,
+                }))
+            },
+        )
+        .optional()?
+        .unwrap_or(Value::Null))
+}
+

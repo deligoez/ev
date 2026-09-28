@@ -74,7 +74,7 @@ expanding their parents so they are in view.
 | x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | [ / ], wheel over the photo | previous / next photo of the selected node |
-| o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, Esc / o / click close |
+| o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
 | q / Esc | quit (Esc clears a search first) |
 

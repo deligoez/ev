@@ -252,6 +252,38 @@ fn todo(out: &mut String, v: &Value) {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    if v.get("counts").is_some() && v.get("unclear").is_some() {
+        todo(&mut out, v);
+        return out;
+    }
+    if let Some(list) = v.get("labels").and_then(Value::as_array) {
+        if list.is_empty() {
+            out.push_str("(no labels to print)\n");
+        }
+        for n in list {
+            let theme = n["theme"]
+                .as_str()
+                .map(|t| format!("  {t}"))
+                .unwrap_or_default();
+            let _ = writeln!(out, "{}{theme}", s(n, "code"));
+        }
+        return out;
+    }
+    if let Some(list) = v.get("needs").and_then(Value::as_array)
+        && v.get("node").is_none()
+    {
+        if list.is_empty() {
+            out.push_str("(nothing to get)\n");
+        }
+        for n in list {
+            let _ = writeln!(out, "{}", need_line(n));
+        }
+        return out;
+    }
+    if v.get("text").is_some() && v.get("make").is_some() {
+        let _ = writeln!(out, "{}  [{}]", need_line(v), s(v, "status"));
+        return out;
+    }
     if v.get("open_tasks").is_some() {
         let _ = writeln!(out, "Goal: {}", v["goal"].as_str().unwrap_or("(not set)"));
         let _ = writeln!(out, "{}", progress_line(&v["progress"]));
@@ -354,6 +386,21 @@ pub fn human(v: &Value) -> String {
         }
         for o in v["observations"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  observed #{}: {}", o["id"], s(o, "text"));
+        }
+        for (kind, m) in v["marks"].as_object().into_iter().flatten() {
+            let what = [
+                m["value"].as_str().map(str::to_string),
+                m["amount"].as_i64().map(|a| a.to_string()),
+                m["note"].as_str().map(str::to_string),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" · ");
+            let _ = writeln!(out, "  {kind}: {what}");
+        }
+        for n in v["needs"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  need: {}", need_line(n));
         }
         for t in v["tasks"].as_array().into_iter().flatten() {
             let via = if t["via"] == node["id"] {

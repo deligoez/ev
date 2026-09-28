@@ -507,6 +507,20 @@ fn returning_what_is_not_ours_is_a_disposition() {
 }
 
 #[test]
+fn a_thing_meant_for_its_owner_is_listed_once_as_a_return() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    inv.edit(
+        "Flipper Zero",
+        &["owner=Mahmutlar".into(), "to=Mahmutlar".into()],
+    )
+    .unwrap();
+    let v = inv.errands(Some("Mahmutlar")).unwrap();
+    assert!(v["take"].as_array().unwrap().is_empty(), "{v}");
+    assert_eq!(v["return"].as_array().unwrap().len(), 1);
+}
+
+#[test]
 fn suggest_lists_every_holder_and_where_alike_things_are() {
     let (_d, mut inv) = inv();
     home(&mut inv);

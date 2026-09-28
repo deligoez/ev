@@ -88,6 +88,9 @@ enum Cmd {
         reference: String,
         #[arg(long = "as")]
         disposition: Option<String>,
+        /// Why it left; recorded in the event and appended to the note.
+        #[arg(long)]
+        why: Option<String>,
     },
     /// Every candidate, grouped by disposition.
     Disposals {

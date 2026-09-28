@@ -252,6 +252,20 @@ pub fn human(v: &Value) -> String {
         for o in v["observations"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  observed #{}: {}", o["id"], s(o, "text"));
         }
+        for t in v["tasks"].as_array().into_iter().flatten() {
+            let via = if t["via"] == node["id"] {
+                String::new()
+            } else {
+                format!("  (via #{})", t["via"])
+            };
+            let _ = writeln!(
+                out,
+                "  task {}. #{} {}{via}",
+                t["position"],
+                t["id"],
+                s(t, "title")
+            );
+        }
         for c in v["children"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  └ {}", line(c));
         }

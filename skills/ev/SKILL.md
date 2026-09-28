@@ -70,6 +70,28 @@ places, and how far the whole home is (`progress`). Then:
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
   A toured place that changed later shows in `progress` as `changed_since`; mention it.
 
+## Everything waiting: `ev todo`
+
+When the person asks what is left, or a session starts with no clear task, run `ev todo` and
+summarise by kind with counts ("19 tasks, 8 moves, 2 things to return to Mahmutlar, 8 things
+leaving, 1 thing to buy"). Most of it is state on the records — never copy it into tasks; it
+leaves the list when you record the thing itself (`done`, `gone`, `back`, `found`, …).
+Record the kinds that have their own verbs as you meet them:
+
+- **A code you set** needs a label: after adding or re-coding a holder, say it goes on the
+  label list (`ev label` prints it for the label maker); `ev label <ref>` only when the person
+  says the label is on.
+- **Something to buy or make** (a box ran out, a battery is low, a gridfinity bin to print):
+  `ev need add "<what>" [--qty n] [--make] [--for <place>]`; `ev need got <id>` when it
+  arrived, then record it in the tree.
+- **Broken:** `ev broken <x> --note "<what is wrong>"`; `ev fixed <x>`; if it will not be fixed,
+  propose `ev dispose`.
+- **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
+- **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …`,
+  then `--reserved`; when it is sold, `ev gone <x>`.
+- **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
+  the person is at that place, then rename.
+
 ## Proposals the person can answer by number
 
 Every table or list of proposed actions starts each row with a number (`#` column), so the

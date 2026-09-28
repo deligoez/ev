@@ -133,6 +133,84 @@ enum Cmd {
     /// Photos of a node, kept in ev's own store.
     #[command(subcommand)]
     Photo(PhotoCmd),
+    /// What the household wants from ev: organize (tidy up with a plan) or track (records only).
+    Goal { goal: Option<String> },
+    /// Note something noticed about a place, optionally tied to its n-th photo.
+    Observe {
+        reference: String,
+        text: String,
+        #[arg(long)]
+        photo: Option<usize>,
+    },
+    /// Remove an observation by id.
+    Unobserve { id: i64 },
+    /// Mark how far a place has been gone through: toured, kept (leave as is) or raw.
+    Review {
+        reference: String,
+        #[arg(long = "as")]
+        status: String,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Every place to go through, and how far each one is.
+    Progress,
+    /// The ordered work list.
+    #[command(subcommand)]
+    Task(TaskCmd),
+    /// Where to pick up: the current task with its places, progress and unplanned places.
+    Next,
+}
+
+#[derive(Subcommand)]
+enum TaskCmd {
+    /// Add a task with the reason it matters; --at puts it at that position.
+    Add {
+        title: String,
+        #[arg(long)]
+        why: String,
+        /// A place the task is about; repeatable.
+        #[arg(long = "on")]
+        on: Vec<String>,
+        #[arg(long)]
+        at: Option<usize>,
+    },
+    /// Unfinished tasks in order; --all adds finished and dropped ones.
+    List {
+        #[arg(long)]
+        all: bool,
+    },
+    /// One task.
+    Show { id: i64 },
+    /// Start working on a task (one at a time).
+    Start { id: i64 },
+    /// Close a task as done; only when the person says so.
+    Done {
+        id: i64,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Close a task without doing it.
+    Drop {
+        id: i64,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Reopen a closed task.
+    Reopen { id: i64 },
+    /// Change title, reason, position or places (--on / --off).
+    Edit {
+        id: i64,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        why: Option<String>,
+        #[arg(long = "on")]
+        on: Vec<String>,
+        #[arg(long = "off")]
+        off: Vec<String>,
+        #[arg(long)]
+        at: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]

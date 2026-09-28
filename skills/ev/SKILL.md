@@ -136,6 +136,12 @@ thing is. Record new intentions as they come up: `ev edit X to=<place>` (take it
 Different names for the same household are aliases of one place (`ev place alias`); if two
 places turn out to be the same, `ev place merge`.
 
+## Show, don't describe
+
+When the person asks which thing you mean, or you name something they may not recognise, run
+`ev focus <x>` (add `--photo n` for a particular photo): their open `ev ui` jumps to it and
+shows its photo full screen — usually the crop you cut. Say you did it.
+
 ## Let the person watch
 
 Suggest `ev ui` in a second terminal at the start of a session: it is read-only and

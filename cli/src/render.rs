@@ -241,6 +241,21 @@ fn todo(out: &mut String, v: &Value) {
             }
         }
     }
+    if head(
+        out,
+        "Whole photo shared by several records",
+        &c["shared_photos"],
+    ) {
+        for group in v["shared_photos"].as_array().into_iter().flatten() {
+            let names: Vec<String> = group["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| format!("#{} {}", n["id"], s(n, "name")))
+                .collect();
+            let _ = writeln!(out, "  {}", names.join(", "));
+        }
+    }
     if head(out, "To get", &c["needs"]) {
         for n in v["needs"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", need_line(n));

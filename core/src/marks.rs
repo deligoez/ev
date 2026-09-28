@@ -112,3 +112,7 @@ fn parse_date(s: &str) -> Result<NaiveDate> {
     next.and_then(|d| d.pred_opt()).ok_or_else(bad)
 }
 
+fn today() -> NaiveDate {
+    chrono::Utc::now().date_naive()
+}
+

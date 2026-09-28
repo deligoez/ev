@@ -958,7 +958,45 @@ pub fn run(inv: Inventory) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Tab, tab_at};
+    use super::{App, Tab, tab_at};
+    use ev_core::{Inventory, NewNode};
+    use ratatui::{Terminal, backend::TestBackend};
+    use ratatui_image::picker::Picker;
+
+    fn screen(term: &Terminal<TestBackend>) -> String {
+        let buf = term.backend().buffer();
+        let mut out = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                out.push_str(buf[(x, y)].symbol());
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    #[test]
+    fn the_selected_node_shows_its_photo_panel() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let img = image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]));
+        let photo = dir.path().join("p.png");
+        img.save(&photo).unwrap();
+        inv.photo_add("Ev", &photo, None, None).unwrap();
+        let mut app = App::new(inv).unwrap();
+        app.picker = Some(Picker::halfblocks());
+        let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Fotoğraf 1/1"), "{s}");
+        assert!(s.contains("Ayrıntı"));
+    }
 
     #[test]
     fn tab_titles_are_hit_by_their_columns() {

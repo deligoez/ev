@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -92,11 +92,19 @@ PRAGMA user_version = 3;
 COMMIT;
 ";
 
+/// Holders whose contents were never inventoried (spec §15).
+const SCHEMA_V4: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN unknown INTEGER NOT NULL DEFAULT 0;
+PRAGMA user_version = 4;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place)";
+     (SELECT name FROM places WHERE id = to_place), unknown";
 
 pub struct Inventory {
     conn: Connection,
@@ -129,6 +137,9 @@ impl Inventory {
         }
         if version < 3 {
             conn.execute_batch(SCHEMA_V3)?;
+        }
+        if version < 4 {
+            conn.execute_batch(SCHEMA_V4)?;
         }
         Ok(Self { conn })
     }
@@ -1758,10 +1769,8 @@ impl Inventory {
         let mut similar: HashMap<i64, Vec<String>> = HashMap::new();
         for n in all.iter().filter(|n| n.kind == Kind::Item) {
             let own = words(&node_text(n));
-            let hit = wanted.iter().any(|w| {
-                own.iter()
-                    .any(|o| o.contains(w.as_str()) || w.contains(o.as_str()))
-            }) || tag.as_ref().is_some_and(|t| n.tags.contains(t));
+            let hit = wanted.iter().any(|w| own.iter().any(|o| word_match(w, o)))
+                || tag.as_ref().is_some_and(|t| n.tags.contains(t));
             if let (true, Some(p)) = (hit, n.parent_id) {
                 similar.entry(p).or_default().push(n.name.clone());
             }
@@ -1855,7 +1864,59 @@ impl Inventory {
             })
             .map(|n| brief_json(&self.conn, n.id))
             .collect::<Result<Vec<_>>>()?;
-        Ok(json!({ "spread": spread, "no_theme": no_theme, "loose": loose }))
+        let unknown = all
+            .iter()
+            .filter(|n| n.unknown)
+            .map(|n| brief_json(&self.conn, n.id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "spread": spread, "no_theme": no_theme, "loose": loose, "unknown": unknown }))
+    }
+}
+
+impl Inventory {
+    /// Undoes a `gone` recorded by mistake (spec §15); the reason is kept in the history.
+    pub fn correct_gone(&mut self, reference: &str, why: &str) -> Result<Value> {
+        let why = why.trim();
+        if why.is_empty() {
+            return Err(Error::Usage("say why the node was not really gone".into()));
+        }
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, true)?)?;
+        if node.state != State::Gone {
+            return Err(refused(
+                format!("{} is not gone", label(&node)),
+                Value::Null,
+            ));
+        }
+        if let Some(p) = node.parent_id {
+            let parent = load(&tx, p)?;
+            if parent.state == State::Gone {
+                return Err(refused(
+                    format!(
+                        "{} left with {}; restore that first",
+                        label(&node),
+                        label(&parent)
+                    ),
+                    Value::Null,
+                ));
+            }
+        }
+        if let Some(code) = &node.code {
+            check_code(&tx, code, Some(node.id))?;
+        }
+        tx.execute(
+            "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
+            [node.id],
+        )?;
+        touch(&tx, node.id)?;
+        event(
+            &tx,
+            node.id,
+            "restore",
+            json!({ "correction": why, "was": node.disposition }),
+        )?;
+        tx.commit()?;
+        show(&self.conn, node.id)
     }
 }
 

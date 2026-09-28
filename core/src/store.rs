@@ -100,6 +100,17 @@ PRAGMA user_version = 4;
 COMMIT;
 ";
 
+/// Photo provenance (spec §16): the stored original a crop was cut from, the crop, a note.
+const SCHEMA_V5: &str = "
+BEGIN;
+ALTER TABLE photos ADD COLUMN source TEXT;
+ALTER TABLE photos ADD COLUMN crop TEXT;
+ALTER TABLE photos ADD COLUMN note TEXT;
+ALTER TABLE photos ADD COLUMN added_at TEXT;
+PRAGMA user_version = 5;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -108,6 +119,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
 
 pub struct Inventory {
     conn: Connection,
+    photo_dir: std::path::PathBuf,
 }
 
 impl Inventory {

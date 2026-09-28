@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::time::Duration;
 
@@ -307,7 +307,24 @@ impl Inventory {
     /// Applies `field=value` assignments (spec §6, §11.6).
     pub fn edit(&mut self, reference: &str, assignments: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let id = resolve(&tx, reference, false)?;
+        // A gone node is found by id only, and only its note may change: the record of why it
+        // left belongs on it, while every other field describes a thing no longer here.
+        let id = match resolve(&tx, reference, false) {
+            Err(Error::NotFound(_)) if reference.trim().chars().all(|c| c.is_ascii_digit()) => {
+                let id = resolve(&tx, reference, true)?;
+                if let Some(a) = assignments
+                    .iter()
+                    .find(|a| a.split_once('=').is_none_or(|(f, _)| f.trim() != "note"))
+                {
+                    return Err(refused(
+                        format!("node {id} is gone; only its note can change, not `{a}`"),
+                        Value::Null,
+                    ));
+                }
+                id
+            }
+            other => other?,
+        };
         let mut changes = serde_json::Map::new();
         for a in assignments {
             let (field, value) = a
@@ -435,6 +452,18 @@ impl Inventory {
 
     /// Final step of spec §3.3; one step from active when `--as` is given.
     pub fn gone(&mut self, reference: &str, disposition: Option<Disposition>) -> Result<Value> {
+        self.gone_because(reference, disposition, None)
+    }
+
+    /// `gone` with the reason recorded in the same step: it goes into the event and is
+    /// appended to the note, where `ev show --include-gone` shows it later.
+    pub fn gone_because(
+        &mut self,
+        reference: &str,
+        disposition: Option<Disposition>,
+        why: Option<&str>,
+    ) -> Result<Value> {
+        let why = why.map(str::trim).filter(|w| !w.is_empty());
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if node.state == State::Active && disposition.is_none() {
@@ -459,12 +488,22 @@ impl Inventory {
             "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
             params![final_disposition.as_str(), node.id],
         )?;
+        if let Some(w) = why {
+            let note = match node.note.as_deref() {
+                Some(n) if !n.trim().is_empty() => format!("{n}\n{w}"),
+                _ => w.to_string(),
+            };
+            tx.execute(
+                "UPDATE nodes SET note = ?1 WHERE id = ?2",
+                params![note, node.id],
+            )?;
+        }
         touch(&tx, node.id)?;
         event(
             &tx,
             node.id,
             "gone",
-            json!({ "as": final_disposition, "dropped_pending": node.pending_to }),
+            json!({ "as": final_disposition, "why": why, "dropped_pending": node.pending_to }),
         )?;
         // Candidates inside leave with it, each keeping its own disposition.
         for n in &inside {
@@ -1861,29 +1900,42 @@ impl Inventory {
         let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
         let has_children: std::collections::HashSet<i64> =
             all.iter().filter_map(|n| n.parent_id).collect();
-        let mut spread: std::collections::BTreeMap<
-            String,
-            std::collections::BTreeMap<i64, Vec<String>>,
-        > = Default::default();
-        for n in all.iter().filter(|n| n.kind == Kind::Item) {
-            let Some(p) = n.parent_id else { continue };
-            let mut ws = words(&n.name);
-            ws.extend(n.tags.iter().flat_map(|t| words(t)));
-            ws.sort();
-            ws.dedup();
-            for w in ws.into_iter().filter(|w| w.chars().count() >= 4) {
-                spread
-                    .entry(w)
-                    .or_default()
-                    .entry(p)
-                    .or_default()
-                    .push(n.name.clone());
+        // Grouped by stem, so "vida", "vidası" and "vidalar" are one row; the row is named by
+        // its shortest surface form and lists every form it merged.
+        type Places = std::collections::BTreeMap<i64, Vec<String>>;
+        let mut spread: std::collections::BTreeMap<String, (Places, BTreeSet<String>)> =
+            Default::default();
+        let item_words: Vec<(i64, &str, Vec<String>)> = all
+            .iter()
+            .filter(|n| n.kind == Kind::Item)
+            .filter_map(|n| {
+                let p = n.parent_id?;
+                let mut ws = words(&n.name);
+                ws.extend(n.tags.iter().flat_map(|t| words(t)));
+                ws.retain(|w| w.chars().count() >= 4);
+                Some((p, n.name.as_str(), ws))
+            })
+            .collect();
+        let vocab: BTreeSet<String> = item_words
+            .iter()
+            .flat_map(|(_, _, ws)| ws.iter().cloned())
+            .collect();
+        let keys = stem_keys(&vocab);
+        for (p, name, ws) in item_words {
+            let mut seen = BTreeSet::new();
+            for w in ws {
+                let key = keys.get(&w).cloned().unwrap_or_else(|| w.clone());
+                let entry = spread.entry(key.clone()).or_default();
+                entry.1.insert(w);
+                if seen.insert(key) {
+                    entry.0.entry(p).or_default().push(name.to_string());
+                }
             }
         }
         let mut spread: Vec<Value> = spread
-            .into_iter()
-            .filter(|(_, places)| (2..=8).contains(&places.len()))
-            .map(|(w, places)| {
+            .into_values()
+            .filter(|(places, _)| (2..=8).contains(&places.len()))
+            .map(|(places, forms)| {
                 let list = places
                     .iter()
                     .map(|(p, names)| {
@@ -1891,7 +1943,12 @@ impl Inventory {
                         Ok(json!({ "path_text": path_text(&segs), "items": names }))
                     })
                     .collect::<Result<Vec<_>>>()?;
-                Ok(json!({ "word": w, "places": list }))
+                let word = forms
+                    .iter()
+                    .min_by_key(|f| (f.chars().count(), (*f).clone()))
+                    .cloned()
+                    .unwrap_or_default();
+                Ok(json!({ "word": word, "forms": forms, "places": list }))
             })
             .collect::<Result<Vec<_>>>()?;
         spread.sort_by_key(|v| std::cmp::Reverse(v["places"].as_array().map_or(0, Vec::len)));

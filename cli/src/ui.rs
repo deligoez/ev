@@ -757,6 +757,51 @@ impl App {
         f.render_widget(Paragraph::new(help).fg(MUTED), bottom);
     }
 
+    fn photo_count(&self) -> usize {
+        self.details
+            .as_ref()
+            .and_then(|d| d["node"]["photos"].as_array())
+            .map_or(0, Vec::len)
+    }
+
+    fn current_photo(&self) -> Option<String> {
+        let photos = self.details.as_ref()?["node"]["photos"].as_array()?.clone();
+        if photos.is_empty() {
+            return None;
+        }
+        photos[self.photo_idx.min(photos.len() - 1)]
+            .as_str()
+            .map(str::to_string)
+    }
+
+    /// Decodes once per path (downscaled), and re-encodes for the terminal only when the photo
+    /// or its area changes.
+    fn render_photo(&mut self, f: &mut Frame, path: &str, area: Rect) {
+        let Some(picker) = &self.picker else { return };
+        let fresh = !matches!(&self.shown, Some((p, a, _)) if p == path && *a == area);
+        if fresh {
+            let img = self
+                .decoded
+                .entry(path.to_string())
+                .or_insert_with(|| {
+                    ev_core::open_upright(std::path::Path::new(path))
+                        .ok()
+                        .map(|i| i.thumbnail(1600, 1600))
+                })
+                .clone();
+            self.shown = img.and_then(|img| {
+                picker
+                    .new_protocol(img, area.into(), Resize::Fit(None))
+                    .ok()
+                    .map(|p| (path.to_string(), area, p))
+            });
+        }
+        match &self.shown {
+            Some((p, _, proto)) if p == path => f.render_widget(Image::new(proto), area),
+            _ => f.render_widget(Paragraph::new("(fotoğraf açılamadı)").fg(MUTED), area),
+        }
+    }
+
     fn details_text(&self) -> Text<'static> {
         let Some(v) = &self.details else {
             return Text::from("(boş)");

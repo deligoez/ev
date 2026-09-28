@@ -755,7 +755,7 @@ fn pairs(conn: &Connection, sql: &str) -> Result<Vec<(i64, i64)>> {
     Ok(rows)
 }
 
-fn path(conn: &Connection, id: i64) -> Result<Vec<PathSegment>> {
+pub(crate) fn path(conn: &Connection, id: i64) -> Result<Vec<PathSegment>> {
     let mut segments = Vec::new();
     let mut cur = Some(id);
     while let Some(c) = cur {

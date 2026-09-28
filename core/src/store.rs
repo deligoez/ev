@@ -1065,6 +1065,9 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         ],
     )?;
     let id = conn.last_insert_rowid();
+    if new.unknown {
+        conn.execute("UPDATE nodes SET unknown = 1 WHERE id = ?1", [id])?;
+    }
     for (column, text) in [("to_place", &new.to), ("owner_place", &new.owner)] {
         if let Some(t) = non_empty(text) {
             let place = place_or_create(conn, &t)?;

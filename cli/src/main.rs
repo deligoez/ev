@@ -306,6 +306,9 @@ enum PhotoCmd {
         crop: Option<String>,
         #[arg(long)]
         note: Option<String>,
+        /// Attach the whole photo even though it is already attached whole to another node.
+        #[arg(long, conflicts_with = "crop")]
+        whole: bool,
     },
     /// A node's photos, numbered from 1.
     List { reference: String },

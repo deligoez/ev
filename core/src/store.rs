@@ -1744,6 +1744,60 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Stems a folded Turkish word might have, longest first: the word itself, the word without a
+/// possessive ending ("-sı/-su" after a vowel, "-ı/-u" after a consonant, or "-ları/-leri"),
+/// and that without a plural ("-lar/-ler"). Every stem keeps at least three letters.
+fn stem_candidates(word: &str) -> Vec<String> {
+    let is_vowel = |c: Option<char>| c.is_some_and(|c| "aeiou".contains(c));
+    let cut = |w: &str, s: &str| {
+        (w.ends_with(s) && w.chars().count() >= s.chars().count() + 3)
+            .then(|| w[..w.len() - s.len()].to_string())
+    };
+    let mut out = vec![word.to_string()];
+    let possessive = ["lari", "leri"]
+        .iter()
+        .find_map(|s| cut(word, s))
+        .or_else(|| {
+            ["si", "su"]
+                .iter()
+                .find_map(|s| cut(word, s).filter(|w| is_vowel(w.chars().last())))
+        })
+        .or_else(|| {
+            ["i", "u"]
+                .iter()
+                .find_map(|s| cut(word, s).filter(|w| !is_vowel(w.chars().last())))
+        });
+    let base = possessive.clone().unwrap_or_else(|| word.to_string());
+    out.extend(possessive);
+    out.extend(["lar", "ler"].iter().find_map(|s| cut(&base, s)));
+    out.dedup();
+    out
+}
+
+/// Groups word forms for `audit`. A word's key is its shortest candidate stem that is either a
+/// word seen on its own or a stem shared by two different words, so "vidası" joins "vida",
+/// "kablolar" and "kablosu" meet at "kablo", but "kutu" stays "kutu" and "kartuşu" (folded
+/// "kartusu") never collapses into "kart". The key is only for grouping, never shown.
+fn stem_keys(vocab: &BTreeSet<String>) -> HashMap<String, String> {
+    let mut sources: HashMap<String, BTreeSet<&str>> = HashMap::new();
+    for w in vocab {
+        for c in stem_candidates(w) {
+            sources.entry(c).or_default().insert(w);
+        }
+    }
+    vocab
+        .iter()
+        .map(|w| {
+            let key = stem_candidates(w)
+                .into_iter()
+                .rev()
+                .find(|c| vocab.contains(c) || sources.get(c).is_some_and(|s| s.len() >= 2))
+                .unwrap_or_else(|| w.clone());
+            (w.clone(), key)
+        })
+        .collect()
+}
+
 /// A query word matches an item word when they are equal or one starts with the other and the
 /// shorter has at least four letters: "vida" finds "vidası", "kart" finds "kartı", but "boş"
 /// does not find "bosch".

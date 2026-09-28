@@ -14,6 +14,9 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Tabs, Wrap};
 use ratatui::{DefaultTerminal, Frame};
+use ratatui_image::picker::Picker;
+use ratatui_image::protocol::Protocol;
+use ratatui_image::{Image, Resize};
 use serde_json::Value;
 
 const POLL: Duration = Duration::from_millis(500);
@@ -234,6 +237,10 @@ struct App {
     list_area: Rect,
     tabs_area: Rect,
     last_click: Option<(usize, Instant)>,
+    picker: Option<Picker>,
+    photo_idx: usize,
+    decoded: HashMap<String, Option<image::DynamicImage>>,
+    shown: Option<(String, Rect, Protocol)>,
 }
 
 impl App {
@@ -271,6 +278,10 @@ impl App {
             list_area: Rect::default(),
             tabs_area: Rect::default(),
             last_click: None,
+            picker: None,
+            photo_idx: 0,
+            decoded: HashMap::new(),
+            shown: None,
         };
         app.rebuild()?;
         Ok(app)
@@ -435,6 +446,11 @@ impl App {
     }
 
     fn load_details(&mut self) -> Result<()> {
+        let before = self.details.as_ref().map(|d| d["node"]["id"].clone());
+        let now = self.selected_id().map(|i| serde_json::json!(i));
+        if before != now {
+            self.photo_idx = 0;
+        }
         self.details = match self.selected_id() {
             Some(id) => Some(self.inv.show(&id.to_string(), true)?),
             None => None,
@@ -574,6 +590,13 @@ impl App {
                 self.searching = true;
                 self.query.clear();
             }
+            KeyCode::Char(']') => self.photo_idx = self.photo_idx.saturating_add(1),
+            KeyCode::Char('[') => self.photo_idx = self.photo_idx.saturating_sub(1),
+            KeyCode::Char('o') => {
+                if let Some(p) = self.current_photo() {
+                    let _ = std::process::Command::new("open").arg(p).spawn();
+                }
+            }
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter => {
                 if let Some(id) = self.selected_id() {
                     if self.tab == Tab::Tree {
@@ -701,10 +724,27 @@ impl App {
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, left, &mut self.state);
 
+        let text_area = match (self.current_photo(), self.picker.is_some()) {
+            (Some(path), true) => {
+                let count = self.photo_count();
+                let [img_area, rest] =
+                    Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
+                let block = Block::bordered().title(format!(
+                    " Fotoğraf {}/{}  ([ ] gez · o aç) ",
+                    self.photo_idx.min(count - 1) + 1,
+                    count
+                ));
+                let inner = block.inner(img_area);
+                f.render_widget(block, img_area);
+                self.render_photo(f, &path, inner);
+                rest
+            }
+            _ => right,
+        };
         let details = Paragraph::new(self.details_text())
             .block(Block::bordered().title(" Ayrıntı "))
             .wrap(Wrap { trim: false });
-        f.render_widget(details, right);
+        f.render_widget(details, text_area);
 
         let help = if self.searching {
             format!("Ara: {}▏  (Enter ara · Esc vazgeç)", self.query)

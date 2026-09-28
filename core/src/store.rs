@@ -1749,6 +1749,9 @@ fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
     if n.lost {
         v["lost"] = json!(true);
     }
+    if n.unknown {
+        v["unknown"] = json!(true);
+    }
     Ok(v)
 }
 

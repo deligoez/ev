@@ -74,3 +74,8 @@ fn extension(path: &Path) -> String {
         .unwrap_or_else(|| "jpg".to_string())
 }
 
+pub(crate) fn store_file(dir: &Path, file: &Path) -> Result<PathBuf> {
+    let bytes = std::fs::read(file).map_err(io(file))?;
+    store_bytes(dir, &bytes, &extension(file))
+}
+

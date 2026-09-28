@@ -313,6 +313,8 @@ enum PhotoCmd {
     Remove { reference: String, n: usize },
     /// Copy every photo still referenced outside the store into it.
     Adopt,
+    /// The newest photo still shows the place well enough; drop it from the photo-needed list.
+    Current { reference: String },
 }
 
 #[derive(Subcommand)]

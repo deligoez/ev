@@ -62,3 +62,42 @@ fn a_new_code_needs_a_label_until_it_is_printed() {
     assert_eq!(inv.label(&["Silikon".into()], true).unwrap_err().code(), 5);
 }
 
+#[test]
+fn broken_expiring_and_needs_show_on_the_node_and_in_todo() {
+    let (_d, mut inv) = setup();
+    inv.broken("Kulaklık", Some("sol taraf ses vermiyor"), false)
+        .unwrap();
+    inv.expires("Silikon", Some("2000-07")).unwrap();
+    let v = inv
+        .need_add("Samla 5 L", Some(2), false, Some("Oda"), None)
+        .unwrap();
+    let need = v["id"].as_i64().unwrap();
+    let show = inv.show("Silikon", false).unwrap();
+    assert_eq!(show["marks"]["expires"]["value"], "2000-07-31");
+    assert_eq!(
+        inv.show("Oda", false).unwrap()["needs"][0]["text"],
+        "Samla 5 L"
+    );
+
+    let t = inv.todo().unwrap();
+    assert_eq!(names(&t["repairs"]), ["Kulaklık"]);
+    assert_eq!(t["repairs"][0]["note"], "sol taraf ses vermiyor");
+    assert_eq!(names(&t["expiring"]), ["Silikon"]);
+    assert!(t["expiring"][0]["days_left"].as_i64().unwrap() < 0);
+    assert_eq!(t["counts"]["needs"], 1);
+
+    // A date far away is not due yet; fixed and got leave the list.
+    inv.expires("Silikon", Some("2999-01-01")).unwrap();
+    inv.broken("Kulaklık", None, true).unwrap();
+    inv.need_close(need, true, None).unwrap();
+    let t = inv.todo().unwrap();
+    assert_eq!(t["counts"]["expiring"], 0);
+    assert_eq!(t["counts"]["repairs"], 0);
+    assert_eq!(t["counts"]["needs"], 0);
+    assert_eq!(inv.need_close(need, false, None).unwrap_err().code(), 5);
+    assert_eq!(
+        inv.expires("Silikon", Some("07/2026")).unwrap_err().code(),
+        2
+    );
+}
+

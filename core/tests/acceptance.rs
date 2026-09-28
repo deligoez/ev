@@ -705,3 +705,75 @@ fn a_mistaken_gone_can_be_corrected_with_a_reason() {
     let last = h["events"].as_array().unwrap().last().unwrap().clone();
     assert_eq!(last["data"]["correction"], "not thrown out after all");
 }
+
+#[test]
+fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let v = inv
+        .gone_because(
+            "Flipper Zero",
+            Some(Disposition::Trash),
+            Some("broken screen"),
+        )
+        .unwrap();
+    let id = v["node"]["id"].as_i64().unwrap().to_string();
+    assert_eq!(v["node"]["note"], "broken screen");
+    let h = inv.history(&id).unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["data"]["why"], "broken screen");
+
+    // By name it stays out of reach; by id only the note may change.
+    assert_eq!(
+        code_of(&inv.edit("Flipper Zero", &["note=x".into()]).unwrap_err()),
+        3
+    );
+    assert_eq!(
+        code_of(&inv.edit(&id, &["name=Other".into()]).unwrap_err()),
+        5
+    );
+    let v = inv.edit(&id, &["note=probably thrown out".into()]).unwrap();
+    assert_eq!(v["node"]["note"], "probably thrown out");
+    assert_eq!(v["node"]["state"], "gone");
+}
+
+#[test]
+fn audit_groups_turkish_word_forms_under_one_stem() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let places: Vec<String> = ["Çekmece A", "Çekmece B", "Çekmece C"]
+        .iter()
+        .map(|n| add(&mut inv, n, "container", Some("K4x4"), None).to_string())
+        .collect();
+    add(&mut inv, "Ahşap vida", "item", Some(&places[0]), None);
+    add(&mut inv, "Sunta vidası", "item", Some(&places[1]), None);
+    add(&mut inv, "Uzun vidalar", "item", Some(&places[2]), None);
+    add(&mut inv, "USB kablolar", "item", Some(&places[0]), None);
+    add(&mut inv, "Şarj kablosu", "item", Some(&places[1]), None);
+    add(&mut inv, "Hafıza kartı", "item", Some(&places[0]), None);
+    add(&mut inv, "Hafıza kart", "item", Some(&places[1]), None);
+    add(&mut inv, "Yazıcı kartuşu", "item", Some(&places[2]), None);
+    let v = inv.audit().unwrap();
+    let row = |word: &str| {
+        v["spread"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["word"] == word)
+            .unwrap_or_else(|| panic!("no `{word}` row in {v}"))
+            .clone()
+    };
+    let vida = row("vida");
+    assert_eq!(vida["places"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        vida["forms"],
+        serde_json::json!(["vida", "vidalar", "vidasi"])
+    );
+    // Neither form stands alone, but they share the stem "kablo".
+    assert_eq!(
+        row("kablosu")["forms"],
+        serde_json::json!(["kablolar", "kablosu"])
+    );
+    // "kartuşu" folds to "kartusu" and must not collapse into "kart".
+    assert_eq!(row("kart")["forms"], serde_json::json!(["kart", "karti"]));
+}

@@ -10,3 +10,7 @@ Draft notes for the next batched release; rename to the tag's version when relea
   record that should never have existed — a misreading from a photo, a duplicate — keeping its
   history without reporting it as thrown away. It cannot be set aside with `dispose`, and the
   reason is required.
+- **The known current state of each place.** `ev todo` lists places whose picture of the current
+  state is missing, or whose contents changed after their newest whole-view photo — things
+  moved out count too. A new photo of the place takes it off the list; crops do not count, as
+  they picture one thing. `ev ui` shows them under Fotoğraf gerekli.

@@ -113,6 +113,40 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
     }
 }
 
+fn review_mark(r: &Value) -> &'static str {
+    match r["status"].as_str() {
+        Some("toured") if r["changed_since"] == true => "[toured, changed since]",
+        Some("toured") => "[toured]",
+        Some("kept") => "[kept as is]",
+        _ => "[raw]",
+    }
+}
+
+fn task_line(out: &mut String, t: &Value) {
+    let pos = t["position"]
+        .as_i64()
+        .map(|p| format!("{p}."))
+        .unwrap_or_else(|| "-".into());
+    let state = match t["status"].as_str() {
+        Some("doing") => " (in progress)",
+        Some("done") => " (done)",
+        Some("dropped") => " (dropped)",
+        _ => "",
+    };
+    let _ = writeln!(out, "{pos} #{} {}{state}", t["id"], s(t, "title"));
+    let _ = writeln!(out, "     why: {}", s(t, "why"));
+    for n in t["nodes"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "     • {}", s(n, "path_text"));
+    }
+}
+
+fn progress_line(p: &Value) -> String {
+    format!(
+        "{} places: {} toured, {} kept as is, {} raw; {} changed since their tour",
+        p["units"], p["toured"], p["kept"], p["raw"], p["changed_since_tour"]
+    )
+}
+
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {

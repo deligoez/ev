@@ -26,9 +26,16 @@ releasing.
 - **Crops.** `ev photo add <item> <drawer photo> --crop x,y,w,h` attaches just that part of a
   drawer photo and remembers the original, so one photo can illustrate every box in a drawer.
 - **Photos in `ev ui`.** The details pane shows the selected node's photo — through Ghostty's (and
-  other terminals') graphics protocol, or half-blocks elsewhere. `[` `]` step through photos, `o`
-  opens one in the system viewer.
-
+  other terminals') graphics protocol, or half-blocks elsewhere. `[` `]` or the wheel over the
+  photo step through a node's photos.
+- **Full-screen photos in `ev ui`.** `o` (or a click on the photo) fills the terminal with the
+  current photo, titled with the node and the photo's note; `[` `]` step, Esc closes. `O` opens it
+  in the system viewer instead — the same `o` / `O` split terminal file managers use.
+- **Clearing a search in `ev ui`.** On the Ara tab, `x`, Esc or a click on the list title
+  (`✕ temizle`) drops the query and its results; Esc no longer quits while there is a search to
+  clear. In the search box, Esc first empties the typed text and Ctrl-U clears it.
+- **Why it left.** `ev gone X --why "<text>"` records the reason in the event and on the note in
+  the same step.
 - **Contents unknown.** `ev edit X unknown=true` (or `ev add --unknown`) marks a holder whose
   contents were never inventoried, so an empty count is not read as free space. `suggest` and the
   tree mark it, and `ev audit` lists every such holder under `unknown`.

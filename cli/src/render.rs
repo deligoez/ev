@@ -147,6 +147,109 @@ fn progress_line(p: &Value) -> String {
     )
 }
 
+fn need_line(n: &Value) -> String {
+    let qty = n["qty"]
+        .as_i64()
+        .map(|q| format!("{q} × "))
+        .unwrap_or_default();
+    let make = if n["make"] == true { " (make)" } else { "" };
+    let for_ = n["for"]
+        .get("path_text")
+        .and_then(Value::as_str)
+        .map(|p| format!("  for {p}"))
+        .unwrap_or_default();
+    format!("#{} {qty}{}{make}{for_}", n["id"], s(n, "text"))
+}
+
+fn todo(out: &mut String, v: &Value) {
+    let c = &v["counts"];
+    let _ = writeln!(
+        out,
+        "Goal: {}  ·  {}",
+        v["goal"].as_str().unwrap_or("(not set)"),
+        progress_line(&v["progress"])
+    );
+    let head = |out: &mut String, title: &str, n: &Value| {
+        if n.as_u64().unwrap_or(0) > 0 {
+            let _ = writeln!(out, "\n{title} ({n})");
+            true
+        } else {
+            false
+        }
+    };
+    if head(out, "Tasks", &c["tasks"]) {
+        for t in v["tasks"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}. #{} {}", t["position"], t["id"], s(t, "title"));
+        }
+    }
+    if head(out, "Moves", &c["moves"]) {
+        for m in v["moves"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {}  → {}",
+                line(&m["node"]),
+                s(&m["to"], "path_text")
+            );
+        }
+    }
+    if head(out, "Errands", &c["errands"]) {
+        for e in v["errands"].as_array().into_iter().flatten() {
+            errands(out, e);
+        }
+    }
+    if head(out, "Leaving", &c["disposals"]) {
+        for (d, list) in v["disposals"].as_object().into_iter().flatten() {
+            for n in list.as_array().into_iter().flatten() {
+                let sale = match n["sale"]["value"].as_str() {
+                    Some(st) => format!(
+                        "  [{st}{}{}]",
+                        n["sale"]["amount"]
+                            .as_i64()
+                            .map(|a| format!(" {a}"))
+                            .unwrap_or_default(),
+                        n["sale"]["note"]
+                            .as_str()
+                            .map(|w| format!(" @ {w}"))
+                            .unwrap_or_default()
+                    ),
+                    None => String::new(),
+                };
+                let _ = writeln!(out, "  {d}: {}{sale}", line(n));
+            }
+        }
+    }
+    for (key, title) in [
+        ("labels", "Labels to print"),
+        ("repairs", "Broken"),
+        ("expiring", "Use-by soon"),
+        ("unknown", "Contents unknown"),
+        ("stale", "Changed since toured"),
+        ("unclear", "Unclear records"),
+    ] {
+        if head(out, title, &c[key]) {
+            for n in v[key].as_array().into_iter().flatten() {
+                let extra = match key {
+                    "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
+                    "expiring" => Some(format!("  {} ({} days)", s(n, "expires"), n["days_left"])),
+                    _ => None,
+                }
+                .unwrap_or_default();
+                let _ = writeln!(out, "  {}{extra}", s(n, "path_text"));
+            }
+        }
+    }
+    if head(out, "To get", &c["needs"]) {
+        for n in v["needs"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", need_line(n));
+        }
+    }
+    if head(out, "Lost", &c["lost"]) {
+        for m in v["lost"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", line(&m["node"]));
+        }
+    }
+}
+
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if v.get("open_tasks").is_some() {

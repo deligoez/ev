@@ -254,7 +254,11 @@ struct App {
     picker: Option<Picker>,
     photo_idx: usize,
     decoded: HashMap<String, Option<image::DynamicImage>>,
-    shown: Option<(String, Rect, Protocol)>,
+    /// The photo on screen, keyed by path, quarter turns and area.
+    shown: Option<(String, u8, Rect, Protocol)>,
+    /// Clockwise quarter turns per photo path (`r`/`R`), for this session only: the UI never
+    /// writes, so the files and the database keep their orientation.
+    rotation: HashMap<String, u8>,
     /// The selected node's current photo fills the screen (`o`); `O` hands it to the system.
     fullscreen: bool,
     photo_area: Rect,
@@ -304,6 +308,7 @@ impl App {
             photo_idx: 0,
             decoded: HashMap::new(),
             shown: None,
+            rotation: HashMap::new(),
             fullscreen: false,
             photo_area: Rect::default(),
             plan_title: String::new(),
@@ -917,6 +922,14 @@ impl App {
         }
     }
 
+    /// Turns the current photo on screen by `quarters` clockwise quarter turns.
+    fn rotate(&mut self, quarters: u8) {
+        if let Some(p) = self.current_photo() {
+            let r = self.rotation.entry(p).or_default();
+            *r = (*r + quarters) % 4;
+        }
+    }
+
     fn key(&mut self, k: KeyEvent) -> Result<()> {
         if self.fullscreen {
             match k.code {
@@ -927,6 +940,8 @@ impl App {
                 KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => self.step_photo(1),
                 KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => self.step_photo(-1),
                 KeyCode::Char('O') => self.open_external(),
+                KeyCode::Char('r') => self.rotate(1),
+                KeyCode::Char('R') => self.rotate(3),
                 _ => {}
             }
             return Ok(());
@@ -978,6 +993,8 @@ impl App {
             KeyCode::Char('[') => self.step_photo(-1),
             KeyCode::Char('o') => self.fullscreen = self.current_photo().is_some(),
             KeyCode::Char('O') => self.open_external(),
+            KeyCode::Char('r') => self.rotate(1),
+            KeyCode::Char('R') => self.rotate(3),
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter => {
                 if let Some(id) = self.selected_id() {
                     if id < 0 {
@@ -1122,7 +1139,8 @@ impl App {
             );
         }
         f.render_widget(
-            Paragraph::new("[ ] ← → teker gez · O dışarıda aç · Esc/o/tık kapat").fg(MUTED),
+            Paragraph::new("[ ] ← → teker gez · r/R döndür · O dışarıda aç · Esc/o/tık kapat")
+                .fg(MUTED),
             bottom,
         );
     }
@@ -1210,7 +1228,7 @@ impl App {
                 let [img_area, rest] =
                     Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
                 let block = Block::bordered().title(format!(
-                    " Fotoğraf {}/{}  ([ ] gez · o tam ekran · O dışarıda aç) ",
+                    " Fotoğraf {}/{}  ([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
                     self.photo_idx.min(count - 1) + 1,
                     count
                 ));
@@ -1258,11 +1276,13 @@ impl App {
             .map(str::to_string)
     }
 
-    /// Decodes once per path (downscaled), and re-encodes for the terminal only when the photo
-    /// or its area changes.
+    /// Decodes once per path (downscaled), and re-encodes for the terminal only when the photo,
+    /// its rotation or its area changes.
     fn render_photo(&mut self, f: &mut Frame, path: &str, area: Rect) {
         let Some(picker) = &self.picker else { return };
-        let fresh = !matches!(&self.shown, Some((p, a, _)) if p == path && *a == area);
+        let turns = self.rotation.get(path).copied().unwrap_or(0);
+        let fresh =
+            !matches!(&self.shown, Some((p, t, a, _)) if p == path && *t == turns && *a == area);
         if fresh {
             let img = self
                 .decoded
@@ -1274,14 +1294,20 @@ impl App {
                 })
                 .clone();
             self.shown = img.and_then(|img| {
+                let img = match turns {
+                    1 => img.rotate90(),
+                    2 => img.rotate180(),
+                    3 => img.rotate270(),
+                    _ => img,
+                };
                 picker
                     .new_protocol(img, area.into(), Resize::Fit(None))
                     .ok()
-                    .map(|p| (path.to_string(), area, p))
+                    .map(|p| (path.to_string(), turns, area, p))
             });
         }
         match &self.shown {
-            Some((p, _, proto)) if p == path => f.render_widget(Image::new(proto), area),
+            Some((p, _, _, proto)) if p == path => f.render_widget(Image::new(proto), area),
             _ => f.render_widget(Paragraph::new("(fotoğraf açılamadı)").fg(MUTED), area),
         }
     }
@@ -1586,6 +1612,46 @@ mod tests {
         assert!(!app.quit);
         term.draw(|f| app.draw(f)).unwrap();
         assert!(screen(&term).contains("Ayrıntı"));
+    }
+
+    #[test]
+    fn r_and_shift_r_rotate_the_full_screen_photo_for_the_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]))
+            .save(&photo)
+            .unwrap();
+        inv.photo_add("Ev", &photo, None, None).unwrap();
+        let mut app = App::new(inv).unwrap();
+        app.picker = Some(Picker::halfblocks());
+        let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
+
+        press(&mut app, KeyCode::Char('o'));
+        let path = app.current_photo().unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        press(&mut app, KeyCode::Char('r'));
+        assert_eq!(app.rotation.get(&path), Some(&1));
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(matches!(&app.shown, Some((_, 1, _, _))));
+
+        press(&mut app, KeyCode::Char('R'));
+        press(&mut app, KeyCode::Char('R'));
+        assert_eq!(app.rotation.get(&path), Some(&3));
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(matches!(&app.shown, Some((_, 3, _, _))));
+        assert!(screen(&term).contains("r/R döndür"));
+
+        // Closing and reopening keeps the turn for the rest of the session.
+        press(&mut app, KeyCode::Esc);
+        press(&mut app, KeyCode::Char('o'));
+        assert_eq!(app.rotation.get(&path), Some(&3));
     }
 
     #[test]

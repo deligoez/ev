@@ -261,6 +261,8 @@ struct App {
     plan_title: String,
     /// Collapsed Yapılacak sections, by their (negative) header id.
     collapsed: HashSet<i64>,
+    /// The time of the last `ev focus` request shown, so each is shown once.
+    focus_seen: Option<String>,
 }
 
 impl App {
@@ -306,7 +308,10 @@ impl App {
             photo_area: Rect::default(),
             plan_title: String::new(),
             collapsed: HashSet::from([UNCLEAR_SECTION]),
+            focus_seen: None,
         };
+        // A request made before this UI started is old news.
+        app.focus_seen = app.inv.focus_request()?["at"].as_str().map(str::to_string);
         app.rebuild()?;
         Ok(app)
     }
@@ -761,7 +766,34 @@ impl App {
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
-        self.rebuild()
+        self.rebuild()?;
+        self.apply_focus()
+    }
+
+    /// Shows what `ev focus` asked for: the node in the tree and, when a photo was named, that
+    /// photo full screen. Each request is shown once; the UI never writes, so it remembers the
+    /// request's time instead of clearing it.
+    fn apply_focus(&mut self) -> Result<()> {
+        let req = self.inv.focus_request()?;
+        let at = req["at"].as_str().map(str::to_string);
+        if at.is_none() || at == self.focus_seen {
+            return Ok(());
+        }
+        self.focus_seen = at;
+        let Some(id) = req["id"].as_i64() else {
+            return Ok(());
+        };
+        self.fullscreen = false;
+        self.reveal(id)?;
+        if let Some(n) = req["photo"].as_i64() {
+            self.photo_idx = (n - 1).max(0) as usize;
+            self.fullscreen = true;
+        }
+        self.status = format!(
+            "gösteriliyor: {}",
+            self.snap.label.get(&id).cloned().unwrap_or_default()
+        );
+        Ok(())
     }
 
     fn run_search(&mut self) -> Result<()> {

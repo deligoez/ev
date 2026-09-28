@@ -1539,7 +1539,15 @@ fn resolve_place(conn: &Connection, text: &str) -> Result<i64> {
 fn nodes_at(conn: &Connection, column: &str, place: i64) -> Result<Vec<Value>> {
     let list = ids(
         conn,
-        &format!("SELECT id FROM nodes WHERE {column} = ?1 AND state != 'gone' ORDER BY id"),
+        &format!(
+            "SELECT id FROM nodes WHERE {column} = ?1 AND state != 'gone'{} ORDER BY id",
+            // Returning a thing to its owner already takes it there; list it once, as a return.
+            if column == "to_place" {
+                " AND owner_place IS NOT to_place"
+            } else {
+                ""
+            }
+        ),
         [place],
     )?;
     list.iter().map(|id| brief_json(conn, *id)).collect()

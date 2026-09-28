@@ -151,6 +151,7 @@ fn disposition_tr(d: &str) -> &'static str {
         "give" => "ver",
         "sell" => "sat",
         "return" => "iade",
+        "mistake" => "kayıt hatası",
         _ => "?",
     }
 }

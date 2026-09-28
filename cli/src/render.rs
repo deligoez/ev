@@ -225,12 +225,15 @@ fn todo(out: &mut String, v: &Value) {
         ("unknown", "Contents unknown"),
         ("stale", "Changed since toured"),
         ("unclear", "Unclear records"),
+        ("photos", "Photo of the current state needed"),
     ] {
         if head(out, title, &c[key]) {
             for n in v[key].as_array().into_iter().flatten() {
                 let extra = match key {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(format!("  {} ({} days)", s(n, "expires"), n["days_left"])),
+                    "photos" if n["photo_reason"] == "none" => Some("  (no photo)".into()),
+                    "photos" => Some(format!("  (changed {})", s(n, "changed_at"))),
                     _ => None,
                 }
                 .unwrap_or_default();

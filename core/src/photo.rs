@@ -53,3 +53,15 @@ fn io(path: &Path) -> impl Fn(std::io::Error) -> Error + '_ {
     move |e| Error::Usage(format!("{}: {e}", path.display()))
 }
 
+/// Copies bytes into the store under their hash; returns the stored path.
+pub(crate) fn store_bytes(dir: &Path, bytes: &[u8], ext: &str) -> Result<PathBuf> {
+    std::fs::create_dir_all(dir).map_err(io(dir))?;
+    let hash = Sha256::digest(bytes);
+    let name: String = hash.iter().take(10).map(|b| format!("{b:02x}")).collect();
+    let target = dir.join(format!("{name}.{ext}"));
+    if !target.exists() {
+        std::fs::write(&target, bytes).map_err(io(&target))?;
+    }
+    Ok(target)
+}
+

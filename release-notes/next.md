@@ -1,4 +1,5 @@
-Draft notes for the next batched release; rename to the tag's version when releasing.
+Draft notes for the next batched release, planned as v0.4.0; rename to `v0.4.0.md` when
+releasing.
 
 ## Fixed
 

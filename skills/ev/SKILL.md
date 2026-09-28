@@ -36,7 +36,9 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
    what the person said about it with `--why "<text>"` ("probably thrown out" is a reason,
    not certainty). A gone node is still reachable by id: `ev show <id> --include-gone`,
    `ev history <id>`, and `ev edit <id> note=…` to annotate it later.
-   `ev disposals` lists what is waiting in each pile.
+   `ev disposals` lists what is waiting in each pile. A record that was never real (misread
+   from a photo, entered twice) is closed with `ev gone <x> --as mistake --why "<what>"`, not
+   as trash.
 5. **What the person tells you about a thing goes into its `note`** — what it is for, where it
    came from, why they keep it ("a wrench that came with the kitchen tap, kept because it is
    often needed"). That knowledge is what makes a later decision possible; record it the moment

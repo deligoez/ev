@@ -897,7 +897,7 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
 
 // ---------- references (spec §4, §11.4) ----------
 
-fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64> {
+pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64> {
     let r = reference.trim();
     if r.is_empty() {
         return Err(Error::Usage("empty reference".into()));

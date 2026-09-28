@@ -860,7 +860,10 @@ fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64
             .flatten();
         return match state {
             Some(s) if include_gone || s != "gone" => Ok(r.parse().unwrap_or_default()),
-            _ => Err(Error::NotFound(format!("no node with id {r}"))),
+            Some(_) => Err(Error::NotFound(format!(
+                "node {r} is gone; `ev show {r} --include-gone` or `ev history {r}` still find it"
+            ))),
+            None => Err(Error::NotFound(format!("no node with id {r}"))),
         };
     }
     let wanted = fold(r);

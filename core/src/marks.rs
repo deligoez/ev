@@ -155,3 +155,311 @@ pub(crate) fn needs_for(conn: &Connection, id: i64) -> Result<Vec<Value>> {
     .collect()
 }
 
+/// A record whose *name* is still a guess. Notes are left out: they often keep a history
+/// ("was recorded as …, probably …") that is not an open question.
+fn unsure(n: &Node) -> bool {
+    let name = n.name.to_lowercase();
+    UNSURE.iter().any(|w| name.contains(w))
+}
+
+impl Inventory {
+    /// Marks labels printed (or needed again). Without references, lists the labels to print.
+    pub fn label(&mut self, references: &[String], printed: bool) -> Result<Value> {
+        if references.is_empty() {
+            return self.labels_needed();
+        }
+        let tx = self.conn.transaction()?;
+        for r in references {
+            let id = resolve(&tx, r, false)?;
+            let has_code: Option<String> =
+                tx.query_row("SELECT code FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
+            if has_code.is_none() {
+                return Err(refused(
+                    format!("node {id} has no code, so there is no label to print"),
+                    Value::Null,
+                ));
+            }
+            let value = if printed { "printed" } else { "needed" };
+            set_mark(&tx, id, "label", Some(value), None, None)?;
+        }
+        tx.commit()?;
+        self.labels_needed()
+    }
+
+    fn labels_needed(&self) -> Result<Value> {
+        let list = ids(
+            &self.conn,
+            "SELECT m.node_id FROM marks m JOIN nodes n ON n.id = m.node_id
+              WHERE m.kind = 'label' AND m.value = 'needed' AND n.state != 'gone'
+              ORDER BY n.code_folded",
+            [],
+        )?;
+        let labels = list
+            .into_iter()
+            .map(|id| {
+                let mut v = brief_value(&self.conn, id)?;
+                let theme: Option<String> =
+                    self.conn
+                        .query_row("SELECT theme FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
+                v["theme"] = json!(theme);
+                Ok(v)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "labels": labels }))
+    }
+
+    /// Marks a node broken with what is wrong, or clears it once fixed.
+    pub fn broken(&mut self, reference: &str, note: Option<&str>, fixed: bool) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        if fixed {
+            clear_mark(&tx, id, "broken")?;
+        } else {
+            set_mark(&tx, id, "broken", None, None, note)?;
+        }
+        crate::store::event(
+            &tx,
+            id,
+            if fixed { "fixed" } else { "broken" },
+            json!({ "note": note }),
+        )?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    /// Records a use-by date (`YYYY-MM-DD` or `YYYY-MM`), or clears it.
+    pub fn expires(&mut self, reference: &str, date: Option<&str>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        match date {
+            Some(d) => {
+                let parsed = parse_date(d)?;
+                set_mark(&tx, id, "expires", Some(&parsed.to_string()), None, None)?;
+            }
+            None => clear_mark(&tx, id, "expires")?,
+        }
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    /// Where a sale stands: `listed` (with price and where) or `reserved`; `None` clears it.
+    /// Only a sell candidate has a sale; selling it is `ev gone`.
+    pub fn sale(
+        &mut self,
+        reference: &str,
+        status: Option<&str>,
+        price: Option<i64>,
+        place: Option<&str>,
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        let (state, disposition): (String, Option<String>) = tx.query_row(
+            "SELECT state, disposition FROM nodes WHERE id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if state != "candidate" || disposition.as_deref() != Some(Disposition::Sell.as_str()) {
+            return Err(refused(
+                format!("node {id} is not set aside to sell; `ev dispose {id} --as sell` first"),
+                Value::Null,
+            ));
+        }
+        match status {
+            None => clear_mark(&tx, id, "sale")?,
+            Some(s @ ("listed" | "reserved")) => {
+                let before = mark(&tx, id, "sale")?;
+                let price = price.or_else(|| before["amount"].as_i64());
+                let place = place
+                    .map(str::to_string)
+                    .or_else(|| before["note"].as_str().map(str::to_string));
+                set_mark(&tx, id, "sale", Some(s), price, place.as_deref())?;
+            }
+            Some(other) => {
+                return Err(Error::Usage(format!(
+                    "`{other}` is not a sale state; use listed or reserved"
+                )));
+            }
+        }
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+
+    pub fn need_add(
+        &mut self,
+        text: &str,
+        qty: Option<i64>,
+        make: bool,
+        for_ref: Option<&str>,
+        note: Option<&str>,
+    ) -> Result<Value> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(Error::Usage("need text is empty".into()));
+        }
+        let tx = self.conn.transaction()?;
+        let for_node = for_ref.map(|r| resolve(&tx, r, false)).transpose()?;
+        tx.execute(
+            "INSERT INTO needs (text, qty, make, for_node, note, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![text, qty, make, for_node, note.map(str::trim), now()],
+        )?;
+        let id = tx.last_insert_rowid();
+        tx.commit()?;
+        need_json(&self.conn, id)
+    }
+
+    pub fn need_list(&self, all: bool) -> Result<Value> {
+        let sql = if all {
+            "SELECT id FROM needs ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, id"
+        } else {
+            "SELECT id FROM needs WHERE status = 'open' ORDER BY id"
+        };
+        let list = ids(&self.conn, sql, [])?
+            .into_iter()
+            .map(|n| need_json(&self.conn, n))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "needs": list }))
+    }
+
+    /// Closes a need as got (bought or made) or dropped.
+    pub fn need_close(&mut self, id: i64, got: bool, note: Option<&str>) -> Result<Value> {
+        let current = need_json(&self.conn, id)?;
+        if current["status"] != "open" {
+            return Err(refused(format!("need {id} is already closed"), Value::Null));
+        }
+        self.conn.execute(
+            "UPDATE needs SET status = ?1, closed_at = ?2, note = COALESCE(?3, note) WHERE id = ?4",
+            params![
+                if got { "got" } else { "dropped" },
+                now(),
+                note.map(str::trim),
+                id
+            ],
+        )?;
+        need_json(&self.conn, id)
+    }
+
+    /// Everything waiting, in one place. Stored state is only read here: each entry closes with
+    /// its own verb (`done`, `gone`, `back`, `found`, `task done`, `need got`, …), and leaves
+    /// this list by itself.
+    pub fn todo(&self) -> Result<Value> {
+        let next = self.next()?;
+        let goal = next["goal"].as_str().map(str::to_string);
+        let organize = goal.as_deref() != Some("track");
+        let tasks = self.task_list(false)?["tasks"].clone();
+        let moves = self.pending()?["pending"].clone();
+        let errands: Vec<Value> = ids(
+            &self.conn,
+            "SELECT DISTINCT p.id FROM places p JOIN nodes n
+               ON p.id IN (n.to_place, n.owner_place, n.with_place)
+             WHERE n.state != 'gone' ORDER BY p.name",
+            [],
+        )?
+        .into_iter()
+        .map(|p| place_errands(&self.conn, p))
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|e| {
+            ["take", "return", "collect"]
+                .iter()
+                .any(|k| e[*k].as_array().is_some_and(|a| !a.is_empty()))
+        })
+        .collect();
+        let disposals = self.disposals(None)?["disposals"].clone();
+        let lost = self.lost_list()?["lost"].clone();
+        let labels = self.labels_needed()?["labels"].clone();
+        let needs = self.need_list(false)?["needs"].clone();
+
+        let all = live_nodes(&self.conn)?;
+        let mut repairs = Vec::new();
+        let mut expiring = Vec::new();
+        let mut unclear = Vec::new();
+        let today = today();
+        for n in all.iter().filter(|n| n.state != State::Gone) {
+            let broken = mark(&self.conn, n.id, "broken")?;
+            if !broken.is_null() {
+                let mut v = brief_value(&self.conn, n.id)?;
+                v["note"] = broken["note"].clone();
+                repairs.push(v);
+            }
+            let exp = mark(&self.conn, n.id, "expires")?;
+            if let Some(d) = exp["value"].as_str().and_then(|d| parse_date(d).ok()) {
+                let days = (d - today).num_days();
+                if days <= EXPIRY_WINDOW_DAYS {
+                    let mut v = brief_value(&self.conn, n.id)?;
+                    v["expires"] = json!(d.to_string());
+                    v["days_left"] = json!(days);
+                    expiring.push(v);
+                }
+            }
+            if unsure(n) {
+                unclear.push(brief_value(&self.conn, n.id)?);
+            }
+        }
+        expiring.sort_by_key(|v| v["days_left"].as_i64().unwrap_or_default());
+
+        let progress = self.progress()?;
+        let places = progress["places"].as_array().cloned().unwrap_or_default();
+        let unknown: Vec<Value> = places
+            .iter()
+            .filter(|p| p["unknown"] == true)
+            .cloned()
+            .collect();
+        let stale: Vec<Value> = if organize {
+            places
+                .iter()
+                .filter(|p| p["review"]["changed_since"] == true)
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let count = |v: &Value| v.as_array().map_or(0, Vec::len);
+        let disposal_count: usize = disposals
+            .as_object()
+            .map_or(0, |o| o.values().map(count).sum());
+        Ok(json!({
+            "goal": goal,
+            "progress": next["progress"],
+            "counts": {
+                "tasks": count(&tasks),
+                "moves": count(&moves),
+                "errands": errands.len(),
+                "disposals": disposal_count,
+                "labels": count(&labels),
+                "needs": count(&needs),
+                "repairs": repairs.len(),
+                "expiring": expiring.len(),
+                "lost": count(&lost),
+                "unknown": unknown.len(),
+                "stale": stale.len(),
+                "unclear": unclear.len(),
+            },
+            "tasks": tasks,
+            "moves": moves,
+            "errands": errands,
+            "disposals": disposals,
+            "labels": labels,
+            "needs": needs,
+            "repairs": repairs,
+            "expiring": expiring,
+            "lost": lost,
+            "unknown": unknown,
+            "stale": stale,
+            "unclear": unclear,
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_date;
+
+    #[test]
+    fn a_month_means_its_last_day() {
+        assert_eq!(parse_date("2026-07").unwrap().to_string(), "2026-07-31");
+        assert_eq!(parse_date("2026-12").unwrap().to_string(), "2026-12-31");
+        assert_eq!(parse_date("2028-02").unwrap().to_string(), "2028-02-29");
+        assert_eq!(parse_date("2026-07-15").unwrap().to_string(), "2026-07-15");
+        assert!(parse_date("07/2026").is_err());
+    }
+}

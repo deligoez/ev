@@ -25,12 +25,15 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 2. **Propose, don't assume a move happened.** Plan it with `ev move <x> --to <y> --plan`,
    tell the person where it goes, and only after they say they did it run `ev done <x>`.
    `ev pending` is the checklist.
-3. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell`. Actually gone:
+3. **Nothing is finished until the person says so.** A photo of "the current state" is not
+   "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
+   reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.
+4. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell`. Actually gone:
    `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot).
    `ev disposals` lists what is waiting in each pile.
-4. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
+5. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.
-5. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
+6. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
 ## Where should this go?

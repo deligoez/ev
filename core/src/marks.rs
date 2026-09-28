@@ -162,6 +162,59 @@ fn unsure(n: &Node) -> bool {
     UNSURE.iter().any(|w| name.contains(w))
 }
 
+/// Event types that change what a place physically holds; adding a photo, a note or a review
+/// does not.
+const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','found'";
+
+/// Places whose picture of the current state is missing or out of date: a unit with contents
+/// and no whole-view photo, or one whose contents changed after its newest whole-view photo
+/// (crops are pictures of one thing, not of the place). Things moved out count as a change.
+fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
+    let mut out = Vec::new();
+    for u in units {
+        let id = u["id"].as_i64().unwrap_or_default();
+        if u["children"].as_u64().unwrap_or(0) == 0 && u["unknown"] != true {
+            continue;
+        }
+        let photo_at: Option<Option<String>> = conn
+            .query_row(
+                // A photo from before photos carried a date is the one the place was first
+                // recorded from, so it stands for the place's creation time.
+                "SELECT MAX(COALESCE(added_at, (SELECT created_at FROM nodes WHERE id = ?1)))
+                   FROM photos WHERE node_id = ?1 AND crop IS NULL",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let photo_at = photo_at.flatten();
+        let changed: Option<String> = conn.query_row(
+            &format!(
+                "WITH RECURSIVE d(id) AS (
+                     SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
+                 )
+                 SELECT MAX(at) FROM events
+                  WHERE (node_id IN d AND node_id != ?1 AND type IN ({CONTENT_EVENTS}))
+                     OR (type IN ('move','done') AND json_extract(data, '$.from') IN d)"
+            ),
+            [id],
+            |r| r.get(0),
+        )?;
+        let reason = match (&photo_at, &changed) {
+            (None, _) => Some("none"),
+            (Some(p), Some(c)) if c > p => Some("changed"),
+            _ => None,
+        };
+        if let Some(reason) = reason {
+            let mut v = u.clone();
+            v["photo_reason"] = json!(reason);
+            v["photo_at"] = json!(photo_at.filter(|p| !p.is_empty()));
+            v["changed_at"] = json!(changed);
+            out.push(v);
+        }
+    }
+    Ok(out)
+}
+
 impl Inventory {
     /// Marks labels printed (or needed again). Without references, lists the labels to print.
     pub fn label(&mut self, references: &[String], printed: bool) -> Result<Value> {

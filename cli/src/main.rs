@@ -502,6 +502,50 @@ fn run(cli: Cli) -> Result<Value> {
         } => inv.review(&reference, &status, note.as_deref()),
         Cmd::Progress => inv.progress(),
         Cmd::Next => inv.next(),
+        Cmd::Todo => inv.todo(),
+        Cmd::Label { references, needed } => inv.label(&references, !needed),
+        Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
+        Cmd::Fixed { reference } => inv.broken(&reference, None, true),
+        Cmd::Expires {
+            reference,
+            date,
+            clear,
+        } => {
+            if date.is_none() && !clear {
+                return Err(Error::Usage("give a date or --clear".into()));
+            }
+            inv.expires(&reference, date.as_deref())
+        }
+        Cmd::Sale {
+            reference,
+            listed,
+            reserved,
+            clear,
+            price,
+            place,
+        } => {
+            if !(listed || reserved || clear) {
+                return Err(Error::Usage("say --listed, --reserved or --clear".into()));
+            }
+            let status = if listed {
+                Some("listed")
+            } else if reserved {
+                Some("reserved")
+            } else {
+                None
+            };
+            inv.sale(&reference, status, price, place.as_deref())
+        }
+        Cmd::Need(NeedCmd::Add {
+            text,
+            qty,
+            make,
+            for_ref,
+            note,
+        }) => inv.need_add(&text, qty, make, for_ref.as_deref(), note.as_deref()),
+        Cmd::Need(NeedCmd::List { all }) => inv.need_list(all),
+        Cmd::Need(NeedCmd::Got { id, note }) => inv.need_close(id, true, note.as_deref()),
+        Cmd::Need(NeedCmd::Drop { id, note }) => inv.need_close(id, false, note.as_deref()),
         Cmd::Task(TaskCmd::Add { title, why, on, at }) => inv.task_add(&title, &why, &on, at),
         Cmd::Task(TaskCmd::List { all }) => inv.task_list(all),
         Cmd::Task(TaskCmd::Show { id }) => inv.task_show(id),

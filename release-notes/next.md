@@ -9,6 +9,14 @@ releasing.
   holds its cables, but it is not a place to put things.
 - **`ev suggest` matches the start of words, not fragments.** "boş" no longer finds "Bosch";
   a query word of four letters or more still finds its suffixed forms ("vida" → "vidası").
+- **`ev audit` groups Turkish word forms.** "vida", "vidası" and "vidalar" were three rows of
+  `spread`; now they are one, named by the shortest form, with every merged form under `forms`.
+  A form joins a stem only when that stem is a word of its own or shared by two forms, so "kutu"
+  stays "kutu" and "kartuşu" does not fall into "kart".
+- **A gone node can still be annotated.** After `ev gone 243`, `ev edit 243 note=…` exited 3 as
+  if the node never existed. Its id now reaches it for the note — the only field that may change
+  on a gone node — and the error for a gone id says how to still see it (`show --include-gone`,
+  `history`).
 
 ## New
 

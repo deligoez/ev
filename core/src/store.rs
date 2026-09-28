@@ -1313,6 +1313,21 @@ fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<(
                 )?;
             }
         }
+        "unknown" => {
+            let v = match value.trim() {
+                "true" | "yes" | "1" => true,
+                "false" | "no" | "0" | "" => false,
+                other => {
+                    return Err(Error::Usage(format!(
+                        "unknown takes true or false, got `{other}`"
+                    )));
+                }
+            };
+            conn.execute(
+                "UPDATE nodes SET unknown = ?1 WHERE id = ?2",
+                params![v, n.id],
+            )?;
+        }
         "to" | "owner" | "with" => {
             let column = format!("{field}_place");
             let place = text(value).map(|t| place_or_create(conn, &t)).transpose()?;
@@ -1329,7 +1344,7 @@ fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<(
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, unknown"
             )));
         }
     }

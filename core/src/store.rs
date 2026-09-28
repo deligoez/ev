@@ -153,7 +153,15 @@ impl Inventory {
         if version < 4 {
             conn.execute_batch(SCHEMA_V4)?;
         }
-        Ok(Self { conn })
+        if version < 5 {
+            conn.execute_batch(SCHEMA_V5)?;
+        }
+        let photo_dir = path
+            .parent()
+            .filter(|d| !d.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .join("photos");
+        Ok(Self { conn, photo_dir })
     }
 
     /// Changes whenever another connection commits a write; used to refresh readers.

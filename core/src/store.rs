@@ -492,6 +492,12 @@ impl Inventory {
     pub fn dispose(&mut self, reference: &str, disposition: Disposition) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if disposition == Disposition::Mistake {
+            return Err(Error::Usage(
+                "a mistaken record is not set aside; close it with `ev gone --as mistake --why`"
+                    .into(),
+            ));
+        }
         if node.state != State::Active {
             return Err(refused(
                 format!(

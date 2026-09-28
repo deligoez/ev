@@ -87,3 +87,12 @@ fn clear_mark(conn: &Connection, id: i64, kind: &str) -> Result<()> {
     Ok(())
 }
 
+/// A new or changed code needs a new label; a removed code needs none.
+pub(crate) fn code_changed(conn: &Connection, id: i64, has_code: bool) -> Result<()> {
+    if has_code {
+        set_mark(conn, id, "label", Some("needed"), None, None)
+    } else {
+        clear_mark(conn, id, "label")
+    }
+}
+

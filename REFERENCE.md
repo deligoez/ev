@@ -98,10 +98,15 @@ creates the place.
 |---|---|
 | `ev suggest <text> [--tag t]` | `rules`, `similar` (holders of alike items, most matches first), `containers` (every holder, with `path_text`, `theme`, `fill`, `items`, `sample`), `complete.containers` |
 | `ev rule add <text>` / `ev rule list` / `ev rule remove <id>` | placement rules in plain words |
-| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried) |
+| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried) |
 
 `ev restore <ref> --correction "<why>"` undoes a `gone` recorded by mistake; plain `restore` returns a
 candidate to active.
+
+`ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
+note. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
+`ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any
+other exits 5).
 
 ## Photos
 

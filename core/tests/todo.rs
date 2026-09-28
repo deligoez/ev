@@ -124,3 +124,28 @@ fn only_a_sell_candidate_has_a_sale() {
     assert!(v["marks"].get("sale").is_none());
 }
 
+#[test]
+fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Kutu", "container", Some("Oda"), None);
+    inv.edit("Kutu", &["unknown=true".into()]).unwrap();
+    add(&mut inv, "Belirsiz parça", "item", Some("S5-01"), None);
+    inv.move_to("Silikon", "Kutu", true).unwrap();
+    inv.edit("Kulaklık", &["owner=Mahmutlar".into()]).unwrap();
+    inv.mark_lost("Belirsiz parça").unwrap();
+
+    let t = inv.todo().unwrap();
+    let c = &t["counts"];
+    assert_eq!(c["moves"], 1);
+    assert_eq!(c["errands"], 1);
+    assert_eq!(c["lost"], 1);
+    assert_eq!(c["unknown"], 1);
+    assert_eq!(names(&t["unclear"]), ["Belirsiz parça"]);
+
+    // Doing the thing is what clears it; nothing to close in todo.
+    inv.done("Silikon").unwrap();
+    inv.found("Belirsiz parça").unwrap();
+    let c = inv.todo().unwrap()["counts"].clone();
+    assert_eq!(c["moves"], 0);
+    assert_eq!(c["lost"], 0);
+}

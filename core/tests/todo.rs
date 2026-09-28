@@ -189,6 +189,9 @@ fn a_place_needs_a_new_photo_once_its_contents_change() {
     add(&mut inv, "Masa", "furniture", Some("Oda"), None);
     inv.move_to("Silikon", "Masa", false).unwrap();
     assert!(codes(&inv).contains(&("S5-01".to_string(), "changed".to_string())));
+    // The person says the old photo is still good enough.
+    inv.photo_current("S5-01").unwrap();
+    assert!(!codes(&inv).iter().any(|(c, _)| c == "S5-01"));
 }
 
 #[test]

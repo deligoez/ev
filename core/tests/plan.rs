@@ -66,3 +66,25 @@ fn units_are_the_innermost_labelled_places_and_loose_holders() {
     assert_eq!(p["raw"], 3);
 }
 
+#[test]
+fn a_review_covers_everything_below_and_notices_later_changes() {
+    let (_d, mut inv) = setup();
+    inv.review("K1-01", "toured", None).unwrap();
+    let p = inv.progress().unwrap();
+    assert_eq!(status_of(&p, "Alt"), "toured");
+    assert_eq!(status_of(&p, "Üst"), "toured");
+    assert_eq!(p["changed_since_tour"], 0);
+
+    // A second later a new thing lands in the toured drawer.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    add(&mut inv, "Pul", "item", Some("K1-01-A"), None);
+    let p = inv.progress().unwrap();
+    assert_eq!(p["changed_since_tour"], 1, "{p}");
+
+    inv.review("Karton kutu", "kept", Some("leave it")).unwrap();
+    assert_eq!(status_of(&inv.progress().unwrap(), "Karton kutu"), "kept");
+    inv.review("Karton kutu", "raw", None).unwrap();
+    assert_eq!(status_of(&inv.progress().unwrap(), "Karton kutu"), "raw");
+    assert_eq!(inv.review("K1-01-U", "done", None).unwrap_err().code(), 2);
+}
+

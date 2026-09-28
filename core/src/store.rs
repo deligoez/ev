@@ -1682,6 +1682,16 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// A query word matches an item word when they are equal or one starts with the other and the
+/// shorter has at least four letters: "vida" finds "vidası", "kart" finds "kartı", but "boş"
+/// does not find "bosch".
+fn word_match(query: &str, word: &str) -> bool {
+    let long_enough = |s: &str| s.chars().count() >= 4;
+    query == word
+        || (long_enough(query) && word.starts_with(query))
+        || (long_enough(word) && query.starts_with(word))
+}
+
 fn node_text(n: &Node) -> String {
     let mut t = n.name.clone();
     for x in [&n.note, &n.theme, &n.code].into_iter().flatten() {

@@ -1595,7 +1595,7 @@ fn nodes_at(conn: &Connection, column: &str, place: i64) -> Result<Vec<Value>> {
     list.iter().map(|id| brief_json(conn, *id)).collect()
 }
 
-fn place_errands(conn: &Connection, place: i64) -> Result<Value> {
+pub(crate) fn place_errands(conn: &Connection, place: i64) -> Result<Value> {
     Ok(json!({
         "place": place_json(conn, place)?,
         "take": nodes_at(conn, "to_place", place)?,

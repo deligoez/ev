@@ -29,7 +29,10 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
    "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
    reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.
 4. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell`. Actually gone:
-   `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot).
+   `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot). Record
+   what the person said about it with `--why "<text>"` ("probably thrown out" is a reason,
+   not certainty). A gone node is still reachable by id: `ev show <id> --include-gone`,
+   `ev history <id>`, and `ev edit <id> note=…` to annotate it later.
    `ev disposals` lists what is waiting in each pile.
 5. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.

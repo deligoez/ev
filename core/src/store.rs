@@ -608,6 +608,7 @@ fn load(conn: &Connection, id: i64) -> Result<Node> {
                     owner: r.get(16)?,
                     with: r.get(17)?,
                     to: r.get(18)?,
+                    unknown: r.get(19)?,
                 })
             },
         )

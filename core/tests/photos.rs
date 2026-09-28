@@ -70,3 +70,24 @@ fn a_crop_keeps_only_its_part_and_remembers_the_original() {
     );
 }
 
+#[test]
+fn photos_are_removed_by_number_and_outside_paths_are_adopted() {
+    let (dir, mut inv, photo) = setup();
+    inv.edit("Çekmece", &[format!("photos=+{}", photo.display())])
+        .unwrap();
+    inv.edit("Çekmece", &["photos=+/nonexistent/lost.jpg".into()])
+        .unwrap();
+    let v = inv.photo_adopt().unwrap();
+    assert_eq!(v["adopted"], 1);
+    assert_eq!(v["missing"].as_array().unwrap().len(), 1);
+    let v = inv.photo_list("Çekmece").unwrap();
+    assert!(
+        v["photos"][0]["path"]
+            .as_str()
+            .unwrap()
+            .starts_with(dir.path().join("photos").to_str().unwrap())
+    );
+    let v = inv.photo_remove("Çekmece", 2).unwrap();
+    assert_eq!(v["photos"].as_array().unwrap().len(), 1);
+    assert!(inv.photo_remove("Çekmece", 5).is_err());
+}

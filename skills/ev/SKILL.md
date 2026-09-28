@@ -55,7 +55,10 @@ places, and how far the whole home is (`progress`). Then:
   alone is `ev review <place> --as kept` — respect it and drop it from proposals.
 - **Build the plan from what you see.** When looking at a place's photo, write what you notice
   as `ev observe <place> "<text>" --photo n` (a bag of mixed screws, a box that does not match
-  the drawer's theme, things that belong elsewhere). Turn it into tasks with
+  the drawer's theme, things that belong elsewhere). **The records are the current state; a
+  photo is the moment it was taken.** Before writing an observation from a photo, compare it
+  with `ev show <place>` — things may have been moved out, thrown away or sorted since — and
+  say which one you describe. Turn it into tasks with
   `ev task add "<title>" --why "<reason>" --on <place> --at <n>`. The reason is what makes the
   order defensible: mess, uncertainty (records guessed from a photo), blocking (a planned move
   waits on it), payoff (space freed, things to give or sell). Show proposed orderings as a

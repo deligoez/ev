@@ -373,6 +373,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         photos: a.photos,
         to: a.to,
         owner: a.owner,
+        unknown: a.unknown,
     })
 }
 

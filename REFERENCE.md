@@ -137,5 +137,22 @@ click shows the current one full screen (with its note), and `O` opens it in the
 A unit is the innermost labelled holder, or an unlabelled holder standing on its own in a room
 or on furniture: a holder none of whose children carries a code. `ev show` carries the node's
 `review`, `observations` and `tasks`: the unfinished tasks linked to the node or to a place that
-holds it, each with `via`, the node the link is on. In `ev ui`, tab 7 (Plan) lists the tasks with progress in its
+holds it, each with `via`, the node the link is on. In `ev ui`, tab 7 (Yapılacak) lists the tasks with progress in its
 title.
+
+## Everything waiting
+
+| Command | Does |
+|---|---|
+| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `unknown`, `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?") |
+| `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
+| `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
+| `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |
+| `ev sale <ref> --listed\|--reserved [--price n] [--where t]` / `--clear` | where a sale stands; only for a sell candidate; price and place carry over when not repeated |
+| `ev need add "<text>" [--qty n] [--make] [--for ref] [--note t]` | something to buy (or make, e.g. 3D print) |
+| `ev need list [--all]` · `ev need got <id>` · `ev need drop <id>` | open needs; close one |
+
+`ev show` carries `marks` (`label`, `broken`, `expires`, `sale`, each with `value`, `amount`,
+`note`, `at`) and `needs` (open needs for the node). In `ev ui`, tab 7 (Yapılacak) shows one
+collapsible section per kind: Enter or → on a header opens and closes it, ← on a line goes up to
+its header; unclear records start collapsed.

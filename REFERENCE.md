@@ -19,6 +19,7 @@
 | with | `lend --to`, `back`, `edit with=` | place holding our lent node |
 | state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, give, sell, return |
 | lost | `--lost`, `lost`, `found`, any move | |
+| unknown | `--unknown`, `edit unknown=true/false` | contents never inventoried; `audit` lists them |
 
 ## Batch lines (`ev add --batch file` / `--stdin`)
 

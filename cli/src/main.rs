@@ -512,6 +512,16 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Progress => inv.progress(),
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
+        Cmd::Focus {
+            reference,
+            photo,
+            clear,
+        } => {
+            if reference.is_none() && !clear {
+                return Err(Error::Usage("name a node, or --clear".into()));
+            }
+            inv.focus(reference.as_deref(), photo)
+        }
         Cmd::Label { references, needed } => inv.label(&references, !needed),
         Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
         Cmd::Fixed { reference } => inv.broken(&reference, None, true),

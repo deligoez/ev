@@ -57,6 +57,37 @@ pub(crate) fn observations_of(conn: &Connection, id: i64) -> Result<Vec<Value>> 
     Ok(rows)
 }
 
+/// Unfinished tasks that concern a node: those linked to it, and those linked to a place that
+/// holds it (a task on a drawer concerns every box in it). `via` names the node the link is on.
+pub(crate) fn tasks_of(conn: &Connection, id: i64) -> Result<Vec<Value>> {
+    let mut out = Vec::new();
+    let mut cur = Some(id);
+    while let Some(c) = cur {
+        for t in ids(
+            conn,
+            "SELECT t.id FROM tasks t JOIN task_nodes tn ON tn.task_id = t.id
+              WHERE tn.node_id = ?1 AND t.status IN ('open','doing') ORDER BY t.rank, t.id",
+            [c],
+        )? {
+            let full = task_json(conn, t)?;
+            out.push(json!({
+                "id": t,
+                "position": full["position"],
+                "title": full["title"],
+                "status": full["status"],
+                "via": c,
+            }));
+        }
+        cur = conn
+            .query_row("SELECT parent_id FROM nodes WHERE id = ?1", [c], |r| {
+                r.get(0)
+            })
+            .optional()?
+            .flatten();
+    }
+    Ok(out)
+}
+
 /// The places a person opens one at a time: the innermost labelled holders, plus unlabelled
 /// holders standing on their own in a room or on furniture. A holder is a unit when none of its
 /// children carries a code (a code is a physical label, so a coded child is a place of its

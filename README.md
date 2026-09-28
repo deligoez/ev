@@ -1,8 +1,10 @@
 # ev
 
 Agent-first home inventory. An AI agent records what a person reports at the shelves and
-answers "where is it?" — homes, rooms, furniture, boxes and items in one tree, with planned
-moves, a give/sell/trash pipeline, lost items and a full history.
+answers "where is it?". Homes, rooms, furniture, boxes and items live in one tree, with planned
+moves, a give/sell/trash pipeline, lost items, errands for other households, placement
+suggestions, photos with crops, and a full history. A read-only terminal UI follows every
+change live.
 
 ## Install
 
@@ -11,23 +13,80 @@ brew install deligoez/tap/ev     # the `ev` binary (or: cargo install --path cli
 npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx skills update -g`
 ```
 
-## Use
+The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it), photos next to it in
+`~/.ev/photos`. Output is JSON when piped and readable text on a terminal; errors go to stderr
+with a distinct exit code (see `REFERENCE.md`).
+
+## What it does
+
+**One tree.** `home` › `room` (rooms nest) › `furniture` › `container` › `item`, and any node can
+hold others. Codes are the physical labels (`K4x4-07-Ü`, `S5-01`) and compare case- and
+diacritic-insensitively.
 
 ```bash
 ev add Ev --kind home
 ev add Salon --kind room --in Ev
-ev find flipper
-ev ui                           # read-only browser that follows the database live
+ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing batch
+ev find flipper                  # folded search over name, code, note, theme, tags
+ev show K4x4-07-Ü                # one node with its path, children and photos
+ev tree Salon --depth 2          # the picture, with item totals
+ev edit 391 qty=11 note="…"      # change fields
+ev history 391                   # everything that happened to it
 ```
 
-The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it). JSON when piped,
-readable text on a terminal.
+**Moves are planned, then confirmed.** `ev move X --to Y --plan` records the intention;
+`ev pending` is the checklist; `ev done X` / `ev cancel X` once it happened or did not.
 
-- `spec/0.1.0.md` — the decisions this release implements
-- `REFERENCE.md` — commands, fields, payload shapes
-- `skills/ev/SKILL.md` — how an agent should use it
+**Leaving the home.** `ev dispose X --as trash|give|sell` sets a thing aside; `ev disposals` shows
+each pile; `ev gone X` (or `ev gone X --as trash --why "…"` in one step) records that it left. A
+mistaken gone comes back with `ev restore X --correction "…"`.
 
-Workspace: `core` (model, rules, SQLite) and `cli` (the `ev` binary). A Tauri app is
-expected to reuse `core` later.
+**Lost and found.** `ev lost X` keeps where it was last seen; `ev lost` lists them; `ev found X`.
+
+**Other households.** Places have aliases (`ev place add|alias|list|merge`). A node can be
+meant for a place (`to=`), belong to one (`owner=`) or be lent out (`ev lend X --to P`,
+`ev back X`). `ev for Mahmutlar` answers "what do I take, return and collect when I go there?".
+
+**Where should this go?** `ev suggest "<what it is>"` lists every holder with its theme, fill and
+contents, the placement rules (`ev rule add|list|remove`) and where alike things already are.
+It enumerates everything instead of ranking a few, so nothing is missed. `ev audit` finds alike
+things split across places (Turkish word forms grouped), holders without a theme, loose items
+and holders whose contents were never inventoried (`unknown=true`).
+
+**Photos.** `ev photo add X photo.jpg` copies a photo into the store and attaches it;
+`--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the
+original. `ev photo list|remove|adopt`.
+
+**Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, disposals,
+lost items, errands (Götür/İade) and search. It refreshes the moment another process writes,
+flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
+full screen with `o`, and in the system viewer with `O`. Mouse works for tabs, rows, the wheel
+and photos.
+
+## Documents
+
+- `REFERENCE.md` — every command, field, key and payload shape
+- `skills/ev/SKILL.md` — how an agent should use it in conversation
+- `spec/0.1.0.md` — the decisions behind the model
+- `release-notes/` — what changed in each version; `next.md` is the draft of the coming one
+- `BUGS.md` — rough edges found in use, fixed in batches
+
+## Development
+
+Workspace: `core` (model, rules, SQLite, photos) and `cli` (the `ev` binary and its UI). A Tauri
+app is expected to reuse `core` later.
 
 Quality gate: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+
+### Releasing
+
+Releases are batched: bugs collect in `BUGS.md` and the draft notes in `release-notes/next.md`,
+and a version is cut only when asked. Before tagging:
+
+1. **Check this README against the release.** Every user-visible change in `next.md` must be
+   reflected here and in `REFERENCE.md` and `skills/ev/SKILL.md`; a feature missing from the
+   README is not shipped.
+2. Rename `release-notes/next.md` to `release-notes/vX.Y.Z.md` and drop its draft line.
+3. Bump `version` in `core/Cargo.toml` and `cli/Cargo.toml`, run the quality gate, commit.
+4. Tag `vX.Y.Z` and push; the release workflow builds with GoReleaser, publishes the notes file
+   and updates the Homebrew formula in `deligoez/homebrew-tap`.

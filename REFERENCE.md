@@ -103,6 +103,13 @@ creates the place.
 `ev restore <ref> --correction "<why>"` undoes a `gone` recorded by mistake; plain `restore` returns a
 candidate to active.
 
+`ev gone <ref> --as mistake --why "<text>"` closes a record that should never have existed (a
+misreading, a duplicate): it keeps its history, is not a disposal, and the reason is required.
+
+`ev focus <ref> [--photo n]` makes a running `ev ui` jump to the node and show that photo full
+screen (the last one by default); `ev focus --clear` withdraws the request. Each request is shown
+once.
+
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
 note. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
 `ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any

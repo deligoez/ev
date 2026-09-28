@@ -1193,6 +1193,7 @@ fn field_value(n: &Node, field: &str) -> Value {
         "to" => json!(n.to),
         "owner" => json!(n.owner),
         "with" => json!(n.with),
+        "unknown" => json!(n.unknown),
         _ => Value::Null,
     }
 }

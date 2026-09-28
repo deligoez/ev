@@ -1092,6 +1092,7 @@ pub fn run(inv: Inventory) -> Result<()> {
 mod tests {
     use super::{App, Tab, tab_at};
     use ev_core::{Inventory, NewNode};
+    use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use ratatui::{Terminal, backend::TestBackend};
     use ratatui_image::picker::Picker;
 
@@ -1128,6 +1129,73 @@ mod tests {
         let s = screen(&term);
         assert!(s.contains("Fotoğraf 1/1"), "{s}");
         assert!(s.contains("Ayrıntı"));
+    }
+
+    fn press(app: &mut App, c: KeyCode) {
+        app.key(KeyEvent::new(c, KeyModifiers::NONE)).unwrap();
+    }
+
+    #[test]
+    fn o_opens_the_photo_full_screen_and_esc_closes_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]))
+            .save(&photo)
+            .unwrap();
+        inv.photo_add("Ev", &photo, None, Some("ilk")).unwrap();
+        inv.photo_add("Ev", &photo, None, Some("ikinci")).unwrap();
+        let mut app = App::new(inv).unwrap();
+        app.picker = Some(Picker::halfblocks());
+        let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
+
+        press(&mut app, KeyCode::Char('o'));
+        press(&mut app, KeyCode::Char(']'));
+        press(&mut app, KeyCode::Char(']'));
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Ev · Fotoğraf 2/2 · ikinci"), "{s}");
+        assert!(!s.contains("Ayrıntı"), "{s}");
+
+        press(&mut app, KeyCode::Esc);
+        assert!(!app.quit);
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("Ayrıntı"));
+    }
+
+    #[test]
+    fn a_search_can_be_cleared_without_quitting() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let mut app = App::new(inv).unwrap();
+        let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        press(&mut app, KeyCode::Char('/'));
+        press(&mut app, KeyCode::Char('e'));
+        press(&mut app, KeyCode::Char('v'));
+        press(&mut app, KeyCode::Enter);
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("✕ temizle"));
+
+        press(&mut app, KeyCode::Esc);
+        assert!(!app.quit);
+        assert!(app.query.is_empty() && app.rows.is_empty());
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(!screen(&term).contains("✕ temizle"));
+        // With nothing left to clear, Esc quits as before.
+        press(&mut app, KeyCode::Esc);
+        assert!(app.quit);
     }
 
     #[test]

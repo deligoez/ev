@@ -72,6 +72,8 @@ expanding their parents so they are in view.
 | Tab, Shift-Tab, 1–6 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search |
 | / | search (same folding as `ev find`), Enter to run, Esc to cancel |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
+| [ / ] | previous / next photo of the selected node |
+| o | open the current photo in the system viewer |
 | q / Esc | quit |
 
 ## Places

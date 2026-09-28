@@ -948,6 +948,7 @@ pub fn run(inv: Inventory) -> Result<()> {
     }
     let mut app = App::new(inv)?;
     let mut terminal = ratatui::init();
+    app.picker = Some(Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks()));
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);

@@ -629,3 +629,79 @@ fn rules_are_added_listed_and_removed() {
     inv.rule_remove(id).unwrap();
     assert_eq!(code_of(&inv.rule_remove(id).unwrap_err()), 3);
 }
+
+#[test]
+fn suggest_matches_word_starts_not_fragments() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let tools = add(&mut inv, "Alet çekmecesi", "container", Some("K4x4"), None);
+    add(
+        &mut inv,
+        "Bosch matkap",
+        "item",
+        Some(&tools.to_string()),
+        None,
+    );
+    let cards = add(&mut inv, "Kart kutusu", "container", Some("K4x4"), None);
+    add(&mut inv, "SD kartı", "item", Some(&cards.to_string()), None);
+    let v = inv.suggest("boş", None).unwrap();
+    assert!(
+        v["similar"].as_array().unwrap().is_empty(),
+        "boş must not find Bosch"
+    );
+    let v = inv.suggest("kart", None).unwrap();
+    assert_eq!(v["similar"][0]["container"]["id"], cards);
+}
+
+#[test]
+fn uninventoried_holders_are_flagged() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let mut n = node("Karton kutu", "container", Some("Kiler"), None);
+    n.unknown = true;
+    let id = inv.add(n).unwrap()["node"]["id"].as_i64().unwrap();
+    let v = inv.suggest("herhangi", None).unwrap();
+    let c = v["containers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == id)
+        .unwrap()
+        .clone();
+    assert_eq!(c["unknown"], true);
+    assert!(
+        inv.audit().unwrap()["unknown"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["id"] == id)
+    );
+    inv.edit(&id.to_string(), &["unknown=false".into()])
+        .unwrap();
+    assert!(
+        inv.audit().unwrap()["unknown"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn a_mistaken_gone_can_be_corrected_with_a_reason() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    inv.gone("Flipper Zero", Some(Disposition::Trash)).unwrap();
+    assert_eq!(code_of(&inv.restore("Flipper Zero").unwrap_err()), 3);
+    assert_eq!(
+        code_of(&inv.correct_gone("Flipper Zero", " ").unwrap_err()),
+        2
+    );
+    let v = inv
+        .correct_gone("Flipper Zero", "not thrown out after all")
+        .unwrap();
+    assert_eq!(v["node"]["state"], "active");
+    assert!(v["node"]["disposition"].is_null());
+    let h = inv.history("Flipper Zero").unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["data"]["correction"], "not thrown out after all");
+}

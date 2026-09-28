@@ -1976,6 +1976,143 @@ impl Inventory {
     }
 }
 
+impl Inventory {
+    pub fn photo_dir(&self) -> &Path {
+        &self.photo_dir
+    }
+
+    /// Copies a photo into the store and attaches it to a node; with `crop`, attaches only
+    /// the cut-out and remembers the stored original it came from.
+    pub fn photo_add(
+        &mut self,
+        reference: &str,
+        file: &Path,
+        crop: Option<crate::Crop>,
+        note: Option<&str>,
+    ) -> Result<Value> {
+        let id = resolve(&self.conn, reference, false)?;
+        let original = crate::photo::store_file(&self.photo_dir, file)?;
+        let (stored, source) = match crop {
+            Some(c) => (
+                crate::photo::store_crop(&self.photo_dir, &original, c)?,
+                Some(original.to_string_lossy().into_owned()),
+            ),
+            None => (original, None),
+        };
+        let stored = stored.to_string_lossy().into_owned();
+        let tx = self.conn.transaction()?;
+        let next: i64 = tx.query_row(
+            "SELECT COALESCE(MAX(position) + 1, 0) FROM photos WHERE node_id = ?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        tx.execute(
+            "INSERT INTO photos (node_id, position, path, source, crop, note, added_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                id,
+                next,
+                stored,
+                source,
+                crop.map(|c| c.to_string()),
+                note.map(str::trim),
+                now()
+            ],
+        )?;
+        touch(&tx, id)?;
+        event(
+            &tx,
+            id,
+            "photo",
+            json!({ "path": stored, "crop": crop.map(|c| c.to_string()) }),
+        )?;
+        tx.commit()?;
+        self.photo_list(&id.to_string())
+    }
+
+    pub fn photo_list(&self, reference: &str) -> Result<Value> {
+        let id = resolve(&self.conn, reference, true)?;
+        let mut stmt = self.conn.prepare(
+            "SELECT path, source, crop, note, added_at FROM photos WHERE node_id = ?1 ORDER BY position",
+        )?;
+        let photos = stmt
+            .query_map([id], |r| {
+                let path: String = r.get(0)?;
+                Ok(json!({
+                    "path": path,
+                    "exists": Path::new(&path).exists(),
+                    "source": r.get::<_, Option<String>>(1)?,
+                    "crop": r.get::<_, Option<String>>(2)?,
+                    "note": r.get::<_, Option<String>>(3)?,
+                    "added_at": r.get::<_, Option<String>>(4)?,
+                }))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let photos: Vec<Value> = photos
+            .into_iter()
+            .enumerate()
+            .map(|(i, mut p)| {
+                p["n"] = json!(i + 1);
+                p
+            })
+            .collect();
+        Ok(json!({ "node": brief_json(&self.conn, id)?, "photos": photos }))
+    }
+
+    /// Detaches the n-th photo (1-based); the stored file stays, other nodes may share it.
+    pub fn photo_remove(&mut self, reference: &str, n: usize) -> Result<Value> {
+        let id = resolve(&self.conn, reference, false)?;
+        let positions = ids(
+            &self.conn,
+            "SELECT position FROM photos WHERE node_id = ?1 ORDER BY position",
+            [id],
+        )?;
+        let pos = n
+            .checked_sub(1)
+            .and_then(|i| positions.get(i))
+            .ok_or_else(|| {
+                Error::NotFound(format!(
+                    "photo {n} does not exist; it has {}",
+                    positions.len()
+                ))
+            })?;
+        self.conn.execute(
+            "DELETE FROM photos WHERE node_id = ?1 AND position = ?2",
+            params![id, pos],
+        )?;
+        self.photo_list(&id.to_string())
+    }
+
+    /// Copies every photo still referenced outside the store into it.
+    pub fn photo_adopt(&mut self) -> Result<Value> {
+        let dir = self.photo_dir.to_string_lossy().into_owned();
+        let mut stmt = self
+            .conn
+            .prepare("SELECT node_id, position, path FROM photos ORDER BY node_id, position")?;
+        let rows: Vec<(i64, i64, String)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        drop(stmt);
+        let (mut adopted, mut missing) = (0, Vec::new());
+        for (node, pos, path) in rows {
+            if path.starts_with(&dir) {
+                continue;
+            }
+            if !Path::new(&path).exists() {
+                missing.push(json!({ "node": node, "path": path }));
+                continue;
+            }
+            let stored = crate::photo::store_file(&self.photo_dir, Path::new(&path))?;
+            self.conn.execute(
+                "UPDATE photos SET path = ?1, note = COALESCE(note, ?2) WHERE node_id = ?3 AND position = ?4",
+                params![stored.to_string_lossy(), format!("adopted from {path}"), node, pos],
+            )?;
+            adopted += 1;
+        }
+        Ok(json!({ "adopted": adopted, "missing": missing, "store": dir }))
+    }
+}
+
 #[cfg(test)]
 mod migration_tests {
     use super::{Inventory, SCHEMA_V1};

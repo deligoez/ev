@@ -147,3 +147,35 @@ fn tasks_keep_an_order_and_one_is_in_progress() {
     assert!(matches!(inv.task_show(99).unwrap_err(), Error::NotFound(_)));
 }
 
+#[test]
+fn next_brings_the_task_its_places_what_arrives_and_the_gaps() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Alyan", "item", Some("Karton kutu"), None);
+    inv.move_to("Alyan", "K1-01-U", true).unwrap();
+    inv.task_add(
+        "Tour Üst",
+        "the hex keys go there",
+        &["K1-01-U".into()],
+        None,
+    )
+    .unwrap();
+    let v = inv.next().unwrap();
+    assert_eq!(v["task"]["title"], "Tour Üst");
+    let place = &v["task"]["places"][0];
+    assert_eq!(place["node"]["code"], "K1-01-U");
+    assert_eq!(place["arriving"][0]["name"], "Alyan");
+    let gaps: Vec<&str> = v["unplanned"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(gaps, ["Alt", "Karton kutu"]);
+
+    // A household that only wants records gets no tidy-up gaps.
+    inv.goal(Some("track")).unwrap();
+    let v = inv.next().unwrap();
+    assert_eq!(v["goal"], "track");
+    assert!(v["unplanned"].as_array().unwrap().is_empty());
+    assert_eq!(inv.goal(Some("tidy")).unwrap_err().code(), 2);
+}

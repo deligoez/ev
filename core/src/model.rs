@@ -147,4 +147,6 @@ pub struct NewNode {
     pub to: Option<String>,
     #[serde(default)]
     pub owner: Option<String>,
+    #[serde(default)]
+    pub unknown: bool,
 }

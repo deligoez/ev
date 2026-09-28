@@ -86,3 +86,19 @@ fn units(all: &[Node]) -> Vec<i64> {
     out
 }
 
+/// The review a unit inherits: its own, or the nearest reviewed ancestor's.
+fn effective_review(
+    id: i64,
+    parent: &HashMap<i64, Option<i64>>,
+    reviews: &HashMap<i64, (String, String)>,
+) -> Option<(i64, String, String)> {
+    let mut cur = Some(id);
+    while let Some(c) = cur {
+        if let Some((s, at)) = reviews.get(&c) {
+            return Some((c, s.clone(), at.clone()));
+        }
+        cur = parent.get(&c).copied().flatten();
+    }
+    None
+}
+

@@ -46,7 +46,7 @@ pub(crate) fn mark(conn: &Connection, id: i64, kind: &str) -> Result<Value> {
 
 pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {
     let mut out = serde_json::Map::new();
-    for kind in ["label", "broken", "expires", "sale"] {
+    for kind in ["label", "broken", "expires", "sale", "photo_ok"] {
         let m = mark(conn, id, kind)?;
         if !m.is_null() {
             out.insert(kind.into(), m);

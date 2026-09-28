@@ -110,3 +110,21 @@ fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
     Ok(rows)
 }
 
+/// Latest `updated_at` anywhere below and at `id`, to tell a toured place that changed since.
+fn last_change(id: i64, kids: &HashMap<i64, Vec<&Node>>, by_id: &HashMap<i64, &Node>) -> String {
+    let mut latest = by_id
+        .get(&id)
+        .map(|n| n.updated_at.clone())
+        .unwrap_or_default();
+    let mut stack = vec![id];
+    while let Some(c) = stack.pop() {
+        for k in kids.get(&c).into_iter().flatten() {
+            if k.updated_at > latest {
+                latest = k.updated_at.clone();
+            }
+            stack.push(k.id);
+        }
+    }
+    latest
+}
+

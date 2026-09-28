@@ -332,6 +332,18 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Rule(RuleCmd::Add { text }) => inv.rule_add(&text),
         Cmd::Rule(RuleCmd::List) => inv.rule_list(),
         Cmd::Rule(RuleCmd::Remove { id }) => inv.rule_remove(id),
+        Cmd::Photo(PhotoCmd::Add {
+            reference,
+            file,
+            crop,
+            note,
+        }) => {
+            let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
+            inv.photo_add(&reference, &file, crop, note.as_deref())
+        }
+        Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
+        Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
+        Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),
     }
 }
 

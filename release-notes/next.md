@@ -29,4 +29,4 @@ Draft notes for the next batched release; rename to the tag's version when relea
 
 ## Upgrade notes
 
-- **Schema version 4** (the `unknown` flag), migrated on open.
+- **Schema version 5** (the `unknown` flag, then photo provenance), migrated on open.

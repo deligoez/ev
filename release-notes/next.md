@@ -17,3 +17,5 @@ Draft notes for the next batched release; rename to the tag's version when relea
 - **Rotate a photo in `ev ui`.** `r` turns the photo on screen 90° clockwise and `R`
   counter-clockwise, full screen or on the photo panel. It is view-only: the turn is kept per
   photo until `ev ui` quits, and neither the photo file nor the database is changed.
+- **"The photo is still fine."** `ev photo current <ref>` takes a place off the photo-needed
+  list after a small change (one thing taken out), until the next change.

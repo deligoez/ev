@@ -1223,6 +1223,36 @@ mod tests {
     }
 
     #[test]
+    fn the_plan_tab_lists_tasks_with_progress() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        for (name, kind, parent) in [
+            ("Ev", "home", None),
+            ("Oda", "room", Some("Ev")),
+            ("Kutu", "container", Some("Oda")),
+        ] {
+            inv.add(NewNode {
+                name: name.into(),
+                kind: kind.into(),
+                parent: parent.map(Into::into),
+                ..Default::default()
+            })
+            .unwrap();
+        }
+        inv.task_add("Kutuyu aç", "hiç açılmadı", &["Kutu".into()], None)
+            .unwrap();
+        let mut app = App::new(inv).unwrap();
+        press(&mut app, KeyCode::Char('7'));
+        let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("1 yerden 0 gezildi"), "{s}");
+        assert!(s.contains("1. Kutuyu aç"), "{s}");
+        // The task's place is shown on the right.
+        assert!(s.contains("Ev › Oda › Kutu"), "{s}");
+    }
+
+    #[test]
     fn a_search_can_be_cleared_without_quitting() {
         let dir = tempfile::tempdir().unwrap();
         let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();

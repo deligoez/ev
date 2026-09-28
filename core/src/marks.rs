@@ -512,6 +512,7 @@ impl Inventory {
             Vec::new()
         };
         let photos = photos_needed(&self.conn, &places)?;
+        let shared = shared_photos(&self.conn)?;
         let count = |v: &Value| v.as_array().map_or(0, Vec::len);
         let disposal_count: usize = disposals
             .as_object()
@@ -533,6 +534,7 @@ impl Inventory {
                 "stale": stale.len(),
                 "unclear": unclear.len(),
                 "photos": photos.len(),
+                "shared_photos": shared.len(),
             },
             "tasks": tasks,
             "moves": moves,
@@ -547,6 +549,7 @@ impl Inventory {
             "stale": stale,
             "unclear": unclear,
             "photos": photos,
+            "shared_photos": shared,
         }))
     }
 }

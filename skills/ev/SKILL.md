@@ -42,6 +42,31 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 6. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
+## The plan: start every session with `ev next`
+
+`ev` keeps the work list, so no session starts from memory. Run `ev next` first and tell the
+person, in one short paragraph, what today's task is and why, what is planned to arrive at its
+places, and how far the whole home is (`progress`). Then:
+
+- **Ask the goal once.** If `goal` is null, ask whether they want to put things in order
+  (`ev goal organize`) or only keep the records right (`ev goal track`). Under `track`, never
+  propose tidy-up tasks, moves or disposals of your own; record what they report, answer where
+  things are, and keep only the tasks they ask for. Under `organize`, a place they want left
+  alone is `ev review <place> --as kept` — respect it and drop it from proposals.
+- **Build the plan from what you see.** When looking at a place's photo, write what you notice
+  as `ev observe <place> "<text>" --photo n` (a bag of mixed screws, a box that does not match
+  the drawer's theme, things that belong elsewhere). Turn it into tasks with
+  `ev task add "<title>" --why "<reason>" --on <place> --at <n>`. The reason is what makes the
+  order defensible: mess, uncertainty (records guessed from a photo), blocking (a planned move
+  waits on it), payoff (space freed, things to give or sell). Show proposed orderings as a
+  numbered table and let the person reorder; `unplanned` in `ev next` lists raw places no task
+  covers yet.
+- **Work one task.** `ev task start <id>`, go through its places box by box, bring up
+  everything under `arriving`, and add new tasks when you find work elsewhere.
+- **Close only on the person's word.** When they say the place is done: `ev review <place>
+  --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
+  A toured place that changed later shows in `progress` as `changed_since`; mention it.
+
 ## Proposals the person can answer by number
 
 Every table or list of proposed actions starts each row with a number (`#` column), so the

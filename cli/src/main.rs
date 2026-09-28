@@ -84,6 +84,7 @@ enum Cmd {
         correction: Option<String>,
     },
     /// A node leaves the home; --as is required when it is not a candidate yet.
+    /// --as mistake (with --why) closes a record that should never have existed.
     Gone {
         reference: String,
         #[arg(long = "as")]
@@ -200,6 +201,14 @@ enum Cmd {
     /// Things to buy or make.
     #[command(subcommand)]
     Need(NeedCmd),
+    /// Make a running `ev ui` show a node and one of its photos (the last by default).
+    Focus {
+        reference: Option<String>,
+        #[arg(long)]
+        photo: Option<usize>,
+        #[arg(long, conflicts_with = "reference")]
+        clear: bool,
+    },
 }
 
 #[derive(Subcommand)]

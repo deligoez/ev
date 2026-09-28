@@ -19,3 +19,8 @@ Draft notes for the next batched release; rename to the tag's version when relea
   photo until `ev ui` quits, and neither the photo file nor the database is changed.
 - **"The photo is still fine."** `ev photo current <ref>` takes a place off the photo-needed
   list after a small change (one thing taken out), until the next change.
+- **A group photo cannot end up on every thing in it.** `ev photo add` refuses a whole
+  photo that is already attached whole to another node (exit 5, naming the nodes): the things in
+  a drawer or box photo get `--crop`s, and the whole view belongs to the place. `--whole` is the
+  deliberate exception. `ev todo` and the Yapılacak tab list any whole photo shared by several
+  records, so older slips of this kind show up too.

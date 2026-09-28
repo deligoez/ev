@@ -81,7 +81,8 @@ places turn out to be the same, `ev place merge`.
 
 Suggest `ev ui` in a second terminal at the start of a session: it is read-only and
 refreshes on its own, highlighting whatever you just changed, so the person sees each
-record land as you make it.
+record land as you make it. To look at a photo they press `o` (full screen, `[` `]` to step
+through the node's photos) or `O` (system viewer); on the search tab `x` clears the search.
 
 ## Exit codes
 

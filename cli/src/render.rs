@@ -38,6 +38,9 @@ fn line(n: &Value) -> String {
 
 fn place_marks(n: &Value) -> String {
     let mut out = String::new();
+    if n["unknown"] == true {
+        out.push_str("  (contents unknown)");
+    }
     if let Some(x) = n["to"].as_str() {
         let _ = write!(out, "  (to: {x})");
     }

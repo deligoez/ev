@@ -278,7 +278,14 @@ fn run(cli: Cli) -> Result<Value> {
             reference,
             disposition: d,
         } => inv.dispose(&reference, disposition(&d)?),
-        Cmd::Restore { reference } => inv.restore(&reference),
+        Cmd::Restore {
+            reference,
+            correction: Some(why),
+        } => inv.correct_gone(&reference, &why),
+        Cmd::Restore {
+            reference,
+            correction: None,
+        } => inv.restore(&reference),
         Cmd::Gone {
             reference,
             disposition: d,

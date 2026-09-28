@@ -148,6 +148,43 @@ fn tasks_keep_an_order_and_one_is_in_progress() {
 }
 
 #[test]
+fn a_node_shows_the_tasks_on_it_and_on_the_places_holding_it() {
+    let (_d, mut inv) = setup();
+    let drawer = inv
+        .task_add("Tour Alt", "bags", &["K1-01-A".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let screw = inv
+        .task_add("Measure", "unknown size", &["Vida".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let v = inv.show("Vida", false).unwrap();
+    let tasks: Vec<(i64, i64)> = v["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| (t["id"].as_i64().unwrap(), t["via"].as_i64().unwrap()))
+        .collect();
+    let box_id = inv.resolve("Vida kutusu", false).unwrap();
+    let alt = inv.resolve("K1-01-A", false).unwrap();
+    let vida = inv.resolve("Vida", false).unwrap();
+    assert_eq!(tasks, [(screw, vida), (drawer, alt)]);
+    assert_eq!(
+        inv.show("Vida kutusu", false).unwrap()["tasks"][0]["via"],
+        alt
+    );
+    inv.task_set(drawer, "done", None).unwrap();
+    assert!(
+        inv.show(&box_id.to_string(), false).unwrap()["tasks"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn next_brings_the_task_its_places_what_arrives_and_the_gaps() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Alyan", "item", Some("Karton kutu"), None);

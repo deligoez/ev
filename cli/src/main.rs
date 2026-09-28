@@ -127,6 +127,28 @@ enum Cmd {
     /// Placement rules weighed on every suggestion.
     #[command(subcommand)]
     Rule(RuleCmd),
+    /// Photos of a node, kept in ev's own store.
+    #[command(subcommand)]
+    Photo(PhotoCmd),
+}
+
+#[derive(Subcommand)]
+enum PhotoCmd {
+    /// Copy a photo into the store and attach it; --crop x,y,w,h (fractions 0–1) attaches a cut-out.
+    Add {
+        reference: String,
+        file: PathBuf,
+        #[arg(long)]
+        crop: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// A node's photos, numbered from 1.
+    List { reference: String },
+    /// Detach the n-th photo of a node.
+    Remove { reference: String, n: usize },
+    /// Copy every photo still referenced outside the store into it.
+    Adopt,
 }
 
 #[derive(Subcommand)]

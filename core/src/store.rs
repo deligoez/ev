@@ -981,7 +981,7 @@ fn touch(conn: &Connection, id: i64) -> Result<()> {
     Ok(())
 }
 
-fn event(conn: &Connection, id: i64, kind: &str, data: Value) -> Result<()> {
+pub(crate) fn event(conn: &Connection, id: i64, kind: &str, data: Value) -> Result<()> {
     conn.execute(
         "INSERT INTO events (node_id, at, type, data) VALUES (?1, ?2, ?3, ?4)",
         params![id, now(), kind, data.to_string()],

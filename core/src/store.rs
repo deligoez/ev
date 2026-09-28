@@ -1933,7 +1933,7 @@ fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
     Ok(v)
 }
 
-fn rules_json(conn: &Connection) -> Result<Vec<Value>> {
+pub(crate) fn rules_json(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt = conn.prepare("SELECT id, text FROM rules ORDER BY id")?;
     let rows = stmt
         .query_map([], |r| {

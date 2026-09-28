@@ -100,3 +100,14 @@ creates the place.
 
 `ev restore <ref> --correction "<why>"` undoes a `gone` recorded by mistake; plain `restore` returns a
 candidate to active.
+
+## Photos
+
+| Command | Does |
+|---|---|
+| `ev photo add <ref> <file> [--crop x,y,w,h] [--note text]` | copy into `~/.ev/photos/` (hash-named) and attach; with `--crop` attach the cut-out, remembering the original |
+| `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
+| `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays) |
+| `ev photo adopt` | copy photos still referenced outside the store into it |
+
+In `ev ui`, `[` / `]` step through the selected node's photos and `o` opens the current one.

@@ -119,3 +119,22 @@ other exits 5).
 
 In `ev ui`, `[` / `]` or the wheel over the photo step through the selected node's photos, `o` or a
 click shows the current one full screen (with its note), and `O` opens it in the system viewer.
+
+## Plan
+
+| Command | Does |
+|---|---|
+| `ev goal [organize\|track]` | show or set what the household wants: a tidy-up plan, or records only |
+| `ev observe <ref> "<text>" [--photo n]` | a dated note on a place, optionally tied to its n-th photo; `ev unobserve <id>` removes one |
+| `ev review <ref> --as toured\|kept\|raw [--note t]` | how far a place has been gone through; covers everything below it |
+| `ev progress` | every unit with `review` (`status`, `at`, `from`, `changed_since`), `children`, `unknown`, `observations`, `planned`; counts `units`, `toured`, `kept`, `raw`, `changed_since_tour` |
+| `ev task add "<title>" --why "<why>" [--on ref]… [--at n]` | a task at position n (last by default) |
+| `ev task list [--all]` | unfinished tasks in order (`position`), then closed ones with `--all` |
+| `ev task start\|done\|drop\|reopen <id> [--note t]` | one task is in progress at a time; `done` only when the person says so |
+| `ev task edit <id> [--title] [--why] [--on ref]… [--off ref]… [--at n]` | change a task |
+| `ev next` | `goal`, `task` (with `places`: each as `show`, plus `arriving`), `open_tasks`, `progress`, `unplanned` (raw units no task covers; empty under `track`), `rules` |
+
+A unit is the innermost labelled holder, or an unlabelled holder standing on its own in a room
+or on furniture: a holder none of whose children carries a code. `ev show` carries the node's
+`review` and `observations`. In `ev ui`, tab 7 (Plan) lists the tasks with progress in its
+title.

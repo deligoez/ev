@@ -159,6 +159,39 @@ fn a_mistaken_record_closes_with_a_reason_and_never_counts_as_leaving() {
 }
 
 #[test]
+fn a_place_needs_a_new_photo_once_its_contents_change() {
+    let (d, mut inv) = setup();
+    let codes = |inv: &Inventory| -> Vec<(String, String)> {
+        inv.todo().unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| {
+                (
+                    p["code"].as_str().unwrap_or_default().to_string(),
+                    p["photo_reason"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(codes(&inv), [("S5-01".to_string(), "none".to_string())]);
+    let img = d.path().join("p.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&img)
+        .unwrap();
+    inv.photo_add("S5-01", &img, None, None).unwrap();
+    assert!(codes(&inv).is_empty());
+    // A crop of one thing is not a picture of the place.
+    inv.photo_add("Silikon", &img, Some("0,0,0.5,0.5".parse().unwrap()), None)
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    // Taking something out changes the place as much as putting something in.
+    add(&mut inv, "Masa", "furniture", Some("Oda"), None);
+    inv.move_to("Silikon", "Masa", false).unwrap();
+    assert!(codes(&inv).contains(&("S5-01".to_string(), "changed".to_string())));
+}
+
+#[test]
 fn focus_names_a_node_and_its_last_photo_by_default() {
     let (d, mut inv) = setup();
     assert!(inv.focus_request().unwrap().is_null());

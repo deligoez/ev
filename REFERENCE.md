@@ -153,7 +153,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `unknown`, `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `photos` (units with contents and no whole-view photo, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts, crops do not) |
+| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `unknown`, `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no whole-view photo, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts, crops do not) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

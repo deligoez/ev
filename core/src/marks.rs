@@ -55,3 +55,27 @@ pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {
     Ok(Value::Object(out))
 }
 
+fn set_mark(
+    conn: &Connection,
+    id: i64,
+    kind: &str,
+    value: Option<&str>,
+    amount: Option<i64>,
+    note: Option<&str>,
+) -> Result<()> {
+    conn.execute(
+        "INSERT INTO marks (node_id, kind, value, amount, note, at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(node_id, kind) DO UPDATE SET value = excluded.value,
+           amount = excluded.amount, note = excluded.note, at = excluded.at",
+        params![
+            id,
+            kind,
+            value,
+            amount,
+            note.map(str::trim).filter(|n| !n.is_empty()),
+            now()
+        ],
+    )?;
+    Ok(())
+}
+

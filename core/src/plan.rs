@@ -285,6 +285,47 @@ impl Inventory {
         Ok(json!({ "goal": get_setting(&self.conn, "goal")? }))
     }
 
+    /// Asks a running `ev ui` to show a node — and one of its photos full screen, the last one
+    /// when `photo` is not given — so the person sees exactly which thing is meant. `None`
+    /// clears the request. The UI is read-only; it remembers which request it has shown.
+    pub fn focus(&mut self, reference: Option<&str>, photo: Option<usize>) -> Result<Value> {
+        let Some(r) = reference else {
+            self.conn
+                .execute("DELETE FROM settings WHERE key = 'focus'", [])?;
+            return Ok(json!({ "focus": null }));
+        };
+        let id = resolve(&self.conn, r, true)?;
+        let photos: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM photos WHERE node_id = ?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        let photo = match photo {
+            Some(n) if n == 0 || n as i64 > photos => {
+                return Err(Error::NotFound(format!("node {id} has no photo {n}")));
+            }
+            Some(n) => Some(n as i64),
+            None if photos > 0 => Some(photos),
+            None => None,
+        };
+        // Milliseconds, so two requests in the same second are still two requests.
+        let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let value = json!({ "id": id, "photo": photo, "at": at });
+        self.conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('focus', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [value.to_string()],
+        )?;
+        Ok(json!({ "focus": value }))
+    }
+
+    /// The pending focus request, if any.
+    pub fn focus_request(&self) -> Result<Value> {
+        Ok(get_setting(&self.conn, "focus")?
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or(Value::Null))
+    }
+
     /// Records something noticed about a place, optionally tied to one of its photos (1-based).
     pub fn observe(&mut self, reference: &str, text: &str, photo: Option<usize>) -> Result<Value> {
         let text = non_empty("observation", text)?;

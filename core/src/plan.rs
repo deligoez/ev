@@ -144,3 +144,72 @@ fn task_nodes(conn: &Connection, task: i64) -> Result<Vec<i64>> {
     )
 }
 
+fn task_json(conn: &Connection, id: i64) -> Result<Value> {
+    let (title, why, status, note, created, updated, closed): (
+        String,
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        Option<String>,
+    ) = conn
+        .query_row(
+            "SELECT title, why, status, note, created_at, updated_at, closed_at FROM tasks WHERE id = ?1",
+            [id],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                    r.get(6)?,
+                ))
+            },
+        )
+        .optional()?
+        .ok_or_else(|| Error::NotFound(format!("no task with id {id}")))?;
+    let nodes = task_nodes(conn, id)?
+        .into_iter()
+        .map(|n| {
+            let b = brief(conn, n)?;
+            let mut v = serde_json::to_value(b).map_err(|e| Error::Internal(e.to_string()))?;
+            v["review"] = review_of(conn, n)?;
+            Ok(v)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    // Position among the unfinished tasks, 1-based, which is what the person answers with.
+    let position: Option<i64> = if matches!(status.as_str(), "open" | "doing") {
+        Some(conn.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE status IN ('open','doing')
+               AND rank <= (SELECT rank FROM tasks WHERE id = ?1)",
+            [id],
+            |r| r.get(0),
+        )?)
+    } else {
+        None
+    };
+    Ok(json!({
+        "id": id,
+        "position": position,
+        "title": title,
+        "why": why,
+        "status": status,
+        "note": note,
+        "nodes": nodes,
+        "created_at": created,
+        "updated_at": updated,
+        "closed_at": closed,
+    }))
+}
+
+fn non_empty<'a>(what: &str, s: &'a str) -> Result<&'a str> {
+    let t = s.trim();
+    if t.is_empty() {
+        return Err(Error::Usage(format!("{what} is empty")));
+    }
+    Ok(t)
+}
+

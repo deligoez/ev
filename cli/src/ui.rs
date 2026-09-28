@@ -1068,6 +1068,24 @@ impl App {
                 Span::raw(p.as_str().unwrap_or_default().to_string()),
             );
         }
+        for t in v["tasks"].as_array().into_iter().flatten() {
+            let via = if t["via"] == n["id"] {
+                String::new()
+            } else {
+                let place = t["via"]
+                    .as_i64()
+                    .and_then(|i| self.snap.label.get(&i).cloned())
+                    .unwrap_or_default();
+                format!("  ({place} üzerinden)")
+            };
+            field(
+                "görev",
+                Span::styled(
+                    format!("{}. {}{via}", t["position"], str_of(t, "title")),
+                    Style::new().fg(MARK),
+                ),
+            );
+        }
         field(
             "güncellendi",
             Span::styled(str_of(n, "updated_at"), Style::new().fg(MUTED)),

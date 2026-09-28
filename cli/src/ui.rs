@@ -29,8 +29,11 @@ const TABS: [&str; 7] = [
     "Kayıp",
     "Götür/İade",
     "Ara",
-    "Plan",
+    "Yapılacak",
 ];
+
+/// The Yapılacak section that starts collapsed: unclear records are a long, low-priority list.
+const UNCLEAR_SECTION: i64 = -12;
 
 // Named colours follow the terminal's own palette, so light and dark themes both work.
 const CODE: Color = Color::Cyan;
@@ -255,6 +258,8 @@ struct App {
     fullscreen: bool,
     photo_area: Rect,
     plan_title: String,
+    /// Collapsed Yapılacak sections, by their (negative) header id.
+    collapsed: HashSet<i64>,
 }
 
 impl App {
@@ -299,6 +304,7 @@ impl App {
             fullscreen: false,
             photo_area: Rect::default(),
             plan_title: String::new(),
+            collapsed: HashSet::from([UNCLEAR_SECTION]),
         };
         app.rebuild()?;
         Ok(app)
@@ -409,49 +415,267 @@ impl App {
                 out
             }
             Tab::Search => self.search_rows.clone(),
-            Tab::Plan => {
-                let p = self.inv.progress()?;
-                self.plan_title = format!(
-                    " Plan · {} yerden {} gezildi, {} böyle kalsın ",
-                    p["units"], p["toured"], p["kept"]
-                );
-                let v = self.inv.task_list(false)?;
-                v["tasks"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .map(|t| {
-                        let first = t["nodes"][0]["id"].as_i64();
-                        let mut spans = vec![Span::styled(
-                            format!("{}. ", t["position"]),
-                            Style::new().fg(MUTED),
-                        )];
-                        if t["status"] == "doing" {
-                            spans.push(Span::styled("▶ ", Style::new().fg(MARK).bold()));
-                        }
-                        spans.push(Span::styled(str_of(t, "title"), Style::new().bold()));
-                        spans.push(Span::styled(
-                            format!("  — {}", str_of(t, "why")),
-                            Style::new().fg(MUTED),
-                        ));
-                        Row {
-                            // A task without a place has nothing to show on the right.
-                            id: first.unwrap_or(0),
-                            depth: 0,
-                            spans,
-                            expandable: false,
-                            expanded: false,
-                        }
-                    })
-                    .collect()
-            }
+            Tab::Plan => self.todo_rows()?,
         };
         let idx = keep
             .and_then(|id| self.rows.iter().position(|r| r.id == id))
-            .or(if self.rows.is_empty() { None } else { Some(0) })
+            // Start on the first real line, not on a section header.
+            .or_else(|| {
+                self.rows
+                    .iter()
+                    .position(|r| r.id >= 0)
+                    .or(if self.rows.is_empty() { None } else { Some(0) })
+            })
             .map(|i| i.min(self.rows.len().saturating_sub(1)));
         self.state.select(idx);
         self.load_details()
+    }
+
+    /// The Yapılacak tab: one section per kind of waiting work, each headed by its count and
+    /// collapsible; a section with nothing in it is left out. Every line points at the node it
+    /// is about, so the right pane shows it; a header's id is negative (its section index).
+    fn todo_rows(&mut self) -> Result<Vec<Row>> {
+        let v = self.inv.todo()?;
+        let c = &v["counts"];
+        let p = &v["progress"];
+        self.plan_title = format!(
+            " Yapılacak · {}/{} gezildi · {} iş · {} taşıma ",
+            p["toured"], p["units"], c["tasks"], c["moves"]
+        );
+        let mut out = Vec::new();
+        let short = |path: &str| {
+            let parts: Vec<&str> = path.split(" › ").collect();
+            parts[parts.len().saturating_sub(2)..].join(" › ")
+        };
+        // Where a thing is: the last two steps of its parent's path (its own name is already
+        // on the line).
+        let within = |path: &str| {
+            let parts: Vec<&str> = path.split(" › ").collect();
+            let parent = &parts[..parts.len().saturating_sub(1)];
+            parent[parent.len().saturating_sub(2)..].join(" › ")
+        };
+        let item = |id: i64, spans: Vec<Span<'static>>| Row {
+            id,
+            depth: 1,
+            spans,
+            expandable: false,
+            expanded: false,
+        };
+        let muted = |s: String| Span::styled(s, Style::new().fg(MUTED));
+        type Section<'a> = (&'static str, Color, Vec<Row>);
+        let mut sections: Vec<Section> = Vec::new();
+
+        let tasks = v["tasks"].as_array().cloned().unwrap_or_default();
+        sections.push((
+            "İŞLER",
+            MARK,
+            tasks
+                .iter()
+                .map(|t| {
+                    let mut spans = vec![muted(format!("{}. ", t["position"]))];
+                    if t["status"] == "doing" {
+                        spans.push(Span::styled("▶ ", Style::new().fg(MARK).bold()));
+                    }
+                    spans.push(Span::styled(str_of(t, "title"), Style::new().bold()));
+                    spans.push(muted(format!("  — {}", str_of(t, "why"))));
+                    item(t["nodes"][0]["id"].as_i64().unwrap_or(0), spans)
+                })
+                .collect(),
+        ));
+        sections.push((
+            "TAŞIMALAR",
+            Color::Blue,
+            v["moves"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|m| {
+                    item(
+                        m["node"]["id"].as_i64().unwrap_or(0),
+                        vec![
+                            Span::raw(str_of(&m["node"], "name")),
+                            Span::styled("  → ", Style::new().fg(MARK)),
+                            Span::styled(
+                                short(&str_of(&m["to"], "path_text")),
+                                Style::new().fg(CODE),
+                            ),
+                        ],
+                    )
+                })
+                .collect(),
+        ));
+        let mut errands = Vec::new();
+        for e in v["errands"].as_array().into_iter().flatten() {
+            let place = str_of(&e["place"], "name");
+            for (key, what) in [
+                ("take", "götür"),
+                ("return", "iade"),
+                ("collect", "geri al"),
+            ] {
+                for n in e[key].as_array().into_iter().flatten() {
+                    errands.push(item(
+                        n["id"].as_i64().unwrap_or(0),
+                        vec![
+                            Span::styled(place.clone(), Style::new().bold()),
+                            Span::styled(format!(" · {what}  "), Style::new().fg(MARK)),
+                            Span::raw(str_of(n, "name")),
+                        ],
+                    ));
+                }
+            }
+        }
+        sections.push(("GÖTÜR / İADE", Color::Blue, errands));
+        let mut leaving = Vec::new();
+        for (d, list) in v["disposals"].as_object().into_iter().flatten() {
+            for n in list.as_array().into_iter().flatten() {
+                let mut spans = vec![
+                    Span::styled(format!("{}  ", disposition_tr(d)), Style::new().fg(MARK)),
+                    Span::raw(str_of(n, "name")),
+                ];
+                if let Some(st) = n["sale"]["value"].as_str() {
+                    let st = if st == "listed" {
+                        "ilanda"
+                    } else {
+                        "ayrıldı"
+                    };
+                    let price = n["sale"]["amount"]
+                        .as_i64()
+                        .map(|a| format!(" {a} TL"))
+                        .unwrap_or_default();
+                    spans.push(Span::styled(
+                        format!("  [{st}{price}]"),
+                        Style::new().fg(QTY).bold(),
+                    ));
+                }
+                spans.push(muted(format!("  {}", within(&str_of(n, "path_text")))));
+                leaving.push(item(n["id"].as_i64().unwrap_or(0), spans));
+            }
+        }
+        sections.push(("ÇIKIŞ", MARK, leaving));
+        sections.push((
+            "ETİKET BASILACAK",
+            CODE,
+            v["labels"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| {
+                    item(
+                        n["id"].as_i64().unwrap_or(0),
+                        vec![
+                            Span::styled(str_of(n, "code"), Style::new().fg(CODE).bold()),
+                            muted(format!("  {}", n["theme"].as_str().unwrap_or(""))),
+                        ],
+                    )
+                })
+                .collect(),
+        ));
+        sections.push((
+            "ALINACAK",
+            QTY,
+            v["needs"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| {
+                    let mut spans = Vec::new();
+                    if let Some(q) = n["qty"].as_i64() {
+                        spans.push(Span::styled(format!("{q} × "), Style::new().fg(QTY)));
+                    }
+                    spans.push(Span::raw(str_of(n, "text")));
+                    if n["make"] == true {
+                        spans.push(muted("  (bas / yap)".into()));
+                    }
+                    if let Some(p) = n["for"]["path_text"].as_str() {
+                        spans.push(muted(format!("  → {}", short(p))));
+                    }
+                    item(n["for"]["id"].as_i64().unwrap_or(0), spans)
+                })
+                .collect(),
+        ));
+        let plain = |key: &str, extra: &dyn Fn(&Value) -> Option<Span<'static>>| -> Vec<Row> {
+            v[key]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| {
+                    let node = if n["node"].is_object() { &n["node"] } else { n };
+                    let mut spans = vec![Span::raw(str_of(node, "name"))];
+                    if let Some(s) = extra(n) {
+                        spans.push(s);
+                    }
+                    let place = match n["last_seen"]["path_text"].as_str() {
+                        Some(p) => format!("  son görüldüğü: {}", short(p)),
+                        None if n["node"].is_object() => "  (hiç bilinmiyor)".into(),
+                        None => format!("  {}", within(&str_of(node, "path_text"))),
+                    };
+                    spans.push(muted(place));
+                    item(node["id"].as_i64().unwrap_or(0), spans)
+                })
+                .collect()
+        };
+        sections.push((
+            "TAMİR",
+            LOST,
+            plain("repairs", &|n| {
+                n["note"]
+                    .as_str()
+                    .map(|x| Span::styled(format!("  ({x})"), Style::new().fg(LOST)))
+            }),
+        ));
+        sections.push((
+            "SON KULLANMA",
+            LOST,
+            plain("expiring", &|n| {
+                let days = n["days_left"].as_i64().unwrap_or(0);
+                let (text, color) = if days < 0 {
+                    (format!("  {} · geçti", str_of(n, "expires")), LOST)
+                } else {
+                    (
+                        format!("  {} · {days} gün", str_of(n, "expires")),
+                        FURNITURE,
+                    )
+                };
+                Some(Span::styled(text, Style::new().fg(color).bold()))
+            }),
+        ));
+        sections.push(("KAYIP", LOST, plain("lost", &|_| None)));
+        sections.push(("İÇİ BİLİNMİYOR", FURNITURE, plain("unknown", &|_| None)));
+        sections.push((
+            "GEZİLDİKTEN SONRA DEĞİŞTİ",
+            FURNITURE,
+            plain("stale", &|_| None),
+        ));
+        sections.push(("BELİRSİZ KAYITLAR", MUTED, plain("unclear", &|_| None)));
+
+        for (i, (title, color, rows)) in sections.into_iter().enumerate() {
+            if rows.is_empty() {
+                continue;
+            }
+            let id = -(i as i64) - 1;
+            let open = !self.collapsed.contains(&id);
+            out.push(Row {
+                id,
+                depth: 0,
+                spans: vec![
+                    Span::styled(title, Style::new().fg(color).bold()),
+                    Span::styled(format!("  {}", rows.len()), Style::new().fg(MUTED)),
+                ],
+                expandable: true,
+                expanded: open,
+            });
+            if open {
+                out.extend(rows);
+            }
+        }
+        Ok(out)
+    }
+
+    fn toggle_section(&mut self, id: i64) -> Result<()> {
+        if !self.collapsed.remove(&id) {
+            self.collapsed.insert(id);
+        }
+        self.rebuild()
     }
 
     fn tree_row(&self, n: &Value, depth: usize) -> Row {
@@ -602,6 +826,9 @@ impl App {
         let Some(id) = self.selected_id() else {
             return Ok(());
         };
+        if id < 0 {
+            return self.toggle_section(id);
+        }
         if self.tab != Tab::Tree {
             return self.reveal(id);
         }
@@ -701,11 +928,31 @@ impl App {
             KeyCode::Char('O') => self.open_external(),
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter => {
                 if let Some(id) = self.selected_id() {
-                    if self.tab == Tab::Tree {
+                    if id < 0 {
+                        if self.collapsed.contains(&id) || k.code == KeyCode::Enter {
+                            self.toggle_section(id)?;
+                        }
+                    } else if self.tab == Tab::Tree {
                         self.expanded.insert(id);
                         self.rebuild()?;
                     } else {
                         self.reveal(id)?;
+                    }
+                }
+            }
+            KeyCode::Left | KeyCode::Char('h') if self.tab == Tab::Plan => {
+                // On an item, go up to its section; on an open section, close it.
+                let Some(i) = self.state.selected() else {
+                    return Ok(());
+                };
+                if let Some(h) = (0..=i).rev().find(|&j| self.rows[j].id < 0) {
+                    let id = self.rows[h].id;
+                    if h == i {
+                        if !self.collapsed.contains(&id) {
+                            self.toggle_section(id)?;
+                        }
+                    } else {
+                        self.select(h)?;
                     }
                 }
             }
@@ -1068,6 +1315,55 @@ impl App {
                 Span::raw(p.as_str().unwrap_or_default().to_string()),
             );
         }
+        let m = &v["marks"];
+        if m["label"]["value"] == "needed" {
+            field(
+                "etiket",
+                Span::styled("basılacak", Style::new().fg(CODE).bold()),
+            );
+        }
+        if m["broken"].is_object() {
+            let note = m["broken"]["note"].as_str().unwrap_or("");
+            field(
+                "bozuk",
+                Span::styled(format!("tamir bekliyor {note}"), Style::new().fg(LOST)),
+            );
+        }
+        if let Some(d) = m["expires"]["value"].as_str() {
+            field(
+                "son kullanma",
+                Span::styled(d.to_string(), Style::new().fg(FURNITURE)),
+            );
+        }
+        if let Some(st) = m["sale"]["value"].as_str() {
+            let st = if st == "listed" {
+                "ilanda"
+            } else {
+                "ayrıldı"
+            };
+            let price = m["sale"]["amount"]
+                .as_i64()
+                .map(|a| format!(" · {a} TL"))
+                .unwrap_or_default();
+            let at = m["sale"]["note"]
+                .as_str()
+                .map(|w| format!(" · {w}"))
+                .unwrap_or_default();
+            field(
+                "satış",
+                Span::styled(format!("{st}{price}{at}"), Style::new().fg(QTY)),
+            );
+        }
+        for nd in v["needs"].as_array().into_iter().flatten() {
+            let q = nd["qty"]
+                .as_i64()
+                .map(|q| format!("{q} × "))
+                .unwrap_or_default();
+            field(
+                "alınacak",
+                Span::styled(format!("{q}{}", str_of(nd, "text")), Style::new().fg(QTY)),
+            );
+        }
         for t in v["tasks"].as_array().into_iter().flatten() {
             let via = if t["via"] == n["id"] {
                 String::new()
@@ -1264,7 +1560,8 @@ mod tests {
         let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        assert!(s.contains("1 yerden 0 gezildi"), "{s}");
+        assert!(s.contains("0/1 gezildi"), "{s}");
+        assert!(s.contains("İŞLER"), "{s}");
         assert!(s.contains("1. Kutuyu aç"), "{s}");
         // The task's place is shown on the right.
         assert!(s.contains("Ev › Oda › Kutu"), "{s}");

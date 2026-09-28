@@ -2219,8 +2219,46 @@ impl Inventory {
         crop: Option<crate::Crop>,
         note: Option<&str>,
     ) -> Result<Value> {
+        self.photo_add_with(reference, file, crop, note, false)
+    }
+
+    /// Adds a photo. A whole (uncropped) photo already attached whole to another node is
+    /// refused unless `whole` is set: a group photo belongs to the place, and the things in it
+    /// get crops. The mistake this stops — one drawer photo on nine items — only shows once
+    /// someone opens them.
+    pub fn photo_add_with(
+        &mut self,
+        reference: &str,
+        file: &Path,
+        crop: Option<crate::Crop>,
+        note: Option<&str>,
+        whole: bool,
+    ) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         let original = crate::photo::store_file(&self.photo_dir, file)?;
+        if crop.is_none() && !whole {
+            let others = ids(
+                &self.conn,
+                "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
+                  WHERE p.path = ?1 AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
+                  ORDER BY p.node_id",
+                params![original.to_string_lossy(), id],
+            )?;
+            if !others.is_empty() {
+                let nodes = others
+                    .iter()
+                    .map(|o| brief_json(&self.conn, *o))
+                    .collect::<Result<Vec<_>>>()?;
+                return Err(refused(
+                    format!(
+                        "this photo is already attached whole to {} other node(s); attach a --crop \
+                         of the part that shows node {id}, or pass --whole if the whole view is meant",
+                        others.len()
+                    ),
+                    json!({ "attached_to": nodes }),
+                ));
+            }
+        }
         let (stored, source) = match crop {
             Some(c) => (
                 crate::photo::store_crop(&self.photo_dir, &original, c)?,

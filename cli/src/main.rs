@@ -653,6 +653,7 @@ fn run(cli: Cli) -> Result<Value> {
             inv.suggest_with(&text.join(" "), tag.as_deref(), for_ref.as_deref())
         }
         Cmd::Regroup { reference } => inv.regroup(reference.as_deref()),
+        Cmd::Themes { reference } => inv.themes(reference.as_deref()),
         Cmd::Synonym(SynonymCmd::Add { words }) => inv.synonym_add(&words.join(", ")),
         Cmd::Synonym(SynonymCmd::List) => inv.synonym_list(),
         Cmd::Synonym(SynonymCmd::Remove { id }) => inv.synonym_remove(id),

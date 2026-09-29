@@ -13,3 +13,22 @@ Draft for the next release.
   the 3rd-person possessive (`hesap makinesi`, `kablo bağı`, `kontrol kalemi`) is also matched
   as a two-word term, so "hesap makinesi" finds the calculator rather than the machine-screw
   box. A two-word term adds to the score but never on its own makes `regroup` flag a move.
+- **`ev ui`'s details pane scrolls.** `J`/`K` and the mouse wheel over the pane move through
+  long contents (a drawer of 24 boxes showed 13 before); the title says when there is more,
+  and another node starts at the top.
+- **`ev ui` shows size and room.** A box's size, and its fill as a bar with the room it leaves
+  ("room (50% full)", "full (95%)"), muted when the contents changed after the fill was given.
+- **`ev ui` shows times as local and relative** ("2 h ago", or the local date and time),
+  not as UTC timestamps.
+
+## New
+
+- **A box shows where it stands.** Selecting a placed box draws its drawer's map with the box
+  highlighted; `ev show` carries the drawer's grid as `parent_grid`, and `room` for a node
+  with a fill.
+- **Suggestions in `ev ui`.** A drawer, or a box in it, lists what `ev regroup` says there:
+  things that would fit better in another box, and whether the box is mixed.
+- **Fill at a glance.** Rows of holders with a fill end in a four-step bar (`▮▮▯▯`).
+- **Tidier rows and details.** A row cut at the pane's edge ends in `…`, the list takes 55% of
+  the width, `×1` and the database id are no longer shown, and the key line names the detail
+  scroll and photo keys.

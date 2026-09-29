@@ -1687,6 +1687,9 @@ impl App {
             *last = last.clone().bold();
         }
         let mut lines = vec![Line::from(title), Line::raw("")];
+        if v["grid"].is_object() {
+            lines.extend(Self::grid_text(&v["grid"]));
+        }
         let mut field = |k: &str, val: Span<'static>| {
             lines.push(Line::from(vec![
                 Span::styled(format!("{k}: "), Style::new().fg(pal().muted)),
@@ -1764,11 +1767,11 @@ impl App {
         if !tags.is_empty() {
             field(t("tags"), Span::raw(tags.join(", ")));
         }
-        for p in n["photos"].as_array().into_iter().flatten() {
-            field(
-                t("photo"),
-                Span::raw(p.as_str().unwrap_or_default().to_string()),
-            );
+        // The photos themselves are on the panel above; their file paths only push the rest
+        // of the details out of view.
+        let photos = n["photos"].as_array().map_or(0, Vec::len);
+        if photos > 0 {
+            field(t("photos"), Span::raw(photos.to_string()));
         }
         let m = &v["marks"];
         if m["label"]["value"] == "needed" {
@@ -1857,43 +1860,46 @@ impl App {
                 lines.push(Line::from(spans));
             }
         }
-        let g = &v["grid"];
-        if g.is_object() {
-            lines.push(Line::raw(""));
-            lines.push(
-                Line::from(tf(
-                    "{}×{} grid, row 1 at the back",
-                    &[&g["cols"], &g["rows"]],
-                ))
-                .bold(),
-            );
-            for l in crate::render::grid_lines(g) {
-                // Free cells are dots; everything else names a box.
-                let spans: Vec<Span<'static>> = l
-                    .split_inclusive(' ')
-                    .map(|w| {
-                        if w.trim() == "·" {
-                            Span::styled(w.to_string(), Style::new().fg(pal().muted))
-                        } else {
-                            Span::styled(w.to_string(), Style::new().fg(pal().code))
-                        }
-                    })
-                    .collect();
-                lines.push(Line::from(spans));
-            }
-            let free = g["free"].as_array().map_or(0, Vec::len);
-            let names: Vec<&str> = g["free"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .collect();
-            lines.push(Line::from(Span::styled(
-                tf("free ({}): {}", &[&free, &names.join(" ")]),
-                Style::new().fg(pal().muted),
-            )));
-        }
         Text::from(lines)
+    }
+
+    /// A holder's grid for the details pane: title, the map with free cells muted, and the
+    /// free cells by name. It goes right under the path, above the fields and the contents,
+    /// since a drawer with a photo and many boxes leaves little room below.
+    fn grid_text(g: &Value) -> Vec<Line<'static>> {
+        let mut lines = vec![
+            Line::from(tf(
+                "{}×{} grid, row 1 at the back",
+                &[&g["cols"], &g["rows"]],
+            ))
+            .bold(),
+        ];
+        for l in crate::render::grid_lines(g) {
+            // Free cells are dots; everything else names a box.
+            let spans: Vec<Span<'static>> = l
+                .split_inclusive(' ')
+                .map(|w| {
+                    if w.trim() == "·" {
+                        Span::styled(w.to_string(), Style::new().fg(pal().muted))
+                    } else {
+                        Span::styled(w.to_string(), Style::new().fg(pal().code))
+                    }
+                })
+                .collect();
+            lines.push(Line::from(spans));
+        }
+        let names: Vec<&str> = g["free"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        lines.push(Line::from(Span::styled(
+            tf("free ({}): {}", &[&names.len(), &names.join(" ")]),
+            Style::new().fg(pal().muted),
+        )));
+        lines.push(Line::raw(""));
+        lines
     }
 
     fn handle(&mut self, input: Input) -> Result<()> {
@@ -2220,28 +2226,47 @@ mod tests {
 
     #[test]
     fn a_grid_holder_shows_its_map_and_a_box_its_cells() {
-        let (_dir, mut inv) = home();
-        for (name, kind, parent, code) in [
-            ("Oda", "room", "Ev", None),
-            ("Çekmece", "container", "Oda", Some("D")),
-            ("Kutu", "container", "D", Some("D-B1")),
-        ] {
+        let (dir, mut inv) = home();
+        let mut boxes: Vec<(String, &str, String, Option<String>)> = vec![
+            ("Oda".into(), "room", "Ev".into(), None),
+            (
+                "Çekmece".into(),
+                "container",
+                "Oda".into(),
+                Some("D".into()),
+            ),
+            ("Kutu".into(), "container", "D".into(), Some("D-B1".into())),
+        ];
+        // Enough boxes and photos that anything below the fields would be off screen.
+        for i in 0..25 {
+            boxes.push((format!("Dolgu {i}"), "container", "D".into(), None));
+        }
+        for (name, kind, parent, code) in boxes {
             inv.add(NewNode {
-                name: name.into(),
+                name,
                 kind: kind.into(),
-                parent: Some(parent.into()),
-                code: code.map(Into::into),
+                parent: Some(parent),
+                code,
                 ..Default::default()
             })
             .unwrap();
+        }
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(16, 16, image::Rgb([9, 9, 9]))
+            .save(&photo)
+            .unwrap();
+        for i in 0..8 {
+            inv.photo_add("D", &photo, None, Some(&format!("{i}")))
+                .unwrap();
         }
         inv.grid_set("D", 3, 2).unwrap();
         inv.cells_set(&[("D-B1".into(), "B1-C1".into())], false)
             .unwrap();
         let drawer = inv.resolve("D", false).unwrap();
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.picker = Some(Picker::halfblocks());
         app.reveal(drawer).unwrap();
-        let mut term = Terminal::new(TestBackend::new(140, 30)).unwrap();
+        let mut term = Terminal::new(TestBackend::new(140, 40)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("3×2 grid, row 1 at the back"), "{s}");

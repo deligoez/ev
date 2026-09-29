@@ -79,3 +79,11 @@ pub fn mode() -> Mode {
     MODE.with(Cell::get)
 }
 
+/// The palette of the current mode.
+pub fn pal() -> &'static Palette {
+    match mode() {
+        Mode::Dark => &DARK,
+        Mode::Light => &LIGHT,
+    }
+}
+

@@ -614,7 +614,7 @@ dependencies = [
 
 [[package]]
 name = "ev-core"
-version = "0.12.0-rc.1"
+version = "0.12.0-rc.2"
 dependencies = [
  "chrono",
  "image",

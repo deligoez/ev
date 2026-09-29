@@ -153,6 +153,7 @@ other exits 5).
 | `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
 | `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays) |
 | `ev photo add <ref> <file> --whole` | attach a whole photo that is already attached whole to another node; without `--whole` (and without `--crop`) that is refused with exit 5 and `details.attached_to` |
+| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--note n]` | one photo cut up among several nodes in one step: a crop for each `<ref>=`, and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `attached`: `[NodeRef + photo, crop, path]` |
 | `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 

@@ -20,13 +20,13 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Tabs, Wrap};
 use ratatui::{DefaultTerminal, Frame};
-use ratatui_image::picker::Picker;
+use ratatui_image::picker::{Picker, ProtocolType};
 use ratatui_image::protocol::Protocol;
 use ratatui_image::{Image, Resize};
 use serde_json::Value;
 
 use crate::i18n::{self, Lang, t, tf};
-use crate::input::{self, Input};
+use crate::input::{self, Graphics, Input};
 use crate::settings::{self, LangPref, Settings, ThemePref};
 use crate::theme::{self, Mode, pal};
 
@@ -319,6 +319,48 @@ struct App {
     /// The terminal sent a mode 2031 report, so it will say when the appearance changes.
     notified: bool,
     last_background_query: Instant,
+    /// Answers to the picture-protocol query so far; `None` when no query was sent.
+    probe: Option<ImageProbe>,
+}
+
+/// What the terminal said about pictures, gathered until its status report ends the answers.
+#[derive(Default)]
+struct ImageProbe {
+    kitty: bool,
+    sixel: bool,
+    cell: Option<(u16, u16)>,
+}
+
+impl ImageProbe {
+    /// The picker the answers call for, with ratatui-image's own preferences: kitty, then
+    /// iTerm2 where the terminal is known to speak it, then sixel; half blocks without a cell
+    /// size, since pictures are fitted to cells.
+    fn picker(&self) -> Picker {
+        let program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+        let konsole = std::env::var_os("KONSOLE_VERSION").is_some();
+        let wezterm = std::env::var_os("WEZTERM_EXECUTABLE").is_some();
+        let protocol = if konsole {
+            ProtocolType::Halfblocks
+        } else if self.kitty && !wezterm {
+            ProtocolType::Kitty
+        } else if wezterm || program == "iTerm.app" {
+            ProtocolType::Iterm2
+        } else if self.sixel {
+            ProtocolType::Sixel
+        } else {
+            ProtocolType::Halfblocks
+        };
+        match self.cell {
+            Some((w, h)) if w > 0 && h > 0 && protocol != ProtocolType::Halfblocks => {
+                // Deprecated only in favour of the stdio query, which is what this replaces.
+                #[allow(deprecated)]
+                let mut p = Picker::from_fontsize((w, h).into());
+                p.set_protocol_type(protocol);
+                p
+            }
+            _ => Picker::halfblocks(),
+        }
+    }
 }
 
 impl App {
@@ -374,6 +416,7 @@ impl App {
                 .and_then(|v| theme::from_colorfgbg(&v)),
             notified: false,
             last_background_query: Instant::now(),
+            probe: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1816,6 +1859,28 @@ impl App {
             Input::Key(k) => self.key(k),
             Input::Mouse(m) => self.mouse(m),
             Input::Appearance { mode, notified } => self.on_appearance(mode, notified),
+            Input::Graphics(g) => {
+                self.on_graphics(g);
+                Ok(())
+            }
+        }
+    }
+
+    /// Gathers the picture-protocol answers; the status report ends them, and the picker built
+    /// from them replaces the half-block one the screen started with.
+    fn on_graphics(&mut self, g: Graphics) {
+        let Some(probe) = self.probe.as_mut() else {
+            return;
+        };
+        match g {
+            Graphics::Kitty => probe.kitty = true,
+            Graphics::Attributes { sixel } => probe.sixel |= sixel,
+            Graphics::CellSize { width, height } => probe.cell = Some((width, height)),
+            Graphics::Done => {
+                self.picker = Some(probe.picker());
+                self.probe = None;
+                self.shown = None;
+            }
         }
     }
 
@@ -1855,6 +1920,9 @@ impl App {
             }
         });
         let mut parser = input::Parser::default();
+        if self.probe.is_some() {
+            send(input::IMAGE_QUERY);
+        }
         send(input::START);
         while !self.quit {
             terminal.draw(|f| self.draw(f)).map_err(io)?;

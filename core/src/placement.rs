@@ -104,3 +104,12 @@ pub(crate) struct Term {
     pub weight: f64,
 }
 
+fn weighted(ts: Vec<Term>, w: f64) -> Vec<Term> {
+    ts.into_iter()
+        .map(|mut t| {
+            t.weight = w;
+            t
+        })
+        .collect()
+}
+

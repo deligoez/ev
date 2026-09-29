@@ -23,3 +23,69 @@ fn cell_name(col: i64, row: i64) -> String {
     format!("{}{}", (b'A' + col as u8) as char, row + 1)
 }
 
+fn parse_cell(s: &str) -> Result<(i64, i64)> {
+    let s = s.trim();
+    let bad = || Error::Usage(format!("`{s}` is not a cell like A3"));
+    let mut chars = s.chars();
+    let letter = chars.next().ok_or_else(bad)?.to_ascii_uppercase();
+    if !letter.is_ascii_uppercase() {
+        return Err(bad());
+    }
+    let row: i64 = chars.as_str().parse().map_err(|_| bad())?;
+    if row < 1 {
+        return Err(bad());
+    }
+    Ok((i64::from(letter as u8 - b'A'), row - 1))
+}
+
+impl Cells {
+    /// `A3`, or a range between two opposite corners: `A3-B4`, `A3:B4` or `A3–B4`.
+    pub fn parse(s: &str) -> Result<Cells> {
+        let s = s.trim();
+        let (a, b) = match s.split_once(['-', ':', '–']) {
+            Some((a, b)) => (parse_cell(a)?, parse_cell(b)?),
+            None => {
+                let c = parse_cell(s)?;
+                (c, c)
+            }
+        };
+        Ok(Cells {
+            col: a.0.min(b.0),
+            row: a.1.min(b.1),
+            width: (a.0 - b.0).abs() + 1,
+            depth: (a.1 - b.1).abs() + 1,
+        })
+    }
+
+    /// The back-left cell, which a box's code is usually named after.
+    pub fn anchor(&self) -> String {
+        cell_name(self.col, self.row)
+    }
+
+    pub fn name(&self) -> String {
+        if self.width == 1 && self.depth == 1 {
+            self.anchor()
+        } else {
+            format!(
+                "{}-{}",
+                self.anchor(),
+                cell_name(self.col + self.width - 1, self.row + self.depth - 1)
+            )
+        }
+    }
+
+    fn contains(&self, col: i64, row: i64) -> bool {
+        col >= self.col
+            && col < self.col + self.width
+            && row >= self.row
+            && row < self.row + self.depth
+    }
+
+    fn overlaps(&self, o: &Cells) -> bool {
+        self.col < o.col + o.width
+            && o.col < self.col + self.width
+            && self.row < o.row + o.depth
+            && o.row < self.row + self.depth
+    }
+}
+

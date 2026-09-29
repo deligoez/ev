@@ -304,6 +304,7 @@ static TR: &[(&str, &str)] = &[
     ("{}%", "%{}"),
     ("tags", "etiketler"),
     ("photo", "foto"),
+    ("photos", "fotoğraflar"),
     ("label", "etiket"),
     ("to print", "basılacak"),
     ("printed", "basıldı"),

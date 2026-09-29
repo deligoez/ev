@@ -2427,17 +2427,32 @@ impl Inventory {
         place: Option<&str>,
         crops: &[(String, crate::Crop)],
         note: Option<&str>,
+        grid: Option<&crate::GridCorners>,
     ) -> Result<Value> {
         if place.is_none() && crops.is_empty() {
             return Err(Error::Usage(
                 "give at least one <ref>=x,y,w,h, or --place <ref>".into(),
             ));
         }
+        if grid.is_some() && place.is_none() {
+            return Err(Error::Usage(
+                "--grid reads the boxes of the --place grid; give --place too".into(),
+            ));
+        }
         let place = place.map(|p| resolve(&self.conn, p, false)).transpose()?;
-        let targets = crops
+        let mut targets = crops
             .iter()
             .map(|(r, c)| Ok((resolve(&self.conn, r, false)?, *c)))
             .collect::<Result<Vec<_>>>()?;
+        // Every box in the place's grid gets its crop from the grid's corners, unless a crop was
+        // given for it by hand.
+        if let (Some(pid), Some(corners)) = (place, grid) {
+            for (id, c) in crate::grid::grid_crops(&self.conn, pid, corners)? {
+                if !targets.iter().any(|(t, _)| *t == id) {
+                    targets.push((id, c));
+                }
+            }
+        }
         let original = crate::photo::store_file(&self.photo_dir, file)?;
         let original_text = original.to_string_lossy().into_owned();
         if let Some(pid) = place {

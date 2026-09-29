@@ -25,3 +25,8 @@ Draft notes for the next batched release; rename to the tag's version when relea
   a drawer or box photo get `--crop`s, and the whole view belongs to the place. `--whole` is the
   deliberate exception. `ev todo` and the Yapılacak tab list any whole photo shared by several
   records, so older slips of this kind show up too.
+- **Codes move with boxes.** `ev recode A=X B=Y …` gives several nodes new codes in one step,
+  checking uniqueness against the codes they end up with, so codes can be swapped or rotated when
+  boxes trade places in a grid. `ev edit code=` still refuses a code that is in use, which made a
+  rotation need a throwaway code. Every changed code needs its label printed again. All or
+  nothing.

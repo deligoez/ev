@@ -1,7 +1,18 @@
 [package]
 name = "ev-cli"
-version = "0.11.0"
+version = "0.12.0-rc.1"
 edition = "2024"
+description = "Agent-first home inventory"
+license = "MIT"
+repository = "https://github.com/deligoez/ev"
+homepage = "https://github.com/deligoez/ev"
+publish = false
+
+[package.metadata.dist]
+# Not on crates.io (publish = false), but released as binaries.
+dist = true
+# The Homebrew formula keeps the name it had: `brew install deligoez/tap/ev`.
+formula = "ev"
 
 [[bin]]
 name = "ev"

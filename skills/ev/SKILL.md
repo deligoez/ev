@@ -183,3 +183,11 @@ finds `K4x4-07-Ü`.
 - `ev history <ref>` — what happened to it.
 
 Field reference and payload shapes: `REFERENCE.md` in the ev repository.
+
+## Language and appearance
+
+`ev ui` and the readable output are English or Turkish; JSON is always English. When the person
+asks for the other language, or for a fixed light or dark look, change it for them with
+`ev settings language tr|en|auto` or `ev settings theme dark|light|auto` — an open `ev ui`
+follows within a second. `auto` is the default for both: the computer's language, and the
+terminal's own light or dark background, followed live.

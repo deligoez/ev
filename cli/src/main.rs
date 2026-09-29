@@ -740,11 +740,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Progress => inv.progress(),
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
-        Cmd::Focus {
-            file: Some(file),
-            note,
-            ..
-        } => inv.focus_file(&file, note.as_deref()),
+        Cmd::Focus { file, note, .. } if !file.is_empty() => inv.focus_file(&file, note.as_deref()),
         Cmd::Focus {
             reference,
             photo,
@@ -850,7 +846,7 @@ fn run(cli: Cli) -> Result<Value> {
                 .collect::<Result<Vec<_>>>()?;
             let mut v = inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref())?;
             if let (Some(note), Some(path)) = (show, v["marked"].as_str().map(PathBuf::from)) {
-                v["shown"] = inv.focus_file(&path, Some(&note))?["focus"].clone();
+                v["shown"] = inv.focus_file(&[path], Some(&note))?["focus"].clone();
             }
             Ok(v)
         }

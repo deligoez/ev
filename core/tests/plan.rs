@@ -69,6 +69,9 @@ fn units_are_the_innermost_labelled_places_and_loose_holders() {
 #[test]
 fn a_review_covers_everything_below_and_notices_later_changes() {
     let (_d, mut inv) = setup();
+    // No photo of the drawer: touring it needs one, or the person's word that none is needed.
+    assert_eq!(inv.review("K1-01", "toured", None).unwrap_err().code(), 5);
+    inv.photo_current("K1-01").unwrap();
     inv.review("K1-01", "toured", None).unwrap();
     let p = inv.progress().unwrap();
     assert_eq!(status_of(&p, "Alt"), "toured");

@@ -309,6 +309,16 @@ struct App {
     collapsed: HashSet<i64>,
     /// The time of the last `ev focus` request shown, so each is shown once.
     focus_seen: Option<String>,
+    /// Display settings, their file, and the file's modification time when last read, so a
+    /// change made with `ev settings` shows up without restarting.
+    prefs: Settings,
+    settings_path: Option<PathBuf>,
+    settings_stamp: Option<SystemTime>,
+    /// What the terminal said about its background, if anything yet.
+    detected: Option<Mode>,
+    /// The terminal sent a mode 2031 report, so it will say when the appearance changes.
+    notified: bool,
+    last_background_query: Instant,
 }
 
 impl App {
@@ -356,7 +366,16 @@ impl App {
             plan_title: String::new(),
             collapsed: HashSet::from([UNCLEAR_SECTION]),
             focus_seen: None,
+            prefs: Settings::default(),
+            settings_path: None,
+            settings_stamp: None,
+            detected: std::env::var("COLORFGBG")
+                .ok()
+                .and_then(|v| theme::from_colorfgbg(&v)),
+            notified: false,
+            last_background_query: Instant::now(),
         };
+        app.apply_prefs();
         // A request made before this UI started is old news.
         app.focus_seen = app.inv.focus_request()?["at"].as_str().map(str::to_string);
         app.rebuild()?;
@@ -381,8 +400,10 @@ impl App {
                 }
                 for u in &self.snap.unplaced {
                     let mut row = self.tree_row(u, 0);
-                    row.spans
-                        .insert(0, Span::styled("(yeri bilinmiyor) ", Style::new().fg(LOST)));
+                    row.spans.insert(
+                        0,
+                        Span::styled(t("(place unknown) "), Style::new().fg(pal().lost)),
+                    );
                     out.push(row);
                 }
                 out
@@ -397,7 +418,10 @@ impl App {
                         let to = m["to"]["path_text"].as_str().unwrap_or_default();
                         self.list_row(
                             &m["node"],
-                            vec![Span::styled(format!("  → {to}"), Style::new().fg(MARK))],
+                            vec![Span::styled(
+                                format!("  → {to}"),
+                                Style::new().fg(pal().mark),
+                            )],
                         )
                     })
                     .collect()
@@ -409,13 +433,13 @@ impl App {
                     for n in list.as_array().into_iter().flatten() {
                         let mut extra = vec![Span::styled(
                             format!("  [{}]", disposition_tr(d)),
-                            Style::new().fg(MARK),
+                            Style::new().fg(pal().mark),
                         )];
                         let parts = n["parts"].as_array().map_or(0, Vec::len);
                         if parts > 0 {
                             extra.push(Span::styled(
-                                format!("  (+{parts} parça)"),
-                                Style::new().fg(MUTED),
+                                tf("  (+{} parts)", &[&parts]),
+                                Style::new().fg(pal().muted),
                             ));
                         }
                         out.push(self.list_row(n, extra));
@@ -432,12 +456,12 @@ impl App {
                     .map(|m| {
                         let seen = m["last_seen"]["path_text"]
                             .as_str()
-                            .unwrap_or("hiç bilinmiyor");
+                            .unwrap_or(t("never known"));
                         self.list_row(
                             &m["node"],
                             vec![Span::styled(
-                                format!("  (son görüldüğü: {seen})"),
-                                Style::new().fg(LOST),
+                                tf("  (last seen: {})", &[&seen]),
+                                Style::new().fg(pal().lost),
                             )],
                         )
                     })
@@ -449,9 +473,9 @@ impl App {
                 for e in v["errands"].as_array().into_iter().flatten() {
                     let place = str_of(&e["place"], "name");
                     for (key, what, color) in [
-                        ("take", "götür", MARK),
-                        ("return", "iade", Color::Blue),
-                        ("collect", "geri al", Color::Blue),
+                        ("take", t("take"), pal().mark),
+                        ("return", t("return"), pal().blue),
+                        ("collect", t("collect"), pal().blue),
                     ] {
                         for n in e[key].as_array().into_iter().flatten() {
                             let mut row = self.list_row(n, Vec::new());
@@ -469,6 +493,7 @@ impl App {
             }
             Tab::Search => self.search_rows.clone(),
             Tab::Plan => self.todo_rows()?,
+            Tab::Settings => self.settings_rows(),
         };
         let idx = keep
             .and_then(|id| self.rows.iter().position(|r| r.id == id))
@@ -491,9 +516,9 @@ impl App {
         let v = self.inv.todo()?;
         let c = &v["counts"];
         let p = &v["progress"];
-        self.plan_title = format!(
-            " Yapılacak · {}/{} gezildi · {} iş · {} taşıma ",
-            p["toured"], p["units"], c["tasks"], c["moves"]
+        self.plan_title = tf(
+            " To do · {}/{} toured · {} tasks · {} moves ",
+            &[&p["toured"], &p["units"], &c["tasks"], &c["moves"]],
         );
         let mut out = Vec::new();
         let short = |path: &str| {
@@ -514,20 +539,20 @@ impl App {
             expandable: false,
             expanded: false,
         };
-        let muted = |s: String| Span::styled(s, Style::new().fg(MUTED));
+        let muted = |s: String| Span::styled(s, Style::new().fg(pal().muted));
         type Section<'a> = (&'static str, Color, Vec<Row>);
         let mut sections: Vec<Section> = Vec::new();
 
         let tasks = v["tasks"].as_array().cloned().unwrap_or_default();
         sections.push((
-            "İŞLER",
-            MARK,
+            t("TASKS"),
+            pal().mark,
             tasks
                 .iter()
                 .map(|t| {
                     let mut spans = vec![muted(format!("{}. ", t["position"]))];
                     if t["status"] == "doing" {
-                        spans.push(Span::styled("▶ ", Style::new().fg(MARK).bold()));
+                        spans.push(Span::styled("▶ ", Style::new().fg(pal().mark).bold()));
                     }
                     spans.push(Span::styled(str_of(t, "title"), Style::new().bold()));
                     spans.push(muted(format!("  — {}", str_of(t, "why"))));
@@ -536,8 +561,8 @@ impl App {
                 .collect(),
         ));
         sections.push((
-            "TAŞIMALAR",
-            Color::Blue,
+            t("MOVES"),
+            pal().blue,
             v["moves"]
                 .as_array()
                 .into_iter()
@@ -547,10 +572,10 @@ impl App {
                         m["node"]["id"].as_i64().unwrap_or(0),
                         vec![
                             Span::raw(str_of(&m["node"], "name")),
-                            Span::styled("  → ", Style::new().fg(MARK)),
+                            Span::styled("  → ", Style::new().fg(pal().mark)),
                             Span::styled(
                                 short(&str_of(&m["to"], "path_text")),
-                                Style::new().fg(CODE),
+                                Style::new().fg(pal().code),
                             ),
                         ],
                     )
@@ -561,35 +586,38 @@ impl App {
         for e in v["errands"].as_array().into_iter().flatten() {
             let place = str_of(&e["place"], "name");
             for (key, what) in [
-                ("take", "götür"),
-                ("return", "iade"),
-                ("collect", "geri al"),
+                ("take", t("take")),
+                ("return", t("return")),
+                ("collect", t("collect")),
             ] {
                 for n in e[key].as_array().into_iter().flatten() {
                     errands.push(item(
                         n["id"].as_i64().unwrap_or(0),
                         vec![
                             Span::styled(place.clone(), Style::new().bold()),
-                            Span::styled(format!(" · {what}  "), Style::new().fg(MARK)),
+                            Span::styled(format!(" · {what}  "), Style::new().fg(pal().mark)),
                             Span::raw(str_of(n, "name")),
                         ],
                     ));
                 }
             }
         }
-        sections.push(("GÖTÜR / İADE", Color::Blue, errands));
+        sections.push((t("TAKE / RETURN"), pal().blue, errands));
         let mut leaving = Vec::new();
         for (d, list) in v["disposals"].as_object().into_iter().flatten() {
             for n in list.as_array().into_iter().flatten() {
                 let mut spans = vec![
-                    Span::styled(format!("{}  ", disposition_tr(d)), Style::new().fg(MARK)),
+                    Span::styled(
+                        format!("{}  ", disposition_tr(d)),
+                        Style::new().fg(pal().mark),
+                    ),
                     Span::raw(str_of(n, "name")),
                 ];
                 if let Some(st) = n["sale"]["value"].as_str() {
                     let st = if st == "listed" {
-                        "ilanda"
+                        t("listed")
                     } else {
-                        "ayrıldı"
+                        t("reserved")
                     };
                     let price = n["sale"]["amount"]
                         .as_i64()
@@ -597,17 +625,17 @@ impl App {
                         .unwrap_or_default();
                     spans.push(Span::styled(
                         format!("  [{st}{price}]"),
-                        Style::new().fg(QTY).bold(),
+                        Style::new().fg(pal().qty).bold(),
                     ));
                 }
                 spans.push(muted(format!("  {}", within(&str_of(n, "path_text")))));
                 leaving.push(item(n["id"].as_i64().unwrap_or(0), spans));
             }
         }
-        sections.push(("ÇIKIŞ", MARK, leaving));
+        sections.push((t("LEAVING"), pal().mark, leaving));
         sections.push((
-            "ETİKET BASILACAK",
-            CODE,
+            t("LABELS TO PRINT"),
+            pal().code,
             v["labels"]
                 .as_array()
                 .into_iter()
@@ -616,7 +644,7 @@ impl App {
                     item(
                         n["id"].as_i64().unwrap_or(0),
                         vec![
-                            Span::styled(str_of(n, "code"), Style::new().fg(CODE).bold()),
+                            Span::styled(str_of(n, "code"), Style::new().fg(pal().code).bold()),
                             muted(format!("  {}", n["theme"].as_str().unwrap_or(""))),
                         ],
                     )
@@ -624,8 +652,8 @@ impl App {
                 .collect(),
         ));
         sections.push((
-            "ALINACAK",
-            QTY,
+            t("TO GET"),
+            pal().qty,
             v["needs"]
                 .as_array()
                 .into_iter()
@@ -633,11 +661,11 @@ impl App {
                 .map(|n| {
                     let mut spans = Vec::new();
                     if let Some(q) = n["qty"].as_i64() {
-                        spans.push(Span::styled(format!("{q} × "), Style::new().fg(QTY)));
+                        spans.push(Span::styled(format!("{q} × "), Style::new().fg(pal().qty)));
                     }
                     spans.push(Span::raw(str_of(n, "text")));
                     if n["make"] == true {
-                        spans.push(muted("  (bas / yap)".into()));
+                        spans.push(muted(t("  (print / make)").into()));
                     }
                     if let Some(p) = n["for"]["path_text"].as_str() {
                         spans.push(muted(format!("  → {}", short(p))));
@@ -658,8 +686,8 @@ impl App {
                         spans.push(s);
                     }
                     let place = match n["last_seen"]["path_text"].as_str() {
-                        Some(p) => format!("  son görüldüğü: {}", short(p)),
-                        None if n["node"].is_object() => "  (hiç bilinmiyor)".into(),
+                        Some(p) => tf("  last seen: {}", &[&short(p)]),
+                        None if n["node"].is_object() => t("  (never known)").into(),
                         None => format!("  {}", within(&str_of(node, "path_text"))),
                     };
                     spans.push(muted(place));
@@ -668,54 +696,58 @@ impl App {
                 .collect()
         };
         sections.push((
-            "TAMİR",
-            LOST,
+            t("REPAIRS"),
+            pal().lost,
             plain("repairs", &|n| {
                 n["note"]
                     .as_str()
-                    .map(|x| Span::styled(format!("  ({x})"), Style::new().fg(LOST)))
+                    .map(|x| Span::styled(format!("  ({x})"), Style::new().fg(pal().lost)))
             }),
         ));
         sections.push((
-            "SON KULLANMA",
-            LOST,
+            t("USE-BY"),
+            pal().lost,
             plain("expiring", &|n| {
                 let days = n["days_left"].as_i64().unwrap_or(0);
                 let (text, color) = if days < 0 {
-                    (format!("  {} · geçti", str_of(n, "expires")), LOST)
+                    (tf("  {} · past", &[&str_of(n, "expires")]), pal().lost)
                 } else {
                     (
-                        format!("  {} · {days} gün", str_of(n, "expires")),
-                        FURNITURE,
+                        tf("  {} · {} days", &[&str_of(n, "expires"), &days]),
+                        pal().furniture,
                     )
                 };
                 Some(Span::styled(text, Style::new().fg(color).bold()))
             }),
         ));
-        sections.push(("KAYIP", LOST, plain("lost", &|_| None)));
-        sections.push(("İÇİ BİLİNMİYOR", FURNITURE, plain("unknown", &|_| None)));
+        sections.push((t("LOST"), pal().lost, plain("lost", &|_| None)));
         sections.push((
-            "GEZİLDİKTEN SONRA DEĞİŞTİ",
-            FURNITURE,
+            t("CONTENTS UNKNOWN"),
+            pal().furniture,
+            plain("unknown", &|_| None),
+        ));
+        sections.push((
+            t("CHANGED SINCE TOURED"),
+            pal().furniture,
             plain("stale", &|_| None),
         ));
         sections.push((
-            "FOTOĞRAF GEREKLİ",
-            CODE,
+            t("PHOTO NEEDED"),
+            pal().code,
             plain("photos", &|n| {
                 let text = if n["photo_reason"] == "none" {
-                    "  hiç fotoğrafı yok".to_string()
+                    t("  no photo at all").to_string()
                 } else {
-                    format!(
-                        "  fotoğraftan sonra değişti ({})",
-                        n["changed_at"]
+                    tf(
+                        "  changed after the photo ({})",
+                        &[&n["changed_at"]
                             .as_str()
                             .unwrap_or("")
                             .get(..10)
-                            .unwrap_or("")
+                            .unwrap_or("")],
                     )
                 };
-                Some(Span::styled(text, Style::new().fg(CODE)))
+                Some(Span::styled(text, Style::new().fg(pal().code)))
             }),
         ));
         let mut shared = Vec::new();
@@ -731,15 +763,19 @@ impl App {
                 first,
                 vec![
                     Span::styled(
-                        format!("{} kayıtta aynı tam fotoğraf  ", names.len()),
-                        Style::new().fg(LOST).bold(),
+                        tf("same whole photo on {} records  ", &[&names.len()]),
+                        Style::new().fg(pal().lost).bold(),
                     ),
                     muted(names.join(", ")),
                 ],
             ));
         }
-        sections.push(("KESİLMEMİŞ ORTAK FOTOĞRAF", LOST, shared));
-        sections.push(("BELİRSİZ KAYITLAR", MUTED, plain("unclear", &|_| None)));
+        sections.push((t("UNCUT SHARED PHOTO"), pal().lost, shared));
+        sections.push((
+            t("UNCLEAR RECORDS"),
+            pal().muted,
+            plain("unclear", &|_| None),
+        ));
 
         for (i, (title, color, rows)) in sections.into_iter().enumerate() {
             if rows.is_empty() {
@@ -752,7 +788,7 @@ impl App {
                 depth: 0,
                 spans: vec![
                     Span::styled(title, Style::new().fg(color).bold()),
-                    Span::styled(format!("  {}", rows.len()), Style::new().fg(MUTED)),
+                    Span::styled(format!("  {}", rows.len()), Style::new().fg(pal().muted)),
                 ],
                 expandable: true,
                 expanded: open,
@@ -771,6 +807,194 @@ impl App {
         self.rebuild()
     }
 
+    /// The appearance in use: the fixed one, or what the terminal reported (dark until it
+    /// says otherwise).
+    fn effective_mode(&self) -> Mode {
+        match self.prefs.theme {
+            ThemePref::Fixed(m) => m,
+            ThemePref::Auto => self.detected.unwrap_or(Mode::Dark),
+        }
+    }
+
+    /// Makes the language and palette follow the settings; rows keep their colours and words,
+    /// so callers rebuild afterwards.
+    fn apply_prefs(&mut self) {
+        i18n::set_lang(self.prefs.language.effective());
+        theme::set_mode(self.effective_mode());
+    }
+
+    fn set_prefs(&mut self, prefs: Settings) -> Result<()> {
+        self.prefs = prefs;
+        self.apply_prefs();
+        self.rebuild()
+    }
+
+    /// Reads the settings file again when it changed on disk (`ev settings` from another
+    /// terminal, or an edit by hand).
+    fn reload_settings(&mut self) -> Result<()> {
+        let Some(path) = self.settings_path.clone() else {
+            return Ok(());
+        };
+        let stamp = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+        if stamp == self.settings_stamp {
+            return Ok(());
+        }
+        self.settings_stamp = stamp;
+        let prefs = Settings::load_from(&path);
+        if prefs != self.prefs {
+            self.set_prefs(prefs)?;
+        }
+        Ok(())
+    }
+
+    /// The terminal told us its appearance; switch palettes if it changed.
+    fn on_appearance(&mut self, mode: Mode, notified: bool) -> Result<()> {
+        self.notified |= notified;
+        if self.detected == Some(mode) {
+            return Ok(());
+        }
+        self.detected = Some(mode);
+        let before = theme::mode();
+        self.apply_prefs();
+        if theme::mode() != before || self.tab == Tab::Settings {
+            self.rebuild()?;
+        }
+        Ok(())
+    }
+
+    fn language_label(&self) -> String {
+        match self.prefs.language {
+            LangPref::Auto => tf(
+                "Automatic ({})",
+                &[&tf("system: {}", &[&i18n::system_lang().native_name()])],
+            ),
+            LangPref::Fixed(l) => l.native_name().to_string(),
+        }
+    }
+
+    fn theme_label(&self) -> String {
+        let name = |m: Mode| match m {
+            Mode::Dark => t("dark"),
+            Mode::Light => t("light"),
+        };
+        match self.prefs.theme {
+            ThemePref::Auto => {
+                let seen = self.detected.map_or(t("not reported yet"), name);
+                tf("Automatic ({})", &[&tf("terminal: {}", &[&seen])])
+            }
+            ThemePref::Fixed(Mode::Dark) => t("Dark").to_string(),
+            ThemePref::Fixed(Mode::Light) => t("Light").to_string(),
+        }
+    }
+
+    fn settings_rows(&self) -> Vec<Row> {
+        let row = |id: i64, name: &'static str, value: String| Row {
+            id,
+            depth: 0,
+            spans: vec![
+                Span::styled(format!("{name}: "), Style::new().bold()),
+                Span::styled(value, Style::new().fg(pal().code)),
+            ],
+            expandable: false,
+            expanded: false,
+        };
+        vec![
+            row(SETTING_LANGUAGE, t("Language"), self.language_label()),
+            row(SETTING_THEME, t("Appearance"), self.theme_label()),
+        ]
+    }
+
+    /// The right pane on the Settings tab: what the selected setting does and its options.
+    fn settings_text(&self) -> Text<'static> {
+        let muted = |s: String| Line::from(Span::styled(s, Style::new().fg(pal().muted)));
+        let mut lines = Vec::new();
+        match self.selected_id() {
+            Some(SETTING_LANGUAGE) => {
+                lines.push(Line::from(t("Language")).bold());
+                lines.push(Line::raw(""));
+                lines.push(Line::raw(t(
+                    "Automatic follows the computer's language, and English when that language is not available.",
+                )));
+                lines.push(Line::raw(""));
+                for p in LangPref::ALL {
+                    let name = match p {
+                        LangPref::Auto => t("Automatic").to_string(),
+                        LangPref::Fixed(l) => l.native_name().to_string(),
+                    };
+                    let mark = if p == self.prefs.language {
+                        "● "
+                    } else {
+                        "○ "
+                    };
+                    lines.push(Line::raw(format!("  {mark}{name}")));
+                }
+            }
+            Some(SETTING_THEME) => {
+                lines.push(Line::from(t("Appearance")).bold());
+                lines.push(Line::raw(""));
+                lines.push(Line::raw(t(
+                    "Automatic follows the terminal's light or dark background and switches with it while ev ui is open.",
+                )));
+                lines.push(Line::raw(""));
+                for p in ThemePref::ALL {
+                    let name = match p {
+                        ThemePref::Auto => t("Automatic"),
+                        ThemePref::Fixed(Mode::Dark) => t("Dark"),
+                        ThemePref::Fixed(Mode::Light) => t("Light"),
+                    };
+                    let mark = if p == self.prefs.theme {
+                        "● "
+                    } else {
+                        "○ "
+                    };
+                    lines.push(Line::raw(format!("  {mark}{name}")));
+                }
+                if !self.notified {
+                    lines.push(Line::raw(""));
+                    lines.push(muted(t(
+                        "This terminal does not announce appearance changes, so ev ui asks it every few seconds.",
+                    ).to_string()));
+                }
+            }
+            _ => {}
+        }
+        lines.push(Line::raw(""));
+        lines.push(muted(
+            t("Enter or → picks the next option, ← the previous one.").to_string(),
+        ));
+        if let Some(p) = &self.settings_path {
+            lines.push(muted(tf("Saved in {}", &[&p.display()])));
+        }
+        lines.push(muted(t(
+            "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto",
+        ).to_string()));
+        Text::from(lines)
+    }
+
+    /// Moves a setting to its next (or previous) option, saves it and shows the result.
+    fn cycle_setting(&mut self, id: i64, forward: bool) -> Result<()> {
+        let mut prefs = self.prefs;
+        match id {
+            SETTING_LANGUAGE => {
+                prefs.language = settings::cycle(&LangPref::ALL, prefs.language, forward)
+            }
+            SETTING_THEME => prefs.theme = settings::cycle(&ThemePref::ALL, prefs.theme, forward),
+            _ => return Ok(()),
+        }
+        self.set_prefs(prefs)?;
+        self.status = match &self.settings_path {
+            Some(path) => match prefs.save_to(path) {
+                Ok(()) => {
+                    self.settings_stamp = std::fs::metadata(path).and_then(|m| m.modified()).ok();
+                    t("settings saved").to_string()
+                }
+                Err(e) => tf("could not save the settings: {}", &[&e]),
+            },
+            None => String::new(),
+        };
+        Ok(())
+    }
+
     fn tree_row(&self, n: &Value, depth: usize) -> Row {
         let id = n["id"].as_i64().unwrap_or_default();
         let kids = children(n).len();
@@ -779,8 +1003,8 @@ impl App {
         let total = n["items"].as_i64().unwrap_or(0);
         if total > 0 {
             spans.push(Span::styled(
-                format!("  {total} eşya"),
-                Style::new().fg(MUTED),
+                tf("  {} items", &[&total]),
+                Style::new().fg(pal().muted),
             ));
         }
         Row {
@@ -849,7 +1073,7 @@ impl App {
             }
         }
         self.snap = next;
-        self.status = format!("güncellendi {}", clock_now());
+        self.status = tf("updated {}", &[&clock_now()]);
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
@@ -876,9 +1100,9 @@ impl App {
             self.photo_idx = (n - 1).max(0) as usize;
             self.fullscreen = true;
         }
-        self.status = format!(
-            "gösteriliyor: {}",
-            self.snap.label.get(&id).cloned().unwrap_or_default()
+        self.status = tf(
+            "showing: {}",
+            &[&self.snap.label.get(&id).cloned().unwrap_or_default()],
         );
         Ok(())
     }
@@ -898,7 +1122,10 @@ impl App {
             .flatten()
             .map(|n| self.list_row(n, marker_spans(n, &self.snap)))
             .collect();
-        self.status = format!("\"{}\": {} sonuç", self.query, self.search_rows.len());
+        self.status = tf(
+            "\"{}\": {} results",
+            &[&self.query, &self.search_rows.len()],
+        );
         Ok(())
     }
 
@@ -946,6 +1173,9 @@ impl App {
         let Some(id) = self.selected_id() else {
             return Ok(());
         };
+        if self.tab == Tab::Settings {
+            return self.cycle_setting(id, true);
+        }
         if id < 0 {
             return self.toggle_section(id);
         }
@@ -962,7 +1192,7 @@ impl App {
     fn clear_search(&mut self) -> Result<()> {
         self.query.clear();
         self.search_rows.clear();
-        self.status = "arama temizlendi".into();
+        self.status = t("search cleared").into();
         if self.tab == Tab::Search {
             self.rebuild()?;
         }
@@ -1044,8 +1274,10 @@ impl App {
             KeyCode::Home | KeyCode::Char('g') => self.select(0)?,
             KeyCode::End | KeyCode::Char('G') => self.select(usize::MAX)?,
             KeyCode::Tab => self.switch(Tab::from_index(self.tab.index() + 1))?,
-            KeyCode::BackTab => self.switch(Tab::from_index(self.tab.index() + TABS.len() - 1))?,
-            KeyCode::Char(c @ '1'..='7') => {
+            KeyCode::BackTab => {
+                self.switch(Tab::from_index(self.tab.index() + Tab::ALL.len() - 1))?
+            }
+            KeyCode::Char(c @ '1'..='8') => {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
             KeyCode::Char('/') => {
@@ -1058,6 +1290,18 @@ impl App {
             KeyCode::Char('O') => self.open_external(),
             KeyCode::Char('r') => self.rotate(1),
             KeyCode::Char('R') => self.rotate(3),
+            KeyCode::Right | KeyCode::Char('l' | ' ') | KeyCode::Enter
+                if self.tab == Tab::Settings =>
+            {
+                if let Some(id) = self.selected_id() {
+                    self.cycle_setting(id, true)?;
+                }
+            }
+            KeyCode::Left | KeyCode::Char('h') if self.tab == Tab::Settings => {
+                if let Some(id) = self.selected_id() {
+                    self.cycle_setting(id, false)?;
+                }
+            }
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter => {
                 if let Some(id) = self.selected_id() {
                     if id < 0 {
@@ -1186,7 +1430,7 @@ impl App {
             .and_then(|n| n["id"].as_i64())
             .and_then(|id| self.inv.photo_list(&id.to_string()).ok())
             .and_then(|v| v["photos"][idx]["note"].as_str().map(str::to_string));
-        let mut title = format!(" {name} · Fotoğraf {}/{count} ", idx + 1);
+        let mut title = tf(" {} · Photo {}/{} ", &[&name, &(idx + 1), &count]);
         if let Some(n) = note {
             title.push_str(&format!("· {n} "));
         }
@@ -1197,13 +1441,18 @@ impl App {
             self.render_photo(f, path, inner);
         } else {
             f.render_widget(
-                Paragraph::new("(bu terminal resim gösteremiyor — O ile dışarıda aç)").fg(MUTED),
+                Paragraph::new(t(
+                    "(this terminal cannot show pictures — press O to open it outside)",
+                ))
+                .fg(pal().muted),
                 inner,
             );
         }
         f.render_widget(
-            Paragraph::new("[ ] ← → teker gez · r/R döndür · O dışarıda aç · Esc/o/tık kapat")
-                .fg(MUTED),
+            Paragraph::new(t(
+                "[ ] ← → step · r/R rotate · O open outside · Esc/o/click close",
+            ))
+            .fg(pal().muted),
             bottom,
         );
     }
@@ -1228,15 +1477,13 @@ impl App {
         ])
         .areas(top);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                brand,
-                Style::new().bold().fg(Color::Black).bg(Color::Cyan),
-            )),
+            Paragraph::new(Span::styled(brand, pal().brand.bold())),
             brand_area,
         );
         self.tabs_area = top;
         let tabs = Tabs::new(
-            TABS.iter()
+            tab_titles()
+                .iter()
                 .enumerate()
                 .map(|(i, t)| format!("{} {t}", i + 1)),
         )
@@ -1251,7 +1498,7 @@ impl App {
         let now = Instant::now();
         self.changed
             .retain(|_, t| now.duration_since(*t) < HIGHLIGHT_FOR);
-        let flash = Style::new().bg(Color::Yellow).fg(Color::Black);
+        let flash = pal().flash;
         let items: Vec<ListItem> = self
             .rows
             .iter()
@@ -1263,7 +1510,7 @@ impl App {
                 };
                 let mut spans = vec![
                     Span::raw("  ".repeat(r.depth)),
-                    Span::styled(marker, Style::new().fg(MUTED)),
+                    Span::styled(marker, Style::new().fg(pal().muted)),
                 ];
                 spans.extend(r.spans.iter().cloned());
                 if self.changed.contains_key(&r.id) {
@@ -1273,11 +1520,11 @@ impl App {
             })
             .collect();
         let title = if self.tab == Tab::Search && self.has_search() {
-            format!(" Ara: \"{}\" · ✕ temizle (x) ", self.query)
+            tf(" Search: \"{}\" · ✕ clear (x) ", &[&self.query])
         } else if self.tab == Tab::Plan {
             self.plan_title.clone()
         } else {
-            format!(" {} ", TABS[self.tab.index()])
+            format!(" {} ", tab_titles()[self.tab.index()])
         };
         let list = List::new(items)
             .block(Block::bordered().title(title))
@@ -1290,10 +1537,9 @@ impl App {
                 let count = self.photo_count();
                 let [img_area, rest] =
                     Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
-                let block = Block::bordered().title(format!(
-                    " Fotoğraf {}/{}  ([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
-                    self.photo_idx.min(count - 1) + 1,
-                    count
+                let block = Block::bordered().title(tf(
+                    " Photo {}/{}  ([ ] step · r rotate · o full screen · O open outside) ",
+                    &[&(self.photo_idx.min(count - 1) + 1), &count],
                 ));
                 let inner = block.inner(img_area);
                 self.photo_area = img_area;
@@ -1303,23 +1549,33 @@ impl App {
             }
             _ => right,
         };
-        let details = Paragraph::new(self.details_text())
-            .block(Block::bordered().title(" Ayrıntı "))
+        let text = if self.tab == Tab::Settings {
+            self.settings_text()
+        } else {
+            self.details_text()
+        };
+        let details = Paragraph::new(text)
+            .block(Block::bordered().title(t(" Details ")))
             .wrap(Wrap { trim: false });
         f.render_widget(details, text_area);
 
         let help = if self.searching {
-            format!(
-                "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",
-                self.query
+            tf(
+                "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
+                &[&self.query],
+            )
+        } else if self.tab == Tab::Settings {
+            tf(
+                "↑↓ move · Enter/→ next option · ← previous option · Tab/1-8 tabs · q quit    {}",
+                &[&self.status],
             )
         } else {
-            format!(
-                "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-7 sekme · / ara · q çık    {}",
-                self.status
+            tf(
+                "↑↓ move · → open · ← close · Enter/double-click go · Tab/1-8 tabs · / search · q quit    {}",
+                &[&self.status],
             )
         };
-        f.render_widget(Paragraph::new(help).fg(MUTED), bottom);
+        f.render_widget(Paragraph::new(help).fg(pal().muted), bottom);
     }
 
     fn photo_count(&self) -> usize {
@@ -1371,13 +1627,16 @@ impl App {
         }
         match &self.shown {
             Some((p, _, _, proto)) if p == path => f.render_widget(Image::new(proto), area),
-            _ => f.render_widget(Paragraph::new("(fotoğraf açılamadı)").fg(MUTED), area),
+            _ => f.render_widget(
+                Paragraph::new(t("(the photo could not be opened)")).fg(pal().muted),
+                area,
+            ),
         }
     }
 
     fn details_text(&self) -> Text<'static> {
         let Some(v) = &self.details else {
-            return Text::from("(boş)");
+            return Text::from(t("(empty)"));
         };
         let n = &v["node"];
         let mut title = path_spans(n["path_text"].as_str().unwrap_or_default());
@@ -1387,59 +1646,65 @@ impl App {
         let mut lines = vec![Line::from(title), Line::raw("")];
         let mut field = |k: &str, val: Span<'static>| {
             lines.push(Line::from(vec![
-                Span::styled(format!("{k}: "), Style::new().fg(MUTED)),
+                Span::styled(format!("{k}: "), Style::new().fg(pal().muted)),
                 val,
             ]))
         };
-        field("tür", Span::raw(str_of(n, "kind")));
+        field(t("kind"), Span::raw(kind_name(&str_of(n, "kind"))));
         field("id", Span::raw(n["id"].to_string()));
         if let Some(c) = n["code"].as_str() {
-            field("kod", Span::styled(c.to_string(), Style::new().fg(CODE)));
+            field(
+                t("code"),
+                Span::styled(c.to_string(), Style::new().fg(pal().code)),
+            );
         }
         if let Some(q) = n["qty"].as_i64() {
-            field("adet", Span::styled(q.to_string(), Style::new().fg(QTY)));
+            field(
+                t("qty"),
+                Span::styled(q.to_string(), Style::new().fg(pal().qty)),
+            );
         }
         let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
         match n["state"].as_str() {
             Some("candidate") => field(
-                "durum",
-                Span::styled(format!("aday ({d})"), Style::new().fg(MARK)),
+                t("state"),
+                Span::styled(tf("candidate ({})", &[&d]), Style::new().fg(pal().mark)),
             ),
             Some("gone") => field(
-                "durum",
-                Span::styled(format!("gitti ({d})"), Style::new().fg(MUTED)),
+                t("state"),
+                Span::styled(tf("gone ({})", &[&d]), Style::new().fg(pal().muted)),
             ),
             _ => {}
         }
         if n["lost"] == true {
             let seen = v["last_seen"]["path_text"]
                 .as_str()
-                .unwrap_or("hiç bilinmiyor");
+                .unwrap_or(t("never known"));
             field(
-                "kayıp",
-                Span::styled(format!("son görüldüğü: {seen}"), Style::new().fg(LOST)),
+                t("lost"),
+                Span::styled(tf("last seen: {}", &[&seen]), Style::new().fg(pal().lost)),
             );
         }
         if let Some(p) = v["pending"]["path_text"].as_str() {
             field(
-                "gidecek",
-                Span::styled(p.to_string(), Style::new().fg(MARK)),
+                t("moving to"),
+                Span::styled(p.to_string(), Style::new().fg(pal().mark)),
             );
         }
         for (k, key) in [
-            ("götürülecek", "to"),
-            ("sahibi", "owner"),
-            ("ödünçte", "with"),
-            ("tema", "theme"),
-            ("not", "note"),
-            ("adres", "address"),
+            (t("to take to"), "to"),
+            (t("owner"), "owner"),
+            (t("lent to"), "with"),
+            (t("theme"), "theme"),
+            (t("note"), "note"),
+            (t("address"), "address"),
         ] {
             if let Some(x) = n[key].as_str() {
                 field(k, Span::raw(x.to_string()));
             }
         }
         if let Some(fill) = n["fill"].as_i64() {
-            field("doluluk", Span::raw(format!("%{fill}")));
+            field(t("fill"), Span::raw(tf("{}%", &[&fill])));
         }
         let tags: Vec<&str> = n["tags"]
             .as_array()
@@ -1448,39 +1713,42 @@ impl App {
             .filter_map(Value::as_str)
             .collect();
         if !tags.is_empty() {
-            field("etiketler", Span::raw(tags.join(", ")));
+            field(t("tags"), Span::raw(tags.join(", ")));
         }
         for p in n["photos"].as_array().into_iter().flatten() {
             field(
-                "foto",
+                t("photo"),
                 Span::raw(p.as_str().unwrap_or_default().to_string()),
             );
         }
         let m = &v["marks"];
         if m["label"]["value"] == "needed" {
             field(
-                "etiket",
-                Span::styled("basılacak", Style::new().fg(CODE).bold()),
+                t("label"),
+                Span::styled(t("to print"), Style::new().fg(pal().code).bold()),
             );
         }
         if m["broken"].is_object() {
             let note = m["broken"]["note"].as_str().unwrap_or("");
             field(
-                "bozuk",
-                Span::styled(format!("tamir bekliyor {note}"), Style::new().fg(LOST)),
+                t("broken"),
+                Span::styled(
+                    tf("awaiting repair {}", &[&note]),
+                    Style::new().fg(pal().lost),
+                ),
             );
         }
         if let Some(d) = m["expires"]["value"].as_str() {
             field(
-                "son kullanma",
-                Span::styled(d.to_string(), Style::new().fg(FURNITURE)),
+                t("use-by"),
+                Span::styled(d.to_string(), Style::new().fg(pal().furniture)),
             );
         }
         if let Some(st) = m["sale"]["value"].as_str() {
             let st = if st == "listed" {
-                "ilanda"
+                t("listed")
             } else {
-                "ayrıldı"
+                t("reserved")
             };
             let price = m["sale"]["amount"]
                 .as_i64()
@@ -1491,8 +1759,8 @@ impl App {
                 .map(|w| format!(" · {w}"))
                 .unwrap_or_default();
             field(
-                "satış",
-                Span::styled(format!("{st}{price}{at}"), Style::new().fg(QTY)),
+                t("sale"),
+                Span::styled(format!("{st}{price}{at}"), Style::new().fg(pal().qty)),
             );
         }
         for nd in v["needs"].as_array().into_iter().flatten() {
@@ -1501,36 +1769,39 @@ impl App {
                 .map(|q| format!("{q} × "))
                 .unwrap_or_default();
             field(
-                "alınacak",
-                Span::styled(format!("{q}{}", str_of(nd, "text")), Style::new().fg(QTY)),
+                t("to get"),
+                Span::styled(
+                    format!("{q}{}", str_of(nd, "text")),
+                    Style::new().fg(pal().qty),
+                ),
             );
         }
-        for t in v["tasks"].as_array().into_iter().flatten() {
-            let via = if t["via"] == n["id"] {
+        for task in v["tasks"].as_array().into_iter().flatten() {
+            let via = if task["via"] == n["id"] {
                 String::new()
             } else {
-                let place = t["via"]
+                let place = task["via"]
                     .as_i64()
                     .and_then(|i| self.snap.label.get(&i).cloned())
                     .unwrap_or_default();
-                format!("  ({place} üzerinden)")
+                tf("  (via {})", &[&place])
             };
             field(
-                "görev",
+                t("task"),
                 Span::styled(
-                    format!("{}. {}{via}", t["position"], str_of(t, "title")),
-                    Style::new().fg(MARK),
+                    format!("{}. {}{via}", task["position"], str_of(task, "title")),
+                    Style::new().fg(pal().mark),
                 ),
             );
         }
         field(
-            "güncellendi",
-            Span::styled(str_of(n, "updated_at"), Style::new().fg(MUTED)),
+            t("updated"),
+            Span::styled(str_of(n, "updated_at"), Style::new().fg(pal().muted)),
         );
         let kids = v["children"].as_array().cloned().unwrap_or_default();
         if !kids.is_empty() {
             lines.push(Line::raw(""));
-            lines.push(Line::from(format!("İçindekiler ({})", kids.len())).bold());
+            lines.push(Line::from(tf("Contents ({})", &[&kids.len()])).bold());
             for c in &kids {
                 let mut spans = vec![Span::raw("  ")];
                 spans.extend(node_spans(c, &self.snap));
@@ -1542,16 +1813,47 @@ impl App {
 
     fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         let io = |e: std::io::Error| Error::Internal(format!("terminal: {e}"));
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        std::thread::spawn(move || {
+            use std::io::Read;
+            let mut stdin = std::io::stdin();
+            let mut buf = [0u8; 4096];
+            loop {
+                match stdin.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(buf[..n].to_vec()).is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                    Err(_) => break,
+                }
+            }
+        });
+        let mut parser = input::Parser::default();
+        send(input::START);
         while !self.quit {
             terminal.draw(|f| self.draw(f)).map_err(io)?;
-            if event::poll(POLL).map_err(io)? {
-                match event::read().map_err(io)? {
-                    Event::Key(k) if k.kind == KeyEventKind::Press => self.key(k)?,
-                    Event::Mouse(m) => self.mouse(m)?,
-                    _ => {}
+            match rx.recv_timeout(POLL) {
+                Ok(bytes) => {
+                    let mut inputs = parser.feed(&bytes);
+                    while parser.pending() {
+                        match rx.recv_timeout(ESC_WAIT) {
+                            Ok(more) => inputs.extend(parser.feed(&more)),
+                            Err(_) => inputs.extend(parser.flush()),
+                        }
+                    }
+                    for i in inputs {
+                        self.handle(i)?;
+                    }
                 }
-            } else {
-                self.refresh_if_changed()?;
+                Err(RecvTimeoutError::Timeout) => {
+                    self.refresh_if_changed()?;
+                    self.reload_settings()?;
+                    self.poll_background();
+                }
+                Err(RecvTimeoutError::Disconnected) => break,
             }
         }
         Ok(())

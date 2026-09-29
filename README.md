@@ -90,7 +90,7 @@ on each box. A group photo goes whole on one place only: attaching it whole to a
 refused (`--whole` when that is really meant), and `ev todo` lists older slips.
 `ev photo list|remove|adopt`.
 
-**Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, things
+**Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves, things
 leaving, lost items, errands, search, everything waiting (one collapsible section per kind) and
 settings. It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),

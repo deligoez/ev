@@ -935,6 +935,32 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    if let Some(list) = v.get("facets").and_then(Value::as_array) {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(no facets)"));
+        }
+        for f in list {
+            let words = s(f, "words");
+            let words = if words.is_empty() {
+                String::new()
+            } else {
+                format!("  ({words})")
+            };
+            let _ = writeln!(out, "{}{words}", s(f, "name"));
+            let holders: Vec<String> = f["holders"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(label)
+                .collect();
+            if holders.is_empty() {
+                let _ = writeln!(out, "  {}", t("(no holder tagged yet)"));
+            } else {
+                let _ = writeln!(out, "  {}", holders.join(", "));
+            }
+        }
+        return out;
+    }
     if let Some(list) = v.get("themes").and_then(Value::as_array) {
         if list.is_empty() {
             let _ = writeln!(out, "{}", t("(every place with things in it has a theme)"));

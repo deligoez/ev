@@ -104,9 +104,11 @@ enough after a small change.
 `--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the
 original. A crop on a box is that box's current photo. `ev photo cut drawer.jpg --place 07-A
 A3=0.1,0.3,0.3,0.1 B4=…` does a whole drawer in one step: the whole view on the drawer, a crop
-on each box. A group photo goes whole on one place only: attaching it whole to a second node is
-refused (`--whole` when that is really meant), and `ev todo` lists older slips.
-`ev photo list|remove|adopt`.
+on each box. For a drawer with a grid, `--grid` with the grid's four corners in the photo cuts
+every box at once, so no box keeps an older photo; and a drawer is not marked toured while any
+of its boxes shows an older state than it has. A group photo goes whole on one place only:
+attaching it whole to a second node is refused (`--whole` when that is really meant), and
+`ev todo` lists older slips. `ev photo list|remove|adopt`.
 
 **Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves, things
 leaving, lost items, errands, search, everything waiting (one collapsible section per kind) and

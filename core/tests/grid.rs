@@ -294,6 +294,43 @@ fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
 }
 
 #[test]
+fn a_box_added_after_the_drawer_photo_puts_the_drawer_back_on_the_photo_list() {
+    let (_d, mut inv, photo) = photographed();
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let needing = |inv: &Inventory| -> Vec<String> {
+        inv.todo().unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["code"].as_str().unwrap_or("?").to_string())
+            .collect()
+    };
+    assert!(needing(&inv).is_empty(), "{:?}", needing(&inv));
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    // A new box in A2 with a thing in it: the box has no photo, and the drawer's photo no
+    // longer shows the drawer as it is.
+    add(&mut inv, "Kutu", "container", Some("D"), Some("D-A2"));
+    add(&mut inv, "Röle", "item", Some("D-A2"), None);
+    inv.cells_set(&pairs(&[("D-A2", "A2")]), false).unwrap();
+    let got = needing(&inv);
+    assert!(got.contains(&"D-A2".to_string()), "{got:?}");
+    assert!(got.contains(&"D".to_string()), "{got:?}");
+    let drawer = inv.todo().unwrap()["photos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["code"] == "D")
+        .cloned()
+        .unwrap();
+    assert_eq!(
+        (drawer["grid"].as_bool(), drawer["photo_reason"].as_str()),
+        (Some(true), Some("changed"))
+    );
+}
+
+#[test]
 fn a_cut_preview_frames_every_box_it_would_cut_and_attaches_nothing() {
     let (d, inv, photo) = photographed();
     let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();

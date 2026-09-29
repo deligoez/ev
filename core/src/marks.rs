@@ -187,6 +187,41 @@ pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<S
     )?)
 }
 
+/// Why a node's photos no longer show it, and when its newest photo was taken and its contents
+/// last changed.
+pub(crate) type Stale = (&'static str, Option<String>, Option<String>);
+
+/// Why a node's photos no longer show it, if they do not: `none` (no photo at all) or
+/// `changed` (its contents changed after its newest photo), with both times.
+pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
+    let photo_at: Option<Option<String>> = conn
+        .query_row(
+            // A photo from before photos carried a date is the one the place was first
+            // recorded from, so it stands for the place's creation time.
+            "SELECT MAX(COALESCE(added_at, (SELECT created_at FROM nodes WHERE id = ?1)))
+               FROM photos WHERE node_id = ?1",
+            [id],
+            |r| r.get(0),
+        )
+        .optional()?;
+    // The person may say the photo is still close enough after a small change; that counts as
+    // a fresh photo from then on.
+    let accepted = mark(conn, id, "photo_ok")?["at"]
+        .as_str()
+        .map(str::to_string);
+    let photo_at = match (photo_at.flatten(), accepted) {
+        (Some(p), Some(a)) => Some(p.max(a)),
+        (p, a) => p.or(a),
+    };
+    let changed = contents_changed_at(conn, id)?;
+    let reason = match (&photo_at, &changed) {
+        (None, _) => Some("none"),
+        (Some(p), Some(c)) if c > p => Some("changed"),
+        _ => None,
+    };
+    Ok(reason.map(|r| (r, photo_at.filter(|p| !p.is_empty()), changed)))
+}
+
 fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     let mut out = Vec::new();
     for u in units {

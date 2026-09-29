@@ -646,7 +646,13 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Place(PlaceCmd::Alias { place, alias }) => inv.place_alias(&place, &alias),
         Cmd::Place(PlaceCmd::List) => inv.place_list(),
         Cmd::Place(PlaceCmd::Merge { from, into }) => inv.place_merge(&from, &into),
-        Cmd::Suggest { text, tag } => inv.suggest(&text, tag.as_deref()),
+        Cmd::Suggest { text, tag, for_ref } => {
+            inv.suggest_with(&text.join(" "), tag.as_deref(), for_ref.as_deref())
+        }
+        Cmd::Regroup { reference } => inv.regroup(reference.as_deref()),
+        Cmd::Synonym(SynonymCmd::Add { words }) => inv.synonym_add(&words.join(", ")),
+        Cmd::Synonym(SynonymCmd::List) => inv.synonym_list(),
+        Cmd::Synonym(SynonymCmd::Remove { id }) => inv.synonym_remove(id),
         Cmd::Goal { goal } => inv.goal(goal.as_deref()),
         Cmd::Observe {
             reference,

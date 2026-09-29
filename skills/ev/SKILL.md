@@ -191,7 +191,9 @@ shows its photo full screen — usually the crop you cut. Say you did it.
 Suggest `ev ui` in a second terminal at the start of a session: it is read-only and
 refreshes on its own, highlighting whatever you just changed, so the person sees each
 record land as you make it. To look at a photo they press `o` (full screen, `[` `]` to step
-through the node's photos) or `O` (system viewer); on the search tab `x` clears the search.
+through the node's photos) or `O` (system viewer); on the search tab `x` clears the search;
+`J`/`K` scroll the details. A box's details show it on its drawer's map, its fill and room, and
+the drawer's regroup suggestions for it.
 
 ## Exit codes
 

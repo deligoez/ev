@@ -918,6 +918,44 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    if let Some(list) = v.get("themes").and_then(Value::as_array) {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(every place with things in it has a theme)"));
+        }
+        for e in list {
+            let _ = writeln!(
+                out,
+                "{}  ({})",
+                head(&e["holder"]),
+                tf("{} items", &[&e["things"]])
+            );
+            let _ = writeln!(out, "  {}", tf("words: {}", &[&theme_words(e)]));
+            if e["like"].is_object() {
+                let like = format!(
+                    "{} [{}]",
+                    label(&e["like"]),
+                    e["like"]["theme"].as_str().unwrap_or_default()
+                );
+                let _ = writeln!(out, "  {}", tf("reads like: {}", &[&like]));
+            }
+            let _ = writeln!(
+                out,
+                "  {}",
+                // Names carry commas of their own, so the list is joined with semicolons.
+                tf(
+                    "contents: {}",
+                    &[&e["contents"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join("; ")]
+                )
+            );
+        }
+        return out;
+    }
     if let Some(list) = v.get("synonyms").and_then(Value::as_array) {
         if list.is_empty() {
             let _ = writeln!(out, "{}", t("(no synonyms)"));

@@ -1914,7 +1914,7 @@ fn add_alias(conn: &Connection, place: i64, alias: &str) -> Result<()> {
 // ---------- placement: rules, suggest, audit (spec §14) ----------
 
 /// Words too common to say two items are alike.
-const STOPWORDS: &[&str] = &[
+pub(crate) const STOPWORDS: &[&str] = &[
     "icin",
     "ile",
     "veya",

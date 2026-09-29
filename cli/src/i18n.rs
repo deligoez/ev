@@ -310,6 +310,11 @@ static TR: &[(&str, &str)] = &[
         "#{} is no longer in the tree (gone)",
         "#{} artık ağaçta yok (gitti)",
     ),
+    (" Marked photo ", " İşaretli fotoğraf "),
+    (
+        "r/R rotate · O open outside · Esc/o/click close",
+        "r/R döndür · O dışarıda aç · Esc/o/tıkla kapat",
+    ),
     ("Photos", "Fotoğraflar"),
     ("crop", "kesit"),
     ("whole", "tam"),

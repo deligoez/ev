@@ -61,24 +61,53 @@ create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found.
 
 ## `ev ui`
 
-A read-only terminal browser. It never writes; it polls SQLite's `data_version` every half
-second and re-reads when another process has written, highlighting the nodes that changed and
-expanding their parents so they are in view.
+A read-only terminal browser. It never writes the database; it polls SQLite's `data_version`
+every half second and re-reads when another process has written, highlighting the nodes that
+changed and expanding their parents so they are in view. The one file it writes is the
+display settings file, from its Settings tab.
 
 | Key | Action |
 |---|---|
 | ↑ ↓ / j k, PgUp PgDn, g G | move |
 | → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
 | ← / h | collapse, or go to the parent |
-| Tab, Shift-Tab, 1–7 | tabs: tree, pending moves, disposals, lost, take/return (Götür/İade), search, everything waiting (Yapılacak) |
+| Tab, Shift-Tab, 1–8 | tabs: tree, pending moves, leaving, lost, errands (take / return), search, everything waiting (To do), settings |
 | / | search (same folding as `ev find`), Enter to run; Esc clears the typed text, then closes the box; Ctrl-U clears |
 | x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | [ / ], wheel over the photo | previous / next photo of the selected node |
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
+| Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
 | q / Esc | quit (Esc clears a search first) |
 
+**Appearance.** With the appearance on Automatic, `ev ui` follows the terminal's light or dark
+background while it runs. At start it turns on DEC private mode 2031 (`CSI ? 2031 h`) and asks
+both `CSI ? 996 n` and OSC 11. A terminal with mode 2031 (Ghostty, kitty, Contour, and others)
+then reports every switch as `CSI ? 997 ; 1 n` (dark) or `; 2 n` (light). A terminal that never
+sends such a report is asked for its background (OSC 11) every three seconds instead, and one
+that answers neither keeps the `COLORFGBG` hint or dark. The dark palette uses the terminal's
+named colours; the light one uses fixed darker tones readable on white. `ev ui` reads the
+terminal input itself (keys, SGR mouse reports and these answers), because crossterm treats a
+`997` report as an unfinished sequence and swallows the keys typed after it.
+
+## Settings
+
+Display settings belong to the person at the computer, not to the inventory: they live in
+`~/.ev/settings.json` (`EV_CONFIG` to move it), not in the database, and `ev settings` works
+without one.
+
+| Command | Does |
+|---|---|
+| `ev settings` | `language` (`setting`, `effective`, `system`), `theme` (`setting`), `file` |
+| `ev settings language en\|tr\|auto` | the language of `ev ui` and of the readable terminal output |
+| `ev settings theme dark\|light\|auto` | the appearance of `ev ui`; `auto` follows the terminal |
+
+`auto` language is the computer's: on macOS the first of the preferred languages
+(`defaults read -g AppleLanguages`), elsewhere `LC_ALL`, `LC_MESSAGES`, `LANGUAGE` or `LANG`.
+Only the language part of the tag counts (`en-TR` is English); a language ev does not speak
+falls back to English. JSON output and error messages are always English. A running `ev ui`
+picks a change up within a second.
 ## Places
 
 | Command | Does |

@@ -1346,6 +1346,10 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
         "UPDATE nodes SET parent_id = ?1, pending_to = NULL, lost = 0 WHERE id = ?2",
         params![target, node.id],
     )?;
+    // Cells are positions in the old holder's grid; they mean nothing anywhere else.
+    if node.parent_id != Some(target) {
+        conn.execute("DELETE FROM cells WHERE node_id = ?1", [node.id])?;
+    }
     touch(conn, node.id)?;
     let dropped = if kind == "move" {
         node.pending_to

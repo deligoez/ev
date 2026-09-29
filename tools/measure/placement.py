@@ -11,3 +11,7 @@ key = json.load(open(data / "placement-key.json", encoding="utf-8"))
 moves, excluded = key["moves"], key["excluded"]
 
 
+def label(n):
+    return f'{n.get("code") or ""} {n["name"]}'
+
+

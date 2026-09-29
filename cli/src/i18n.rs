@@ -83,3 +83,16 @@ pub fn system_lang() -> Lang {
     })
 }
 
+/// The first entry of `defaults read -g AppleLanguages`, which prints `(\n "en-TR",\n tr\n)`.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn first_apple_language(out: &str) -> Option<String> {
+    out.split(['(', ',', ')', '\n'])
+        .map(|s| s.trim().trim_matches('"').trim())
+        .find(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+thread_local! {
+    static LANG: Cell<Lang> = const { Cell::new(Lang::En) };
+}
+

@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 9;
+pub const SCHEMA_VERSION: i64 = 10;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -216,6 +216,19 @@ PRAGMA user_version = 9;
 COMMIT;
 ";
 
+/// Facets (spec §26): kinds of things kept apart, like modules and bare parts. A holder is in a
+/// facet by carrying its name as a tag; `words` also tell a thing's facet from its name.
+const SCHEMA_V10: &str = "
+BEGIN;
+CREATE TABLE facets (
+    name TEXT PRIMARY KEY,
+    words TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+PRAGMA user_version = 10;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -272,6 +285,9 @@ impl Inventory {
         }
         if version < 9 {
             conn.execute_batch(SCHEMA_V9)?;
+        }
+        if version < 10 {
+            conn.execute_batch(SCHEMA_V10)?;
         }
         let photo_dir = path
             .parent()

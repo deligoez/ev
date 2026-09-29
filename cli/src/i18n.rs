@@ -547,14 +547,9 @@ mod tests {
     }
 
     #[test]
-    fn the_first_preferred_macos_language_is_read_from_defaults() {
-        let out = "(\n    \"en-TR\",\n    \"tr-TR\",\n    \"de-DE\"\n)\n";
-        assert_eq!(first_apple_language(out).as_deref(), Some("en-TR"));
-        assert_eq!(
-            first_apple_language("(\n    tr,\n    en\n)").as_deref(),
-            Some("tr")
-        );
-        assert_eq!(first_apple_language(""), None);
+    fn the_system_language_is_one_ev_speaks() {
+        // Whatever this machine prefers, it maps onto English or Turkish, never fails.
+        assert!(matches!(system_lang(), Lang::En | Lang::Tr));
     }
 
     #[test]

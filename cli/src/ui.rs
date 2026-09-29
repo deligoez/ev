@@ -1811,6 +1811,29 @@ impl App {
         Text::from(lines)
     }
 
+    fn handle(&mut self, input: Input) -> Result<()> {
+        match input {
+            Input::Key(k) => self.key(k),
+            Input::Mouse(m) => self.mouse(m),
+            Input::Appearance { mode, notified } => self.on_appearance(mode, notified),
+        }
+    }
+
+    /// Asks a terminal that never sent a mode 2031 report for its background again, so
+    /// Automatic still follows a switch there, a few seconds late.
+    fn poll_background(&mut self) {
+        if self.notified
+            || self.prefs.theme != ThemePref::Auto
+            || self.last_background_query.elapsed() < BACKGROUND_POLL
+        {
+            return;
+        }
+        self.last_background_query = Instant::now();
+        send(input::ASK_BACKGROUND);
+    }
+
+    /// Reads the terminal from a thread of its own, since a read blocks; the loop wakes on
+    /// input or every half second to look for changes in the database and the settings.
     fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         let io = |e: std::io::Error| Error::Internal(format!("terminal: {e}"));
         let (tx, rx) = mpsc::channel::<Vec<u8>>();

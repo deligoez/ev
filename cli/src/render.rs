@@ -573,6 +573,20 @@ fn regroup(out: &mut String, v: &Value) {
     }
     for e in section(
         out,
+        "alone",
+        t("Sharing no word with anything in its holder (a guess; look before moving):"),
+    ) {
+        let _ = writeln!(out, "  {}", thing(&e["item"]));
+        let _ = writeln!(
+            out,
+            "    {} → {} ({})",
+            label(&e["now"]["holder"]),
+            label(&e["better"]["holder"]),
+            e["better"]["score"]
+        );
+    }
+    for e in section(
+        out,
         "strays",
         t("Named for another box's theme (worth a look):"),
     ) {

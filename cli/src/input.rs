@@ -165,3 +165,29 @@ fn ss3(c: u8) -> Option<Input> {
     key(code, KeyModifiers::NONE)
 }
 
+fn parse_string(b: &[u8]) -> Step {
+    for i in 2..b.len() {
+        let end = match b[i] {
+            0x07 => Some(i + 1),
+            0x1b if b.get(i + 1) == Some(&b'\\') => Some(i + 2),
+            0x1b if i + 1 == b.len() => return Step::More,
+            _ => None,
+        };
+        if let Some(end) = end {
+            let input = if b[1] == b']' {
+                std::str::from_utf8(&b[2..i])
+                    .ok()
+                    .and_then(theme::parse_osc11)
+                    .map(|mode| Input::Appearance {
+                        mode,
+                        notified: false,
+                    })
+            } else {
+                None
+            };
+            return Step::Done(end, input);
+        }
+    }
+    Step::More
+}
+

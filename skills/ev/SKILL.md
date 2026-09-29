@@ -150,6 +150,12 @@ yourself before proposing it. It only reports; nothing moves until the person sa
 suggestions show in `ev ui` when the person selects the drawer or a box. Run `ev audit` now and
 then for alike things split across the house.
 
+**Keep kinds apart with facets, not with prose rules.** When a drawer keeps two kinds of
+things apart that share words (modules and bare parts, novels and technical books), a rule in
+plain words is not read by `suggest` or `regroup`. Make it a facet: `ev facet add modül --words
+"modül, kart"`, `ev facet add çıplak`, and tag each holder with its facet (`ev edit <box>
+tags=+modül`). Things inherit their holder's facet and new things take it from their words;
+holders of another facet are listed apart under `other_facet`, never proposed.
 **Give every place a theme.** A theme is the summary every placement answer leans on: places
 without one are where suggestions go wrong. While touring, run `ev themes <drawer>` (the
 details in `ev ui` show the same): for each place it lists the words its contents share and the

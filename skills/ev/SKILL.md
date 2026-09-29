@@ -143,8 +143,17 @@ in this order:
 
 At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
 proposals: things better off elsewhere, mixed boxes, full boxes and the bigger spare box with
-the cells it fits, nearly empty boxes to merge, unknown fills. It only reports; nothing moves
-until the person says so. Run `ev audit` now and then for alike things split across the house.
+the cells it fits, nearly empty boxes to merge, unknown fills. `alone` lists things that share
+no word with anything in their box: the other box there is only a guess (often wrong for
+keepsakes and one-off tools, sometimes right, like a 9V battery among wires) — judge each one
+yourself before proposing it. It only reports; nothing moves until the person says so. The same
+suggestions show in `ev ui` when the person selects the drawer or a box. Run `ev audit` now and
+then for alike things split across the house.
+
+**Work you cannot do yet goes into the plan, not the records.** A move worked out before the
+place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
+`ev next` brings it up when that place's turn comes. Do not edit the records of a place that
+has not been toured on the strength of the conversation alone; ask first.
 
 ## Photos
 

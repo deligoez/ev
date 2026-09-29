@@ -243,3 +243,18 @@ fn parse_csi(b: &[u8]) -> Step {
     Step::Done(n, key(code, modifiers))
 }
 
+fn modifiers_of(m: u16) -> KeyModifiers {
+    let bits = m.saturating_sub(1);
+    let mut out = KeyModifiers::NONE;
+    if bits & 1 != 0 {
+        out |= KeyModifiers::SHIFT;
+    }
+    if bits & 2 != 0 {
+        out |= KeyModifiers::ALT;
+    }
+    if bits & 4 != 0 {
+        out |= KeyModifiers::CONTROL;
+    }
+    out
+}
+

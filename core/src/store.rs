@@ -948,7 +948,11 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let tasks = crate::plan::tasks_of(conn, id)?;
     let marks = crate::marks::marks_of(conn, id)?;
     let needs = crate::marks::needs_for(conn, id)?;
+    let cells = crate::grid::cells_of(conn, id)?.map(|c| c.name());
+    let grid = crate::grid::grid_json(conn, id)?;
     Ok(json!({
+        "cells": cells,
+        "grid": grid,
         "tasks": tasks,
         "marks": marks,
         "needs": needs,

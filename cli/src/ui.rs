@@ -213,7 +213,8 @@ fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
 
 fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     let mut out = Vec::new();
-    if let Some(q) = n["qty"].as_i64() {
+    // One of a thing is the default; only a count says something.
+    if let Some(q) = n["qty"].as_i64().filter(|q| *q != 1) {
         out.push(Span::styled(format!("  ×{q}"), Style::new().fg(pal().qty)));
     }
     if n["state"] == "candidate" {
@@ -262,6 +263,105 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
         ));
     }
     out
+}
+
+/// A holder's fill as four blocks, a quarter each: `▮▮▯▯` is about half full.
+fn fill_bar(fill: i64) -> String {
+    let full = ((fill + 12) / 25).clamp(0, 4) as usize;
+    format!("{}{}", "▮".repeat(full), "▯".repeat(4 - full))
+}
+
+fn fill_color(fill: i64) -> Color {
+    if fill >= 90 {
+        pal().lost
+    } else if fill >= 70 {
+        pal().mark
+    } else {
+        pal().qty
+    }
+}
+
+/// Spans cut to `width` columns, ending in `…` when something was cut, so a long name does
+/// not stop silently at the pane's edge.
+fn fit(spans: Vec<Span<'static>>, width: usize) -> Vec<Span<'static>> {
+    let total: usize = spans.iter().map(Span::width).sum();
+    if width == 0 || total <= width {
+        return spans;
+    }
+    let budget = width - 1;
+    let mut used = 0;
+    let mut out = Vec::new();
+    for s in spans {
+        let w = s.width();
+        if used + w <= budget {
+            used += w;
+            out.push(s);
+            continue;
+        }
+        let mut text = String::new();
+        for c in s.content.chars() {
+            let cw = Span::raw(c.to_string()).width();
+            if used + cw > budget {
+                break;
+            }
+            used += cw;
+            text.push(c);
+        }
+        out.push(Span::styled(text, s.style));
+        break;
+    }
+    out.push(Span::styled("…", Style::new().fg(pal().muted)));
+    out
+}
+
+/// The local UTC offset in seconds, asked of `date` once: chrono's local time zone would link
+/// macOS frameworks, which the Linux-to-macOS cross build cannot.
+fn local_offset() -> i64 {
+    static OFFSET: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
+    *OFFSET.get_or_init(|| {
+        let out = std::process::Command::new("date")
+            .arg("+%z")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default();
+        parse_offset(out.trim()).unwrap_or(0)
+    })
+}
+
+/// `+0300` → 10800.
+fn parse_offset(s: &str) -> Option<i64> {
+    let sign = match s.chars().next()? {
+        '+' => 1,
+        '-' => -1,
+        _ => return None,
+    };
+    let digits = s.get(1..5)?;
+    let h: i64 = digits.get(0..2)?.parse().ok()?;
+    let m: i64 = digits.get(2..4)?.parse().ok()?;
+    Some(sign * (h * 3600 + m * 60))
+}
+
+/// A stored UTC time for people: how long ago when it is recent, the local date and time
+/// otherwise.
+fn when(ts: &str, now: i64) -> String {
+    let Ok(at) = chrono::DateTime::parse_from_rfc3339(ts) else {
+        return ts.to_string();
+    };
+    let at = at.timestamp();
+    let ago = now - at;
+    if (0..60).contains(&ago) {
+        return t("just now").to_string();
+    }
+    if (0..3600).contains(&ago) {
+        return tf("{} min ago", &[&(ago / 60)]);
+    }
+    if (0..86_400).contains(&ago) {
+        return tf("{} h ago", &[&(ago / 3600)]);
+    }
+    chrono::DateTime::from_timestamp(at + local_offset(), 0)
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_else(|| ts.to_string())
 }
 
 /// A path with its ancestors muted and its last segment prominent.

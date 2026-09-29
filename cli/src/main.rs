@@ -572,7 +572,8 @@ fn run(cli: Cli) -> Result<Value> {
     if let Cmd::Settings { name, value } = cli.cmd {
         return settings_cmd(name, value);
     }
-    let mut inv = Inventory::open(&db_path(cli.db)?)?;
+    let db = db_path(cli.db)?;
+    let mut inv = Inventory::open(&db)?;
     match cli.cmd {
         Cmd::Settings { .. } => unreachable!("settings are handled before the database opens"),
         Cmd::Grid {
@@ -669,7 +670,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Lost { reference: None } => inv.lost_list(),
         Cmd::Found { reference } => inv.found(&reference),
         Cmd::History { reference } => inv.history(&reference),
-        Cmd::Ui => ui::run(inv).map(|()| Value::Null),
+        Cmd::Ui => ui::run(inv, &db).map(|()| Value::Null),
         Cmd::Lend { reference, to } => inv.lend(&reference, &to),
         Cmd::Back { reference } => inv.back(&reference),
         Cmd::For { place } => inv.errands(place.as_deref()),

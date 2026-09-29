@@ -1084,7 +1084,19 @@ pub fn human(v: &Value) -> String {
     if let Some(events) = v.get("events").and_then(Value::as_array) {
         let _ = writeln!(out, "{}", line(&v["node"]));
         for e in events {
-            let _ = writeln!(out, "  {}  {:<8} {}", s(e, "at"), s(e, "type"), e["data"]);
+            // With `--contents`, an event of something that came, went or was added here.
+            let item = if e["item"].is_object() {
+                format!("  {} {}", s(e, "relation"), line(&e["item"]))
+            } else {
+                String::new()
+            };
+            let _ = writeln!(
+                out,
+                "  {}  {:<8} {}{item}",
+                s(e, "at"),
+                s(e, "type"),
+                e["data"]
+            );
         }
         return out;
     }

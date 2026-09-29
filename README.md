@@ -108,7 +108,10 @@ settings. It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
-at a node and shows its photo, so "which one do you mean?" is answered on screen.
+at a node and shows its photo, so "which one do you mean?" is answered on screen. The details
+pane scrolls (`J`/`K`, the wheel); a placed box is drawn on its drawer's map; holders show their
+fill as a bar (`▮▮▯▯`) with the room it leaves; and a drawer or a box lists what `ev regroup`
+suggests there, guesses marked as such.
 
 **English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with

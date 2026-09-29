@@ -112,8 +112,12 @@ enum Cmd {
     Lost { reference: Option<String> },
     /// Clear a node's lost flag where it was last seen.
     Found { reference: String },
-    /// A node's events, oldest first.
-    History { reference: String },
+    /// A node's events, oldest first; `--contents` adds what came in, went out or was added.
+    History {
+        reference: String,
+        #[arg(long)]
+        contents: bool,
+    },
     /// Read-only terminal browser that follows the database as it changes.
     Ui,
     /// Lend a node of ours to a place; it stays in the tree where it returns to.

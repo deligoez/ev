@@ -518,6 +518,27 @@ fn run(cli: Cli) -> Result<Value> {
     let mut inv = Inventory::open(&db_path(cli.db)?)?;
     match cli.cmd {
         Cmd::Settings { .. } => unreachable!("settings are handled before the database opens"),
+        Cmd::Grid {
+            reference,
+            cols,
+            rows,
+            clear,
+        } => match (cols, rows, clear) {
+            (Some(c), Some(r), _) => inv.grid_set(&reference, c, r),
+            (_, _, true) => inv.grid_clear(&reference),
+            _ => inv.grid(&reference),
+        },
+        Cmd::Cell { pairs, recode } => {
+            let pairs = pairs
+                .iter()
+                .map(|p| {
+                    p.split_once('=')
+                        .map(|(r, c)| (r.trim().to_string(), c.to_string()))
+                        .ok_or_else(|| Error::Usage(format!("`{p}` is not <ref>=<cells>")))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            inv.cells_set(&pairs, recode)
+        }
         Cmd::Add(a) => add(&mut inv, *a),
         Cmd::Show {
             reference,

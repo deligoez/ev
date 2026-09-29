@@ -2063,7 +2063,7 @@ impl App {
                     return Ok(());
                 }
             }
-            // A box on a drawer's own grid opens in the tree. The grid's first frame line is
+            // A box on the grid opens in the tree. The grid's first frame line is
             // the fifth line of the pane: path, blank, title, column letters.
             MouseEventKind::Down(MouseButton::Left)
                 if inside(self.details_area)

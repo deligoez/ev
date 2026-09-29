@@ -230,13 +230,31 @@ mod tests {
         let s = Settings {
             language: LangPref::Fixed(Lang::Tr),
             theme: ThemePref::Fixed(Mode::Light),
+            resume: false,
         };
         s.save_to(&path).unwrap();
         assert_eq!(Settings::load_from(&path), s);
+        // A file written before `resume` existed keeps resuming on.
         std::fs::write(&path, r#"{"language":"klingon","theme":"dark"}"#).unwrap();
         let s = Settings::load_from(&path);
         assert_eq!(s.language, LangPref::Auto);
         assert_eq!(s.theme, ThemePref::Fixed(Mode::Dark));
+        assert!(s.resume);
+        assert_eq!(parse_switch("off"), Some(false));
+        assert_eq!(parse_switch("maybe"), None);
+    }
+
+    #[test]
+    fn the_last_position_is_kept_per_database_beside_the_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = UiState::beside(&dir.path().join("settings.json"));
+        let (a, b) = (Path::new("/x/ev.db"), Path::new("/y/ev.db"));
+        assert_eq!(state.last(a), None);
+        state.remember(a, 534).unwrap();
+        state.remember(b, 7).unwrap();
+        assert_eq!(state.last(a), Some(534));
+        assert_eq!(state.last(b), Some(7));
+        assert!(dir.path().join("ui-state.json").exists());
     }
 
     #[test]

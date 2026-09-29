@@ -31,6 +31,7 @@ ev find flipper                  # folded search over name, code, note, theme, t
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev tree Salon --depth 2          # the picture, with item totals
 ev edit 391 qty=11 note="…"      # change fields
+ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
 ev history 391                   # everything that happened to it
 ```
 

@@ -153,3 +153,29 @@ fn db_flag_wins_over_env() {
     let v: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(v["results"].as_array().unwrap().len(), 2);
 }
+
+#[test]
+fn settings_are_shown_changed_and_checked_without_a_database() {
+    let ev = Ev::new();
+    let (code, v, _) = ev.run(&["settings"]);
+    assert_eq!(code, 0);
+    assert_eq!(v["language"]["setting"], "auto");
+    assert_eq!(v["theme"]["setting"], "auto");
+    assert!(!ev.db.exists(), "settings must not create the database");
+
+    let (code, v, _) = ev.run(&["settings", "language", "tr"]);
+    assert_eq!(code, 0);
+    assert_eq!(v["language"]["setting"], "tr");
+    assert_eq!(v["language"]["effective"], "tr");
+    let (_, v, _) = ev.run(&["settings", "theme", "light"]);
+    assert_eq!(v["theme"]["setting"], "light");
+    assert_eq!(v["language"]["setting"], "tr");
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&ev.config).unwrap()).unwrap();
+    assert_eq!(saved["language"], "tr");
+    assert_eq!(saved["theme"], "light");
+
+    let (code, _, err) = ev.run(&["settings", "language", "klingon"]);
+    assert_eq!(code, 2, "{err}");
+    let (code, _, _) = ev.run(&["settings", "colour", "red"]);
+    assert_eq!(code, 2);
+}

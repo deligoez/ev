@@ -328,13 +328,34 @@ impl Lexicon {
             .unwrap_or_else(|| word.to_string())
     }
 
+    /// Words stemmed against this vocabulary, plus the two-word terms that carry meaning the
+    /// words alone do not: an indefinite noun compound (`hesap makinesi`, `kablo bağı`: a bare
+    /// noun, then a noun whose only ending is the 3rd-person possessive) and a colour with the
+    /// noun it describes (`yeşil LED`). A colour on its own counts `COLOR_WEIGHT` in a query,
+    /// so a green heat gun does not land in the green LED box.
     pub(crate) fn keyed(&self, ts: Vec<Term>) -> Vec<Term> {
-        ts.into_iter()
+        let words: Vec<Term> = ts
+            .into_iter()
             .map(|mut t| {
                 t.key = self.key(&t.surface);
+                if COLORS.contains(&t.key.as_str()) {
+                    t.weight *= COLOR_WEIGHT;
+                }
                 t
             })
-            .collect()
+            .collect();
+        let mut out = words.clone();
+        for pair in words.windows(2) {
+            let (a, b) = (&pair[0], &pair[1]);
+            if COLORS.contains(&a.key.as_str()) || is_compound(a, b) {
+                out.push(Term {
+                    key: format!("{}+{}", a.key, b.key),
+                    surface: format!("{} {}", a.surface, b.surface),
+                    weight: a.weight.max(b.weight),
+                });
+            }
+        }
+        out
     }
 }
 

@@ -155,3 +155,26 @@ fn synonyms_carry_a_query_to_the_words_the_inventory_uses() {
     assert_eq!(inv.synonym_add("ldr").unwrap_err().code(), 2);
 }
 
+#[test]
+fn room_comes_from_fill_and_goes_stale_when_the_contents_change() {
+    let (_d, mut inv) = setup();
+    let room = |inv: &Inventory| -> Value {
+        inv.suggest("fotodirenç", None).unwrap()["similar"][0]["container"]["room"].clone()
+    };
+    assert_eq!(room(&inv)["room"], "unknown");
+    inv.edit("D-A1", &["fill=50".into()]).unwrap();
+    assert_eq!(room(&inv)["room"], "yes");
+    assert_eq!(room(&inv)["stale"], false);
+    inv.edit("D-A1", &["fill=95".into()]).unwrap();
+    assert_eq!(room(&inv)["room"], "none");
+    // The timestamps are to the second; the change has to come after the estimate.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.add(node("LDR 3 mm", "item", "D-A1")).unwrap();
+    assert_eq!(room(&inv)["stale"], true);
+    // A size is WxDxH in grid units.
+    assert_eq!(
+        inv.edit("D-A1", &["size=big".into()]).unwrap_err().code(),
+        2
+    );
+}
+

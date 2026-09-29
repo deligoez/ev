@@ -27,3 +27,7 @@ for line in open(judged_path, encoding="utf-8"):
 
 out = data / "stems-now.tsv"
 env = dict(os.environ, EV_WORDS=str(baseline_path), EV_OUT=str(out))
+subprocess.run(
+    ["cargo", "test", "-q", "-p", "ev-core", "--lib", "dump_keys", "--", "--ignored"],
+    cwd=root, env=env, check=True, capture_output=True,
+)

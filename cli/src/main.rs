@@ -246,7 +246,8 @@ enum Cmd {
         #[arg(long)]
         recode: bool,
     },
-    /// Show or change display settings: `language en|tr|auto`, `theme dark|light|auto`.
+    /// Show or change display settings: `language en|tr|auto`, `theme dark|light|auto`,
+    /// `resume on|off` (`ev ui` reopens on the node it was on).
     Settings {
         name: Option<String>,
         value: Option<String>,

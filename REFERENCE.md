@@ -46,6 +46,7 @@ one, its name otherwise.
 | add --batch | `created` |
 | find | `query`, `results` |
 | tree | `tree` (nested, each with `children`), `unplaced` (without a reference) |
+| recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
 | disposals | `disposals`: `{trash, give, sell}` |
 | lost | `lost`: `[{node, last_seen}]` |

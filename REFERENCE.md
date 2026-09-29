@@ -51,14 +51,15 @@ one, its name otherwise.
 | pending | `pending`: `[{node, to}]` |
 | disposals | `disposals`: `{trash, give, sell}` |
 | lost | `lost`: `[{node, last_seen}]` |
-| history | `node`, `events`: `[{at, type, data}]` |
+| history | `node`, `events`: `[{at, type, data}]`; with `--contents` also the events of things that came in, went out (`move`, `done`, `plan` to or from it) or were added there (`create`), each with `item` (NodeRef) and `relation`: `in` \| `out` \| `added` |
 
 Errors print nothing on stdout; stderr carries
 `{"error": {"code", "kind", "message", "candidates"?, "details"?}}` in JSON mode.
 
 ## Event types
 
-create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, photo, grid, cell.
+create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo, grid,
+cell, observe, review.
 
 ## `ev ui`
 

@@ -401,6 +401,30 @@ mod tests {
     }
 
     #[test]
+    fn picture_protocol_answers_are_read_not_typed() {
+        let mut p = Parser::default();
+        let got = keys(
+            &mut p,
+            b"\x1b_Gi=31;OK\x1b\\\x1b[?62;22;4;52c\x1b[6;20;10t\x1b[0nj",
+        );
+        assert_eq!(
+            got,
+            vec![
+                Input::Graphics(Graphics::Kitty),
+                Input::Graphics(Graphics::Attributes { sixel: true }),
+                Input::Graphics(Graphics::CellSize {
+                    width: 10,
+                    height: 20
+                }),
+                Input::Graphics(Graphics::Done),
+                k(KeyCode::Char('j')),
+            ]
+        );
+        // A kitty error is not support.
+        assert!(keys(&mut p, b"\x1b_Gi=31;ENOTSUPPORTED:x\x1b\\").is_empty());
+    }
+
+    #[test]
     fn keys_the_ui_uses_are_recognised() {
         let mut p = Parser::default();
         let got = keys(

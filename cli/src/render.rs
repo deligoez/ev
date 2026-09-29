@@ -405,7 +405,7 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
 }
 
 /// How much room a holder has, from the `room` object `ev suggest` and `ev regroup` attach.
-fn room_text(r: &Value) -> String {
+pub fn room_text(r: &Value) -> String {
     let fill = &r["fill"];
     let mut out = match r["room"].as_str() {
         Some("yes") => tf("room ({}% full)", &[fill]),

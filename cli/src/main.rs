@@ -434,6 +434,9 @@ struct AddArgs {
     theme: Option<String>,
     #[arg(long)]
     fill: Option<i64>,
+    /// Outer size WxDxH, e.g. 1x2x0.5 for a gridfinity bin.
+    #[arg(long)]
+    size: Option<String>,
     #[arg(long = "tag")]
     tags: Vec<String>,
     #[arg(long = "photo")]

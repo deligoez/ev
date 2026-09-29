@@ -126,3 +126,28 @@ fn parse_char(b: &[u8]) -> Step {
     }
 }
 
+fn parse_escape(b: &[u8]) -> Step {
+    let Some(&next) = b.get(1) else {
+        return Step::More;
+    };
+    match next {
+        b'[' => parse_csi(b),
+        b'O' => match b.get(2) {
+            None => Step::More,
+            Some(&c) => Step::Done(3, ss3(c)),
+        },
+        // OSC, DCS, APC and PM run to BEL or ST; only OSC 11 matters, the rest (graphics
+        // protocol replies among them) is dropped rather than read as keys.
+        b']' | b'P' | b'_' | b'^' => parse_string(b),
+        0x1b => Step::Done(1, key(KeyCode::Esc, KeyModifiers::NONE)),
+        _ => match parse(&b[1..]) {
+            Step::More => Step::More,
+            Step::Done(n, Some(Input::Key(mut k))) => {
+                k.modifiers |= KeyModifiers::ALT;
+                Step::Done(n + 1, Some(Input::Key(k)))
+            }
+            Step::Done(n, other) => Step::Done(n + 1, other),
+        },
+    }
+}
+

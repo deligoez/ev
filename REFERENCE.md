@@ -78,6 +78,9 @@ settings file, from its Settings tab, and on exit the tree position it reopens o
 | x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
 | [ / ], wheel over the photo | previous / next photo of the selected node |
+| H / L, click a details tab title | the previous / next details tab the node has something for: Summary (fields, labels aligned), Grid (the drawer's plate, a placed box framed), Contents, Suggestions (`ev regroup`, and theme words for an untitled place), History (`ev history --contents`, newest first by day). A tab with nothing for the node is dimmed and shows the summary; the choice is kept |
+| J / K, wheel over the details | scroll the details |
+| drag a divider; < >, { } | resize: the list against the right side (20–80%), the photo against the details (15–85%); a double click on a divider resets it. Kept in `ui-state.json` with the details tab |
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |

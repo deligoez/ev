@@ -538,3 +538,21 @@ fn volume(size: &str) -> Option<f64> {
     parse_size(size).ok().map(|p| p.iter().product())
 }
 
+/// Every node below `id`, and `id` itself.
+fn subtree(all: &[Node], id: i64) -> HashSet<i64> {
+    let mut out = HashSet::from([id]);
+    let mut grew = true;
+    while grew {
+        grew = false;
+        for n in all {
+            if let Some(p) = n.parent_id
+                && out.contains(&p)
+                && out.insert(n.id)
+            {
+                grew = true;
+            }
+        }
+    }
+    out
+}
+

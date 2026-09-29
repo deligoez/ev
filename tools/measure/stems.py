@@ -34,3 +34,10 @@ subprocess.run(
 got = table(out)
 
 words = [w for w in expected if w not in skip and w in got]
+right = sum(got[w] == expected[w] for w in words)
+fixed = [f"{w}->{got[w]}" for w in words if baseline[w] != expected[w] and got[w] == expected[w]]
+broke = [
+    f"{w}->{got[w]} (want {expected[w]})"
+    for w in words
+    if baseline[w] == expected[w] and got[w] != expected[w]
+]

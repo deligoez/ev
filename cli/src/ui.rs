@@ -2809,7 +2809,7 @@ impl App {
 
     /// The History tab: newest first, under a heading per day, each event in words. A place's
     /// history includes what came in, went out and was added there.
-    fn history_lines(&self) -> Vec<Line<'static>> {
+    fn history_lines(&self) -> Vec<(Line<'static>, Option<Target>)> {
         let Some(events) = self.history.as_ref().and_then(|h| h["events"].as_array()) else {
             return Vec::new();
         };

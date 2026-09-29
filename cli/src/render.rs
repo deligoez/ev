@@ -406,6 +406,25 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    if let Some(list) = v.get("placed").and_then(Value::as_array) {
+        for b in list {
+            let cells = b["cells"].as_str().unwrap_or("—");
+            let _ = writeln!(out, "{}  → {cells}", line(b));
+        }
+        for g in v["grids"].as_array().into_iter().flatten() {
+            out.push('\n');
+            grid_block(&mut out, &g["node"], &g["grid"]);
+        }
+        return out;
+    }
+    if v.get("grid").is_some() && v.get("node").is_some() && v.get("children").is_none() {
+        if v["grid"].is_null() {
+            let _ = writeln!(out, "{}  {}", s(&v["node"], "path_text"), t("(no grid)"));
+        } else {
+            grid_block(&mut out, &v["node"], &v["grid"]);
+        }
+        return out;
+    }
     if v.get("counts").is_some() && v.get("unclear").is_some() {
         todo(&mut out, v);
         return out;
@@ -618,8 +637,15 @@ pub fn human(v: &Value) -> String {
                 s(t_, "title")
             );
         }
+        if let Some(c) = v["cells"].as_str() {
+            let _ = writeln!(out, "  {}: {c}", t("cells"));
+        }
         for c in v["children"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  └ {}", line(c));
+        }
+        if v["grid"].is_object() {
+            out.push('\n');
+            grid_block(&mut out, node, &v["grid"]);
         }
         return out;
     }

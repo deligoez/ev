@@ -80,13 +80,20 @@ original. A crop on a box is that box's current photo. A group photo goes whole 
 only: attaching it whole to a second node is refused (`--whole` when that is really meant), and
 `ev todo` lists older slips. `ev photo list|remove|adopt`.
 
-**Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, disposals,
-lost items, errands (Götür/İade), search and everything waiting (Yapılacak, one collapsible
-section per kind). It refreshes the moment another process writes,
+**Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, things
+leaving, lost items, errands, search, everything waiting (one collapsible section per kind) and
+settings. It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
 at a node and shows its photo, so "which one do you mean?" is answered on screen.
+
+**English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
+or Turkish: the computer's language by default, or the one picked on the Settings tab or with
+`ev settings language en|tr|auto`. The appearance follows the terminal's light or dark
+background live — switch the system or terminal theme and `ev ui` changes palette without a
+restart — or is fixed with `ev settings theme dark|light`. Settings live in
+`~/.ev/settings.json`, outside the database; JSON output stays English.
 
 ## Documents
 

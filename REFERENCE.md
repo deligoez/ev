@@ -163,10 +163,14 @@ the name 1, tags 0.8, a note 0.4 (`--for`), a synonym 0.8.
   endings are cut against the inventory's own vocabulary: a form goes to the shortest shorter
   form written somewhere on its own (`kutuda` → `kutu`, `kitabı` → `kitap`), a word written on
   its own is never cut further, and otherwise to the longest stem two different words share.
+- **Two-word terms.** A bare noun followed by a noun whose only ending is the 3rd-person
+  possessive is also matched as a pair (`hesap makinesi` → `hesap+makine`, `kablo bağı`), and
+  so is a colour with the word after it (`yeşil LED`). A colour alone weighs 0.3 in a query.
 - **`coverage`** is the share of the query's weight the holder matched. Below 0.5 for the best
   holder, `new_group_likely` is true: nothing here is what the thing is.
 - **`specific`** marks a word that says what a thing is rather than its family: one in about 1
-  in 20 holders or fewer (IDF ≥ 3), or in at most 2 holders.
+  in 20 holders or fewer (IDF ≥ 3), or in at most 2 holders. Two-word terms are never
+  `specific`: they add to a score but do not by themselves make `regroup` flag a move.
 - **`room`**: `yes` below fill 70, `little` from 70, `none` from 90, `unknown` without a fill.
   `stale` is true when the contents changed after the fill was given.
 - Ties go to the lower id, so the same inventory and question always give the same answer.

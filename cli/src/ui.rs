@@ -1181,7 +1181,9 @@ impl App {
         let before = self.details.as_ref().map(|d| d["node"]["id"].clone());
         let now = self.selected_id().map(|i| serde_json::json!(i));
         if before != now {
-            self.photo_idx = 0;
+            // The newest photo is the one that shows the place as it is now; older ones stay a
+            // step back with `[`.
+            self.photo_idx = usize::MAX;
             self.detail_scroll = 0;
         }
         self.details = match self.selected_id() {
@@ -1824,9 +1826,22 @@ impl App {
                 let count = self.photo_count();
                 let [img_area, rest] =
                     Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
-                let block = Block::bordered().title(tf(
-                    " Photo {}/{}  ([ ] step · r rotate · o full screen · O open outside) ",
-                    &[&(self.photo_idx.min(count - 1) + 1), &count],
+                let idx = self.photo_idx.min(count - 1);
+                // The photo's own note says what it shows (a drawer's final state, the inside
+                // of a bag), which the picture alone may not.
+                let note = self
+                    .details
+                    .as_ref()
+                    .and_then(|d| d["node"]["id"].as_i64())
+                    .and_then(|id| self.inv.photo_list(&id.to_string()).ok())
+                    .and_then(|v| v["photos"][idx]["note"].as_str().map(str::to_string))
+                    .map(|n| format!("· {n} "))
+                    .unwrap_or_default();
+                // The note before the key hints, so a narrow pane cuts the hints, not the note.
+                let block = Block::bordered().title(format!(
+                    "{}{note}{}",
+                    tf(" Photo {}/{} ", &[&(idx + 1), &count]),
+                    t("([ ] step · r rotate · o full screen · O open outside) ")
                 ));
                 let inner = block.inner(img_area);
                 self.photo_area = img_area;
@@ -1938,7 +1953,12 @@ impl App {
             return Text::from(t("(empty)"));
         };
         let n = &v["node"];
-        let mut title = path_spans(n["path_text"].as_str().unwrap_or_default());
+        // The id first: it is how any node, with or without a label, is named to the agent.
+        let mut title = vec![Span::styled(
+            format!("#{}  ", n["id"]),
+            Style::new().fg(pal().code).bold(),
+        )];
+        title.extend(path_spans(n["path_text"].as_str().unwrap_or_default()));
         if let Some(last) = title.last_mut() {
             *last = last.clone().bold();
         }
@@ -2155,38 +2175,121 @@ impl App {
             ))
             .bold(),
         ];
-        let anchor = |id: &Value| -> String {
-            g["boxes"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .find(|b| &b["id"] == id)
-                .and_then(|b| b["cells"].as_str())
-                .map(|c| c.split('-').next().unwrap_or(c).to_string())
-                .unwrap_or_else(|| "?".into())
-        };
-        // The column letters, as `ev grid` prints them.
-        if let Some(head) = crate::render::grid_lines(g).into_iter().next() {
-            lines.push(Line::from(head));
-        }
-        for (r, row) in g["map"].as_array().into_iter().flatten().enumerate() {
-            let mut spans = vec![Span::raw(format!("{:>2}  ", r + 1))];
-            for cell in row.as_array().into_iter().flatten() {
-                // Free cells are dots; a box names its back-left cell; the box being shown
-                // stands out and the others step back.
-                let span = if cell.is_null() {
-                    Span::styled("·", Style::new().fg(pal().muted))
-                } else if cell.as_i64().is_some() && cell.as_i64() == mark {
-                    Span::styled(anchor(cell), Style::new().fg(pal().code).bold().reversed())
-                } else if mark.is_some() {
-                    Span::styled(anchor(cell), Style::new().fg(pal().muted))
-                } else {
-                    Span::styled(anchor(cell), Style::new().fg(pal().code))
-                };
-                let pad = 5usize.saturating_sub(span.width());
-                spans.push(span);
-                spans.push(Span::raw(" ".repeat(pad)));
+        // The boxes are drawn as frames on the plate, the way they sit in the drawer: a box
+        // over several cells is one frame, and a free cell is a bare dot on the plate.
+        const W: usize = 6;
+        let map: Vec<Vec<Option<i64>>> = g["map"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|row| {
+                row.as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(Value::as_i64)
+                    .collect()
+            })
+            .collect();
+        let rows = map.len() as isize;
+        let cols = map.first().map_or(0, Vec::len) as isize;
+        let at = |r: isize, c: isize| -> Option<i64> {
+            if r < 0 || c < 0 || r >= rows || c >= cols {
+                return None;
             }
+            map[r as usize][c as usize]
+        };
+        // An edge runs between two cells that belong to different boxes, one of them a box.
+        let differ = |a: Option<i64>, b: Option<i64>| a != b && (a.is_some() || b.is_some());
+        let hseg = |r: isize, c: isize| c >= 0 && c < cols && differ(at(r - 1, c), at(r, c));
+        let vseg = |r: isize, c: isize| r >= 0 && r < rows && differ(at(r, c - 1), at(r, c));
+        let style = |ids: [Option<i64>; 4]| match mark {
+            Some(m) if ids.contains(&Some(m)) => Style::new().fg(pal().code).bold(),
+            Some(_) => Style::new().fg(pal().muted),
+            None => Style::new(),
+        };
+        let corner = |r: isize, c: isize| -> Span<'static> {
+            let (u, d, l, rt) = (vseg(r - 1, c), vseg(r, c), hseg(r, c - 1), hseg(r, c));
+            let ch = match (u, d, l, rt) {
+                (false, false, false, false) => " ",
+                (true, true, false, false)
+                | (true, false, false, false)
+                | (false, true, false, false) => "│",
+                (false, false, true, true)
+                | (false, false, true, false)
+                | (false, false, false, true) => "─",
+                (false, true, false, true) => "┌",
+                (false, true, true, false) => "┐",
+                (true, false, false, true) => "└",
+                (true, false, true, false) => "┘",
+                (true, true, false, true) => "├",
+                (true, true, true, false) => "┤",
+                (false, true, true, true) => "┬",
+                (true, false, true, true) => "┴",
+                (true, true, true, true) => "┼",
+            };
+            let ids = [at(r - 1, c - 1), at(r - 1, c), at(r, c - 1), at(r, c)];
+            Span::styled(ch, style(ids))
+        };
+        let mut head = String::from("   ");
+        for c in 0..cols {
+            head.push_str(&format!("{:^W$}", ((b'A' + c as u8) as char).to_string()));
+        }
+        lines.push(Line::from(head));
+        for r in 0..=rows {
+            // The edge line above cell row `r`.
+            let mut spans = vec![Span::raw("   ")];
+            for c in 0..cols {
+                spans.push(corner(r, c));
+                let fill = if hseg(r, c) { "─" } else { " " };
+                spans.push(Span::styled(
+                    fill.repeat(W - 1),
+                    style([at(r - 1, c), at(r, c), None, None]),
+                ));
+            }
+            spans.push(corner(r, cols));
+            lines.push(Line::from(spans));
+            if r == rows {
+                break;
+            }
+            // The cell row itself: a box names its back-left cell once, and the box being
+            // shown stands out while the others step back.
+            let mut spans = vec![Span::raw(format!("{:>2} ", r + 1))];
+            for c in 0..cols {
+                let edge = if vseg(r, c) { "│" } else { " " };
+                spans.push(Span::styled(
+                    edge,
+                    style([at(r, c - 1), at(r, c), None, None]),
+                ));
+                let id = at(r, c);
+                let label = format!("{}{}", (b'A' + c as u8) as char, r + 1);
+                let span = match id {
+                    None => Span::styled(
+                        format!("{:^w$}", "·", w = W - 1),
+                        Style::new().fg(pal().muted),
+                    ),
+                    Some(_) if at(r - 1, c) == id || at(r, c - 1) == id => {
+                        Span::raw(" ".repeat(W - 1))
+                    }
+                    Some(i) if Some(i) == mark => Span::styled(
+                        format!("{:^w$}", label, w = W - 1),
+                        Style::new().fg(pal().code).bold().reversed(),
+                    ),
+                    Some(_) if mark.is_some() => Span::styled(
+                        format!("{:^w$}", label, w = W - 1),
+                        Style::new().fg(pal().muted),
+                    ),
+                    Some(_) => Span::styled(
+                        format!("{:^w$}", label, w = W - 1),
+                        Style::new().fg(pal().code),
+                    ),
+                };
+                spans.push(span);
+            }
+            let edge = if vseg(r, cols) { "│" } else { " " };
+            spans.push(Span::styled(
+                edge,
+                style([at(r, cols - 1), None, None, None]),
+            ));
             lines.push(Line::from(spans));
         }
         if mark.is_none() {
@@ -2573,7 +2676,8 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("3×2 grid, row 1 at the back"), "{s}");
-        assert!(s.contains("1  ·    B1   B1"), "{s}");
+        assert!(s.contains(" 1    ·  │ B1        │"), "{s}");
+        assert!(s.contains("┌───────────┐"), "{s}");
         assert!(s.contains("free (4): A1 A2 B2 C2"), "{s}");
     }
 
@@ -2632,7 +2736,7 @@ mod tests {
         let s = shown(&mut app, "D-B1", 150, 40);
         // The drawer's map, with this box among the others.
         assert!(s.contains("2×1 grid, row 1 at the back"), "{s}");
-        assert!(s.contains(" 1  A1   B1"), "{s}");
+        assert!(s.contains(" 1 │ A1  │ B1  │"), "{s}");
         // Room from the fill, not only the percentage.
         assert!(s.contains("▮▮▯▯  room (50% full)"), "{s}");
         // The stray LED, with where it would fit better.
@@ -2765,6 +2869,38 @@ mod tests {
         let s = screen(&term);
         assert!(s.contains("Fotoğraf 1/1"), "{s}");
         assert!(s.contains("Ayrıntı"));
+    }
+
+    #[test]
+    fn the_newest_photo_and_its_note_show_first_under_the_nodes_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]))
+            .save(&photo)
+            .unwrap();
+        inv.photo_add("Ev", &photo, None, Some("before the tour"))
+            .unwrap();
+        inv.photo_add("Ev", &photo, None, Some("final state"))
+            .unwrap();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.picker = Some(Picker::halfblocks());
+        let mut term = Terminal::new(TestBackend::new(140, 40)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Photo 2/2"), "{s}");
+        assert!(s.contains("final state"), "{s}");
+        assert!(s.contains("#1  Ev"), "{s}");
+        // A step back reaches the older one.
+        press(&mut app, KeyCode::Char('['));
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("before the tour"));
     }
 
     fn press(app: &mut App, c: KeyCode) {

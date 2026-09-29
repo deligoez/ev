@@ -289,6 +289,10 @@ fn is_compound(a: &Term, b: &Term) -> bool {
 pub(crate) struct Lexicon {
     words: HashSet<String>,
     shared: HashMap<String, usize>,
+    /// Stems written somewhere with `-lar`/`-ler` after them, and attested beyond that one
+    /// word (written on their own, or a stem of two words), so `controller` makes no `control`
+    /// noun of its own.
+    plural_stems: HashSet<String>,
 }
 
 impl Lexicon {

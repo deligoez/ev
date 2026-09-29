@@ -1,7 +1,7 @@
 //! `ev ui`: a read-only terminal browser that follows the database as it changes.
 //!
-//! It never writes the database. The one thing it writes is the display settings file, from
-//! the Settings tab.
+//! It never writes the database. What it writes is the display settings file, from the Settings
+//! tab, and on exit the tree position it reopens on (`ui-state.json`, beside the settings).
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use crate::i18n::{self, Lang, t, tf};
 use crate::input::{self, Graphics, Input};
-use crate::settings::{self, LangPref, Settings, ThemePref};
+use crate::settings::{self, LangPref, Settings, ThemePref, UiState};
 use crate::theme::{self, Mode, pal};
 
 const POLL: Duration = Duration::from_millis(500);
@@ -57,6 +57,7 @@ const UNCLEAR_SECTION: i64 = -14;
 /// Rows of the Settings tab; their ids are negative like section headers, but far below them.
 const SETTING_LANGUAGE: i64 = -1001;
 const SETTING_THEME: i64 = -1002;
+const SETTING_RESUME: i64 = -1003;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
@@ -405,6 +406,9 @@ struct App {
     /// version they were computed at.
     hints: Vec<Line<'static>>,
     regroups: HashMap<i64, (i64, Value)>,
+    /// The node selected in the tree when another tab was opened; the tree's position is what
+    /// `ev ui` reopens on.
+    tree_selected: Option<i64>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -506,6 +510,7 @@ impl App {
             detail_lines: 0,
             hints: Vec::new(),
             regroups: HashMap::new(),
+            tree_selected: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1033,6 +1038,11 @@ impl App {
         vec![
             row(SETTING_LANGUAGE, t("Language"), self.language_label()),
             row(SETTING_THEME, t("Appearance"), self.theme_label()),
+            row(
+                SETTING_RESUME,
+                t("Reopen where I left off"),
+                if self.prefs.resume { t("On") } else { t("Off") }.to_string(),
+            ),
         ]
     }
 
@@ -1088,6 +1098,22 @@ impl App {
                     ).to_string()));
                 }
             }
+            Some(SETTING_RESUME) => {
+                lines.push(Line::from(t("Reopen where I left off")).bold());
+                lines.push(Line::raw(""));
+                lines.push(Line::raw(t(
+                    "On: ev ui opens on the node that was selected in the tree when it last closed, for each database on its own. Off: it opens at the top.",
+                )));
+                lines.push(Line::raw(""));
+                for (on, name) in [(true, t("On")), (false, t("Off"))] {
+                    let mark = if on == self.prefs.resume {
+                        "● "
+                    } else {
+                        "○ "
+                    };
+                    lines.push(Line::raw(format!("  {mark}{name}")));
+                }
+            }
             _ => {}
         }
         lines.push(Line::raw(""));
@@ -1098,7 +1124,7 @@ impl App {
             lines.push(muted(tf("Saved in {}", &[&p.display()])));
         }
         lines.push(muted(t(
-            "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto",
+            "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto, ev settings resume on|off",
         ).to_string()));
         Text::from(lines)
     }
@@ -1111,6 +1137,7 @@ impl App {
                 prefs.language = settings::cycle(&LangPref::ALL, prefs.language, forward)
             }
             SETTING_THEME => prefs.theme = settings::cycle(&ThemePref::ALL, prefs.theme, forward),
+            SETTING_RESUME => prefs.resume = !prefs.resume,
             _ => return Ok(()),
         }
         self.set_prefs(prefs)?;
@@ -1420,6 +1447,26 @@ impl App {
         self.load_details()
     }
 
+    /// The node selected in the tree, whichever tab is open.
+    fn tree_position(&self) -> Option<i64> {
+        let id = if self.tab == Tab::Tree {
+            self.selected_id()
+        } else {
+            self.tree_selected
+        };
+        id.filter(|&i| i > 0)
+    }
+
+    /// Opens on the node `ev ui` was on when it last closed; one that is gone since leaves the
+    /// first row selected.
+    fn resume_at(&mut self, id: i64) -> Result<()> {
+        self.reveal(id)?;
+        if self.state.selected().is_none() {
+            self.select(0)?;
+        }
+        Ok(())
+    }
+
     fn select(&mut self, i: usize) -> Result<()> {
         if self.rows.is_empty() {
             return Ok(());
@@ -1439,6 +1486,9 @@ impl App {
     }
 
     fn switch(&mut self, tab: Tab) -> Result<()> {
+        if self.tab == Tab::Tree {
+            self.tree_selected = self.selected_id();
+        }
         self.tab = tab;
         self.state.select(None);
         self.rebuild()

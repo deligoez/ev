@@ -144,9 +144,38 @@ creates the place.
 
 | Command | Does |
 |---|---|
-| `ev suggest <text> [--tag t]` | `rules`, `similar` (holders of alike items, most matches first), `containers` (every holder, with `path_text`, `theme`, `fill`, `items`, `sample`), `complete.containers` |
+| `ev suggest <text> [--tag t] [--for <ref>]` | `words` (the query as searched), `synonyms_added`, `new_group_likely`, `considered` (how scores are made, in words), `rules`, `similar` (up to 12 holders, best first: `container` with `room`, `score`, `coverage`, `specific`, `matched` `[{term, points, from, specific}]`, `count`, `matches`), `containers` (every holder, with `path_text`, `theme`, `fill`, `room`, `items`, `sample`, `cells`/`grid`), `complete.containers`. `--for` places an existing node by its own name, tags and note, never into itself or anything inside it |
+| `ev regroup [<ref>]` | for the holders under `<ref>` (or everywhere): `checked` (`items`, `best_where_they_are`), `elsewhere` (`item`, `now`, `better` with score and `matched`), `strays` (things named for another holder's theme), `full` (fill ≥ 90, with `bigger_spares` and the cells each `fits_at`), `sparse` (fill ≤ 25, with a `merge_into` sibling that has room), `mixed` (half or more of three or more things fit better elsewhere), `unknown_fill` (fill unknown or `stale`) |
+| `ev synonym add <a, b, …>` / `ev synonym list` / `ev synonym remove <id>` | groups of words that mean the same thing for placing (`fotosel, ldr, ışık sensörü`); a query that has one also searches the others at 0.8 weight. `synonyms`: `[{id, words}]` |
 | `ev rule add <text>` / `ev rule list` / `ev rule remove <id>` | placement rules in plain words |
 | `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried) |
+
+### How `suggest` and `regroup` score
+
+Each holder is one document made of its own theme (×3), name (×2.5) and note (×1) and of
+the names (×2), tags (×1.5) and notes (×1) of the things directly inside it. A query's words
+are scored against it with BM25F (k1 = 1.2, b = 0.5): a word rare across holders (IDF) counts
+more, repeats count less and less. The query itself is weighted by where its words came from:
+the name 1, tags 0.8, a note 0.4 (`--for`), a synonym 0.8.
+
+- **Words.** Text is folded (case and Turkish letters), filler words are dropped, part codes
+  stay whole (`KY-018` → `ky018`, `HC-SR04` → `hcsr04`), bare numbers are not words. Turkish
+  endings are cut against the inventory's own vocabulary: a form goes to the shortest shorter
+  form written somewhere on its own (`kutuda` → `kutu`, `kitabı` → `kitap`), a word written on
+  its own is never cut further, and otherwise to the longest stem two different words share.
+- **`coverage`** is the share of the query's weight the holder matched. Below 0.5 for the best
+  holder, `new_group_likely` is true: nothing here is what the thing is.
+- **`specific`** marks a word that says what a thing is rather than its family: one in about 1
+  in 20 holders or fewer (IDF ≥ 3), or in at most 2 holders.
+- **`room`**: `yes` below fill 70, `little` from 70, `none` from 90, `unknown` without a fill.
+  `stale` is true when the contents changed after the fill was given.
+- Ties go to the lower id, so the same inventory and question always give the same answer.
+
+`regroup` asks the same question of every thing, leaving the thing itself out (it must not vote
+for where it already is). A holder with the same theme words as the thing's own is the same
+group split over boxes and counts as home. A thing is flagged `elsewhere` only when another
+holder scores at least 1.5× its own, at least 3, and matched on a `specific` word. A spare box
+is anything tagged `boş kap` (or `spare box`) with a `size`.
 
 `ev restore <ref> --correction "<why>"` undoes a `gone` recorded by mistake; plain `restore` returns a
 candidate to active.

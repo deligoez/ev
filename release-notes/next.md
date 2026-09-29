@@ -12,6 +12,8 @@ Draft for the next release.
 - **`ev photo cut --grid` cuts every box of a drawer from one photo.** Give the grid's four
   corners in the photo (back-left, back-right, front-right, front-left, as fractions); each placed
   box gets a crop through the photo's perspective. A crop named by hand still wins for its box.
+  `--preview` cuts nothing and draws every box it would cut, framed on its cells, to check the
+  corners by eye first.
 - **A tour needs current photos.** `ev review <x> --status toured` is refused while the place or
   a placed box in its grid shows an older state than it has (`details.stale`); attach a photo or
   run `ev photo current`.

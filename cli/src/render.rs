@@ -213,8 +213,8 @@ fn todo(out: &mut String, v: &Value) {
     let c = &v["counts"];
     let _ = writeln!(
         out,
-        "Goal: {}  ·  {}",
-        v["goal"].as_str().unwrap_or("(not set)"),
+        "{}  ·  {}",
+        tf("Goal: {}", &[&goal(v)]),
         progress_line(&v["progress"])
     );
     let head = |out: &mut String, title: &str, n: &Value| {
@@ -225,12 +225,18 @@ fn todo(out: &mut String, v: &Value) {
             false
         }
     };
-    if head(out, "Tasks", &c["tasks"]) {
-        for t in v["tasks"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}. #{} {}", t["position"], t["id"], s(t, "title"));
+    if head(out, t("Tasks"), &c["tasks"]) {
+        for t_ in v["tasks"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {}. #{} {}",
+                t_["position"],
+                t_["id"],
+                s(t_, "title")
+            );
         }
     }
-    if head(out, "Moves", &c["moves"]) {
+    if head(out, t("Moves"), &c["moves"]) {
         for m in v["moves"].as_array().into_iter().flatten() {
             let _ = writeln!(
                 out,
@@ -240,17 +246,22 @@ fn todo(out: &mut String, v: &Value) {
             );
         }
     }
-    if head(out, "Errands", &c["errands"]) {
+    if head(out, t("Errands"), &c["errands"]) {
         for e in v["errands"].as_array().into_iter().flatten() {
             errands(out, e);
         }
     }
-    if head(out, "Leaving", &c["disposals"]) {
+    if head(out, t("Leaving"), &c["disposals"]) {
         for (d, list) in v["disposals"].as_object().into_iter().flatten() {
             for n in list.as_array().into_iter().flatten() {
                 let sale = match n["sale"]["value"].as_str() {
                     Some(st) => format!(
-                        "  [{st}{}{}]",
+                        "  [{}{}{}]",
+                        if st == "listed" {
+                            t("listed")
+                        } else {
+                            t("reserved")
+                        },
                         n["sale"]["amount"]
                             .as_i64()
                             .map(|a| format!(" {a}"))
@@ -262,26 +273,26 @@ fn todo(out: &mut String, v: &Value) {
                     ),
                     None => String::new(),
                 };
-                let _ = writeln!(out, "  {d}: {}{sale}", line(n));
+                let _ = writeln!(out, "  {}: {}{sale}", disposition(d), line(n));
             }
         }
     }
     for (key, title) in [
-        ("labels", "Labels to print"),
-        ("repairs", "Broken"),
-        ("expiring", "Use-by soon"),
-        ("unknown", "Contents unknown"),
-        ("stale", "Changed since toured"),
-        ("unclear", "Unclear records"),
-        ("photos", "Photo of the current state needed"),
+        ("labels", t("Labels to print")),
+        ("repairs", t("Broken")),
+        ("expiring", t("Use-by soon")),
+        ("unknown", t("Contents unknown")),
+        ("stale", t("Changed since toured")),
+        ("unclear", t("Unclear records")),
+        ("photos", t("Photo of the current state needed")),
     ] {
         if head(out, title, &c[key]) {
             for n in v[key].as_array().into_iter().flatten() {
                 let extra = match key {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
-                    "expiring" => Some(format!("  {} ({} days)", s(n, "expires"), n["days_left"])),
-                    "photos" if n["photo_reason"] == "none" => Some("  (no photo)".into()),
-                    "photos" => Some(format!("  (changed {})", s(n, "changed_at"))),
+                    "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
+                    "photos" if n["photo_reason"] == "none" => Some(t("  (no photo)").into()),
+                    "photos" => Some(tf("  (changed {})", &[&s(n, "changed_at")])),
                     _ => None,
                 }
                 .unwrap_or_default();
@@ -291,7 +302,7 @@ fn todo(out: &mut String, v: &Value) {
     }
     if head(
         out,
-        "Whole photo shared by several records",
+        t("Whole photo shared by several records"),
         &c["shared_photos"],
     ) {
         for group in v["shared_photos"].as_array().into_iter().flatten() {
@@ -304,12 +315,12 @@ fn todo(out: &mut String, v: &Value) {
             let _ = writeln!(out, "  {}", names.join(", "));
         }
     }
-    if head(out, "To get", &c["needs"]) {
+    if head(out, t("To get"), &c["needs"]) {
         for n in v["needs"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", need_line(n));
         }
     }
-    if head(out, "Lost", &c["lost"]) {
+    if head(out, t("Lost"), &c["lost"]) {
         for m in v["lost"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", line(&m["node"]));
         }

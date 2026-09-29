@@ -96,9 +96,9 @@ fn place_head(p: &Value) -> String {
 fn errands(out: &mut String, e: &Value) {
     let _ = writeln!(out, "{}", place_head(&e["place"]));
     for (key, title) in [
-        ("take", "take"),
-        ("return", "return (theirs)"),
-        ("collect", "collect (lent)"),
+        ("take", t("take")),
+        ("return", t("return (theirs)")),
+        ("collect", t("collect (lent)")),
     ] {
         let list = e[key].as_array().cloned().unwrap_or_default();
         if list.is_empty() {

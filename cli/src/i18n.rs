@@ -100,3 +100,7 @@ pub fn set_lang(l: Lang) {
     LANG.with(|c| c.set(l));
 }
 
+pub fn lang() -> Lang {
+    LANG.with(Cell::get)
+}
+

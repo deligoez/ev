@@ -406,6 +406,10 @@ struct AddArgs {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json || !std::io::stdout().is_terminal();
+    // JSON has no words to translate; skip reading the settings (and the system language).
+    if !json {
+        ui::set_language_from_settings();
+    }
     match run(cli) {
         Ok(Value::Null) => ExitCode::SUCCESS,
         Ok(value) => {

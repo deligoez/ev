@@ -1114,7 +1114,7 @@ pub(crate) fn event(conn: &Connection, id: i64, kind: &str, data: Value) -> Resu
     Ok(())
 }
 
-fn brief_json(conn: &Connection, id: i64) -> Result<Value> {
+pub(crate) fn brief_json(conn: &Connection, id: i64) -> Result<Value> {
     serde_json::to_value(brief(conn, id)?).map_err(|e| Error::Internal(e.to_string()))
 }
 

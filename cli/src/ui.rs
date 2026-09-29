@@ -1252,16 +1252,31 @@ impl App {
                 .map_or_else(|| str_of(h, "name"), str::to_string)
         };
         let mut lines = Vec::new();
-        for e in r["elsewhere"].as_array().into_iter().flatten() {
+        let sure = r["elsewhere"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|e| (e, true));
+        let guess = r["alone"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|e| (e, false));
+        for (e, sure) in sure.chain(guess) {
             if scope != id && e["now"]["holder"]["id"].as_i64() != Some(id) {
                 continue;
             }
-            // The destination first: a long name wraps, a code does not.
-            lines.push(Line::from(vec![
+            // The destination first: a long name wraps, a code does not. A thing that shares no
+            // word with its neighbours is only a guess, and says so.
+            let mut spans = vec![
                 Span::styled("  → ", Style::new().fg(pal().muted)),
                 Span::styled(label(&e["better"]["holder"]), Style::new().fg(pal().code)),
                 Span::raw(format!("  {}", str_of(&e["item"], "name"))),
-            ]));
+            ];
+            if !sure {
+                spans.push(Span::styled(t("  (a guess)"), Style::new().fg(pal().muted)));
+            }
+            lines.push(Line::from(spans));
         }
         if r["mixed"]
             .as_array()

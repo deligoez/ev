@@ -589,8 +589,9 @@ struct App {
     /// The grid on the Grid tab, whose boxes open with a click: a drawer's own, or the one a
     /// box stands in.
     grid_hit: Option<Vec<Vec<Option<i64>>>>,
-    /// A picture sent with `ev focus --file` and its note, shown full screen until closed.
-    overlay: Option<(String, Option<String>)>,
+    /// Pictures sent together with `ev focus --file`, the one shown, and their note; full
+    /// screen until closed.
+    overlay: Option<(Vec<String>, usize, Option<String>)>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -1691,13 +1692,24 @@ impl App {
             return Ok(());
         }
         self.focus_seen = at;
-        if let Some(file) = req["file"].as_str() {
+        let files: Vec<String> = match req["files"].as_array() {
+            Some(a) => a
+                .iter()
+                .filter_map(|f| f.as_str().map(str::to_string))
+                .collect(),
+            None => req["file"]
+                .as_str()
+                .map(str::to_string)
+                .into_iter()
+                .collect(),
+        };
+        if !files.is_empty() {
             let note = req["note"].as_str().map(str::to_string);
             self.status = tf(
                 "showing: {}",
-                &[&note.clone().unwrap_or_else(|| file.into())],
+                &[&note.clone().unwrap_or_else(|| files[0].clone())],
             );
-            self.overlay = Some((file.to_string(), note));
+            self.overlay = Some((files, 0, note));
             self.fullscreen = true;
             return Ok(());
         }
@@ -1851,7 +1863,7 @@ impl App {
     /// selected node's current photo.
     fn shown_picture(&self) -> Option<String> {
         match &self.overlay {
-            Some((p, _)) => Some(p.clone()),
+            Some((files, i, _)) => files.get(*i).cloned(),
             None => self.current_photo(),
         }
     }
@@ -1859,6 +1871,14 @@ impl App {
     fn close_fullscreen(&mut self) {
         self.fullscreen = false;
         self.overlay = None;
+    }
+
+    /// `[` `]` over pictures sent together: the previous or next one, stopping at the ends.
+    fn step_overlay(&mut self, delta: isize) {
+        if let Some((files, i, _)) = &mut self.overlay {
+            let last = files.len().saturating_sub(1) as isize;
+            *i = (*i as isize + delta).clamp(0, last) as usize;
+        }
     }
 
     fn open_external(&mut self) {
@@ -1889,6 +1909,8 @@ impl App {
                 KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') if photos => {
                     self.step_photo(-1)
                 }
+                KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => self.step_overlay(1),
+                KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => self.step_overlay(-1),
                 KeyCode::Char('O') => self.open_external(),
                 KeyCode::Char('r') => self.rotate(1),
                 KeyCode::Char('R') => self.rotate(3),
@@ -2243,15 +2265,25 @@ impl App {
         );
     }
 
-    /// A picture sent with `ev focus --file` (a marked photo) over the whole screen, titled with
-    /// its note. It is not a record: closing it forgets it.
-    fn draw_overlay(&mut self, f: &mut Frame, path: &str, note: Option<String>) {
+    /// Pictures sent with `ev focus --file` (marked photos) over the whole screen, titled with
+    /// their note and, when there are several, which one this is. They are no record: closing
+    /// forgets them.
+    fn draw_overlay(
+        &mut self,
+        f: &mut Frame,
+        path: &str,
+        note: Option<String>,
+        at: (usize, usize),
+    ) {
         let [main, bottom] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
-        let title = match note {
+        let mut title = match note {
             Some(n) => format!(" {n} "),
             None => t(" Marked photo ").to_string(),
         };
+        if at.1 > 1 {
+            title.push_str(&format!("· {}/{} ", at.0 + 1, at.1));
+        }
         let block = Block::bordered()
             .title(title)
             .border_style(Style::new().fg(pal().lost).bold());
@@ -2268,16 +2300,21 @@ impl App {
                 inner,
             );
         }
-        f.render_widget(
-            Paragraph::new(t("r/R rotate · O open outside · Esc/o/click close")).fg(pal().muted),
-            bottom,
-        );
+        let keys = if at.1 > 1 {
+            t("[ ] ← → step · r/R rotate · O open outside · Esc/o/click close")
+        } else {
+            t("r/R rotate · O open outside · Esc/o/click close")
+        };
+        f.render_widget(Paragraph::new(keys).fg(pal().muted), bottom);
     }
 
     fn draw(&mut self, f: &mut Frame) {
         if self.fullscreen {
-            if let Some((path, note)) = self.overlay.clone() {
-                return self.draw_overlay(f, &path, note);
+            if let Some((files, i, note)) = self.overlay.clone() {
+                let i = i.min(files.len().saturating_sub(1));
+                if let Some(path) = files.get(i) {
+                    return self.draw_overlay(f, path, note, (i, files.len()));
+                }
             }
             if let Some(path) = self.current_photo() {
                 return self.draw_fullscreen(f, &path);
@@ -3877,14 +3914,27 @@ mod tests {
             .save(&marked)
             .unwrap();
         // Another process asks; the running UI picks it up without restarting.
-        app.inv.focus_file(&marked, Some("1 → A6")).unwrap();
+        let drawer = dir.path().join("drawer.png");
+        std::fs::copy(&marked, &drawer).unwrap();
+        app.inv
+            .focus_file(&[marked.clone(), drawer.clone()], Some("1 → A6"))
+            .unwrap();
         app.apply_focus().unwrap();
         let mut term = Terminal::new(TestBackend::new(100, 20)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(
-            s.contains("1 → A6") && s.contains("Esc/o/click close"),
+            s.contains("1 → A6 · 1/2") && s.contains("Esc/o/click close"),
             "{s}"
+        );
+        // Sent together, they are stepped through; the end holds.
+        press(&mut app, KeyCode::Char(']'));
+        press(&mut app, KeyCode::Char(']'));
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("1 → A6 · 2/2"));
+        assert_eq!(
+            app.shown_picture(),
+            Some(drawer.to_string_lossy().into_owned())
         );
         // Esc closes it for good; the same request is not shown again.
         press(&mut app, KeyCode::Esc);

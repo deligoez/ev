@@ -3012,6 +3012,9 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     app.reload_settings()?;
     let db = std::path::absolute(db).unwrap_or_else(|_| db.to_path_buf());
     let state = app.settings_path.as_deref().map(UiState::beside);
+    if let Some(s) = &state {
+        app.apply_layout(&s.layout());
+    }
     if let (true, Some(id)) = (app.prefs.resume, state.as_ref().and_then(|s| s.last(&db))) {
         app.resume_at(id)?;
     }
@@ -3027,9 +3030,10 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     }
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
-    // Kept even with resuming off, so turning it on picks up from the last session.
-    if let (Some(state), Some(id)) = (&state, app.tree_position()) {
-        let _ = state.remember(&db, id);
+    // The position is kept even with resuming off, so turning it on picks up from the last
+    // session; the layout always.
+    if let Some(state) = &state {
+        let _ = state.save(&db, app.tree_position(), app.layout_json());
     }
     send(input::STOP);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);

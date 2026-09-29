@@ -121,22 +121,25 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
         let _ = write!(extra, "  ×{q}");
     }
     if s(n, "state") == "candidate" {
-        let _ = write!(extra, "  (candidate: {})", s(n, "disposition"));
+        extra.push_str(&tf(
+            "  (candidate: {})",
+            &[&disposition(&s(n, "disposition"))],
+        ));
     }
     if n["lost"].as_bool() == Some(true) {
-        extra.push_str("  (lost)");
+        extra.push_str(t("  (lost)"));
     }
     extra.push_str(&place_marks(n));
     let total = n["items"].as_i64().unwrap_or(0);
     if total > 0 {
-        let _ = write!(extra, "  [{total} items]");
+        extra.push_str(&tf("  [{} items]", &[&total]));
     }
     let _ = writeln!(
         out,
         "{}{label}  #{} ({}){extra}",
         "  ".repeat(indent),
         n["id"],
-        s(n, "kind")
+        kind(&s(n, "kind"))
     );
     for c in n["children"].as_array().into_iter().flatten() {
         tree(out, c, indent + 1);

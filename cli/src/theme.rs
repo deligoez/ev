@@ -97,3 +97,18 @@ pub fn mode_of(r: f64, g: f64, b: f64) -> Mode {
     }
 }
 
+/// The answer to an OSC 11 query, without its introducer and terminator:
+/// `11;rgb:RRRR/GGGG/BBBB` (one to four hex digits per channel).
+pub fn parse_osc11(payload: &str) -> Option<Mode> {
+    let rgb = payload.strip_prefix("11;")?.strip_prefix("rgb:")?;
+    let mut ch = rgb.split('/').map(|h| {
+        let h = h.trim();
+        let max = (1u32 << (4 * h.len().clamp(1, 4))) - 1;
+        u32::from_str_radix(h, 16)
+            .ok()
+            .map(|v| f64::from(v) / f64::from(max))
+    });
+    let (r, g, b) = (ch.next()??, ch.next()??, ch.next()??);
+    Some(mode_of(r, g, b))
+}
+

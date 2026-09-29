@@ -333,9 +333,13 @@ pub fn human(v: &Value) -> String {
         todo(&mut out, v);
         return out;
     }
+    if v.get("language").is_some() && v["language"].get("setting").is_some() {
+        settings(&mut out, v);
+        return out;
+    }
     if let Some(list) = v.get("labels").and_then(Value::as_array) {
         if list.is_empty() {
-            out.push_str("(no labels to print)\n");
+            let _ = writeln!(out, "{}", t("(no labels to print)"));
         }
         for n in list {
             let theme = n["theme"]
@@ -350,7 +354,7 @@ pub fn human(v: &Value) -> String {
         && v.get("node").is_none()
     {
         if list.is_empty() {
-            out.push_str("(nothing to get)\n");
+            let _ = writeln!(out, "{}", t("(nothing to get)"));
         }
         for n in list {
             let _ = writeln!(out, "{}", need_line(n));
@@ -362,10 +366,10 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("open_tasks").is_some() {
-        let _ = writeln!(out, "Goal: {}", v["goal"].as_str().unwrap_or("(not set)"));
+        let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
         let _ = writeln!(out, "{}", progress_line(&v["progress"]));
         if v["task"].is_object() {
-            let _ = writeln!(out, "\nNext task ({} open):", v["open_tasks"]);
+            let _ = writeln!(out, "\n{}", tf("Next task ({} open):", &[&v["open_tasks"]]));
             task_line(&mut out, &v["task"]);
             for p in v["task"]["places"].as_array().into_iter().flatten() {
                 let _ = writeln!(
@@ -375,21 +379,21 @@ pub fn human(v: &Value) -> String {
                     review_mark(&p["review"])
                 );
                 for o in p["observations"].as_array().into_iter().flatten() {
-                    let _ = writeln!(out, "    observed: {}", s(o, "text"));
+                    let _ = writeln!(out, "    {}", tf("observed: {}", &[&s(o, "text")]));
                 }
                 for c in p["children"].as_array().into_iter().flatten() {
                     let _ = writeln!(out, "    └ {}", line(c));
                 }
                 for a in p["arriving"].as_array().into_iter().flatten() {
-                    let _ = writeln!(out, "    → arriving: {}", s(a, "path_text"));
+                    let _ = writeln!(out, "    → {}", tf("arriving: {}", &[&s(a, "path_text")]));
                 }
             }
         } else {
-            out.push_str("\n(no open task)\n");
+            let _ = writeln!(out, "\n{}", t("(no open task)"));
         }
         let un = v["unplanned"].as_array().map_or(0, Vec::len);
         if un > 0 {
-            let _ = writeln!(out, "\nRaw places no task covers ({un}):");
+            let _ = writeln!(out, "\n{}", tf("Raw places no task covers ({}):", &[&un]));
             for p in v["unplanned"].as_array().into_iter().flatten() {
                 let _ = writeln!(out, "  {}", s(p, "path_text"));
             }
@@ -400,7 +404,7 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", progress_line(v));
         for p in v["places"].as_array().into_iter().flatten() {
             let unknown = if p["unknown"] == true {
-                "  (contents unknown)"
+                t("  (contents unknown)")
             } else {
                 ""
             };
@@ -413,12 +417,15 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
-    if let Some(list) = v.get("tasks").and_then(Value::as_array) {
+    // `ev show` also carries `tasks` (the node's own); only a bare task list lands here.
+    if let Some(list) = v.get("tasks").and_then(Value::as_array)
+        && v.get("node").is_none()
+    {
         if list.is_empty() {
-            out.push_str("(no tasks)\n");
+            let _ = writeln!(out, "{}", t("(no tasks)"));
         }
-        for t in list {
-            task_line(&mut out, t);
+        for t_ in list {
+            task_line(&mut out, t_);
         }
         return out;
     }
@@ -427,46 +434,86 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("goal").is_some() && v.as_object().is_some_and(|o| o.len() == 1) {
-        let _ = writeln!(out, "Goal: {}", v["goal"].as_str().unwrap_or("(not set)"));
+        let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
         return out;
     }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
         let _ = writeln!(out, "{}", line(node));
-        for key in ["kind", "note", "theme", "address", "to", "owner", "with"] {
+        if let Some(k) = node["kind"].as_str() {
+            let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
+        }
+        for (key, label) in [
+            ("note", t("note")),
+            ("theme", t("theme")),
+            ("address", t("address")),
+            ("to", t("to take to")),
+            ("owner", t("owner")),
+            ("with", t("lent to")),
+        ] {
             if let Some(x) = node[key].as_str() {
-                let _ = writeln!(out, "  {key}: {x}");
+                let _ = writeln!(out, "  {label}: {x}");
             }
         }
         if let Some(f) = node["fill"].as_i64() {
-            let _ = writeln!(out, "  fill: {f}%");
+            let _ = writeln!(out, "  {}: {}", t("fill"), tf("{}%", &[&f]));
         }
         if let Some(tags) = node["tags"].as_array().filter(|t| !t.is_empty()) {
             let tags: Vec<_> = tags.iter().filter_map(Value::as_str).collect();
-            let _ = writeln!(out, "  tags: {}", tags.join(", "));
+            let _ = writeln!(out, "  {}: {}", t("tags"), tags.join(", "));
         }
         for p in node["photos"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  photo: {}", p.as_str().unwrap_or_default());
+            let _ = writeln!(out, "  {}: {}", t("photo"), p.as_str().unwrap_or_default());
         }
         if v["pending"].is_object() {
-            let _ = writeln!(out, "  pending move → {}", s(&v["pending"], "path_text"));
+            let _ = writeln!(
+                out,
+                "  {}",
+                tf("pending move → {}", &[&s(&v["pending"], "path_text")])
+            );
         }
         if v["last_seen"].is_object() {
-            let _ = writeln!(out, "  last seen: {}", s(&v["last_seen"], "path_text"));
+            let _ = writeln!(
+                out,
+                "  {}",
+                tf("last seen: {}", &[&s(&v["last_seen"], "path_text")])
+            );
         }
         if v["review"].is_object() {
             let _ = writeln!(
                 out,
-                "  review: {} ({})",
-                s(&v["review"], "status"),
-                s(&v["review"], "at")
+                "  {}",
+                tf(
+                    "review: {} ({})",
+                    &[&s(&v["review"], "status"), &s(&v["review"], "at")]
+                )
             );
         }
         for o in v["observations"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  observed #{}: {}", o["id"], s(o, "text"));
+            let _ = writeln!(
+                out,
+                "  {}",
+                tf("observed #{}: {}", &[&o["id"], &s(o, "text")])
+            );
         }
         for (kind, m) in v["marks"].as_object().into_iter().flatten() {
+            let kind = match kind.as_str() {
+                "label" => t("label"),
+                "broken" => t("broken"),
+                "expires" => t("use-by"),
+                "sale" => t("sale"),
+                other => other,
+            };
             let what = [
-                m["value"].as_str().map(str::to_string),
+                m["value"].as_str().map(|x| {
+                    match x {
+                        "needed" => t("to print"),
+                        "printed" => t("printed"),
+                        "listed" => t("listed"),
+                        "reserved" => t("reserved"),
+                        other => other,
+                    }
+                    .to_string()
+                }),
                 m["amount"].as_i64().map(|a| a.to_string()),
                 m["note"].as_str().map(str::to_string),
             ]
@@ -477,20 +524,21 @@ pub fn human(v: &Value) -> String {
             let _ = writeln!(out, "  {kind}: {what}");
         }
         for n in v["needs"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  need: {}", need_line(n));
+            let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
         }
-        for t in v["tasks"].as_array().into_iter().flatten() {
-            let via = if t["via"] == node["id"] {
+        for t_ in v["tasks"].as_array().into_iter().flatten() {
+            let via = if t_["via"] == node["id"] {
                 String::new()
             } else {
-                format!("  (via #{})", t["via"])
+                tf("  (via #{})", &[&t_["via"]])
             };
             let _ = writeln!(
                 out,
-                "  task {}. #{} {}{via}",
-                t["position"],
-                t["id"],
-                s(t, "title")
+                "  {} {}. #{} {}{via}",
+                t("task"),
+                t_["position"],
+                t_["id"],
+                s(t_, "title")
             );
         }
         for c in v["children"].as_array().into_iter().flatten() {
@@ -500,7 +548,7 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(rules) = v.get("rules").and_then(Value::as_array) {
         if !rules.is_empty() || v.get("containers").is_none() {
-            let _ = writeln!(out, "Rules:");
+            let _ = writeln!(out, "{}", t("Rules:"));
             for r in rules {
                 let _ = writeln!(out, "  {}. {}", r["id"], s(r, "text"));
             }
@@ -508,7 +556,7 @@ pub fn human(v: &Value) -> String {
         if v.get("containers").is_none() {
             return out;
         }
-        let _ = writeln!(out, "Similar things are in:");
+        let _ = writeln!(out, "{}", t("Similar things are in:"));
         for x in v["similar"].as_array().into_iter().flatten() {
             let _ = writeln!(
                 out,
@@ -526,31 +574,39 @@ pub fn human(v: &Value) -> String {
         }
         let _ = writeln!(
             out,
-            "All {} places that can hold something:",
-            v["complete"]["containers"]
+            "{}",
+            tf(
+                "All {} places that can hold something:",
+                &[&v["complete"]["containers"]]
+            )
         );
         for c in v["containers"].as_array().into_iter().flatten() {
             let theme = c["theme"]
                 .as_str()
                 .map(|t| format!("  [{t}]"))
                 .unwrap_or_default();
-            let _ = writeln!(out, "  {}{theme}  {} items", s(c, "path_text"), c["items"]);
+            let _ = writeln!(
+                out,
+                "  {}{theme}  {}",
+                s(c, "path_text"),
+                tf("{} items", &[&c["items"]])
+            );
         }
         return out;
     }
     if v.get("spread").is_some() && v.get("no_theme").is_some() {
-        let _ = writeln!(out, "Alike things in several places:");
+        let _ = writeln!(out, "{}", t("Alike things in several places:"));
         for x in v["spread"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", s(x, "word"));
             for p in x["places"].as_array().into_iter().flatten() {
                 let _ = writeln!(out, "    {}", s(p, "path_text"));
             }
         }
-        let _ = writeln!(out, "Holders without a theme:");
+        let _ = writeln!(out, "{}", t("Holders without a theme:"));
         for n in v["no_theme"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", s(n, "path_text"));
         }
-        let _ = writeln!(out, "Items lying loose in a room or on furniture:");
+        let _ = writeln!(out, "{}", t("Items lying loose in a room or on furniture:"));
         for n in v["loose"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", s(n, "path_text"));
         }
@@ -562,7 +618,7 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(list) = v.get("errands").and_then(Value::as_array) {
         if list.is_empty() {
-            out.push_str("(nothing to take, return or collect)\n");
+            let _ = writeln!(out, "{}", t("(nothing to take, return or collect)"));
         }
         for e in list {
             errands(&mut out, e);
@@ -573,11 +629,12 @@ pub fn human(v: &Value) -> String {
         for p in list {
             let _ = writeln!(
                 out,
-                "{}  take {} · return {} · collect {}",
+                "{}  {}",
                 place_head(p),
-                p["take"],
-                p["return"],
-                p["collect"]
+                tf(
+                    "take {} · return {} · collect {}",
+                    &[&p["take"], &p["return"], &p["collect"]]
+                )
             );
         }
         return out;
@@ -586,12 +643,12 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", place_head(v));
         return out;
     }
-    if let Some(t) = v.get("tree").and_then(Value::as_array) {
-        for n in t {
+    if let Some(tr) = v.get("tree").and_then(Value::as_array) {
+        for n in tr {
             tree(&mut out, n, 0);
         }
         for n in v["unplaced"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "(place unknown) {}", line(n));
+            let _ = writeln!(out, "{}{}", t("(place unknown) "), line(n));
         }
         return out;
     }
@@ -605,7 +662,7 @@ pub fn human(v: &Value) -> String {
     for key in ["results", "created"] {
         if let Some(list) = v.get(key).and_then(Value::as_array) {
             if list.is_empty() {
-                out.push_str("(none)\n");
+                let _ = writeln!(out, "{}", t("(none)"));
             }
             for n in list {
                 let _ = writeln!(out, "{}", line(n));
@@ -615,7 +672,7 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(list) = v.get("pending").and_then(Value::as_array) {
         if list.is_empty() {
-            out.push_str("(no pending moves)\n");
+            let _ = writeln!(out, "{}", t("(no pending moves)"));
         }
         for m in list {
             let _ = writeln!(
@@ -643,20 +700,25 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(list) = v.get("lost").and_then(Value::as_array) {
         if list.is_empty() {
-            out.push_str("(nothing lost)\n");
+            let _ = writeln!(out, "{}", t("(nothing lost)"));
         }
         for m in list {
             let seen = m["last_seen"]
                 .get("path_text")
                 .and_then(Value::as_str)
-                .unwrap_or("never known");
-            let _ = writeln!(out, "{}\n    last seen: {seen}", line(&m["node"]));
+                .unwrap_or(t("never known"));
+            let _ = writeln!(
+                out,
+                "{}\n    {}",
+                line(&m["node"]),
+                tf("last seen: {}", &[&seen])
+            );
         }
         return out;
     }
     if let Some(groups) = v.get("disposals").and_then(Value::as_object) {
         for (d, list) in groups {
-            let _ = writeln!(out, "{d}:");
+            let _ = writeln!(out, "{}:", disposition(d));
             for n in list.as_array().into_iter().flatten() {
                 let _ = writeln!(out, "  {}", line(n));
                 for p in n["parts"].as_array().into_iter().flatten() {

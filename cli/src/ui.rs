@@ -1983,7 +1983,15 @@ pub fn run(inv: Inventory) -> Result<()> {
     app.settings_path = Settings::path();
     app.reload_settings()?;
     let mut terminal = ratatui::init();
-    app.picker = Some(Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks()));
+    // Inside tmux the query has to be wrapped for passthrough, which ratatui-image knows how to
+    // do; everywhere else `ev ui` asks itself (see `input::IMAGE_QUERY`) and starts on half
+    // blocks until the answer arrives, a few milliseconds later.
+    if std::env::var_os("TMUX").is_some() {
+        app.picker = Some(Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks()));
+    } else {
+        app.picker = Some(Picker::halfblocks());
+        app.probe = Some(ImageProbe::default());
+    }
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
     send(input::STOP);

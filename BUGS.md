@@ -32,13 +32,3 @@ that fixes them.
   maker desk) and things whose words say nothing about their kind. That is data (themes, a
   genre or category tag), not matching; the key was built from the current scorer's own
   flags, so it favours it slightly.
-- **`ev ui`: the details pane cannot scroll, so long contents are cut off.** K4x4-07-A lists
-  "İçindekiler (24)" and shows 13 on a 150×44 terminal (fewer with its photo panel); the rest
-  cannot be reached from the pane. Expected: the details scroll (mouse wheel over the pane,
-  and keys), or the contents list is the part that scrolls.
-- **`ev ui` does not show `size` or `room`.** v0.10.0 added a box's size and the room it has
-  (yes / little / none, stale when the contents changed after the fill), but the details pane
-  still shows only the raw fill percentage, and a stale fill looks as trustworthy as a fresh
-  one.
-- **`ev ui` shows `updated` as a raw UTC timestamp** (`2026-09-29T09:19:19Z`), three hours off
-  the local clock; it should be local time, and relative when recent.

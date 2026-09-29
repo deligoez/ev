@@ -331,8 +331,12 @@ fn when(ts: &str, now: i64) -> String {
     if (0..86_400).contains(&ago) {
         return tf("{} h ago", &[&(ago / 3600)]);
     }
-    chrono::DateTime::from_timestamp(at + local_offset(), 0)
-        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+    chrono::DateTime::from_timestamp(at, 0)
+        .map(|d| {
+            d.with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M")
+                .to_string()
+        })
         .unwrap_or_else(|| ts.to_string())
 }
 

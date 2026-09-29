@@ -1749,6 +1749,12 @@ impl App {
         if let Some(fill) = n["fill"].as_i64() {
             field(t("fill"), Span::raw(tf("{}%", &[&fill])));
         }
+        if let Some(c) = v["cells"].as_str() {
+            field(
+                t("cells"),
+                Span::styled(c.to_string(), Style::new().fg(pal().code)),
+            );
+        }
         let tags: Vec<&str> = n["tags"]
             .as_array()
             .into_iter()
@@ -1850,6 +1856,42 @@ impl App {
                 spans.extend(node_spans(c, &self.snap));
                 lines.push(Line::from(spans));
             }
+        }
+        let g = &v["grid"];
+        if g.is_object() {
+            lines.push(Line::raw(""));
+            lines.push(
+                Line::from(tf(
+                    "{}×{} grid, row 1 at the back",
+                    &[&g["cols"], &g["rows"]],
+                ))
+                .bold(),
+            );
+            for l in crate::render::grid_lines(g) {
+                // Free cells are dots; everything else names a box.
+                let spans: Vec<Span<'static>> = l
+                    .split_inclusive(' ')
+                    .map(|w| {
+                        if w.trim() == "·" {
+                            Span::styled(w.to_string(), Style::new().fg(pal().muted))
+                        } else {
+                            Span::styled(w.to_string(), Style::new().fg(pal().code))
+                        }
+                    })
+                    .collect();
+                lines.push(Line::from(spans));
+            }
+            let free = g["free"].as_array().map_or(0, Vec::len);
+            let names: Vec<&str> = g["free"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            lines.push(Line::from(Span::styled(
+                tf("free ({}): {}", &[&free, &names.join(" ")]),
+                Style::new().fg(pal().muted),
+            )));
         }
         Text::from(lines)
     }

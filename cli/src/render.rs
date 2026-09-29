@@ -777,7 +777,36 @@ pub fn error(e: &Error) -> String {
         .into_iter()
         .flatten()
     {
-        let _ = writeln!(out, "  holds {}", line(c));
+        let _ = writeln!(out, "  {}", tf("holds {}", &[&line(c)]));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::i18n::{Lang, set_lang};
+
+    #[test]
+    fn a_node_with_tasks_prints_the_node_not_only_its_tasks() {
+        set_lang(Lang::En);
+        let v = json!({
+            "node": {"id": 5, "path_text": "Ev › Kutu", "name": "Kutu", "kind": "container"},
+            "children": [],
+            "tasks": [{"id": 1, "position": 2, "title": "Sort it", "via": 5}],
+            "marks": {"label": {"value": "needed"}},
+        });
+        let out = super::human(&v);
+        assert!(out.starts_with("#5"), "{out}");
+        assert!(out.contains("task 2. #1 Sort it"), "{out}");
+        assert!(out.contains("label: to print"), "{out}");
+        set_lang(Lang::Tr);
+        let out = super::human(&v);
+        assert!(
+            out.contains("tür: kap") && out.contains("etiket: basılacak"),
+            "{out}"
+        );
+        set_lang(Lang::En);
+    }
 }

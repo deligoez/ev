@@ -12,7 +12,7 @@ mod store;
 
 pub use error::{Error, Result};
 pub use fold::fold;
-pub use grid::Cells;
+pub use grid::{Cells, GridCorners};
 pub use model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 pub use photo::{Crop, open_upright};
 pub use store::{Inventory, SCHEMA_VERSION};

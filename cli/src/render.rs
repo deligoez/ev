@@ -327,6 +327,83 @@ fn todo(out: &mut String, v: &Value) {
     }
 }
 
+/// A grid as text: a header of column letters, then one line per row from the back, each cell
+/// showing the back-left cell of the box that covers it (its usual code suffix) or `·`.
+pub fn grid_lines(grid: &Value) -> Vec<String> {
+    let cols = grid["cols"].as_u64().unwrap_or(0) as usize;
+    let anchor = |id: &Value| -> String {
+        grid["boxes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|b| &b["id"] == id)
+            .and_then(|b| b["cells"].as_str())
+            .map(|c| c.split('-').next().unwrap_or(c).to_string())
+            .unwrap_or_else(|| "?".into())
+    };
+    let mut lines = Vec::new();
+    let mut head = String::from("    ");
+    for c in 0..cols {
+        let _ = write!(head, "{:<5}", (b'A' + c as u8) as char);
+    }
+    lines.push(head.trim_end().to_string());
+    for (r, row) in grid["map"].as_array().into_iter().flatten().enumerate() {
+        let mut line = format!("{:>2}  ", r + 1);
+        for cell in row.as_array().into_iter().flatten() {
+            let label = if cell.is_null() {
+                "·".to_string()
+            } else {
+                anchor(cell)
+            };
+            let _ = write!(line, "{label:<5}");
+        }
+        lines.push(line.trim_end().to_string());
+    }
+    lines
+}
+
+fn grid_block(out: &mut String, node: &Value, grid: &Value) {
+    let _ = writeln!(
+        out,
+        "{}  {}",
+        s(node, "path_text"),
+        tf(
+            "{}×{} grid, row 1 at the back",
+            &[&grid["cols"], &grid["rows"]]
+        )
+    );
+    for l in grid_lines(grid) {
+        let _ = writeln!(out, "  {l}");
+    }
+    let free: Vec<&str> = grid["free"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let _ = writeln!(
+        out,
+        "  {}",
+        tf("free ({}): {}", &[&free.len(), &free.join(" ")])
+    );
+    for b in grid["boxes"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {:<7} {}", s(b, "cells"), s(b, "name"));
+    }
+    let unplaced: Vec<String> = grid["unplaced"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|b| format!("#{} {}", b["id"], s(b, "name")))
+        .collect();
+    if !unplaced.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("not placed in a cell: {}", &[&unplaced.join(", ")])
+        );
+    }
+}
+
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if v.get("counts").is_some() && v.get("unclear").is_some() {

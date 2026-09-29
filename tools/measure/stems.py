@@ -13,3 +13,16 @@ def table(path):
 
 
 baseline = table(baseline_path)
+expected, skip = dict(baseline), set()
+for line in open(judged_path, encoding="utf-8"):
+    if line.startswith("#") or line.startswith("yüzey") or not line.strip():
+        continue
+    word, ev, other, verdict = line.rstrip("\n").split("\t")[:4]
+    if verdict == "çözgü":
+        expected[word] = other
+    elif verdict == "ev":
+        expected[word] = ev
+    else:
+        skip.add(word)
+
+out = data / "stems-now.tsv"

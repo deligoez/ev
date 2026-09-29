@@ -20,7 +20,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # Usually ~10 s; a mirror that hangs held the v0.11.0 release for 7 minutes. Fail fast so
+      # a re-run can pick another mirror.
       - uses: mlugg/setup-zig@v2
+        timeout-minutes: 2
 
       - uses: taiki-e/install-action@v2
         with:

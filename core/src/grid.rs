@@ -231,7 +231,7 @@ pub(crate) fn cells_of(conn: &Connection, id: i64) -> Result<Option<Cells>> {
 }
 
 /// The live boxes placed in `holder`'s grid, in reading order.
-fn placed(conn: &Connection, holder: i64) -> Result<Vec<(i64, Cells)>> {
+pub(crate) fn placed(conn: &Connection, holder: i64) -> Result<Vec<(i64, Cells)>> {
     let mut stmt = conn.prepare(
         "SELECT c.node_id, c.col, c.row, c.width, c.depth FROM cells c
            JOIN nodes n ON n.id = c.node_id

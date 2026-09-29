@@ -104,8 +104,8 @@ without one.
 | `ev settings language en\|tr\|auto` | the language of `ev ui` and of the readable terminal output |
 | `ev settings theme dark\|light\|auto` | the appearance of `ev ui`; `auto` follows the terminal |
 
-`auto` language is the computer's: on macOS the first of the preferred languages
-(`defaults read -g AppleLanguages`), elsewhere `LC_ALL`, `LC_MESSAGES`, `LANGUAGE` or `LANG`.
+`auto` language is the computer's, as the system reports it (`sys-locale`): on macOS the first
+of the preferred languages in System Settings, elsewhere the locale variables.
 Only the language part of the tag counts (`en-TR` is English); a language ev does not speak
 falls back to English. JSON output and error messages are always English. A running `ev ui`
 picks a change up within a second.

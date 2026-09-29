@@ -52,13 +52,11 @@ fn tab_titles() -> [&'static str; 8] {
     ]
 }
 
-// Named colours follow the terminal's own palette, so light and dark themes both work.
-const CODE: Color = Color::Cyan;
-const FURNITURE: Color = Color::Yellow;
-const QTY: Color = Color::Green;
-const MARK: Color = Color::Magenta;
-const LOST: Color = Color::Red;
-const MUTED: Color = Color::DarkGray;
+/// The To do section that starts collapsed: unclear records are a long, low-priority list.
+const UNCLEAR_SECTION: i64 = -14;
+/// Rows of the Settings tab; their ids are negative like section headers, but far below them.
+const SETTING_LANGUAGE: i64 = -1001;
+const SETTING_THEME: i64 = -1002;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
@@ -69,22 +67,26 @@ enum Tab {
     Places,
     Search,
     Plan,
+    Settings,
 }
 
 impl Tab {
+    const ALL: [Tab; 8] = [
+        Tab::Tree,
+        Tab::Pending,
+        Tab::Disposals,
+        Tab::Lost,
+        Tab::Places,
+        Tab::Search,
+        Tab::Plan,
+        Tab::Settings,
+    ];
+
     fn index(self) -> usize {
         self as usize
     }
     fn from_index(i: usize) -> Self {
-        [
-            Tab::Tree,
-            Tab::Pending,
-            Tab::Disposals,
-            Tab::Lost,
-            Tab::Places,
-            Tab::Search,
-            Tab::Plan,
-        ][i % TABS.len()]
+        Tab::ALL[i % Tab::ALL.len()]
     }
 }
 

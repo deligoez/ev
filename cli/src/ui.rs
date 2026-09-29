@@ -2478,7 +2478,7 @@ fn clock_now() -> String {
     format!("{:02}:{:02}:{:02} UTC", s / 3600, (s % 3600) / 60, s % 60)
 }
 
-pub fn run(inv: Inventory) -> Result<()> {
+pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     use std::io::IsTerminal;
     if !std::io::stdout().is_terminal() {
         return Err(Error::Usage("`ev ui` needs a terminal".into()));
@@ -2486,6 +2486,11 @@ pub fn run(inv: Inventory) -> Result<()> {
     let mut app = App::new(inv)?;
     app.settings_path = Settings::path();
     app.reload_settings()?;
+    let db = std::path::absolute(db).unwrap_or_else(|_| db.to_path_buf());
+    let state = app.settings_path.as_deref().map(UiState::beside);
+    if let (true, Some(id)) = (app.prefs.resume, state.as_ref().and_then(|s| s.last(&db))) {
+        app.resume_at(id)?;
+    }
     let mut terminal = ratatui::init();
     // Inside tmux the query has to be wrapped for passthrough, which ratatui-image knows how to
     // do; everywhere else `ev ui` asks itself (see `input::IMAGE_QUERY`) and starts on half
@@ -2498,6 +2503,10 @@ pub fn run(inv: Inventory) -> Result<()> {
     }
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
+    // Kept even with resuming off, so turning it on picks up from the last session.
+    if let (Some(state), Some(id)) = (&state, app.tree_position()) {
+        let _ = state.remember(&db, id);
+    }
     send(input::STOP);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();

@@ -404,6 +404,243 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
     }
 }
 
+/// How much room a holder has, from the `room` object `ev suggest` and `ev regroup` attach.
+fn room_text(r: &Value) -> String {
+    let fill = &r["fill"];
+    let mut out = match r["room"].as_str() {
+        Some("yes") => tf("room ({}% full)", &[fill]),
+        Some("little") => tf("little room ({}% full)", &[fill]),
+        Some("none") => tf("full ({}%)", &[fill]),
+        _ => t("fill unknown").to_string(),
+    };
+    if r["stale"] == true {
+        out.push_str(t(", changed since"));
+    }
+    out
+}
+
+fn percent(x: &Value) -> String {
+    tf(
+        "{}%",
+        &[&format!("{:.0}", x.as_f64().unwrap_or(0.0) * 100.0)],
+    )
+}
+
+fn list_str(v: &Value) -> String {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// A holder by its label when it has one (`K4x4-07-A-F2  Gridfinity 1x1x1 — …`), else by path.
+fn head(n: &Value) -> String {
+    match n["code"].as_str() {
+        Some(c) => format!("{c}  {}", s(n, "name")),
+        None => s(n, "path_text"),
+    }
+}
+
+/// A holder by its label alone, for the short side of an arrow.
+fn label(n: &Value) -> String {
+    n["code"]
+        .as_str()
+        .map_or_else(|| s(n, "path_text"), str::to_string)
+}
+
+fn thing(n: &Value) -> String {
+    format!("#{} {}", n["id"], s(n, "name"))
+}
+
+/// `ev suggest`: the ranked holders with why each scored, then every holder.
+fn suggestion(out: &mut String, v: &Value) {
+    if v["for"].is_object() {
+        let _ = writeln!(out, "{}", tf("For: {}", &[&s(&v["for"], "path_text")]));
+    }
+    let _ = writeln!(out, "{}", tf("Words: {}", &[&list_str(&v["words"])]));
+    let added = list_str(&v["synonyms_added"]);
+    if !added.is_empty() {
+        let _ = writeln!(out, "{}", tf("Synonyms added: {}", &[&added]));
+    }
+    if v["new_group_likely"] == true {
+        let _ = writeln!(
+            out,
+            "{}",
+            t("No holder matches what this thing is: it likely needs a new group.")
+        );
+    }
+    let rules = v["rules"].as_array().cloned().unwrap_or_default();
+    if !rules.is_empty() {
+        let _ = writeln!(out, "\n{}", t("Rules:"));
+        for r in &rules {
+            let _ = writeln!(out, "  {}. {}", r["id"], s(r, "text"));
+        }
+    }
+    let similar = v["similar"].as_array().cloned().unwrap_or_default();
+    let _ = writeln!(out, "\n{}", t("Best matches:"));
+    if similar.is_empty() {
+        let _ = writeln!(out, "  {}", t("(none)"));
+    }
+    for (i, x) in similar.iter().enumerate() {
+        let c = &x["container"];
+        let _ = writeln!(
+            out,
+            "  {}. {}  {}",
+            i + 1,
+            head(c),
+            tf(
+                "score {} · covers {} · {}",
+                &[
+                    &x["score"],
+                    &percent(&x["coverage"]),
+                    &room_text(&c["room"])
+                ]
+            )
+        );
+        let matched: Vec<String> = x["matched"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|m| {
+                let mark = if m["specific"] == true { "*" } else { "" };
+                format!("{}{mark} {} ({})", s(m, "term"), m["points"], s(m, "from"))
+            })
+            .collect();
+        let _ = writeln!(out, "     {}", tf("matched: {}", &[&matched.join("; ")]));
+    }
+    let _ = writeln!(
+        out,
+        "\n{}",
+        tf(
+            "All {} places that can hold something:",
+            &[&v["complete"]["containers"]]
+        )
+    );
+    for c in v["containers"].as_array().into_iter().flatten() {
+        let theme = c["theme"]
+            .as_str()
+            .map(|t| format!("  [{t}]"))
+            .unwrap_or_default();
+        let _ = writeln!(
+            out,
+            "  {}{theme}  {} · {}",
+            head(c),
+            tf("{} items", &[&c["items"]]),
+            room_text(&c["room"])
+        );
+    }
+    let _ = writeln!(out, "\n{}", scored());
+}
+
+fn scored() -> &'static str {
+    t(
+        "Scoring: a holder's theme ×3, name ×2.5, note ×1; the things inside it: name ×2, tags ×1.5, note ×1. Rare words weigh more, repeats less; * marks a word rare enough to say what the thing is.",
+    )
+}
+
+/// `ev regroup`: what could move, merge or grow, from the same score as `ev suggest`.
+fn regroup(out: &mut String, v: &Value) {
+    if v["scope"].is_object() {
+        let _ = writeln!(out, "{}", head(&v["scope"]));
+    }
+    let _ = writeln!(
+        out,
+        "{}",
+        tf(
+            "{} of {} things are already in their best place.",
+            &[&v["checked"]["best_where_they_are"], &v["checked"]["items"]]
+        )
+    );
+    let section = |out: &mut String, key: &str, title: &str| -> Vec<Value> {
+        let list = v[key].as_array().cloned().unwrap_or_default();
+        if !list.is_empty() {
+            let _ = writeln!(out, "\n{title}");
+        }
+        list
+    };
+    for e in section(out, "elsewhere", t("Would fit better elsewhere:")) {
+        let _ = writeln!(out, "  {}", thing(&e["item"]));
+        let _ = writeln!(
+            out,
+            "    {} ({}) → {} ({})",
+            label(&e["now"]["holder"]),
+            e["now"]["score"],
+            label(&e["better"]["holder"]),
+            e["better"]["score"]
+        );
+    }
+    for e in section(
+        out,
+        "strays",
+        t("Named for another box's theme (worth a look):"),
+    ) {
+        let _ = writeln!(out, "  {}", thing(&e["item"]));
+        let _ = writeln!(out, "    \"{}\" → {}", s(&e, "term"), label(&e["home"]));
+    }
+    for e in section(out, "full", t("Full:")) {
+        let _ = writeln!(
+            out,
+            "  {}  {}",
+            head(&e["holder"]),
+            tf("{}%", &[&e["fill"]])
+        );
+        let spares = e["bigger_spares"].as_array().cloned().unwrap_or_default();
+        if spares.is_empty() {
+            let _ = writeln!(out, "    {}", t("no bigger spare box recorded"));
+        }
+        for sp in &spares {
+            let at = list_str(&sp["fits_at"]);
+            let at = if at.is_empty() {
+                t("no free cell for it").to_string()
+            } else {
+                tf("fits at {}", &[&at])
+            };
+            let _ = writeln!(
+                out,
+                "    {}",
+                tf(
+                    "bigger spare: {} {} · {}",
+                    &[&s(sp, "name"), &s(sp, "size"), &at]
+                )
+            );
+        }
+    }
+    for e in section(out, "sparse", t("Nearly empty:")) {
+        let into = if e["merge_into"].is_object() {
+            tf("could merge into {}", &[&label(&e["merge_into"]["holder"])])
+        } else {
+            t("no similar box with room").to_string()
+        };
+        let _ = writeln!(
+            out,
+            "  {}  {} · {into}",
+            head(&e["holder"]),
+            tf("{}%", &[&e["fill"]])
+        );
+    }
+    for e in section(
+        out,
+        "mixed",
+        t("Mixed (half or more fit better elsewhere):"),
+    ) {
+        let _ = writeln!(
+            out,
+            "  {}  {}",
+            head(&e["holder"]),
+            tf("{} items", &[&e["items"]])
+        );
+        for n in e["better_elsewhere"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "    - {}", n.as_str().unwrap_or_default());
+        }
+    }
+    for e in section(out, "unknown_fill", t("Fill unknown or out of date:")) {
+        let _ = writeln!(out, "  {}", head(&e["holder"]));
+    }
+    let _ = writeln!(out, "\n{}", scored());
+}
+
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if let Some(list) = v.get("placed").and_then(Value::as_array) {

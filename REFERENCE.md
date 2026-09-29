@@ -196,8 +196,9 @@ candidate to active.
 misreading, a duplicate): it keeps its history, is not a disposal, and the reason is required.
 
 `ev focus <ref> [--photo n]` makes a running `ev ui` jump to the node and show that photo full
-screen (the last one by default); `ev focus --file <picture> [--note text]` shows a picture that
-is no record (a marked photo) full screen, titled with the note, until Esc; `ev focus --clear`
+screen (the last one by default); `ev focus --file <picture>… [--note text]` shows pictures that
+are no record (marked photos; repeat `--file` for several, stepped with `[` `]`) full screen,
+titled with the note, until Esc; `ev focus --clear`
 withdraws the request. Each request is shown once, without restarting `ev ui`.
 
 `ev photo mark <target> <label>=<where>… [--grid corners] [--out file] [--show note]` draws a

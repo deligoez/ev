@@ -196,8 +196,18 @@ candidate to active.
 misreading, a duplicate): it keeps its history, is not a disposal, and the reason is required.
 
 `ev focus <ref> [--photo n]` makes a running `ev ui` jump to the node and show that photo full
-screen (the last one by default); `ev focus --clear` withdraws the request. Each request is shown
-once.
+screen (the last one by default); `ev focus --file <picture> [--note text]` shows a picture that
+is no record (a marked photo) full screen, titled with the note, until Esc; `ev focus --clear`
+withdraws the request. Each request is shown once, without restarting `ev ui`.
+
+`ev photo mark <target> <label>=<where>… [--grid corners] [--out file] [--show note]` draws a
+red frame and a label for each mark on a copy of a photo: `<target>` is a photo file or a place
+(its newest whole photo), `<where>` is `x,y,w,h` in fractions of the upright photo or cells of
+the place's grid (`A6`, `A6-B7`). Cells are found through the grid corners the photo kept when
+it was cut with `--grid` (schema 11), or through `--grid`. The copy goes to `--out` or to
+`<temp>/ev-marks/` (files there older than a day are removed on each call); it is not stored,
+not attached and leaves no history. `--show` also sends it to a running `ev ui`. Output:
+`marked`, `source`, `marks: [{label, at}]`, and `shown` with `--show`.
 
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
 note. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,

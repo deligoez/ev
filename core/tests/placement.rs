@@ -336,7 +336,8 @@ fn module_drawer() -> (TempDir, Inventory) {
         },
         NewNode {
             code: Some("M-B1".into()),
-            theme: Some("Çıkış modülleri: lazer, RGB".into()),
+            // Not "modülleri": that would share the module's own stem and hold it by words.
+            theme: Some("Çıkış kartları: lazer, RGB".into()),
             ..node("Kutu", "container", "M")
         },
         node("Buzzer, çıplak 12 mm", "item", "M-A1"),

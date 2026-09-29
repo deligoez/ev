@@ -1,15 +1,42 @@
-//! Readable text for a terminal; JSON is the contract, this is a courtesy.
+//! Readable text for a terminal; JSON is the contract, this is a courtesy. The words follow the
+//! language setting (`ev settings`); JSON and error messages stay English.
 
 use std::fmt::Write;
 
 use ev_core::Error;
 use serde_json::Value;
 
+use crate::i18n::{t, tf};
+
 fn s(v: &Value, key: &str) -> String {
     v.get(key)
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string()
+}
+
+fn disposition(d: &str) -> String {
+    match d {
+        "trash" => t("trash"),
+        "give" => t("give"),
+        "sell" => t("sell"),
+        "return" => t("return"),
+        "mistake" => t("record error"),
+        other => return other.to_string(),
+    }
+    .to_string()
+}
+
+fn kind(k: &str) -> String {
+    match k {
+        "home" => t("home"),
+        "room" => t("room"),
+        "furniture" => t("furniture"),
+        "container" => t("container"),
+        "item" => t("item"),
+        other => return other.to_string(),
+    }
+    .to_string()
 }
 
 fn line(n: &Value) -> String {

@@ -1458,6 +1458,7 @@ fn field_value(n: &Node, field: &str) -> Value {
         "note" => json!(n.note),
         "theme" => json!(n.theme),
         "fill" => json!(n.fill),
+        "size" => json!(n.size),
         "tags" => json!(n.tags),
         "photos" => json!(n.photos),
         "to" => json!(n.to),
@@ -1466,6 +1467,31 @@ fn field_value(n: &Node, field: &str) -> Value {
         "unknown" => json!(n.unknown),
         _ => Value::Null,
     }
+}
+
+/// `WxDxH` or `WxD`, each a positive number (`,` or `.` for decimals, `x`, `×` or `*`
+/// between); written back as `1x2x0.5`.
+pub(crate) fn parse_size(s: &str) -> Result<Vec<f64>> {
+    let bad = || Error::Usage(format!("size is WxDxH or WxD, like 1x2x0.5; got `{s}`"));
+    let parts: Vec<f64> = s
+        .trim()
+        .to_lowercase()
+        .split(['x', '×', '*'])
+        .map(|p| p.trim().replace(',', ".").parse::<f64>())
+        .collect::<std::result::Result<_, _>>()
+        .map_err(|_| bad())?;
+    if !(2..=3).contains(&parts.len()) || parts.iter().any(|p| !(p.is_finite() && *p > 0.0)) {
+        return Err(bad());
+    }
+    Ok(parts)
+}
+
+fn normalize_size(s: &str) -> Result<String> {
+    Ok(parse_size(s)?
+        .iter()
+        .map(|p| format!("{p}"))
+        .collect::<Vec<_>>()
+        .join("x"))
 }
 
 fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {

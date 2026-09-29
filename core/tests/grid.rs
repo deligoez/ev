@@ -117,3 +117,27 @@ fn boxes_trade_places_and_codes_in_one_step() {
     );
 }
 
+#[test]
+fn a_box_moved_out_leaves_its_cells_free() {
+    let (_d, mut inv) = setup();
+    inv.grid_set("D", 2, 2).unwrap();
+    inv.cells_set(&pairs(&[("D-A3", "A1")]), false).unwrap();
+    assert_eq!(free(&inv), ["B1", "A2", "B2"]);
+    inv.move_to("D-A3", "Oda", false).unwrap();
+    assert_eq!(free(&inv).len(), 4);
+    assert!(inv.show("D-A3", false).unwrap()["cells"].is_null());
+    // Taking a box out of the grid by hand works too.
+    inv.cells_set(&pairs(&[("D-B3", "B2")]), false).unwrap();
+    inv.cells_set(&pairs(&[("D-B3", "")]), false).unwrap();
+    assert_eq!(free(&inv).len(), 4);
+    // The holder's suggest entry reports its free cells.
+    let s = inv.suggest("sensör modülü", None).unwrap();
+    let d = s["containers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["code"] == "D")
+        .unwrap()
+        .clone();
+    assert_eq!(d["grid"]["free"].as_array().unwrap().len(), 4);
+}

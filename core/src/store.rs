@@ -1085,6 +1085,11 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
     if r.is_empty() {
         return Err(Error::Usage("empty reference".into()));
     }
+    // `#534`, as `ev ui` and the readable output print ids, is the id 534.
+    let r = match r.strip_prefix('#') {
+        Some(d) if !d.is_empty() && d.chars().all(|c| c.is_ascii_digit()) => d,
+        _ => r,
+    };
     if r.chars().all(|c| c.is_ascii_digit()) {
         let state: Option<String> = r
             .parse::<i64>()

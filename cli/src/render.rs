@@ -568,6 +568,20 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    if let Some(list) = v.get("recoded").and_then(Value::as_array) {
+        for r in list {
+            let code = |k: &str| r[k].as_str().unwrap_or("—").to_string();
+            let _ = writeln!(
+                out,
+                "#{} {}  {} → {}",
+                r["id"],
+                s(r, "name"),
+                code("before"),
+                code("after")
+            );
+        }
+        return out;
+    }
     if let Some(list) = v.get("lost").and_then(Value::as_array) {
         if list.is_empty() {
             out.push_str("(nothing lost)\n");

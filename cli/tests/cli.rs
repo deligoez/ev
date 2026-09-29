@@ -7,19 +7,26 @@ use tempfile::TempDir;
 struct Ev {
     _dir: TempDir,
     db: std::path::PathBuf,
+    config: std::path::PathBuf,
 }
 
 impl Ev {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         let db = dir.path().join("ev.db");
-        Self { _dir: dir, db }
+        let config = dir.path().join("settings.json");
+        Self {
+            _dir: dir,
+            db,
+            config,
+        }
     }
 
     fn run(&self, args: &[&str]) -> (i32, Value, String) {
         let out = Command::cargo_bin("ev")
             .unwrap()
             .env_remove("EV_DB")
+            .env("EV_CONFIG", &self.config)
             .arg("--db")
             .arg(&self.db)
             .args(args)

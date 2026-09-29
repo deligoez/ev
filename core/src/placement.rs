@@ -1028,3 +1028,123 @@ impl Inventory {
     }
 }
 
+/// Where in `h`'s grid a spare box of `spare`'s footprint would fit, counting `h`'s own cells
+/// as free since the spare replaces it. Up to three back-left cells.
+fn fits_at(conn: &Connection, h: &Node, spare: &Node) -> Result<Vec<String>> {
+    let (Some(parent), Some(size)) = (h.parent_id, spare.size.as_deref()) else {
+        return Ok(Vec::new());
+    };
+    let Some(grid) = crate::grid::grid_json(conn, parent)? else {
+        return Ok(Vec::new());
+    };
+    let dims = parse_size(size)?;
+    let (w, d) = (dims[0].round() as i64, dims[1].round() as i64);
+    let cols = grid["cols"].as_i64().unwrap_or(0);
+    let rows = grid["rows"].as_i64().unwrap_or(0);
+    let map = &grid["map"];
+    let free = |c: i64, r: i64| {
+        let cell = &map[r as usize][c as usize];
+        cell.is_null() || cell.as_i64() == Some(h.id)
+    };
+    let mut out = Vec::new();
+    for (ww, dd) in [(w, d), (d, w)] {
+        for r in 0..rows {
+            for c in 0..cols {
+                if c + ww > cols || r + dd > rows {
+                    continue;
+                }
+                if (r..r + dd).all(|rr| (c..c + ww).all(|cc| free(cc, rr))) {
+                    let name = format!("{}{}", (b'A' + c as u8) as char, r + 1);
+                    if !out.contains(&name) {
+                        out.push(name);
+                    }
+                    if out.len() == 3 {
+                        return Ok(out);
+                    }
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Lexicon, terms};
+
+    /// A vocabulary like the inventory's: base forms written somewhere on their own.
+    fn lexicon() -> Lexicon {
+        let text = "sensör modül kart kablo kutu vida pil renk kitap düğme sıcaklık sıcak ışık \
+                    anahtar tornavida lehim mıknatıs çekmece modülsüz kar battery cable";
+        let words: Vec<String> = terms(text).into_iter().map(|t| t.surface).collect();
+        Lexicon::new(words.iter().map(String::as_str))
+    }
+
+    fn key(lex: &Lexicon, w: &str) -> String {
+        lex.key(&terms(w)[0].surface)
+    }
+
+    #[test]
+    fn turkish_word_forms_meet_at_the_inventorys_own_base_form() {
+        let lex = lexicon();
+        for (forms, base) in [
+            (
+                "sensörü sensörler sensörleri sensörlerin sensörlü",
+                "sensor",
+            ),
+            ("modülü modülleri modüllerin modülden", "modul"),
+            ("kartı kartlar kartları kartlı", "kart"),
+            ("kablosu kabloları kablolu", "kablo"),
+            ("kutuda kutudaki kutular kutusu", "kutu"),
+            ("vidası vidaları", "vida"),
+            ("pili pilleri pilli", "pil"),
+            ("rengi renkli renkler", "renk"),
+            ("kitabı kitaplar", "kitap"),
+            ("düğmesi düğmeli düğmeler", "dugme"),
+            ("sıcaklığı sıcaklıklar", "sicaklik"),
+            ("ışığı ışıklı", "isik"),
+            ("anahtarı anahtarlar", "anahtar"),
+            ("tornavidası", "tornavida"),
+            ("lehimi lehimli", "lehim"),
+            ("mıknatısı mıknatıslı", "miknatis"),
+            ("çekmecede çekmecedeki", "cekmece"),
+            ("modules", "modul"),
+            ("batteries", "battery"),
+            ("cables", "cable"),
+        ] {
+            for f in forms.split(' ') {
+                assert_eq!(key(&lex, f), base, "{f}");
+            }
+        }
+        // Not cut too deep, and "without" stays apart from the thing itself.
+        assert_eq!(key(&lex, "kart"), "kart");
+        assert_eq!(key(&lex, "lehim"), "lehim");
+        assert_eq!(key(&lex, "tornavida"), "tornavida");
+        assert_eq!(key(&lex, "modülsüz"), "modulsuz");
+        assert_eq!(key(&lex, "sıcaklık"), "sicaklik");
+        // A base form is never cut further, even when it could read as stem + ending.
+        assert_eq!(key(&lex, "kutu"), "kutu");
+        assert_eq!(key(&lex, "düğme"), "dugme");
+        // Without the base written anywhere, a query form still finds the stem two of the
+        // inventory's forms share.
+        let lex = Lexicon::new(["vidasi", "vidalari"].into_iter());
+        assert_eq!(lex.key("vidalar"), "vida");
+    }
+
+    #[test]
+    fn codes_stay_whole_and_numbers_are_not_words() {
+        let surfaces: Vec<String> = terms("KY-018 LDR, 2026-09-29 DS18B20 HC-SR04 5 mm")
+            .into_iter()
+            .map(|t| t.surface)
+            .collect();
+        for code in ["ky018", "ldr", "ds18b20", "hcsr04"] {
+            assert!(surfaces.contains(&code.to_string()), "{surfaces:?}");
+        }
+        assert!(
+            !surfaces.iter().any(|k| k.starts_with("2026")),
+            "{surfaces:?}"
+        );
+        let lex = lexicon();
+        assert_eq!(lex.key("ky018"), "ky018");
+    }
+}

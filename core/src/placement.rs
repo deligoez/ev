@@ -1067,6 +1067,123 @@ impl Inventory {
     }
 }
 
+/// How many of a holder's words and contents `ev themes` shows.
+const THEME_WORDS: usize = 6;
+const THEME_SAMPLE: usize = 8;
+
+impl Inventory {
+    /// Containers and furniture with things in them and no theme, each with what a theme
+    /// could be read from: its contents, the words those share (rarer words first), and the
+    /// themed holder they read most like. Writing the theme is a judgement, the agent's with
+    /// the person; this only gathers the evidence, the way a table of contents is summarised
+    /// from its sections.
+    pub fn themes(&self, reference: Option<&str>) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
+        let scope: HashSet<i64> = match reference {
+            Some(r) => subtree(&all, resolve(&self.conn, r, false)?),
+            None => all.iter().map(|n| n.id).collect(),
+        };
+        let index = Index::build(&all);
+        let unthemed = |n: &Node| n.theme.as_deref().is_none_or(|t| t.trim().is_empty());
+        let mut out = Vec::new();
+        for h in all.iter().filter(|n| {
+            scope.contains(&n.id)
+                && is_holder(n, &has_children)
+                // A kit recorded as an item is named for what it is; only places get themes.
+                && matches!(n.kind, Kind::Container | Kind::Furniture)
+                && unthemed(n)
+                && n.state != crate::model::State::Candidate
+        }) {
+            let things: Vec<&Node> = all
+                .iter()
+                .filter(|c| c.parent_id == Some(h.id) && c.kind == Kind::Item)
+                .collect();
+            if things.is_empty() {
+                continue;
+            }
+            // Per stem: how many things name it, and the form it is written in most.
+            let mut words: BTreeMap<String, (usize, BTreeMap<String, usize>)> = BTreeMap::new();
+            for c in &things {
+                let mut seen = HashSet::new();
+                for token in c.name.split(|ch: char| !ch.is_alphanumeric()) {
+                    let folded = fold(token);
+                    if folded.chars().count() < 3
+                        || folded.chars().any(|ch| ch.is_ascii_digit())
+                        || FILLER.contains(&folded.as_str())
+                    {
+                        continue;
+                    }
+                    let key = index.lex.key(&folded);
+                    if COLORS.contains(&key.as_str()) {
+                        continue;
+                    }
+                    let entry = words.entry(key.clone()).or_default();
+                    if seen.insert(key) {
+                        entry.0 += 1;
+                    }
+                    *entry.1.entry(token.to_string()).or_default() += 1;
+                }
+            }
+            let mut ranked: Vec<(String, usize, f64, String)> = words
+                .into_iter()
+                .map(|(key, (count, forms))| {
+                    let form = forms
+                        .into_iter()
+                        .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0)))
+                        .map_or_else(|| key.clone(), |f| f.0);
+                    let score = count as f64 * index.idf(&key);
+                    (key, count, score, form)
+                })
+                .collect();
+            ranked.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.0.cmp(&b.0)));
+            ranked.truncate(THEME_WORDS);
+
+            // The themed holder these words read most like, outside this holder.
+            let query: Vec<Term> = ranked
+                .iter()
+                .map(|(key, count, _, form)| Term {
+                    key: key.clone(),
+                    surface: form.clone(),
+                    weight: *count as f64,
+                })
+                .collect();
+            let mut skip = subtree(&all, h.id);
+            skip.extend(all.iter().filter(|n| unthemed(n)).map(|n| n.id));
+            let like = match index.score(&query, &HashSet::new(), &skip).first() {
+                Some(s) if s.score >= CLEAR => {
+                    let mut v = brief_json(&self.conn, s.id)?;
+                    v["theme"] = json!(
+                        all.iter()
+                            .find(|n| n.id == s.id)
+                            .and_then(|n| n.theme.clone())
+                    );
+                    v["score"] = json!(round(s.score));
+                    v
+                }
+                _ => Value::Null,
+            };
+            out.push(json!({
+                "holder": brief_json(&self.conn, h.id)?,
+                "things": things.len(),
+                "words": ranked
+                    .iter()
+                    .map(|(_, count, _, form)| json!({ "word": form, "things": count }))
+                    .collect::<Vec<_>>(),
+                "contents": things.iter().take(THEME_SAMPLE).map(|c| c.name.as_str()).collect::<Vec<_>>(),
+                "like": like,
+            }));
+        }
+        out.sort_by(|a, b| {
+            b["things"]
+                .as_u64()
+                .cmp(&a["things"].as_u64())
+                .then(a["holder"]["id"].as_i64().cmp(&b["holder"]["id"].as_i64()))
+        });
+        Ok(json!({ "themes": out }))
+    }
+}
+
 impl Inventory {
     /// Adds a group of words that mean the same thing for placing (`ldr, ışık sensörü`): a
     /// query with one of them also looks for the others.

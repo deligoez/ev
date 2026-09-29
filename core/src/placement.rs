@@ -1208,6 +1208,38 @@ mod tests {
     }
 
     #[test]
+    fn compounds_and_colour_nouns_become_two_word_terms() {
+        let words: Vec<String> =
+            terms("hesap makine kontrol kalem ahşap vida yeşil led tabanca kutu kablo")
+                .into_iter()
+                .map(|t| t.surface)
+                .collect();
+        let lex = Lexicon::new(words.iter().map(String::as_str));
+        let keys = |text: &str| -> Vec<(String, f64)> {
+            lex.keyed(terms(text))
+                .into_iter()
+                .map(|t| (t.key, t.weight))
+                .collect()
+        };
+        let has = |text: &str, k: &str| keys(text).iter().any(|(key, _)| key == k);
+        // Indefinite noun compounds, hard and soft stems.
+        assert!(has("hesap makinesi", "hesap+makine"));
+        assert!(has("kontrol kalemi", "kontrol+kalem"));
+        assert!(has("ahşap vidası", "ahsap+vida"));
+        // A colour pairs with the noun it describes, and weighs little alone.
+        assert!(has("yeşil LED", "yesil+led"));
+        let lone = keys("yeşil tabanca");
+        assert!(
+            lone.iter().any(|(k, w)| k == "yesil" && *w < 0.5),
+            "{lone:?}"
+        );
+        // Not a compound: the first word has an ending, or the second has more than the
+        // possessive.
+        assert!(!has("kutudaki kalemi", "kutu+kalem"));
+        assert!(!has("kablo kutuları", "kablo+kutu"));
+    }
+
+    #[test]
     fn codes_stay_whole_and_numbers_are_not_words() {
         let surfaces: Vec<String> = terms("KY-018 LDR, 2026-09-29 DS18B20 HC-SR04 5 mm")
             .into_iter()

@@ -819,6 +819,50 @@ impl Inventory {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(json!({ "node": brief(&self.conn, id)?, "events": events }))
     }
+
+    /// A place's history as seen from it: its own events, and the events of things that came
+    /// in, went out or were added there. Those carry the thing as `item` and a `relation`:
+    /// `in` (moved or planned to here), `out` (moved away from here) or `added` (created
+    /// here). Oldest first, like `history`.
+    pub fn history_with_contents(&self, reference: &str) -> Result<Value> {
+        let id = resolve(&self.conn, reference, true)?;
+        let mut stmt = self.conn.prepare(
+            "SELECT node_id, at, type, data FROM events
+             WHERE node_id = ?1
+                OR (type IN ('move', 'done', 'plan')
+                    AND (json_extract(data, '$.to') = ?1 OR json_extract(data, '$.from') = ?1))
+                OR (type = 'create' AND json_extract(data, '$.parent') = ?1)
+             ORDER BY id",
+        )?;
+        let rows = stmt
+            .query_map([id], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut events = Vec::with_capacity(rows.len());
+        for (node, at, kind, data) in rows {
+            let data = serde_json::from_str::<Value>(&data).unwrap_or(Value::Null);
+            let mut e = json!({ "at": at, "type": kind, "data": data });
+            if node != id {
+                let relation = if kind == "create" {
+                    "added"
+                } else if e["data"]["to"].as_i64() == Some(id) {
+                    "in"
+                } else {
+                    "out"
+                };
+                e["item"] = json!(brief(&self.conn, node)?);
+                e["relation"] = json!(relation);
+            }
+            events.push(e);
+        }
+        Ok(json!({ "node": brief(&self.conn, id)?, "events": events }))
+    }
 }
 
 // ---------- reading ----------

@@ -108,6 +108,23 @@ without one.
 Only the language part of the tag counts (`en-TR` is English); a language ev does not speak
 falls back to English. JSON output and error messages are always English. A running `ev ui`
 picks a change up within a second.
+## Grids
+
+A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from the left, rows
+1… from the back. A box in it covers a rectangle of cells, named by two opposite corners
+(`A3-B3`) or one cell (`C4`).
+
+| Command | Does |
+|---|---|
+| `ev grid <ref>` | `node`, `grid`: `cols`, `rows`, `boxes` (NodeRef + `cells`), `free` (cell names), `unplaced` (children without cells), `map` (rows of box ids, null where free); `grid` is null without one |
+| `ev grid <ref> --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside |
+| `ev grid <ref> --clear` | remove the grid; refused while boxes are placed in it |
+| `ev cell <ref>=<cells>… [--recode]` | place boxes in their holder's grid, several at once; `<ref>=` takes one out. Bounds and overlaps are checked against where every box ends up, so boxes can swap places in one step. `--recode` names each placed box `<holder code>-<back-left cell>`. `placed`, `grids` |
+
+`ev show` carries `cells` for a placed box and `grid` for a holder that has one; `ev suggest`
+entries carry `cells`, and `grid` with its `free` cells. Moving a box out of its holder frees
+its cells.
+
 ## Places
 
 | Command | Does |

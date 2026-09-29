@@ -46,7 +46,7 @@ one, its name otherwise.
 | show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in) and `room` (with a fill: `room`, `fill`, `fill_at`, `stale`) |
 | add --batch | `created` |
 | find | `query`, `results` |
-| tree | `tree` (nested, each with `children`), `unplaced` (without a reference) |
+| tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set), `unplaced` (without a reference) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
 | disposals | `disposals`: `{trash, give, sell}` |

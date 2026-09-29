@@ -1454,7 +1454,7 @@ fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
         .map_err(|_| Error::Usage(format!("{field} must be an integer, got `{v}`")))
 }
 
-fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<()> {
+pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<()> {
     let text = |v: &str| -> Option<String> { Some(v.trim().to_string()).filter(|s| !s.is_empty()) };
     match field {
         "name" => {

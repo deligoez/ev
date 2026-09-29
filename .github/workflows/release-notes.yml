@@ -1,0 +1,30 @@
+# Called by dist's release workflow after it has announced the release: replaces the generated
+# body with the hand-written notes in release-notes/<tag>.md.
+name: Release notes
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put the release notes on the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: |
+          notes="release-notes/${TAG}.md"
+          if [ -f "$notes" ]; then
+            gh release edit "$TAG" --notes-file "$notes"
+          else
+            echo "no $notes; keeping the generated notes"
+          fi

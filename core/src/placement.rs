@@ -311,3 +311,196 @@ pub(crate) struct Index {
     names: HashMap<i64, String>,
 }
 
+/// One holder's score for a query, with what matched and where.
+#[derive(Debug, Clone)]
+pub(crate) struct Scored {
+    pub id: i64,
+    pub score: f64,
+    /// The share of the query's weight (each word's weight × its IDF) this holder matched.
+    pub coverage: f64,
+    pub matched: Vec<Value>,
+    pub items: Vec<String>,
+}
+
+impl Index {
+    pub(crate) fn build(all: &[Node]) -> Index {
+        let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
+        let mut docs: BTreeMap<i64, Doc> = BTreeMap::new();
+        let mut names = HashMap::new();
+        for n in all {
+            names.insert(n.id, n.name.clone());
+        }
+        // The inventory's own vocabulary decides how far words are stemmed.
+        let mut surfaces: Vec<String> = Vec::new();
+        for n in all {
+            let texts = [Some(&n.name), n.theme.as_ref(), n.note.as_ref()];
+            for t in texts.into_iter().flatten().chain(n.tags.iter()) {
+                surfaces.extend(terms(t).into_iter().map(|t| t.surface));
+            }
+        }
+        let lex = Lexicon::new(surfaces.iter().map(String::as_str));
+        let add = |doc: &mut Doc, text: &str, weight: f64, source: i64, field: &'static str| {
+            for t in lex.keyed(terms(text)) {
+                doc.len += 1;
+                doc.hits.entry(t.key).or_default().push(Hit {
+                    weight,
+                    source,
+                    field,
+                });
+            }
+        };
+        for h in all.iter().filter(|n| is_holder(n, &has_children)) {
+            let mut doc = Doc::default();
+            if let Some(t) = &h.theme {
+                add(&mut doc, t, THEME, h.id, "theme");
+            }
+            add(&mut doc, &h.name, NAME, h.id, "name");
+            if let Some(t) = &h.note {
+                add(&mut doc, t, NOTE, h.id, "note");
+            }
+            for c in all
+                .iter()
+                .filter(|c| c.parent_id == Some(h.id) && c.kind == Kind::Item)
+            {
+                add(&mut doc, &c.name, ITEM_NAME, c.id, "item");
+                if let Some(t) = &c.note {
+                    add(&mut doc, t, ITEM_NOTE, c.id, "item note");
+                }
+                for tag in &c.tags {
+                    add(&mut doc, tag, TAG, c.id, "item tag");
+                }
+            }
+            docs.insert(h.id, doc);
+        }
+        let mut df: HashMap<String, usize> = HashMap::new();
+        for d in docs.values() {
+            for k in d.hits.keys() {
+                *df.entry(k.clone()).or_default() += 1;
+            }
+        }
+        let avglen = if docs.is_empty() {
+            1.0
+        } else {
+            (docs.values().map(|d| d.len).sum::<usize>() as f64 / docs.len() as f64).max(1.0)
+        };
+        Index {
+            lex,
+            docs,
+            df,
+            avglen,
+            names,
+        }
+    }
+
+    /// Words stemmed the way this index stems them.
+    pub(crate) fn keyed(&self, ts: Vec<Term>) -> Vec<Term> {
+        self.lex.keyed(ts)
+    }
+
+    fn idf(&self, key: &str) -> f64 {
+        let n = self.docs.len() as f64;
+        let df = *self.df.get(key).unwrap_or(&0) as f64;
+        (1.0 + (n - df + 0.5) / (df + 0.5)).ln()
+    }
+
+    /// Whether a word is rare enough here to say what a thing is.
+    fn specific(&self, key: &str) -> bool {
+        self.idf(key) >= SPECIFIC || self.df.get(key).is_some_and(|d| *d <= SPECIFIC_DF)
+    }
+
+    /// Scores every holder not in `skip`, ignoring words that came from nodes in `exclude`
+    /// (the thing being placed, so it does not vote for where it already is). Best first.
+    pub(crate) fn score(
+        &self,
+        query: &[Term],
+        exclude: &HashSet<i64>,
+        skip: &HashSet<i64>,
+    ) -> Vec<Scored> {
+        // One entry per word, at the highest weight it was given.
+        let mut keys: Vec<&Term> = Vec::new();
+        for t in query {
+            match keys.iter().position(|k| k.key == t.key) {
+                Some(i) if keys[i].weight < t.weight => keys[i] = t,
+                Some(_) => {}
+                None => keys.push(t),
+            }
+        }
+        let total: f64 = keys.iter().map(|t| t.weight * self.idf(&t.key)).sum();
+        let mut out = Vec::new();
+        for (id, doc) in &self.docs {
+            if skip.contains(id) {
+                continue;
+            }
+            let mut covered = 0.0;
+            let norm = K1 * (1.0 - B + B * doc.len as f64 / self.avglen);
+            let mut score = 0.0;
+            let mut matched = Vec::new();
+            let mut items: Vec<String> = Vec::new();
+            for t in &keys {
+                let Some(hits) = doc.hits.get(&t.key) else {
+                    continue;
+                };
+                let live: Vec<&Hit> = hits
+                    .iter()
+                    .filter(|h| !exclude.contains(&h.source))
+                    .collect();
+                let Some(best) = live
+                    .iter()
+                    .max_by(|a, b| a.weight.total_cmp(&b.weight).then(b.source.cmp(&a.source)))
+                else {
+                    continue;
+                };
+                let tf = live.len() as f64;
+                let idf = self.idf(&t.key);
+                let part = t.weight * idf * best.weight * tf * (K1 + 1.0) / (tf + norm);
+                score += part;
+                covered += t.weight * idf;
+                let from = if best.source == *id {
+                    best.field.to_string()
+                } else {
+                    format!(
+                        "{}: {}",
+                        best.field,
+                        self.names.get(&best.source).cloned().unwrap_or_default()
+                    )
+                };
+                matched.push(json!({
+                    "term": t.surface,
+                    "points": round(part),
+                    "from": from,
+                    "specific": self.specific(&t.key),
+                }));
+                for h in &live {
+                    if h.source != *id {
+                        let name = self.names.get(&h.source).cloned().unwrap_or_default();
+                        if !items.contains(&name) {
+                            items.push(name);
+                        }
+                    }
+                }
+            }
+            if score > 0.0 {
+                matched.sort_by(|a, b| {
+                    b["points"]
+                        .as_f64()
+                        .unwrap_or(0.0)
+                        .total_cmp(&a["points"].as_f64().unwrap_or(0.0))
+                });
+                out.push(Scored {
+                    id: *id,
+                    score: round(score),
+                    coverage: if total > 0.0 {
+                        round(covered / total)
+                    } else {
+                        0.0
+                    },
+                    matched,
+                    items,
+                });
+            }
+        }
+        out.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.id.cmp(&b.id)));
+        out
+    }
+}
+

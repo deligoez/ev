@@ -477,6 +477,10 @@ fn suggestion(out: &mut String, v: &Value) {
         let _ = writeln!(out, "{}", tf("For: {}", &[&s(&v["for"], "path_text")]));
     }
     let _ = writeln!(out, "{}", tf("Words: {}", &[&list_str(&v["words"])]));
+    let facet = list_str(&v["facet"]);
+    if !facet.is_empty() {
+        let _ = writeln!(out, "{}", tf("Facet: {}", &[&facet]));
+    }
     let added = list_str(&v["synonyms_added"]);
     if !added.is_empty() {
         let _ = writeln!(out, "{}", tf("Synonyms added: {}", &[&added]));
@@ -526,6 +530,19 @@ fn suggestion(out: &mut String, v: &Value) {
             })
             .collect();
         let _ = writeln!(out, "     {}", tf("matched: {}", &[&matched.join("; ")]));
+    }
+    let other = v["other_facet"].as_array().cloned().unwrap_or_default();
+    if !other.is_empty() {
+        let _ = writeln!(out, "\n{}", t("Kept out, another facet:"));
+        for x in &other {
+            let _ = writeln!(
+                out,
+                "  {}  [{}]  {}",
+                head(&x["container"]),
+                list_str(&x["container"]["facet"]),
+                tf("score {}", &[&x["score"]])
+            );
+        }
     }
     let _ = writeln!(
         out,

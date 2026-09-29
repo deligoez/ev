@@ -89,3 +89,13 @@ impl Cells {
     }
 }
 
+pub(crate) fn grid_of(conn: &Connection, id: i64) -> Result<Option<(i64, i64)>> {
+    Ok(conn
+        .query_row(
+            "SELECT cols, rows FROM grids WHERE node_id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?)
+}
+

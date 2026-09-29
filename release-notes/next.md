@@ -38,3 +38,12 @@ Draft for the next release.
 
 - **`ev ui` tree rows now show fill bars.** They read the fill from `ev tree`, which did not
   carry it, so the bars added in v0.11.0 never appeared.
+- **One noun no longer gets two keys by its ending.** A stem that some word carries a plural
+  ending on is a noun, and wins: `kablo bağı` and `kablo bağları` now meet at `bağ` (it used to
+  read `bağı` as `bak` + ı), `bacaklarında` reaches `bacak`, `bloğu` stays `blok`. Against 309
+  hand-judged stems it fixes 25 and changes 8 that were already fine (mostly to a better stem,
+  `yeri` → `yer`); placement over the author's 413 items is one better. A root cut to another
+  root (`altın` → `alt`) still needs a dictionary.
+- **Placement and stems can be measured.** `tools/measure/` scores `ev suggest` against a
+  reviewed answer key of where things belong, and stems against a hand-judged list; the keys
+  stay out of the repository, in `~/.ev/measure/`.

@@ -7,3 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 data = Path(os.environ.get("EV_MEASURE", Path.home() / ".ev" / "measure"))
+key = json.load(open(data / "placement-key.json", encoding="utf-8"))
+moves, excluded = key["moves"], key["excluded"]
+
+

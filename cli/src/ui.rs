@@ -314,34 +314,6 @@ fn fit(spans: Vec<Span<'static>>, width: usize) -> Vec<Span<'static>> {
     out
 }
 
-/// The local UTC offset in seconds, asked of `date` once: chrono's local time zone would link
-/// macOS frameworks, which the Linux-to-macOS cross build cannot.
-fn local_offset() -> i64 {
-    static OFFSET: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
-    *OFFSET.get_or_init(|| {
-        let out = std::process::Command::new("date")
-            .arg("+%z")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .unwrap_or_default();
-        parse_offset(out.trim()).unwrap_or(0)
-    })
-}
-
-/// `+0300` → 10800.
-fn parse_offset(s: &str) -> Option<i64> {
-    let sign = match s.chars().next()? {
-        '+' => 1,
-        '-' => -1,
-        _ => return None,
-    };
-    let digits = s.get(1..5)?;
-    let h: i64 = digits.get(0..2)?.parse().ok()?;
-    let m: i64 = digits.get(2..4)?.parse().ok()?;
-    Some(sign * (h * 3600 + m * 60))
-}
-
 /// A stored UTC time for people: how long ago when it is recent, the local date and time
 /// otherwise.
 fn when(ts: &str, now: i64) -> String {

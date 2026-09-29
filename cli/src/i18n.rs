@@ -250,6 +250,16 @@ static TR: &[(&str, &str)] = &[
     ("{} min ago", "{} dk önce"),
     ("{} h ago", "{} sa önce"),
     ("Suggestions (ev regroup)", "Öneriler (ev regroup)"),
+    (
+        "(every place with things in it has a theme)",
+        "(içinde eşya olan her yerin teması var)",
+    ),
+    ("words: {}", "kelimeler: {}"),
+    ("reads like: {}", "benzediği: {}"),
+    ("contents: {}", "içindekiler: {}"),
+    ("No theme yet (ev themes)", "Henüz teması yok (ev themes)"),
+    ("words: ", "kelimeler: "),
+    ("reads like: ", "benzediği: "),
     ("  (a guess)", "  (tahmin)"),
     (
         "Sharing no word with anything in its holder (a guess; look before moving):",

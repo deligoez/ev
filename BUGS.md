@@ -25,7 +25,13 @@ that fixes them.
 - **Noun compounds are split into unrelated words.** "Hesap makinesi" and "etiket makinesi"
   match "makine vidaları", "kablo bağı" matches cable drawers, "lehim pompası" and "su pompası
   pensesi" match "pompa uçları". A two-word term for known compounds fixed 8 such cases in a
-  trial on a copy (list of compounds to come from Çözgü).
+  trial on a copy. Most modern compounds (hesap makinesi, kablo bağı, şarj cihazı) are in no
+  dictionary, so the trial that works needs no list: pair a bare noun with a following noun
+  that carries only the 3rd-person possessive (-sI/-I, soft stems included), pair a colour
+  with the noun after it, and weigh a lone colour 0.3. On the copy this kept the LED boxes
+  right and fixed kablo bağı, kontrol kalemi, ahşap vidası, priz kapağı and the colour-only
+  matches (heat gun, kumaş, şerit metre); new misses were "güç adaptörü" / "şarj cihazı"
+  pulled toward sets that hold one.
 - **Measuring placement has no answer key.** `regroup`'s "best where they are" treats the
   current layout as correct, but the layout has known misplacements, so a better scorer can
   show no gain. A reviewed list of where each flagged thing belongs is needed to measure.

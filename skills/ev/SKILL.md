@@ -98,8 +98,8 @@ Record the kinds that have their own verbs as you meet them:
 - **Photo of the current state:** every place should have a photo of how it is now — its own
   photo, or a crop cut for it from a wider one (a box out of a drawer photo).
   `photos` in `ev todo` lists the places without one or changed since; after a move or a
-  tour, ask for a fresh photo of each place it touched and attach it with
-  `ev photo add <place> <file> --note "son hali, <date>"`. Older photos stay as history.
+  tour, ask for a fresh photo of each place it touched and attach it (see **Photos**) with
+  `--note "son hali, <date>"`. Older photos stay as history.
 - **Gridfinity drawers:** give the drawer a grid once (`ev grid <drawer> --cols 6 --rows 7`,
   row 1 at the back) and place each box with `ev cell <box>=A3-B3`. Then `ev grid <drawer>`
   draws the map and lists free cells — propose places for new boxes from it, and name them by

@@ -31,3 +31,6 @@ subprocess.run(
     ["cargo", "test", "-q", "-p", "ev-core", "--lib", "dump_keys", "--", "--ignored"],
     cwd=root, env=env, check=True, capture_output=True,
 )
+got = table(out)
+
+words = [w for w in expected if w not in skip and w in got]

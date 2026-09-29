@@ -169,6 +169,14 @@ has not been toured on the strength of the conversation alone; ask first.
 
 ## Photos
 
+**Name every part by where it is in the photo, every time.** "The transistors" or "the
+temperature sensors" is not enough, and neither is having described the position once further
+up: the person matches your words to the picture, so each mention carries its place in that
+photo — "left, the two on paper tape", "bottom row, all three", "top right, the big black
+one", "2nd from the left in the middle row" — in tables, proposals and questions alike. A
+proposal that says what goes where names both ends by position: the part in the photo and the
+cell or box it goes to.
+
 **Every photo of a place is attached the moment it arrives** — including one the person sends
 only to confirm a state ("son hali bu mu?"). A photo that confirmed something and was not
 attached leaves the place's current photo older than the place, which is the exact slip this

@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 10;
+pub const SCHEMA_VERSION: i64 = 11;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -229,6 +229,35 @@ PRAGMA user_version = 10;
 COMMIT;
 ";
 
+/// A grid photo keeps the grid's corners in it (spec §28), so its cells can be marked later by
+/// name without measuring the photo again.
+const SCHEMA_V11: &str = "
+BEGIN;
+ALTER TABLE photos ADD COLUMN grid TEXT;
+PRAGMA user_version = 11;
+COMMIT;
+";
+
+/// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
+/// so whatever fails is left alone.
+fn prune_older(dir: &Path, age: Duration) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let now = std::time::SystemTime::now();
+    for e in entries.flatten() {
+        let old = e
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| now.duration_since(t).ok())
+            .is_some_and(|d| d > age);
+        if old {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+}
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -288,6 +317,9 @@ impl Inventory {
         }
         if version < 10 {
             conn.execute_batch(SCHEMA_V10)?;
+        }
+        if version < 11 {
+            conn.execute_batch(SCHEMA_V11)?;
         }
         let photo_dir = path
             .parent()
@@ -2521,9 +2553,18 @@ impl Inventory {
                 ));
             }
         }
-        let mut rows: Vec<(i64, String, Option<String>, Option<crate::Crop>)> = Vec::new();
+        // The whole photo keeps the grid's corners, so its cells can be marked by name later.
+        type Row = (
+            i64,
+            String,
+            Option<String>,
+            Option<crate::Crop>,
+            Option<String>,
+        );
+        let mut rows: Vec<Row> = Vec::new();
         if let Some(pid) = place {
-            rows.push((pid, original_text.clone(), None, None));
+            let corners = grid.map(|g| g.to_string());
+            rows.push((pid, original_text.clone(), None, None, corners));
         }
         for (id, c) in targets {
             let cut = crate::photo::store_crop(&self.photo_dir, &original, c)?;
@@ -2532,19 +2573,20 @@ impl Inventory {
                 cut.to_string_lossy().into_owned(),
                 Some(original_text.clone()),
                 Some(c),
+                None,
             ));
         }
         let tx = self.conn.transaction()?;
         let mut attached = Vec::new();
-        for (id, stored, source, crop) in &rows {
+        for (id, stored, source, crop, corners) in &rows {
             let next: i64 = tx.query_row(
                 "SELECT COALESCE(MAX(position) + 1, 0) FROM photos WHERE node_id = ?1",
                 [id],
                 |r| r.get(0),
             )?;
             tx.execute(
-                "INSERT INTO photos (node_id, position, path, source, crop, note, added_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO photos (node_id, position, path, source, crop, note, added_at, grid)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     id,
                     next,
@@ -2552,7 +2594,8 @@ impl Inventory {
                     source,
                     crop.map(|c| c.to_string()),
                     note.map(str::trim),
-                    now()
+                    now(),
+                    corners
                 ],
             )?;
             touch(&tx, *id)?;
@@ -2570,6 +2613,93 @@ impl Inventory {
         }
         tx.commit()?;
         Ok(json!({ "attached": attached }))
+    }
+
+    /// Draws marks on a copy of a photo, to show which thing is meant and where it goes. The
+    /// copy is temporary: it is not stored, not attached and leaves no history; it goes to
+    /// `out`, or to a scratch folder (`<temp>/ev-marks`) whose files older than a day are
+    /// removed on each call. `target` is a photo file, or a node whose newest whole photo is
+    /// marked. A mark is `(label, spec)`: `x,y,w,h` in fractions of the upright photo, or cells
+    /// like `A6` / `A6-B6` of the node's grid, located through the grid corners kept with the
+    /// photo when it was cut (`ev photo cut --grid`) or given here.
+    pub fn photo_mark(
+        &self,
+        target: &str,
+        marks: &[(String, String)],
+        corners: Option<&crate::GridCorners>,
+        out: Option<&Path>,
+    ) -> Result<Value> {
+        use crate::photo::Shape;
+        if marks.is_empty() {
+            return Err(Error::Usage(
+                "give at least one <label>=x,y,w,h or <label>=<cell>".into(),
+            ));
+        }
+        let by_cell = |spec: &str| !spec.contains(',');
+        let (file, holder, stored) = if Path::new(target).is_file() {
+            (PathBuf::from(target), None, None)
+        } else {
+            let id = resolve(&self.conn, target, false)?;
+            // A cell needs the grid's corners: the newest whole photo that kept them, unless
+            // they are given; otherwise the newest whole photo.
+            let want_grid = corners.is_none() && marks.iter().any(|(_, s)| by_cell(s));
+            let sql = if want_grid {
+                "SELECT path, grid FROM photos WHERE node_id = ?1 AND crop IS NULL
+                   AND grid IS NOT NULL ORDER BY position DESC LIMIT 1"
+            } else {
+                "SELECT path, grid FROM photos WHERE node_id = ?1 AND crop IS NULL
+                   ORDER BY position DESC LIMIT 1"
+            };
+            let row: Option<(String, Option<String>)> = self
+                .conn
+                .query_row(sql, [id], |r| Ok((r.get(0)?, r.get(1)?)))
+                .optional()?;
+            let Some((path, grid)) = row else {
+                let why = if want_grid {
+                    "no photo of it kept its grid corners; give --grid, or cut the next one with --grid"
+                } else {
+                    "it has no whole photo to mark"
+                };
+                return Err(refused(why, json!({ "node": brief_json(&self.conn, id)? })));
+            };
+            (PathBuf::from(path), Some(id), grid)
+        };
+        let stored: Option<crate::GridCorners> = stored.map(|g| g.parse()).transpose()?;
+        let corners = corners.or(stored.as_ref());
+        let mut shapes = Vec::new();
+        for (text, spec) in marks {
+            let shape = if by_cell(spec) {
+                let cells = crate::grid::Cells::parse(spec)?;
+                let (Some(h), Some(c)) = (holder, corners) else {
+                    return Err(Error::Usage(format!(
+                        "`{spec}` is a cell: mark a place with a grid (by its code), not a file"
+                    )));
+                };
+                Shape::Quad(crate::grid::cells_quad(&self.conn, h, c, &cells)?)
+            } else {
+                Shape::Rect(spec.parse()?)
+            };
+            shapes.push((text.clone(), shape));
+        }
+        let out = match out {
+            Some(p) => p.to_path_buf(),
+            None => {
+                let dir = std::env::temp_dir().join("ev-marks");
+                prune_older(&dir, Duration::from_secs(24 * 3600));
+                let stem = file
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "photo".into());
+                let ms = chrono::Utc::now().timestamp_millis();
+                dir.join(format!("{stem}-marked-{ms}.jpg"))
+            }
+        };
+        crate::photo::draw_marks(&file, &shapes, &out)?;
+        Ok(json!({
+            "marked": out.to_string_lossy(),
+            "source": file.to_string_lossy(),
+            "marks": marks.iter().map(|(l, s)| json!({ "label": l, "at": s })).collect::<Vec<_>>(),
+        }))
     }
 
     pub fn photo_list(&self, reference: &str) -> Result<Value> {

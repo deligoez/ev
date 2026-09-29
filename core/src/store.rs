@@ -2060,7 +2060,7 @@ pub(crate) fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
 
 /// Anything something can be put into: every node that is not a home and is either not an
 /// item or already holds something.
-fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>) -> bool {
+pub(crate) fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>) -> bool {
     n.kind != Kind::Home && (n.kind != Kind::Item || has_children.contains(&n.id))
 }
 

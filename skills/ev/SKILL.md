@@ -100,9 +100,12 @@ Record the kinds that have their own verbs as you meet them:
   `photos` in `ev todo` lists the places without one or changed since; after a move or a
   tour, ask for a fresh photo of each place it touched and attach it with
   `ev photo add <place> <file> --note "son hali, <date>"`. Older photos stay as history.
-- **Boxes trading places:** when a code is the box's position (a gridfinity cell) and boxes are
-  moved, give all of them their new codes in one `ev recode A=X B=Y C=Z` once the person has
-  moved them — not one `ev edit` at a time, which trips over the code still in use.
+- **Gridfinity drawers:** give the drawer a grid once (`ev grid <drawer> --cols 6 --rows 7`,
+  row 1 at the back) and place each box with `ev cell <box>=A3-B3`. Then `ev grid <drawer>`
+  draws the map and lists free cells — propose places for new boxes from it, and name them by
+  cell. When boxes trade places, give all of them their new cells in one
+  `ev cell A=A3-B3 B=A4 C=B4 --recode` once the person has moved them: overlaps are checked
+  against the final layout, and `--recode` renames each box after its back-left cell.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 

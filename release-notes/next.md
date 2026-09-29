@@ -43,6 +43,11 @@ Draft for the next release.
 
 ## Fixed
 
+- **A drawer's own photo goes out of date with its boxes.** `ev todo` checked only the smallest
+  units (the boxes), so a box added after the drawer's photo never put the drawer back on the
+  photo list, though the drawer photo is what every box's crop is cut from. A holder with a grid
+  is now checked too and listed with `grid: true`.
+
 - **`ev ui` tree rows now show fill bars.** They read the fill from `ev tree`, which did not
   carry it, so the bars added in v0.11.0 never appeared.
 - **One noun no longer gets two keys by its ending.** A stem that some word carries a plural

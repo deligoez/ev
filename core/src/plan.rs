@@ -319,15 +319,27 @@ impl Inventory {
         Ok(json!({ "focus": value }))
     }
 
-    /// Asks a running `ev ui` to show a picture that is not a record — a photo marked with
-    /// `photo_mark` — full screen, titled with `note`, until the person closes it.
-    pub fn focus_file(&mut self, file: &std::path::Path, note: Option<&str>) -> Result<Value> {
-        if !file.is_file() {
-            return Err(Error::NotFound(format!("no file {}", file.display())));
+    /// Asks a running `ev ui` to show pictures that are no record — photos marked with
+    /// `photo_mark` — full screen, titled with `note`, stepped through with `[` `]`, until the
+    /// person closes them. Sent together, so the parts and where they go arrive as one.
+    pub fn focus_file(
+        &mut self,
+        files: &[std::path::PathBuf],
+        note: Option<&str>,
+    ) -> Result<Value> {
+        if files.is_empty() {
+            return Err(Error::Usage("name at least one picture".into()));
         }
-        let file = std::path::absolute(file).unwrap_or_else(|_| file.to_path_buf());
+        let mut paths = Vec::new();
+        for file in files {
+            if !file.is_file() {
+                return Err(Error::NotFound(format!("no file {}", file.display())));
+            }
+            let abs = std::path::absolute(file).unwrap_or_else(|_| file.clone());
+            paths.push(abs.to_string_lossy().into_owned());
+        }
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        let value = json!({ "file": file.to_string_lossy(), "note": note, "at": at });
+        let value = json!({ "files": paths, "note": note, "at": at });
         self.conn.execute(
             "INSERT INTO settings (key, value) VALUES ('focus', ?1)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",

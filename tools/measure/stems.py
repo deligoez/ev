@@ -12,3 +12,4 @@ def table(path):
     return dict(l.rstrip("\n").split("\t")[:2] for l in open(path, encoding="utf-8") if l.strip())
 
 
+baseline = table(baseline_path)

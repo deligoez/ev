@@ -204,7 +204,13 @@ impl UiState {
         self.read()["last"][db.display().to_string()].as_i64()
     }
 
-    pub fn remember(&self, db: &Path, id: i64) -> std::io::Result<()> {
+    /// How the screen was divided (the panes' sizes, the details tab), for every database.
+    pub fn layout(&self) -> Value {
+        self.read()["layout"].clone()
+    }
+
+    /// Keeps where `ev ui` was on `db` (when a node was selected) and its layout.
+    pub fn save(&self, db: &Path, id: Option<i64>, layout: Value) -> std::io::Result<()> {
         let mut v = self.read();
         if !v["last"].is_object() {
             v["last"] = json!({});

@@ -8,3 +8,7 @@ data = Path(os.environ.get("EV_MEASURE", Path.home() / ".ev" / "measure"))
 baseline_path, judged_path = data / "stems-baseline.tsv", data / "stems-judged.tsv"
 
 
+def table(path):
+    return dict(l.rstrip("\n").split("\t")[:2] for l in open(path, encoding="utf-8") if l.strip())
+
+

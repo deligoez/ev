@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 8;
+pub const SCHEMA_VERSION: i64 = 9;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -202,11 +202,25 @@ PRAGMA user_version = 8;
 COMMIT;
 ";
 
+/// A box's outer size (spec §23), `WxDxH` in the units the person uses (gridfinity units for
+/// bins), so a fuller box can be matched with a bigger spare one.
+const SCHEMA_V9: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN size TEXT;
+CREATE TABLE synonyms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    words TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+PRAGMA user_version = 9;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), unknown";
+     (SELECT name FROM places WHERE id = to_place), unknown, size";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -255,6 +269,9 @@ impl Inventory {
         }
         if version < 8 {
             conn.execute_batch(SCHEMA_V8)?;
+        }
+        if version < 9 {
+            conn.execute_batch(SCHEMA_V9)?;
         }
         let photo_dir = path
             .parent()
@@ -2106,51 +2123,6 @@ impl Inventory {
             return Err(Error::NotFound(format!("no rule with id {id}")));
         }
         Ok(json!({ "rules": rules_json(&self.conn)? }))
-    }
-
-    /// Where could this go: the rules, where similar things already are, and every place in
-    /// the tree that can hold something. Nothing is ranked away; the agent decides.
-    pub fn suggest(&self, text: &str, tag: Option<&str>) -> Result<Value> {
-        let wanted = words(text);
-        let tag = tag.map(|t| t.trim().to_lowercase());
-        if wanted.is_empty() && tag.is_none() {
-            return Err(Error::Usage(
-                "describe the thing to place (at least one word of 3+ letters)".into(),
-            ));
-        }
-        let all = live_nodes(&self.conn)?;
-        let has_children: std::collections::HashSet<i64> =
-            all.iter().filter_map(|n| n.parent_id).collect();
-        let mut similar: HashMap<i64, Vec<String>> = HashMap::new();
-        for n in all.iter().filter(|n| n.kind == Kind::Item) {
-            let own = words(&node_text(n));
-            let hit = wanted.iter().any(|w| own.iter().any(|o| word_match(w, o)))
-                || tag.as_ref().is_some_and(|t| n.tags.contains(t));
-            if let (true, Some(p)) = (hit, n.parent_id) {
-                similar.entry(p).or_default().push(n.name.clone());
-            }
-        }
-        let mut similar: Vec<(i64, Vec<String>)> = similar.into_iter().collect();
-        similar.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
-        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
-        let similar = similar
-            .into_iter()
-            .map(|(p, names)| {
-                Ok(json!({ "container": holder_json(&self.conn, by_id[&p], &all)?, "count": names.len(), "matches": names }))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let holders = all
-            .iter()
-            .filter(|n| is_holder(n, &has_children))
-            .map(|n| holder_json(&self.conn, n, &all))
-            .collect::<Result<Vec<_>>>()?;
-        Ok(json!({
-            "query": text,
-            "rules": rules_json(&self.conn)?,
-            "similar": similar,
-            "containers": holders,
-            "complete": { "containers": holders.len(), "note": "every place in the tree that can hold something is listed" },
-        }))
     }
 
     /// Where the inventory could be tidier: alike things split across places, holders without

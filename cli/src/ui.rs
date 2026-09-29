@@ -421,6 +421,14 @@ struct App {
     last_background_query: Instant,
     /// Answers to the picture-protocol query so far; `None` when no query was sent.
     probe: Option<ImageProbe>,
+    /// How far the details pane is scrolled, where it was drawn, and how many lines it had.
+    detail_scroll: u16,
+    details_area: Rect,
+    detail_lines: usize,
+    /// Placement hints for the selected holder, and `ev regroup` results by scope and the data
+    /// version they were computed at.
+    hints: Vec<Line<'static>>,
+    regroups: HashMap<i64, (i64, Value)>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -517,6 +525,11 @@ impl App {
             notified: false,
             last_background_query: Instant::now(),
             probe: None,
+            detail_scroll: 0,
+            details_area: Rect::default(),
+            detail_lines: 0,
+            hints: Vec::new(),
+            regroups: HashMap::new(),
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1150,6 +1163,12 @@ impl App {
                 Style::new().fg(pal().muted),
             ));
         }
+        if let Some(fill) = n["fill"].as_i64() {
+            spans.push(Span::styled(
+                format!("  {}", fill_bar(fill)),
+                Style::new().fg(fill_color(fill)),
+            ));
+        }
         Row {
             id,
             depth,
@@ -1187,12 +1206,79 @@ impl App {
         let now = self.selected_id().map(|i| serde_json::json!(i));
         if before != now {
             self.photo_idx = 0;
+            self.detail_scroll = 0;
         }
         self.details = match self.selected_id() {
             Some(id) if id > 0 => Some(self.inv.show(&id.to_string(), true)?),
             _ => None,
         };
+        self.hints = match self.details.clone() {
+            Some(v) if self.tab != Tab::Settings => self.placement_hints(&v),
+            _ => Vec::new(),
+        };
         Ok(())
+    }
+
+    /// What `ev regroup` says about the selected holder: things in it that would fit better
+    /// elsewhere, and whether it is mixed. A placed box is judged among its drawer's boxes; a
+    /// drawer among its own. Results are kept per drawer until the data changes.
+    fn placement_hints(&mut self, v: &Value) -> Vec<Line<'static>> {
+        let n = &v["node"];
+        let Some(id) = n["id"].as_i64() else {
+            return Vec::new();
+        };
+        let holds = v["children"].as_array().is_some_and(|c| !c.is_empty());
+        let scope = if v["parent_grid"].is_object() {
+            n["parent_id"].as_i64()
+        } else if holds && n["kind"] != "item" {
+            Some(id)
+        } else {
+            None
+        };
+        let Some(scope) = scope else {
+            return Vec::new();
+        };
+        let fresh = matches!(self.regroups.get(&scope), Some((ver, _)) if *ver == self.version);
+        if !fresh {
+            let Ok(r) = self.inv.regroup(Some(&scope.to_string())) else {
+                return Vec::new();
+            };
+            self.regroups.insert(scope, (self.version, r));
+        }
+        let r = &self.regroups[&scope].1;
+        let label = |h: &Value| {
+            h["code"]
+                .as_str()
+                .map_or_else(|| str_of(h, "name"), str::to_string)
+        };
+        let mut lines = Vec::new();
+        for e in r["elsewhere"].as_array().into_iter().flatten() {
+            if scope != id && e["now"]["holder"]["id"].as_i64() != Some(id) {
+                continue;
+            }
+            // The destination first: a long name wraps, a code does not.
+            lines.push(Line::from(vec![
+                Span::styled("  → ", Style::new().fg(pal().muted)),
+                Span::styled(label(&e["better"]["holder"]), Style::new().fg(pal().code)),
+                Span::raw(format!("  {}", str_of(&e["item"], "name"))),
+            ]));
+        }
+        if r["mixed"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|m| m["holder"]["id"].as_i64() == Some(id))
+        {
+            lines.push(Line::from(Span::styled(
+                format!("  {}", t("mixed: half or more fit better elsewhere")),
+                Style::new().fg(pal().mark),
+            )));
+        }
+        if !lines.is_empty() {
+            lines.insert(0, Line::from(t("Suggestions (ev regroup)")).bold());
+            lines.insert(0, Line::raw(""));
+        }
+        lines
     }
 
     /// Re-reads everything when another process has written, and marks what changed.
@@ -1412,6 +1498,8 @@ impl App {
             KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => self.quit = true,
             KeyCode::Down | KeyCode::Char('j') => self.step(1)?,
             KeyCode::Up | KeyCode::Char('k') => self.step(-1)?,
+            KeyCode::Char('J') => self.scroll_details(3),
+            KeyCode::Char('K') => self.scroll_details(-3),
             KeyCode::PageDown => self.step(15)?,
             KeyCode::PageUp => self.step(-15)?,
             KeyCode::Home | KeyCode::Char('g') => self.select(0)?,
@@ -1524,6 +1612,14 @@ impl App {
             {
                 self.clear_search()
             }
+            MouseEventKind::ScrollDown if inside(self.details_area) => {
+                self.scroll_details(3);
+                Ok(())
+            }
+            MouseEventKind::ScrollUp if inside(self.details_area) => {
+                self.scroll_details(-3);
+                Ok(())
+            }
             MouseEventKind::ScrollDown if inside(self.list_area) => self.step(3),
             MouseEventKind::ScrollUp if inside(self.list_area) => self.step(-3),
             MouseEventKind::Down(MouseButton::Left) if inside(self.tabs_area) => {
@@ -1635,9 +1731,11 @@ impl App {
         f.render_widget(tabs, top);
 
         let [left, right] =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+            Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
                 .areas(body);
         self.list_area = left;
+        // Inside the list's borders.
+        let row_width = left.width.saturating_sub(2) as usize;
         let now = Instant::now();
         self.changed
             .retain(|_, t| now.duration_since(*t) < HIGHLIGHT_FOR);
@@ -1656,6 +1754,7 @@ impl App {
                     Span::styled(marker, Style::new().fg(pal().muted)),
                 ];
                 spans.extend(r.spans.iter().cloned());
+                let mut spans = fit(spans, row_width);
                 if self.changed.contains_key(&r.id) {
                     spans = spans.into_iter().map(|s| s.patch_style(flash)).collect();
                 }
@@ -1697,9 +1796,21 @@ impl App {
         } else {
             self.details_text()
         };
+        // The pane scrolls (J/K, the mouse wheel); its title says so when there is more.
+        self.details_area = text_area;
+        self.detail_lines = text.lines.len();
+        let inner = text_area.height.saturating_sub(2) as usize;
+        let max = self.detail_lines.saturating_sub(1) as u16;
+        self.detail_scroll = self.detail_scroll.min(max);
+        let title = if self.detail_lines > inner || self.detail_scroll > 0 {
+            t(" Details · J/K scroll ")
+        } else {
+            t(" Details ")
+        };
         let details = Paragraph::new(text)
-            .block(Block::bordered().title(t(" Details ")))
-            .wrap(Wrap { trim: false });
+            .block(Block::bordered().title(title))
+            .wrap(Wrap { trim: false })
+            .scroll((self.detail_scroll, 0));
         f.render_widget(details, text_area);
 
         let help = if self.searching {
@@ -1714,7 +1825,7 @@ impl App {
             )
         } else {
             tf(
-                "↑↓ move · → open · ← close · Enter/double-click go · Tab/1-8 tabs · / search · q quit    {}",
+                "↑↓ move · → open · ← close · Enter go · J/K scroll details · [ ] o photos · Tab/1-8 tabs · / search · q quit    {}",
                 &[&self.status],
             )
         };
@@ -1788,7 +1899,10 @@ impl App {
         }
         let mut lines = vec![Line::from(title), Line::raw("")];
         if v["grid"].is_object() {
-            lines.extend(Self::grid_text(&v["grid"]));
+            lines.extend(Self::grid_text(&v["grid"], None));
+        } else if v["parent_grid"].is_object() {
+            // A box is shown where it stands in its drawer.
+            lines.extend(Self::grid_text(&v["parent_grid"], n["id"].as_i64()));
         }
         let mut field = |k: &str, val: Span<'static>| {
             lines.push(Line::from(vec![
@@ -1797,12 +1911,14 @@ impl App {
             ]))
         };
         field(t("kind"), Span::raw(kind_name(&str_of(n, "kind"))));
-        field("id", Span::raw(n["id"].to_string()));
         if let Some(c) = n["code"].as_str() {
             field(
                 t("code"),
                 Span::styled(c.to_string(), Style::new().fg(pal().code)),
             );
+        }
+        if let Some(s) = n["size"].as_str() {
+            field(t("size"), Span::raw(s.to_string()));
         }
         if let Some(q) = n["qty"].as_i64() {
             field(
@@ -1850,7 +1966,23 @@ impl App {
             }
         }
         if let Some(fill) = n["fill"].as_i64() {
-            field(t("fill"), Span::raw(tf("{}%", &[&fill])));
+            let stale = v["room"]["stale"] == true;
+            let style = if stale {
+                Style::new().fg(pal().muted)
+            } else {
+                Style::new().fg(fill_color(fill))
+            };
+            field(
+                t("fill"),
+                Span::styled(
+                    format!(
+                        "{}  {}",
+                        fill_bar(fill),
+                        crate::render::room_text(&v["room"])
+                    ),
+                    style,
+                ),
+            );
         }
         if let Some(c) = v["cells"].as_str() {
             field(
@@ -1948,8 +2080,12 @@ impl App {
         }
         field(
             t("updated"),
-            Span::styled(str_of(n, "updated_at"), Style::new().fg(pal().muted)),
+            Span::styled(
+                when(&str_of(n, "updated_at"), chrono::Utc::now().timestamp()),
+                Style::new().fg(pal().muted),
+            ),
         );
+        lines.extend(self.hints.iter().cloned());
         let kids = v["children"].as_array().cloned().unwrap_or_default();
         if !kids.is_empty() {
             lines.push(Line::raw(""));
@@ -1974,30 +2110,52 @@ impl App {
             ))
             .bold(),
         ];
-        for l in crate::render::grid_lines(g) {
-            // Free cells are dots; everything else names a box.
-            let spans: Vec<Span<'static>> = l
-                .split_inclusive(' ')
-                .map(|w| {
-                    if w.trim() == "·" {
-                        Span::styled(w.to_string(), Style::new().fg(pal().muted))
-                    } else {
-                        Span::styled(w.to_string(), Style::new().fg(pal().code))
-                    }
-                })
-                .collect();
+        let anchor = |id: &Value| -> String {
+            g["boxes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|b| &b["id"] == id)
+                .and_then(|b| b["cells"].as_str())
+                .map(|c| c.split('-').next().unwrap_or(c).to_string())
+                .unwrap_or_else(|| "?".into())
+        };
+        // The column letters, as `ev grid` prints them.
+        if let Some(head) = crate::render::grid_lines(g).into_iter().next() {
+            lines.push(Line::from(head));
+        }
+        for (r, row) in g["map"].as_array().into_iter().flatten().enumerate() {
+            let mut spans = vec![Span::raw(format!("{:>2}  ", r + 1))];
+            for cell in row.as_array().into_iter().flatten() {
+                // Free cells are dots; a box names its back-left cell; the box being shown
+                // stands out and the others step back.
+                let span = if cell.is_null() {
+                    Span::styled("·", Style::new().fg(pal().muted))
+                } else if cell.as_i64().is_some() && cell.as_i64() == mark {
+                    Span::styled(anchor(cell), Style::new().fg(pal().code).bold().reversed())
+                } else if mark.is_some() {
+                    Span::styled(anchor(cell), Style::new().fg(pal().muted))
+                } else {
+                    Span::styled(anchor(cell), Style::new().fg(pal().code))
+                };
+                let pad = 5usize.saturating_sub(span.width());
+                spans.push(span);
+                spans.push(Span::raw(" ".repeat(pad)));
+            }
             lines.push(Line::from(spans));
         }
-        let names: Vec<&str> = g["free"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .collect();
-        lines.push(Line::from(Span::styled(
-            tf("free ({}): {}", &[&names.len(), &names.join(" ")]),
-            Style::new().fg(pal().muted),
-        )));
+        if mark.is_none() {
+            let names: Vec<&str> = g["free"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            lines.push(Line::from(Span::styled(
+                tf("free ({}): {}", &[&names.len(), &names.join(" ")]),
+                Style::new().fg(pal().muted),
+            )));
+        }
         lines.push(Line::raw(""));
         lines
     }

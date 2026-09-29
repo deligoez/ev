@@ -2345,7 +2345,12 @@ impl App {
             );
         self.grid_hit = match &self.details {
             Some(v) if clickable && self.shown_detail_tab() == DetailTab::Grid => {
-                v["grid"].is_object().then(|| grid_map(&v["grid"]))
+                let g = if v["grid"].is_object() {
+                    &v["grid"]
+                } else {
+                    &v["parent_grid"]
+                };
+                g.is_object().then(|| grid_map(g))
             }
             _ => None,
         };

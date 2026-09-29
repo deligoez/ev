@@ -64,8 +64,8 @@ create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, pho
 
 A read-only terminal browser. It never writes the database; it polls SQLite's `data_version`
 every half second and re-reads when another process has written, highlighting the nodes that
-changed and expanding their parents so they are in view. The one file it writes is the
-display settings file, from its Settings tab.
+changed and expanding their parents so they are in view. The files it writes are the display
+settings file, from its Settings tab, and on exit the tree position it reopens on.
 
 | Key | Action |
 |---|---|

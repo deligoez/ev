@@ -325,6 +325,17 @@ enum PhotoCmd {
         #[arg(long, conflicts_with = "crop")]
         whole: bool,
     },
+    /// Cut one photo up among several nodes at once: `<ref>=x,y,w,h` for each, and the whole
+    /// photo on --place (the drawer or box it shows). All or nothing.
+    Cut {
+        file: PathBuf,
+        #[arg(required_unless_present = "place")]
+        pieces: Vec<String>,
+        #[arg(long)]
+        place: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
     /// A node's photos, numbered from 1.
     List { reference: String },
     /// Detach the n-th photo of a node.

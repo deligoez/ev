@@ -7,7 +7,7 @@
 | name | `add <name>`, `edit name=` | required |
 | kind | `--kind`, `edit kind=` | home, room, furniture, container, item |
 | parent | `--in`, `move` | not editable; rooms only in homes/rooms |
-| code | `--code`, `edit code=` | unique among non-gone nodes, folded; not digits only; `code=` clears |
+| code | `--code`, `edit code=`, `recode` | unique among non-gone nodes, folded; not digits only; `code=` clears; `ev recode A=X B=Y …` sets several at once, checking uniqueness against the codes they end up with (swap or rotate codes when boxes change places) |
 | address | `--address`, `edit address=` | homes only |
 | qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
 | note, theme | `--note`, `--theme`, `edit note=` | empty clears |

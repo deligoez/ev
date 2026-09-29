@@ -463,6 +463,17 @@ fn run(cli: Cli) -> Result<Value> {
             );
             inv.edit(&reference, &assignments)
         }
+        Cmd::Recode { pairs } => {
+            let pairs = pairs
+                .iter()
+                .map(|p| {
+                    p.split_once('=')
+                        .map(|(r, c)| (r.trim().to_string(), c.to_string()))
+                        .ok_or_else(|| Error::Usage(format!("`{p}` is not <ref>=<code>")))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            inv.recode(&pairs)
+        }
         Cmd::Move {
             reference,
             to,

@@ -32,6 +32,8 @@ ev show K4x4-07-Ü                # one node with its path, children and photos
 ev tree Salon --depth 2          # the picture, with item totals
 ev edit 391 qty=11 note="…"      # change fields
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
+ev grid 07-A --cols 6 --rows 7   # a gridfinity drawer: row 1 at the back, columns A…
+ev cell 07-A-A3=A3-B3 --recode   # a box covers cells; ev grid 07-A draws the map
 ev history 391                   # everything that happened to it
 ```
 

@@ -573,3 +573,17 @@ fn is_specific(s: &Scored) -> bool {
     s.matched.iter().any(|m| m["specific"] == true)
 }
 
+/// The words of a holder's theme, as a set: holders with the same set are one group split
+/// over several boxes ("MQ sensors (1)", "MQ sensors (2)").
+fn theme_key(index: &Index, n: &Node) -> Vec<String> {
+    let mut k: Vec<String> = n
+        .theme
+        .iter()
+        .flat_map(|t| index.keyed(terms(t)))
+        .map(|t| t.key)
+        .collect();
+    k.sort();
+    k.dedup();
+    k
+}
+

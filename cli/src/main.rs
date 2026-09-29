@@ -785,7 +785,12 @@ fn run(cli: Cli) -> Result<Value> {
             pieces,
             place,
             note,
+            grid,
         }) => {
+            let grid = grid
+                .as_deref()
+                .map(str::parse::<ev_core::GridCorners>)
+                .transpose()?;
             let crops = pieces
                 .iter()
                 .map(|p| {
@@ -795,7 +800,13 @@ fn run(cli: Cli) -> Result<Value> {
                     Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            inv.photo_cut(&file, place.as_deref(), &crops, note.as_deref())
+            inv.photo_cut(
+                &file,
+                place.as_deref(),
+                &crops,
+                note.as_deref(),
+                grid.as_ref(),
+            )
         }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),

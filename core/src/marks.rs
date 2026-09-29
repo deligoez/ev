@@ -229,35 +229,10 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
         if u["children"].as_u64().unwrap_or(0) == 0 && u["unknown"] != true {
             continue;
         }
-        let photo_at: Option<Option<String>> = conn
-            .query_row(
-                // A photo from before photos carried a date is the one the place was first
-                // recorded from, so it stands for the place's creation time.
-                "SELECT MAX(COALESCE(added_at, (SELECT created_at FROM nodes WHERE id = ?1)))
-                   FROM photos WHERE node_id = ?1",
-                [id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        // The person may say the photo is still close enough after a small change; that
-        // counts as a fresh photo from then on.
-        let accepted = mark(conn, id, "photo_ok")?["at"]
-            .as_str()
-            .map(str::to_string);
-        let photo_at = match (photo_at.flatten(), accepted) {
-            (Some(p), Some(a)) => Some(p.max(a)),
-            (p, a) => p.or(a),
-        };
-        let changed = contents_changed_at(conn, id)?;
-        let reason = match (&photo_at, &changed) {
-            (None, _) => Some("none"),
-            (Some(p), Some(c)) if c > p => Some("changed"),
-            _ => None,
-        };
-        if let Some(reason) = reason {
+        if let Some((reason, photo_at, changed)) = photo_stale(conn, id)? {
             let mut v = u.clone();
             v["photo_reason"] = json!(reason);
-            v["photo_at"] = json!(photo_at.filter(|p| !p.is_empty()));
+            v["photo_at"] = json!(photo_at);
             v["changed_at"] = json!(changed);
             out.push(v);
         }

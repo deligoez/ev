@@ -116,7 +116,10 @@ settings. It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
-at a node and shows its photo, so "which one do you mean?" is answered on screen. The details
+at a node and shows its photo, so "which one do you mean?" is answered on screen; `ev photo
+mark` draws numbered frames on a copy of a photo — on the parts, or on a drawer's cells by name
+(`1=A6`) — and `--show` puts it full screen in a running `ev ui`, so "what goes where" is
+answered on screen too, without anything recorded. The details
 pane has tabs (`H`/`L` or a click): a summary with the node's `#id`; its photos with their
 notes; a grid, where a placed box is framed on its drawer's plate; the contents; what
 `ev regroup` suggests there (guesses marked as such); and the history, a place's including

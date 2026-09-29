@@ -88,7 +88,7 @@ pub fn cycle<T: PartialEq + Copy>(all: &[T], cur: T, forward: bool) -> T {
     }]
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
     pub language: LangPref,
     pub theme: ThemePref,

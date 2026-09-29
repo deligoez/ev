@@ -87,3 +87,13 @@ pub fn pal() -> &'static Palette {
     }
 }
 
+/// Relative luminance of an sRGB colour given as fractions; above one half reads as light,
+/// the same cut Claude Code and most terminal tools use.
+pub fn mode_of(r: f64, g: f64, b: f64) -> Mode {
+    if 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 {
+        Mode::Light
+    } else {
+        Mode::Dark
+    }
+}
+

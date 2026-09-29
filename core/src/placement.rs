@@ -226,3 +226,79 @@ fn candidates(word: &str) -> Vec<String> {
     out
 }
 
+/// Chooses a word's stem by looking at the inventory's own words, which is what keeps plain
+/// suffix stripping from cutting too deep. In order: the shortest shorter form that is written
+/// somewhere on its own (`kutuda`→`kutu`, `kitabı`→`kitap`, `modules`→`modül`); the word
+/// itself if it is written on its own, so a base form is never cut further (`kutu` stays,
+/// though it could read as `kut`+`u`); the longest shorter form two different words lead to
+/// (`vidası` with `vidaları`→`vida`); the word itself. The known gap: two forms whose base is
+/// written nowhere, both themselves written on their own, stay apart.
+pub(crate) struct Lexicon {
+    words: HashSet<String>,
+    shared: HashMap<String, usize>,
+}
+
+impl Lexicon {
+    pub(crate) fn new<'a>(surfaces: impl Iterator<Item = &'a str>) -> Lexicon {
+        let words: HashSet<String> = surfaces
+            .filter(|w| !w.chars().any(|c| c.is_ascii_digit()))
+            .map(str::to_string)
+            .collect();
+        let mut shared: HashMap<String, usize> = HashMap::new();
+        for w in &words {
+            for c in candidates(w).into_iter().skip(1) {
+                *shared.entry(c).or_default() += 1;
+            }
+        }
+        Lexicon { words, shared }
+    }
+
+    pub(crate) fn key(&self, word: &str) -> String {
+        if word.chars().any(|c| c.is_ascii_digit()) {
+            return word.to_string();
+        }
+        let cands = candidates(word);
+        if let Some(c) = cands
+            .iter()
+            .skip(1)
+            .filter(|c| self.words.contains(*c))
+            .min_by(|a, b| a.chars().count().cmp(&b.chars().count()).then(a.cmp(b)))
+        {
+            return c.clone();
+        }
+        if self.words.contains(word) {
+            return word.to_string();
+        }
+        cands
+            .iter()
+            .skip(1)
+            .filter(|c| self.shared.get(*c).is_some_and(|n| *n >= 2))
+            .max_by(|a, b| a.chars().count().cmp(&b.chars().count()).then(b.cmp(a)))
+            .cloned()
+            .unwrap_or_else(|| word.to_string())
+    }
+
+    pub(crate) fn keyed(&self, ts: Vec<Term>) -> Vec<Term> {
+        ts.into_iter()
+            .map(|mut t| {
+                t.key = self.key(&t.surface);
+                t
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Hit {
+    weight: f64,
+    /// The node the words came from: the holder itself or a thing inside it.
+    source: i64,
+    field: &'static str,
+}
+
+#[derive(Default)]
+struct Doc {
+    hits: HashMap<String, Vec<Hit>>,
+    len: usize,
+}
+

@@ -3057,13 +3057,15 @@ pub fn set_language_from_settings() -> Lang {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, Tab, tab_at};
+    use super::{App, DetailTab, Drag, Tab, tab_at};
     use crate::i18n::Lang;
     use crate::input::Input;
     use crate::settings::{LangPref, Settings, ThemePref};
     use crate::theme::{self, Mode};
     use ev_core::{Inventory, NewNode};
-    use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use ratatui::style::Color;
     use ratatui::{Terminal, backend::TestBackend};
     use ratatui_image::picker::Picker;
@@ -3106,7 +3108,12 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("1 Layout") && s.contains("8 Settings"), "{s}");
-        assert!(s.contains("Details") && s.contains("kind: home"), "{s}");
+        assert!(s.contains("Summary · Grid"), "{s}");
+        assert!(
+            s.lines()
+                .any(|l| l.contains("kind ") && l.contains(" home")),
+            "{s}"
+        );
         assert!(!s.contains("Ayrıntı"), "{s}");
     }
 
@@ -3281,6 +3288,8 @@ mod tests {
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
         app.picker = Some(Picker::halfblocks());
         app.reveal(drawer).unwrap();
+        // `L` steps from the summary to the grid, the next tab this drawer has.
+        press(&mut app, KeyCode::Char('L'));
         let mut term = Terminal::new(TestBackend::new(140, 40)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
@@ -3343,18 +3352,99 @@ mod tests {
         let (_dir, inv) = led_drawer();
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
         let s = shown(&mut app, "D-B1", 150, 40);
+        // Room from the fill, not only the percentage; no database id among the fields.
+        assert!(s.contains("▮▮▯▯  room (50% full)"), "{s}");
+        assert!(!s.contains("id: "), "{s}");
+        // The tabs count what they hold: three things inside, one suggested move.
+        assert!(s.contains("Contents 3 · Suggestions 1"), "{s}");
         // The drawer's map, with this box among the others.
+        app.detail_tab = DetailTab::Grid;
+        let s = shown(&mut app, "D-B1", 150, 40);
         assert!(s.contains("2×1 grid, row 1 at the back"), "{s}");
         assert!(s.contains(" 1 │ A1  │ B1  │"), "{s}");
-        // Room from the fill, not only the percentage.
-        assert!(s.contains("▮▮▯▯  room (50% full)"), "{s}");
         // The stray LED, with where it would fit better.
+        app.detail_tab = DetailTab::Suggestions;
+        let s = shown(&mut app, "D-B1", 150, 40);
         assert!(s.contains("Suggestions (ev regroup)"), "{s}");
         assert!(s.contains("→ D-A1  Kırmızı LED 10 mm"), "{s}");
-        // No database id among the fields.
-        assert!(!s.contains("id: "), "{s}");
+        // A box with nothing to suggest shows its summary, and the choice is kept.
         let s = shown(&mut app, "D-A1", 150, 40);
-        assert!(s.contains("size: 1x1x1"), "{s}");
+        assert!(
+            s.lines()
+                .any(|l| l.contains("size ") && l.contains(" 1x1x1")),
+            "{s}"
+        );
+        assert_eq!(app.detail_tab, DetailTab::Suggestions);
+    }
+
+    fn click(app: &mut App, kind: MouseEventKind, column: u16, row: u16) {
+        app.handle(Input::Mouse(MouseEvent {
+            kind,
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }))
+        .unwrap();
+    }
+
+    #[test]
+    fn the_divider_drags_resets_on_a_double_click_and_steps_with_keys() {
+        let (_dir, inv) = led_drawer();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let _ = shown(&mut app, "D-B1", 100, 30);
+        // The list ends at column 54 of 100; the right side starts at 55.
+        assert_eq!(app.right_area.x, 55);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), 55, 10);
+        assert_eq!(app.drag, Some(Drag::Columns));
+        click(&mut app, MouseEventKind::Drag(MouseButton::Left), 39, 12);
+        click(&mut app, MouseEventKind::Up(MouseButton::Left), 39, 12);
+        assert_eq!((app.split, app.drag), (40, None));
+        let s = shown(&mut app, "D-B1", 100, 30);
+        assert_eq!(app.right_area.x, 40, "{s}");
+        // Too far is held back, so neither side disappears.
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), 40, 10);
+        click(&mut app, MouseEventKind::Drag(MouseButton::Left), 2, 10);
+        assert_eq!(app.split, 20);
+        click(&mut app, MouseEventKind::Up(MouseButton::Left), 2, 10);
+        // A double click on the divider puts it back.
+        let _ = shown(&mut app, "D-B1", 100, 30);
+        let x = app.right_area.x;
+        app.divider_click = None;
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, 10);
+        click(&mut app, MouseEventKind::Up(MouseButton::Left), x, 10);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, 10);
+        assert_eq!(app.split, 55);
+        press(&mut app, KeyCode::Char('<'));
+        assert_eq!(app.split, 50);
+        // The layout is what `ui-state.json` keeps, and a stored one comes back clamped.
+        assert_eq!(app.layout_json()["split"], 50);
+        app.apply_layout(&serde_json::json!({"split": 5, "details": "history"}));
+        assert_eq!((app.split, app.detail_tab), (20, DetailTab::History));
+    }
+
+    #[test]
+    fn the_history_tab_tells_what_happened_here_newest_first() {
+        let (_dir, mut inv) = led_drawer();
+        inv.move_to("Kırmızı LED 10 mm", "D-A1", false).unwrap();
+        inv.edit("D-A1", &["theme=LED".into()]).unwrap();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.detail_tab = DetailTab::History;
+        let s = shown(&mut app, "D-A1", 150, 40);
+        assert!(s.contains("Today"), "{s}");
+        let at = |text: &str| s.find(text).unwrap_or_else(|| panic!("{text} in {s}"));
+        // Its own change, what came in and from where, what was added: newest first.
+        assert!(at("changed  theme: Kırmızı LED → LED") < at("came in  Kırmızı LED 10 mm  ← D-B1"));
+        assert!(at("came in") < at("added here  Kırmızı LED 3 mm"));
+        assert!(s.contains("created  D"), "{s}");
+        // Clicking a title opens that tab; the summary is first.
+        let (row, hits) = app.detail_tab_hits.clone();
+        click(
+            &mut app,
+            MouseEventKind::Down(MouseButton::Left),
+            hits[0].0,
+            row,
+        );
+        assert_eq!(app.detail_tab, DetailTab::Summary);
     }
 
     #[test]
@@ -3366,9 +3456,10 @@ mod tests {
             add(&mut inv, &format!("Parça {i:02}"), "item", "D", None);
         }
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.detail_tab = DetailTab::Contents;
         let s = shown(&mut app, "D", 150, 24);
         assert!(!s.contains("Parça 39"), "{s}");
-        assert!(s.contains("Details · J/K scroll"), "{s}");
+        assert!(s.contains("H/L tabs · J/K scroll"), "{s}");
         for _ in 0..20 {
             press(&mut app, KeyCode::Char('J'));
         }
@@ -3378,7 +3469,7 @@ mod tests {
         assert!(s.contains("Parça 39"), "{s}");
         // Another node starts at the top again.
         let s = shown(&mut app, "Oda", 150, 24);
-        assert!(s.contains("Details ─"), "{s}");
+        assert!(s.contains(" H/L tabs ─"), "{s}");
     }
 
     #[test]
@@ -3389,6 +3480,7 @@ mod tests {
         add(&mut inv, "RP-SMA çubuk anten", "item", "K", None);
         add(&mut inv, "U.FL anten kablosu", "item", "K", None);
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.detail_tab = DetailTab::Suggestions;
         let s = shown(&mut app, "K", 150, 30);
         assert!(s.contains("No theme yet (ev themes)"), "{s}");
         assert!(s.contains("words: anten (2)"), "{s}");
@@ -3478,7 +3570,7 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("Fotoğraf 1/1"), "{s}");
-        assert!(s.contains("Ayrıntı"));
+        assert!(s.contains("Özet · Izgara"), "{s}");
     }
 
     #[test]
@@ -3543,12 +3635,12 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("Ev · Fotoğraf 2/2 · ikinci"), "{s}");
-        assert!(!s.contains("Ayrıntı"), "{s}");
+        assert!(!s.contains("Özet"), "{s}");
 
         press(&mut app, KeyCode::Esc);
         assert!(!app.quit);
         term.draw(|f| app.draw(f)).unwrap();
-        assert!(screen(&term).contains("Ayrıntı"));
+        assert!(screen(&term).contains("Özet"));
     }
 
     #[test]

@@ -739,7 +739,18 @@ impl Inventory {
         let (query, synonyms) = expand(index.keyed(query), &groups);
         let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
         let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
-        let ranked = index.score(&query, &exclude, &skip);
+        // The thing's facet, from its words (and, with --for, from the node itself): holders of
+        // another facet are kept out of the ranking and listed apart.
+        let facets = Facets::load(&self.conn, &index)?;
+        let mut want = facets.worded(&query);
+        if let Some(n) = for_node["id"].as_i64().and_then(|id| by_id.get(&id)) {
+            want.extend(facets.of_thing(&index, &by_id, n));
+        }
+        let (ranked, other): (Vec<Scored>, Vec<Scored>) = index
+            .score(&query, &exclude, &skip)
+            .into_iter()
+            .partition(|s| !Facets::clash(&want, &facets.of_holder(&by_id, s.id)));
+        let facet_names = |id: i64| facets.names(&facets.of_holder(&by_id, id));
         let similar = ranked
             .iter()
             .take(12)
@@ -747,6 +758,7 @@ impl Inventory {
                 let n = by_id[&s.id];
                 let mut c = holder_json(&self.conn, n, &all)?;
                 c["room"] = room(&self.conn, n)?;
+                c["facet"] = json!(facet_names(s.id));
                 Ok(json!({
                     "container": c,
                     "score": round(s.score),
@@ -758,12 +770,22 @@ impl Inventory {
                 }))
             })
             .collect::<Result<Vec<_>>>()?;
+        let other_facet = other
+            .iter()
+            .take(5)
+            .map(|s| {
+                let mut c = brief_json(&self.conn, s.id)?;
+                c["facet"] = json!(facet_names(s.id));
+                Ok(json!({ "container": c, "score": round(s.score) }))
+            })
+            .collect::<Result<Vec<_>>>()?;
         let holders = all
             .iter()
             .filter(|n| is_holder(n, &has_children) && !skip.contains(&n.id))
             .map(|n| {
                 let mut c = holder_json(&self.conn, n, &all)?;
                 c["room"] = room(&self.conn, n)?;
+                c["facet"] = json!(facet_names(n.id));
                 Ok(c)
             })
             .collect::<Result<Vec<_>>>()?;
@@ -778,11 +800,13 @@ impl Inventory {
             "for": for_node,
             "words": words,
             "synonyms_added": synonyms,
+            "facet": facets.names(&want),
             // No holder matched on a word that says what the thing is: it has no group yet.
             "new_group_likely": ranked.first().is_none_or(|s| s.coverage < GROUP_COVERAGE),
             "considered": CONSIDERED,
             "rules": rules_json(&self.conn)?,
             "similar": similar,
+            "other_facet": other_facet,
             "containers": holders,
             "complete": { "containers": holders.len(), "note": "every place in the tree that can hold something is listed" },
         }))
@@ -825,6 +849,11 @@ impl Inventory {
             .map(|(id, ts)| (id, index.keyed(ts)))
             .collect();
         let node_terms = |n: &Node| expand(index.keyed(node_terms(n)), &groups).0;
+        let facets = Facets::load(&self.conn, &index)?;
+        let holder_facets: Vec<(i64, HashSet<String>)> = holders
+            .iter()
+            .map(|h| (h.id, facets.of_holder(&by_id, h.id)))
+            .collect();
         let theme_key = |n: &Node| theme_key(&index, n);
         let ancestors = |id: i64| {
             let mut out = HashSet::new();
@@ -859,6 +888,16 @@ impl Inventory {
             let mut skip = outside.clone();
             // Moving a thing out of its box into the drawer around it is not a regroup.
             skip.extend(ancestors(parent));
+            // Nor is moving it into a holder of another facet (a module among bare parts).
+            let own = facets.of_thing(&index, &by_id, item);
+            if !own.is_empty() {
+                skip.extend(
+                    holder_facets
+                        .iter()
+                        .filter(|(_, f)| Facets::clash(&own, f))
+                        .map(|(id, _)| *id),
+                );
+            }
             // A thing that holds things is a holder too, but never a better place for itself.
             skip.extend(subtree(&all, item.id));
             let ranked = index.score(&q, &HashSet::from([item.id]), &skip);
@@ -1067,6 +1106,104 @@ impl Inventory {
     }
 }
 
+/// Facets (spec §26): kinds of things kept apart, such as modules and bare parts or novels and
+/// technical books. A holder is in a facet by carrying the facet's name as a tag (or by being
+/// inside one that does); a thing is in a facet by its own tag, else by a facet word in its
+/// name, else by where it is. Placement never proposes a holder of another facet.
+pub(crate) struct Facets {
+    /// (folded name, name as written, the stems that name it)
+    list: Vec<(String, String, HashSet<String>)>,
+}
+
+impl Facets {
+    pub(crate) fn load(conn: &Connection, index: &Index) -> Result<Facets> {
+        let mut stmt = conn.prepare("SELECT name, words FROM facets ORDER BY name")?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let list = rows
+            .into_iter()
+            .map(|(name, words)| {
+                // Both the stems and the words as written, folded, so a word matches whether
+                // the inventory stems it or not.
+                let keys = index
+                    .keyed(terms(&format!("{name}, {words}")))
+                    .into_iter()
+                    .filter(|t| !t.key.contains('+'))
+                    .flat_map(|t| [t.key, t.surface])
+                    .collect();
+                (fold(&name), name, keys)
+            })
+            .collect();
+        Ok(Facets { list })
+    }
+
+    fn tagged(&self, n: &Node) -> HashSet<String> {
+        n.tags
+            .iter()
+            .map(|t| fold(t))
+            .filter(|t| self.list.iter().any(|f| &f.0 == t))
+            .collect()
+    }
+
+    /// Facets a word names: its stem, or any form it could be cut to, is a facet word. Every
+    /// candidate counts, not only the chosen stem, so `modülü` finds `modül` even in an
+    /// inventory that never writes the bare form.
+    fn worded(&self, words: &[Term]) -> HashSet<String> {
+        self.list
+            .iter()
+            .filter(|f| {
+                words.iter().any(|t| {
+                    f.2.contains(&t.key) || candidates(&t.surface).iter().any(|c| f.2.contains(c))
+                })
+            })
+            .map(|f| f.0.clone())
+            .collect()
+    }
+
+    /// A holder's facets: its own tags, else its nearest ancestor's.
+    fn of_holder(&self, by_id: &HashMap<i64, &Node>, id: i64) -> HashSet<String> {
+        let mut cur = Some(id);
+        while let Some(n) = cur.and_then(|i| by_id.get(&i)) {
+            let f = self.tagged(n);
+            if !f.is_empty() {
+                return f;
+            }
+            cur = n.parent_id;
+        }
+        HashSet::new()
+    }
+
+    /// A thing's facets: its own tags, else the facet words in its name, else where it is.
+    fn of_thing(&self, index: &Index, by_id: &HashMap<i64, &Node>, n: &Node) -> HashSet<String> {
+        let own = self.tagged(n);
+        if !own.is_empty() {
+            return own;
+        }
+        let worded = self.worded(&index.keyed(terms(&n.name)));
+        if !worded.is_empty() {
+            return worded;
+        }
+        n.parent_id
+            .map(|p| self.of_holder(by_id, p))
+            .unwrap_or_default()
+    }
+
+    /// A thing of one facet does not go into a holder of another; either side without a facet
+    /// is free.
+    fn clash(thing: &HashSet<String>, holder: &HashSet<String>) -> bool {
+        !thing.is_empty() && !holder.is_empty() && thing.is_disjoint(holder)
+    }
+
+    fn names(&self, set: &HashSet<String>) -> Vec<String> {
+        self.list
+            .iter()
+            .filter(|f| set.contains(&f.0))
+            .map(|f| f.1.clone())
+            .collect()
+    }
+}
+
 /// How many of a holder's words and contents `ev themes` shows.
 const THEME_WORDS: usize = 6;
 const THEME_SAMPLE: usize = 8;
@@ -1181,6 +1318,69 @@ impl Inventory {
                 .then(a["holder"]["id"].as_i64().cmp(&b["holder"]["id"].as_i64()))
         });
         Ok(json!({ "themes": out }))
+    }
+}
+
+impl Inventory {
+    /// Adds a facet, or replaces its words: a kind of thing kept apart from the others.
+    /// Holders join it by carrying `name` as a tag; `words` (comma-separated) also tell a
+    /// thing's facet from its name, the name itself always among them.
+    pub fn facet_add(&mut self, name: &str, words: Option<&str>) -> Result<Value> {
+        let name = name.trim().to_lowercase();
+        if terms(&name).is_empty() {
+            return Err(Error::Usage(
+                "a facet needs a name with a searchable word (3+ letters)".into(),
+            ));
+        }
+        let words: Vec<&str> = words
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|w| !w.is_empty())
+            .collect();
+        self.conn.execute(
+            "INSERT INTO facets (name, words, created_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT(name) DO UPDATE SET words = excluded.words",
+            rusqlite::params![name, words.join(", "), crate::store::now()],
+        )?;
+        self.facet_list()
+    }
+
+    /// Every facet, its words, and the holders tagged with it.
+    pub fn facet_list(&self) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, words FROM facets ORDER BY name")?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let list = rows
+            .into_iter()
+            .map(|(name, words)| {
+                let key = fold(&name);
+                let holders = all
+                    .iter()
+                    .filter(|n| n.tags.iter().any(|t| fold(t) == key))
+                    .map(|n| brief_json(&self.conn, n.id))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({ "name": name, "words": words, "holders": holders }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "facets": list }))
+    }
+
+    /// Removes a facet; the tags stay on the holders, they just stop keeping things apart.
+    pub fn facet_remove(&mut self, name: &str) -> Result<Value> {
+        let name = name.trim().to_lowercase();
+        if self
+            .conn
+            .execute("DELETE FROM facets WHERE name = ?1", [&name])?
+            == 0
+        {
+            return Err(Error::NotFound(format!("no facet {name}")));
+        }
+        self.facet_list()
     }
 }
 

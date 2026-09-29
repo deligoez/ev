@@ -676,6 +676,9 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Synonym(SynonymCmd::Add { words }) => inv.synonym_add(&words.join(", ")),
         Cmd::Synonym(SynonymCmd::List) => inv.synonym_list(),
         Cmd::Synonym(SynonymCmd::Remove { id }) => inv.synonym_remove(id),
+        Cmd::Facet(FacetCmd::Add { name, words }) => inv.facet_add(&name, words.as_deref()),
+        Cmd::Facet(FacetCmd::List) => inv.facet_list(),
+        Cmd::Facet(FacetCmd::Remove { name }) => inv.facet_remove(&name),
         Cmd::Goal { goal } => inv.goal(goal.as_deref()),
         Cmd::Observe {
             reference,

@@ -447,6 +447,41 @@ fn disposition(s: &str) -> Result<Disposition> {
     s.parse()
 }
 
+/// Settings live outside the database, so this runs without opening it.
+fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
+    use settings::{LangPref, Settings, ThemePref};
+    let path =
+        Settings::path().ok_or_else(|| Error::Internal("HOME is not set; set EV_CONFIG".into()))?;
+    let mut s = Settings::load_from(&path);
+    match (name.as_deref(), value.as_deref()) {
+        (None, _) => {}
+        (Some(n), None) => {
+            return Err(Error::Usage(format!(
+                "give a value: ev settings {n} <value>"
+            )));
+        }
+        (Some("language" | "lang"), Some(v)) => {
+            s.language = LangPref::parse(v)
+                .ok_or_else(|| Error::Usage(format!("language is en, tr or auto, not `{v}`")))?;
+        }
+        (Some("theme" | "appearance"), Some(v)) => {
+            s.theme = ThemePref::parse(v)
+                .ok_or_else(|| Error::Usage(format!("theme is dark, light or auto, not `{v}`")))?;
+        }
+        (Some(n), Some(_)) => {
+            return Err(Error::Usage(format!(
+                "unknown setting `{n}`; there are language and theme"
+            )));
+        }
+    }
+    if value.is_some() {
+        s.save_to(&path)
+            .map_err(|e| Error::Internal(format!("cannot write {}: {e}", path.display())))?;
+        i18n::set_lang(s.language.effective());
+    }
+    Ok(s.to_json(Some(&path)))
+}
+
 fn run(cli: Cli) -> Result<Value> {
     let mut inv = Inventory::open(&db_path(cli.db)?)?;
     match cli.cmd {

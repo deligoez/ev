@@ -150,6 +150,12 @@ yourself before proposing it. It only reports; nothing moves until the person sa
 suggestions show in `ev ui` when the person selects the drawer or a box. Run `ev audit` now and
 then for alike things split across the house.
 
+**Give every place a theme.** A theme is the summary every placement answer leans on: places
+without one are where suggestions go wrong. While touring, run `ev themes <drawer>` (the
+details in `ev ui` show the same): for each place it lists the words its contents share and the
+themed place they read most like. Write a short theme in the person's words from that and from
+what you see ("Antenler ve anten kabloları"), say it, and record it with
+`ev edit <place> theme="…"` once they agree. Do not theme a place that has not been toured.
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the
 place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
 `ev next` brings it up when that place's turn comes. Do not edit the records of a place that

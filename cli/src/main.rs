@@ -263,6 +263,12 @@ enum Cmd {
         photo: Option<usize>,
         #[arg(long, conflicts_with = "reference")]
         clear: bool,
+        /// Show a picture that is not a record (a marked photo) instead of a node.
+        #[arg(long, conflicts_with_all = ["reference", "clear"])]
+        file: Option<PathBuf>,
+        /// The title shown over --file.
+        #[arg(long, requires = "file")]
+        note: Option<String>,
     },
 }
 

@@ -551,7 +551,6 @@ mod tests {
         // Whatever this machine prefers, it maps onto English or Turkish, never fails.
         assert!(matches!(system_lang(), Lang::En | Lang::Tr));
     }
-
     #[test]
     fn only_the_language_part_of_a_tag_counts() {
         assert_eq!(Lang::from_tag("tr-TR"), Lang::Tr);

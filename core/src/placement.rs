@@ -888,11 +888,18 @@ impl Inventory {
             // Only a match on a word that says what the thing is makes another holder better.
             if best.score >= CLEAR && best.score >= ELSEWHERE * here && is_specific(best) {
                 flagged.insert(item.id);
-                elsewhere.push(json!({
+                let entry = json!({
                     "item": brief_json(&self.conn, item.id)?,
                     "now": { "holder": brief_json(&self.conn, parent)?, "score": round(here) },
                     "better": { "holder": brief_json(&self.conn, best.id)?, "score": round(best.score), "matched": best.matched },
-                }));
+                });
+                // Nothing else where it is shares a word with it: its home says nothing either
+                // way (a heat gun among other power tools), so the other holder is a guess.
+                if here == 0.0 {
+                    alone.push(entry);
+                } else {
+                    elsewhere.push(entry);
+                }
             }
         }
 

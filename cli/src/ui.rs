@@ -214,31 +214,40 @@ fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
 fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     let mut out = Vec::new();
     if let Some(q) = n["qty"].as_i64() {
-        out.push(Span::styled(format!("  ×{q}"), Style::new().fg(QTY)));
+        out.push(Span::styled(format!("  ×{q}"), Style::new().fg(pal().qty)));
     }
     if n["state"] == "candidate" {
         let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
-        out.push(Span::styled(format!("  [{d}]"), Style::new().fg(MARK)));
+        out.push(Span::styled(
+            format!("  [{d}]"),
+            Style::new().fg(pal().mark),
+        ));
     }
     if n["lost"] == true {
-        out.push(Span::styled("  [kayıp]", Style::new().fg(LOST)));
+        out.push(Span::styled(t("  [lost]"), Style::new().fg(pal().lost)));
     }
     if n["unknown"] == true {
-        out.push(Span::styled("  [içi sayılmadı]", Style::new().fg(LOST)));
+        out.push(Span::styled(
+            t("  [contents unknown]"),
+            Style::new().fg(pal().lost),
+        ));
     }
     if let Some(x) = n["to"].as_str() {
-        out.push(Span::styled(format!("  ⇒ {x}"), Style::new().fg(MARK)));
+        out.push(Span::styled(
+            format!("  ⇒ {x}"),
+            Style::new().fg(pal().mark),
+        ));
     }
     if let Some(x) = n["owner"].as_str() {
         out.push(Span::styled(
-            format!("  [sahibi: {x}]"),
-            Style::new().fg(Color::Blue),
+            tf("  [owner: {}]", &[&x]),
+            Style::new().fg(pal().blue),
         ));
     }
     if let Some(x) = n["with"].as_str() {
         out.push(Span::styled(
-            format!("  [{x}'de]"),
-            Style::new().fg(Color::Blue),
+            tf("  [with {}]", &[&x]),
+            Style::new().fg(pal().blue),
         ));
     }
     if let Some(p) = n["pending_to"].as_i64() {
@@ -247,7 +256,10 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
             .get(&p)
             .cloned()
             .unwrap_or_else(|| format!("#{p}"));
-        out.push(Span::styled(format!("  → {to}"), Style::new().fg(MARK)));
+        out.push(Span::styled(
+            format!("  → {to}"),
+            Style::new().fg(pal().mark),
+        ));
     }
     out
 }

@@ -178,11 +178,13 @@ proposal that says what goes where names both ends by position: the part in the 
 cell or box it goes to.
 
 **Show a placement proposal, don't only write it.** When you propose where the things in a
-photo go, mark both ends and put them on the person's screen: the parts photo with a numbered
-frame on each part (`ev photo mark <file> "1 → A6=x,y,w,h" … --show "<what this is>"`), then
-the destination with the same numbers on its cells (`ev photo mark <drawer> 1=A6 2=B6 …
---show "…"`; `--grid <corners>` for a photo cut before corners were kept). Open the marked file
-and check every frame sits on its part before sending it — the coordinates are your estimate.
+photo go, mark both ends and put them on the person's screen together: the parts photo with a
+numbered frame on each part (`ev photo mark <file> "1 → A6=x,y,w,h" …`), the destination with
+the same numbers on its cells (`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a
+photo cut before corners were kept), then both in one request, `ev focus --file <parts> --file
+<drawer> --note "<what this is>"` (sent one after the other, the second would replace the
+first). Open each marked file and check every frame sits on its part before sending — the
+coordinates are your estimate.
 The marked copies are temporary (not stored, not attached, no history); nothing needs undoing
 after the move. The text still names each part by position, for a person reading without the
 screen.

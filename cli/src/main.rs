@@ -414,6 +414,11 @@ enum PhotoCmd {
         /// front-left, as x,y fractions: every box placed in the grid gets its crop from them.
         #[arg(long)]
         grid: Option<String>,
+        /// Cut nothing: draw every crop it would make (each grid box on its cells) on a
+        /// temporary copy, to check the corners by eye; with a note, also show it in a running
+        /// `ev ui`.
+        #[arg(long, num_args = 0..=1)]
+        preview: Option<Option<String>>,
     },
     /// Draw numbered marks on a copy of a photo, to show which thing is meant and where it goes:
     /// `<label>=x,y,w,h` (fractions of the upright photo) or `<label>=A6` (cells of the grid,

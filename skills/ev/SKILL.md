@@ -220,7 +220,7 @@ Suggest `ev ui` in a second terminal at the start of a session: it is read-only 
 refreshes on its own, highlighting whatever you just changed, so the person sees each
 record land as you make it. To look at a photo they press `o` (full screen, `[` `]` to step
 through the node's photos) or `O` (system viewer); on the search tab `x` clears the search;
-`J`/`K` scroll the details and `H`/`L` switch their tabs (summary, grid, contents, suggestions,
+`J`/`K` scroll the details and `H`/`L` switch their tabs (summary, photos, grid, contents, suggestions,
 history); the panes resize by dragging their dividers or with `<` `>` `{` `}`. The details start
 with the node's `#id`: when the person says "#534", run commands on `#534` as it is. When they
 ask what happened to a place, its History tab shows the same as `ev history <x> --contents`.

@@ -861,6 +861,7 @@ fn run(cli: Cli) -> Result<Value> {
             place,
             note,
             grid,
+            preview,
         }) => {
             let grid = grid
                 .as_deref()
@@ -875,6 +876,16 @@ fn run(cli: Cli) -> Result<Value> {
                     Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?))
                 })
                 .collect::<Result<Vec<_>>>()?;
+            if preview.is_some() {
+                let mut v =
+                    inv.photo_cut_preview(&file, place.as_deref(), &crops, grid.as_ref(), None)?;
+                if let (Some(Some(n)), Some(path)) =
+                    (preview, v["preview"].as_str().map(PathBuf::from))
+                {
+                    v["shown"] = inv.focus_file(&[path], Some(&n))?["focus"].clone();
+                }
+                return Ok(v);
+            }
             inv.photo_cut(
                 &file,
                 place.as_deref(),

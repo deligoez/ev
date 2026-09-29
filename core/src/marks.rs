@@ -182,7 +182,7 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
                 // A photo from before photos carried a date is the one the place was first
                 // recorded from, so it stands for the place's creation time.
                 "SELECT MAX(COALESCE(added_at, (SELECT created_at FROM nodes WHERE id = ?1)))
-                   FROM photos WHERE node_id = ?1 AND crop IS NULL",
+                   FROM photos WHERE node_id = ?1",
                 [id],
                 |r| r.get(0),
             )

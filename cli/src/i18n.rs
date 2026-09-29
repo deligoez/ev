@@ -408,6 +408,16 @@ static TR: &[(&str, &str)] = &[
     ("holds {}", "içinde: {}"),
     ("photo {}, crop {}", "fotoğraf {}, kesit {}"),
     ("photo {}, whole", "fotoğraf {}, tam"),
+    // Grids
+    (
+        "{}×{} grid, row 1 at the back",
+        "{}×{} ızgara, 1. satır arkada",
+    ),
+    ("free ({}): {}", "boş ({}): {}"),
+    ("not placed in a cell: {}", "hücreye yerleştirilmemiş: {}"),
+    ("(no grid)", "(ızgarası yok)"),
+    ("cells", "hücreler"),
+    ("Grid", "Izgara"),
 ];
 
 #[cfg(test)]

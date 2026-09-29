@@ -483,8 +483,12 @@ fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
 }
 
 fn run(cli: Cli) -> Result<Value> {
+    if let Cmd::Settings { name, value } = cli.cmd {
+        return settings_cmd(name, value);
+    }
     let mut inv = Inventory::open(&db_path(cli.db)?)?;
     match cli.cmd {
+        Cmd::Settings { .. } => unreachable!("settings are handled before the database opens"),
         Cmd::Add(a) => add(&mut inv, *a),
         Cmd::Show {
             reference,

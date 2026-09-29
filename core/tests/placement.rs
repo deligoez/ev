@@ -112,3 +112,21 @@ fn a_thing_nothing_here_is_like_asks_for_a_new_group() {
     );
 }
 
+#[test]
+fn an_existing_thing_is_placed_by_its_own_words_never_into_itself() {
+    let (_d, inv) = setup();
+    let v = inv
+        .suggest_with("", None, Some("DS18B20 sıcaklık sensörü, su geçirmez"))
+        .unwrap();
+    assert_eq!(top(&v), "D-C1");
+    // A box is never suggested into itself.
+    let v = inv.suggest_with("", None, Some("D-C1")).unwrap();
+    assert!(
+        v["similar"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["container"]["code"] != "D-C1")
+    );
+}
+

@@ -30,7 +30,7 @@ Draft for the next release.
 - **`ev photo mark` shows what goes where.** Numbered red frames on a copy of a photo — on
   the parts (`"1 → A6"=x,y,w,h`), or on a drawer's cells by name (`1=A6`) — and `--show` puts
   it full screen in a running `ev ui` at once (`ev focus --file a --file b` sends several
-  together, stepped with `[` `]`). The copy is temporary: not stored, not attached, no history. A photo cut with
+  together, stepped with `[` `]`; Esc closes, `m` opens them again, even after a restart). The copy is temporary: not stored, not attached, no history. A photo cut with
   `--grid` now keeps its grid corners (schema 11), which is how cells are found by name.
 - **`ev ui` reopens where you left it**: on the node selected in the tree when it last closed,
   per database. A new setting, on by default (Settings tab, or `ev settings resume on|off`).

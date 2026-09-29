@@ -171,3 +171,58 @@ const ENDINGS: &[&[&str]] = &[
     &["li", "lu"],
 ];
 
+/// Every stem a folded word might have: the word, and what is left after taking off any run of
+/// the endings above, each time keeping at least three letters. A stem left by an ending that
+/// starts with a vowel also appears with its last consonant hardened back (`kitabı`→`kitap`,
+/// `ışığı`→`ışık`, `rengi`→`renk`). Plain-ASCII words also lose English plurals.
+fn candidates(word: &str) -> Vec<String> {
+    let mut out = vec![word.to_string()];
+    let mut frontier = vec![word.to_string()];
+    for layer in ENDINGS {
+        let mut next = frontier.clone();
+        for w in &frontier {
+            for e in *layer {
+                let Some(stem) = w.strip_suffix(e) else {
+                    continue;
+                };
+                if stem.chars().count() < 3 {
+                    continue;
+                }
+                next.push(stem.to_string());
+                if e.starts_with(['a', 'e', 'i', 'u', 'o']) {
+                    let hard = match stem.chars().last() {
+                        Some('b') => Some('p'),
+                        Some('d') => Some('t'),
+                        Some('g') => Some('k'),
+                        _ => None,
+                    };
+                    if let Some(h) = hard {
+                        let mut s = stem.to_string();
+                        s.pop();
+                        s.push(h);
+                        next.push(s);
+                    }
+                }
+            }
+        }
+        next.dedup();
+        for n in &next {
+            if !out.contains(n) {
+                out.push(n.clone());
+            }
+        }
+        frontier = next;
+    }
+    if word.is_ascii() {
+        for (end, repl) in [("ies", "y"), ("es", ""), ("s", "")] {
+            if let Some(stem) = word.strip_suffix(end) {
+                let s = format!("{stem}{repl}");
+                if s.chars().count() >= 3 && !out.contains(&s) {
+                    out.push(s);
+                }
+            }
+        }
+    }
+    out
+}
+

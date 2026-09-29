@@ -1912,13 +1912,30 @@ pub fn run(inv: Inventory) -> Result<()> {
         return Err(Error::Usage("`ev ui` needs a terminal".into()));
     }
     let mut app = App::new(inv)?;
+    app.settings_path = Settings::path();
+    app.reload_settings()?;
     let mut terminal = ratatui::init();
     app.picker = Some(Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks()));
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let result = app.run(&mut terminal);
+    send(input::STOP);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
     result
+}
+
+/// Writes a control sequence to the terminal; a failed write only costs the feature.
+fn send(seq: &str) {
+    let mut out = std::io::stdout();
+    let _ = out.write_all(seq.as_bytes());
+    let _ = out.flush();
+}
+
+/// The language for everything but `ev ui`, which keeps its own settings live.
+pub fn set_language_from_settings() -> Lang {
+    let lang = Settings::load().language.effective();
+    i18n::set_lang(lang);
+    lang
 }
 
 #[cfg(test)]

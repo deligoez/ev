@@ -43,7 +43,7 @@ one, its name otherwise.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen` |
+| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in) and `room` (with a fill: `room`, `fill`, `fill_at`, `stale`) |
 | add --batch | `created` |
 | find | `query`, `results` |
 | tree | `tree` (nested, each with `children`), `unplaced` (without a reference) |

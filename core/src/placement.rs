@@ -307,7 +307,23 @@ impl Lexicon {
                 *shared.entry(c).or_default() += 1;
             }
         }
-        Lexicon { words, shared }
+        let mut plural_stems = HashSet::new();
+        for w in &words {
+            for c in candidates(w).into_iter().skip(1) {
+                let plural = w
+                    .strip_prefix(c.as_str())
+                    .is_some_and(|rest| rest.starts_with("lar") || rest.starts_with("ler"));
+                let attested = words.contains(&c) || shared.get(&c).is_some_and(|n| *n >= 2);
+                if plural && attested {
+                    plural_stems.insert(c);
+                }
+            }
+        }
+        Lexicon {
+            words,
+            shared,
+            plural_stems,
+        }
     }
 
     pub(crate) fn key(&self, word: &str) -> String {
@@ -315,6 +331,18 @@ impl Lexicon {
             return word.to_string();
         }
         let cands = candidates(word);
+        // The longest noun stem, the first of equals in candidate order.
+        let noun = cands
+            .iter()
+            .skip(1)
+            .filter(|c| self.plural_stems.contains(*c))
+            .fold(None::<&String>, |best, c| match best {
+                Some(b) if b.chars().count() >= c.chars().count() => Some(b),
+                _ => Some(c),
+            });
+        if let Some(c) = noun {
+            return c.clone();
+        }
         if let Some(c) = cands
             .iter()
             .skip(1)

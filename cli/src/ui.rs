@@ -583,6 +583,12 @@ struct App {
     detail_tab: DetailTab,
     detail_tab_hits: (u16, Vec<(u16, u16, DetailTab)>),
     history: Option<Value>,
+    /// The selected node's photos (`ev photo list`), and what each drawn details line points at.
+    photos: Vec<Value>,
+    detail_targets: Vec<Option<Target>>,
+    /// A drawer's own grid on the Grid tab, whose boxes open with a click. A box's view of its
+    /// drawer is not clickable, so a stray click there does not jump away.
+    grid_hit: Option<Vec<Vec<Option<i64>>>>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -694,6 +700,9 @@ impl App {
             detail_tab: DetailTab::Summary,
             detail_tab_hits: (0, Vec::new()),
             history: None,
+            photos: Vec::new(),
+            detail_targets: Vec::new(),
+            grid_hit: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1414,6 +1423,15 @@ impl App {
             }
             _ => None,
         };
+        self.photos = match self.selected_id() {
+            Some(id) if id > 0 && self.photo_count() > 0 => self
+                .inv
+                .photo_list(&id.to_string())
+                .ok()
+                .and_then(|v| v["photos"].as_array().cloned())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
         Ok(())
     }
 
@@ -1424,6 +1442,7 @@ impl App {
         };
         match tab {
             DetailTab::Summary => true,
+            DetailTab::Photos => self.photo_count() > 0,
             DetailTab::Grid => v["grid"].is_object() || v["parent_grid"].is_object(),
             DetailTab::Contents => v["children"].as_array().is_some_and(|c| !c.is_empty()),
             DetailTab::Suggestions => !self.hints.is_empty(),
@@ -1434,6 +1453,7 @@ impl App {
     /// The count a tab title carries: things inside, suggested moves, events.
     fn tab_badge(&self, tab: DetailTab) -> Option<usize> {
         let n = match tab {
+            DetailTab::Photos => self.photo_count(),
             DetailTab::Contents => self.details.as_ref()?["children"].as_array()?.len(),
             DetailTab::Suggestions => self
                 .hints
@@ -2043,6 +2063,46 @@ impl App {
                     return Ok(());
                 }
             }
+            // A box on a drawer's own grid opens in the tree. The grid's first frame line is
+            // the fifth line of the pane: path, blank, title, column letters.
+            MouseEventKind::Down(MouseButton::Left)
+                if inside(self.details_area)
+                    && m.row > self.details_area.y
+                    && self.grid_hit.is_some() =>
+            {
+                let line = (m.row - self.details_area.y - 1) as usize + self.detail_scroll as usize;
+                let x = (m.column - self.details_area.x - 1) as usize;
+                let hit = line
+                    .checked_sub(4)
+                    .and_then(|y| grid_box_at(self.grid_hit.as_deref().unwrap_or_default(), x, y));
+                if let Some(id) = hit {
+                    return self.reveal(id);
+                }
+                return Ok(());
+            }
+            // A line of the Photos, Contents or History tab: show that photo, or open that
+            // thing in the tree.
+            MouseEventKind::Down(MouseButton::Left)
+                if inside(self.details_area)
+                    && m.row > self.details_area.y
+                    && !self.detail_targets.is_empty() =>
+            {
+                let line = (m.row - self.details_area.y - 1) as usize + self.detail_scroll as usize;
+                match self.detail_targets.get(line).copied().flatten() {
+                    Some(Target::Node(id)) if self.snap.label.contains_key(&id) => {
+                        return self.reveal(id);
+                    }
+                    Some(Target::Node(id)) => {
+                        self.status = tf("#{} is no longer in the tree (gone)", &[&id]);
+                        return Ok(());
+                    }
+                    Some(Target::Photo(i)) => {
+                        self.photo_idx = i;
+                        return Ok(());
+                    }
+                    None => {}
+                }
+            }
             _ => {}
         }
         match m.kind {
@@ -2119,11 +2179,10 @@ impl App {
         let idx = self.photo_idx.min(count.saturating_sub(1));
         let node = self.details.as_ref().map(|d| d["node"].clone());
         let name = node.as_ref().map(|n| str_of(n, "name")).unwrap_or_default();
-        let note = node
-            .as_ref()
-            .and_then(|n| n["id"].as_i64())
-            .and_then(|id| self.inv.photo_list(&id.to_string()).ok())
-            .and_then(|v| v["photos"][idx]["note"].as_str().map(str::to_string));
+        let note = self
+            .photos
+            .get(idx)
+            .and_then(|p| p["note"].as_str().map(str::to_string));
         let mut title = tf(" {} · Photo {}/{} ", &[&name, &(idx + 1), &count]);
         if let Some(n) = note {
             title.push_str(&format!("· {n} "));
@@ -2255,11 +2314,9 @@ impl App {
                 // The photo's own note says what it shows (a drawer's final state, the inside
                 // of a bag), which the picture alone may not.
                 let note = self
-                    .details
-                    .as_ref()
-                    .and_then(|d| d["node"]["id"].as_i64())
-                    .and_then(|id| self.inv.photo_list(&id.to_string()).ok())
-                    .and_then(|v| v["photos"][idx]["note"].as_str().map(str::to_string))
+                    .photos
+                    .get(idx)
+                    .and_then(|p| p["note"].as_str())
                     .map(|n| format!("· {n} "))
                     .unwrap_or_default();
                 // The note before the key hints, so a narrow pane cuts the hints, not the note.
@@ -2278,10 +2335,37 @@ impl App {
             }
             _ => right,
         };
+        // Tabs whose lines are clicked keep one line per row (cut with …) so a click lands on
+        // the line it points at; the others wrap.
+        let clickable = self.tab != Tab::Settings
+            && self.details.is_some()
+            && matches!(
+                self.shown_detail_tab(),
+                DetailTab::Photos | DetailTab::Contents | DetailTab::History | DetailTab::Grid
+            );
+        self.grid_hit = match &self.details {
+            Some(v) if clickable && self.shown_detail_tab() == DetailTab::Grid => {
+                v["grid"].is_object().then(|| grid_map(&v["grid"]))
+            }
+            _ => None,
+        };
         let text = if self.tab == Tab::Settings {
             self.settings_text()
+        } else if clickable {
+            let width = text_area.width.saturating_sub(2) as usize;
+            let lines = self.details_text().lines.into_iter();
+            Text::from(
+                lines
+                    .map(|l| Line::from(fit(l.spans, width)).style(l.style))
+                    .collect::<Vec<_>>(),
+            )
         } else {
             self.details_text()
+        };
+        self.detail_targets = if clickable {
+            self.detail_targets()
+        } else {
+            Vec::new()
         };
         // The pane scrolls (J/K, the mouse wheel); its bottom edge says so when there is more.
         self.details_area = text_area;
@@ -2339,10 +2423,12 @@ impl App {
         if !keys.is_empty() {
             block = block.title_bottom(Line::from(keys).fg(pal().muted));
         }
-        let details = Paragraph::new(text)
+        let mut details = Paragraph::new(text)
             .block(block)
-            .wrap(Wrap { trim: false })
             .scroll((self.detail_scroll, 0));
+        if !clickable {
+            details = details.wrap(Wrap { trim: false });
+        }
         f.render_widget(details, text_area);
 
         let help = if self.searching {
@@ -2356,12 +2442,62 @@ impl App {
                 &[&self.status],
             )
         } else {
-            tf(
-                "↑↓ move · → open · ← close · Enter go · H/L J/K details · < > { } or drag: resize · [ ] o photos · Tab/1-8 tabs · / search · q quit    {}",
-                &[&self.status],
-            )
+            self.help_line(bottom.width as usize, scrolls)
         };
         f.render_widget(Paragraph::new(help).fg(pal().muted), bottom);
+    }
+
+    /// The key hints for what is on screen, most useful first: the keys of this tab, the details
+    /// keys when they do something here, the photo keys when there is a photo. What does not fit
+    /// the width is left out from the least useful end; the status message always stays.
+    fn help_line(&self, width: usize, scrolls: bool) -> String {
+        // (priority, text): 0 always, higher numbers go first when space runs out.
+        let mut parts: Vec<(u8, &str)> = vec![(0, t("↑↓ move"))];
+        match self.tab {
+            Tab::Tree => {
+                parts.push((1, t("→ ← open/close")));
+            }
+            Tab::Search if self.has_search() => {
+                parts.push((1, t("Enter show in tree")));
+                parts.push((1, t("x clear")));
+            }
+            Tab::Plan => parts.push((1, t("Enter open/close section"))),
+            _ => parts.push((1, t("Enter show in tree"))),
+        }
+        parts.push((2, t("/ search")));
+        if self.details.is_some() {
+            parts.push((2, t("H/L details tabs")));
+            if scrolls {
+                parts.push((3, t("J/K scroll")));
+            }
+        }
+        if self.photo_count() > 0 {
+            parts.push((3, t("[ ] o photos")));
+        }
+        parts.push((4, t("Tab/1-8 tabs")));
+        parts.push((5, t("< > { } or drag: resize")));
+        parts.push((0, t("q quit")));
+        let status = if self.status.is_empty() {
+            String::new()
+        } else {
+            format!("    {}", self.status)
+        };
+        let room = width.saturating_sub(status.chars().count());
+        let join = |p: &[(u8, &str)]| p.iter().map(|x| x.1).collect::<Vec<_>>().join(" · ");
+        while join(&parts).chars().count() > room {
+            // The least useful part, the last of its rank, goes first.
+            let Some(worst) = parts
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| p.0 > 0)
+                .max_by_key(|(i, p)| (p.0, *i))
+                .map(|(i, _)| i)
+            else {
+                break;
+            };
+            parts.remove(worst);
+        }
+        format!("{}{status}", join(&parts))
     }
 
     fn photo_count(&self) -> usize {
@@ -2466,7 +2602,11 @@ impl App {
                 return Text::from(lines);
             }
             DetailTab::History => {
-                lines.extend(self.history_lines());
+                lines.extend(self.history_lines().into_iter().map(|l| l.0));
+                return Text::from(lines);
+            }
+            DetailTab::Photos => {
+                lines.extend(self.photo_lines().into_iter().map(|l| l.0));
                 return Text::from(lines);
             }
             DetailTab::Summary => {}
@@ -2706,9 +2846,9 @@ impl App {
                     None => "?".into(),
                 };
                 if !lines.is_empty() {
-                    lines.push(Line::raw(""));
+                    lines.push((Line::raw(""), None));
                 }
-                lines.push(Line::from(head).bold());
+                lines.push((Line::from(head).bold(), None));
             }
             let time = at.map_or_else(String::new, |a| a.format("%H:%M").to_string());
             let d = &e["data"];
@@ -2782,13 +2922,77 @@ impl App {
                     other => (t("event"), format!("{other} {d}"), pal().muted),
                 }
             };
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {time}  "), Style::new().fg(pal().muted)),
-                Span::styled(verb.to_string(), Style::new().fg(style)),
-                Span::raw(format!("  {detail}")),
-            ]));
+            // A thing that came, went or was added opens with a click.
+            let target = e["item"]["id"].as_i64().map(Target::Node);
+            lines.push((
+                Line::from(vec![
+                    Span::styled(format!("  {time}  "), Style::new().fg(pal().muted)),
+                    Span::styled(verb.to_string(), Style::new().fg(style)),
+                    Span::raw(format!("  {detail}")),
+                ]),
+                target,
+            ));
         }
         lines
+    }
+
+    /// The Photos tab: every photo, newest first, with when it was added, whether it is a crop,
+    /// and its note; the one shown above is marked. A click shows that one.
+    fn photo_lines(&self) -> Vec<(Line<'static>, Option<Target>)> {
+        let current = self.photo_idx.min(self.photos.len().saturating_sub(1));
+        let count = self.photos.len();
+        (0..count)
+            .rev()
+            .map(|i| {
+                let p = &self.photos[i];
+                let at = chrono::DateTime::parse_from_rfc3339(p["added_at"].as_str().unwrap_or(""))
+                    .map(|d| {
+                        d.with_timezone(&chrono::Local)
+                            .format("%Y-%m-%d %H:%M")
+                            .to_string()
+                    })
+                    .unwrap_or_else(|_| "\u{2014}".repeat(16));
+                let kind = if p["crop"].is_string() {
+                    t("crop")
+                } else {
+                    t("whole")
+                };
+                let mark = if i == current { "\u{25b6} " } else { "  " };
+                let style = if i == current {
+                    Style::new().bold()
+                } else {
+                    Style::new()
+                };
+                let line = Line::from(vec![
+                    Span::styled(format!("{mark}{:>2}  ", i + 1), style.fg(pal().code)),
+                    Span::styled(format!("{at}  {kind:<5}  "), Style::new().fg(pal().muted)),
+                    Span::styled(str_of(p, "note"), style),
+                ]);
+                (line, Some(Target::Photo(i)))
+            })
+            .collect()
+    }
+
+    /// What each line of the details points at, in the order `details_text` draws them: the
+    /// Photos, Contents and History tabs have lines to click, the others none.
+    fn detail_targets(&self) -> Vec<Option<Target>> {
+        let Some(v) = &self.details else {
+            return Vec::new();
+        };
+        let mut out = vec![None, None];
+        match self.shown_detail_tab() {
+            DetailTab::Photos => out.extend(self.photo_lines().into_iter().map(|l| l.1)),
+            DetailTab::Contents => out.extend(
+                v["children"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|c| c["id"].as_i64().map(Target::Node)),
+            ),
+            DetailTab::History => out.extend(self.history_lines().into_iter().map(|l| l.1)),
+            _ => return Vec::new(),
+        }
+        out
     }
 
     /// A holder's grid for the details pane: title, the map with free cells muted, and the
@@ -2805,18 +3009,7 @@ impl App {
         // The boxes are drawn as frames on the plate, the way they sit in the drawer: a box
         // over several cells is one frame, and a free cell is a bare dot on the plate.
         const W: usize = 6;
-        let map: Vec<Vec<Option<i64>>> = g["map"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|row| {
-                row.as_array()
-                    .into_iter()
-                    .flatten()
-                    .map(Value::as_i64)
-                    .collect()
-            })
-            .collect();
+        let map = grid_map(g);
         let rows = map.len() as isize;
         let cols = map.first().map_or(0, Vec::len) as isize;
         let at = |r: isize, c: isize| -> Option<i64> {

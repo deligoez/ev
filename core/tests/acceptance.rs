@@ -723,6 +723,47 @@ fn a_mistaken_gone_can_be_corrected_with_a_reason() {
 }
 
 #[test]
+fn a_places_history_shows_what_came_in_went_out_and_was_added() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "Kutu", "container", Some("Kiler"), Some("S5-01"));
+    add(&mut inv, "Kablo", "item", Some("K4x4-15-A"), None);
+    inv.move_to("Flipper Zero", "S5-01", false).unwrap();
+    inv.move_to("Kablo", "S5-01", true).unwrap();
+    let h = inv.history_with_contents("K4x4-15-A").unwrap();
+    let seen: Vec<(String, String, String)> = h["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                e["type"].as_str().unwrap().to_string(),
+                e["relation"].as_str().unwrap_or("own").to_string(),
+                e["item"]["name"].as_str().unwrap_or("").to_string(),
+            )
+        })
+        .collect();
+    let row = |a: &str, b: &str, c: &str| (a.to_string(), b.to_string(), c.to_string());
+    assert_eq!(
+        seen,
+        vec![
+            row("create", "own", ""),
+            row("create", "added", "Flipper Zero"),
+            row("create", "added", "Kablo"),
+            row("move", "out", "Flipper Zero"),
+        ]
+    );
+    // The planned move shows at its destination; plain `history` stays the node's own.
+    let h = inv.history_with_contents("S5-01").unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(
+        (last["type"].as_str(), last["relation"].as_str()),
+        (Some("plan"), Some("in"))
+    );
+    assert_eq!(event_types(&inv, "S5-01"), vec!["create"]);
+}
+
+#[test]
 fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
     let (_d, mut inv) = inv();
     home(&mut inv);

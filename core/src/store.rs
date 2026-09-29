@@ -1996,7 +1996,7 @@ fn words(text: &str) -> Vec<String> {
 /// Stems a folded Turkish word might have, longest first: the word itself, the word without a
 /// possessive ending ("-sı/-su" after a vowel, "-ı/-u" after a consonant, or "-ları/-leri"),
 /// and that without a plural ("-lar/-ler"). Every stem keeps at least three letters.
-fn stem_candidates(word: &str) -> Vec<String> {
+pub(crate) fn stem_candidates(word: &str) -> Vec<String> {
     let is_vowel = |c: Option<char>| c.is_some_and(|c| "aeiou".contains(c));
     let cut = |w: &str, s: &str| {
         (w.ends_with(s) && w.chars().count() >= s.chars().count() + 3)

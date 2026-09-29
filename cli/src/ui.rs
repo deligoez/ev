@@ -268,7 +268,7 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
 fn path_spans(path_text: &str) -> Vec<Span<'static>> {
     match path_text.rsplit_once(" › ") {
         Some((head, last)) => vec![
-            Span::styled(format!("{head} › "), Style::new().fg(MUTED)),
+            Span::styled(format!("{head} › "), Style::new().fg(pal().muted)),
             Span::raw(last.to_string()),
         ],
         None => vec![Span::raw(path_text.to_string())],

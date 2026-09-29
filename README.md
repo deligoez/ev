@@ -40,7 +40,9 @@ ev history 391                   # everything that happened to it
 
 **Leaving the home.** `ev dispose X --as trash|give|sell` sets a thing aside; `ev disposals` shows
 each pile; `ev gone X` (or `ev gone X --as trash --why "…"` in one step) records that it left. A
-mistaken gone comes back with `ev restore X --correction "…"`.
+mistaken gone comes back with `ev restore X --correction "…"`. A record that should never have
+existed (misread from a photo, entered twice) closes with `ev gone X --as mistake --why "…"`,
+keeping its history without counting as thrown away.
 
 **Lost and found.** `ev lost X` keeps where it was last seen; `ev lost` lists them; `ev found X`.
 

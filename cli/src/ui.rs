@@ -517,6 +517,19 @@ struct App {
     /// The node selected in the tree when another tab was opened; the tree's position is what
     /// `ev ui` reopens on.
     tree_selected: Option<i64>,
+    /// The list's share of the width and the photo's share of the right column (percent), the
+    /// divider being dragged, and where they were drawn, to hit-test the mouse.
+    split: u16,
+    photo_split: u16,
+    drag: Option<Drag>,
+    divider_click: Option<Instant>,
+    body_area: Rect,
+    right_area: Rect,
+    /// The details tab chosen, where each title was drawn (row, then column ranges), and the
+    /// selected place's history with what came, went and was added.
+    detail_tab: DetailTab,
+    detail_tab_hits: (u16, Vec<(u16, u16, DetailTab)>),
+    history: Option<Value>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -619,6 +632,15 @@ impl App {
             hints: Vec::new(),
             regroups: HashMap::new(),
             tree_selected: None,
+            split: SPLIT,
+            photo_split: PHOTO_SPLIT,
+            drag: None,
+            divider_click: None,
+            body_area: Rect::default(),
+            right_area: Rect::default(),
+            detail_tab: DetailTab::Summary,
+            detail_tab_hits: (0, Vec::new()),
+            history: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1333,8 +1355,103 @@ impl App {
             }
             _ => Vec::new(),
         };
+        self.history = match self.selected_id() {
+            Some(id) if id > 0 && self.tab != Tab::Settings => {
+                self.inv.history_with_contents(&id.to_string()).ok()
+            }
+            _ => None,
+        };
         Ok(())
     }
+
+    /// Whether the selected node has anything for a details tab.
+    fn tab_available(&self, tab: DetailTab) -> bool {
+        let Some(v) = &self.details else {
+            return tab == DetailTab::Summary;
+        };
+        match tab {
+            DetailTab::Summary => true,
+            DetailTab::Grid => v["grid"].is_object() || v["parent_grid"].is_object(),
+            DetailTab::Contents => v["children"].as_array().is_some_and(|c| !c.is_empty()),
+            DetailTab::Suggestions => !self.hints.is_empty(),
+            DetailTab::History => self.tab_badge(DetailTab::History).is_some(),
+        }
+    }
+
+    /// The count a tab title carries: things inside, suggested moves, events.
+    fn tab_badge(&self, tab: DetailTab) -> Option<usize> {
+        let n = match tab {
+            DetailTab::Contents => self.details.as_ref()?["children"].as_array()?.len(),
+            DetailTab::Suggestions => self
+                .hints
+                .iter()
+                .filter(|l| {
+                    l.spans
+                        .first()
+                        .is_some_and(|s| s.content.starts_with("  →"))
+                })
+                .count(),
+            DetailTab::History => self.history.as_ref()?["events"].as_array()?.len(),
+            _ => 0,
+        };
+        (n > 0).then_some(n)
+    }
+
+    /// The chosen tab when the node has something for it, else the summary. The choice is
+    /// kept, so stepping through a drawer's boxes stays on their grid.
+    fn shown_detail_tab(&self) -> DetailTab {
+        if self.tab_available(self.detail_tab) {
+            self.detail_tab
+        } else {
+            DetailTab::Summary
+        }
+    }
+
+    /// `H` / `L`: the previous or next tab the node has something for.
+    fn step_detail_tab(&mut self, delta: isize) {
+        let open: Vec<DetailTab> = DetailTab::ALL
+            .into_iter()
+            .filter(|&t| self.tab_available(t))
+            .collect();
+        let at = open
+            .iter()
+            .position(|&t| t == self.shown_detail_tab())
+            .unwrap_or(0) as isize;
+        let n = open.len() as isize;
+        self.detail_tab = open[((at + delta) % n + n) as usize % open.len()];
+        self.detail_scroll = 0;
+    }
+
+    /// Moves a divider by `delta` percent (keys) within the range that leaves both sides usable.
+    fn resize(&mut self, which: Drag, delta: i16) {
+        match which {
+            Drag::Columns => self.split = (self.split as i16 + delta).clamp(20, 80) as u16,
+            Drag::Photo => {
+                self.photo_split = (self.photo_split as i16 + delta).clamp(15, 85) as u16
+            }
+        }
+    }
+
+    fn layout_json(&self) -> Value {
+        serde_json::json!({
+            "split": self.split,
+            "photo": self.photo_split,
+            "details": self.detail_tab.key(),
+        })
+    }
+
+    fn apply_layout(&mut self, v: &Value) {
+        if let Some(s) = v["split"].as_u64() {
+            self.split = (s as u16).clamp(20, 80);
+        }
+        if let Some(s) = v["photo"].as_u64() {
+            self.photo_split = (s as u16).clamp(15, 85);
+        }
+        if let Some(t) = v["details"].as_str().and_then(DetailTab::from_key) {
+            self.detail_tab = t;
+        }
+    }
+
     /// For a place with things in it and no theme: what `ev themes` reads from its contents,
     /// so a theme can be written while looking at it.
     fn theme_hints(&self, v: &Value) -> Vec<Line<'static>> {
@@ -1705,6 +1822,12 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.step(-1)?,
             KeyCode::Char('J') => self.scroll_details(3),
             KeyCode::Char('K') => self.scroll_details(-3),
+            KeyCode::Char('H') => self.step_detail_tab(-1),
+            KeyCode::Char('L') => self.step_detail_tab(1),
+            KeyCode::Char('<') => self.resize(Drag::Columns, -5),
+            KeyCode::Char('>') => self.resize(Drag::Columns, 5),
+            KeyCode::Char('{') => self.resize(Drag::Photo, -5),
+            KeyCode::Char('}') => self.resize(Drag::Photo, 5),
             KeyCode::PageDown => self.step(15)?,
             KeyCode::PageUp => self.step(-15)?,
             KeyCode::Home | KeyCode::Char('g') => self.select(0)?,
@@ -1794,6 +1917,80 @@ impl App {
                 _ => {}
             }
             return Ok(());
+        }
+        // The dividers: the column between the list and the right side, and the row under the
+        // photo. Dragging one resizes; a double click puts it back.
+        let body = self.body_area;
+        let right = self.right_area;
+        let on_columns = m.row >= body.y
+            && m.row < body.y + body.height
+            && right.x > 0
+            && (m.column == right.x || m.column + 1 == right.x);
+        let photo = self.photo_area;
+        let on_photo = photo.height > 0
+            && m.row + 1 == photo.y + photo.height
+            && m.column >= right.x
+            && m.column < right.x + right.width;
+        match m.kind {
+            MouseEventKind::Down(MouseButton::Left) if on_columns || on_photo => {
+                let which = if on_columns {
+                    Drag::Columns
+                } else {
+                    Drag::Photo
+                };
+                let now = Instant::now();
+                if self
+                    .divider_click
+                    .is_some_and(|t| now.duration_since(t) < DOUBLE_CLICK)
+                {
+                    match which {
+                        Drag::Columns => self.split = SPLIT,
+                        Drag::Photo => self.photo_split = PHOTO_SPLIT,
+                    }
+                    self.divider_click = None;
+                    self.drag = None;
+                } else {
+                    self.divider_click = Some(now);
+                    self.drag = Some(which);
+                }
+                return Ok(());
+            }
+            MouseEventKind::Drag(MouseButton::Left) if self.drag.is_some() => {
+                // A press that moved was a drag, so it cannot be half of a double click.
+                self.divider_click = None;
+                match self.drag {
+                    Some(Drag::Columns) if body.width > 0 => {
+                        let left = (m.column.saturating_sub(body.x) + 1) as u32;
+                        self.split = ((left * 100 / body.width as u32) as u16).clamp(20, 80);
+                    }
+                    Some(Drag::Photo) if right.height > 0 => {
+                        let top = (m.row.saturating_sub(right.y) + 1) as u32;
+                        self.photo_split = ((top * 100 / right.height as u32) as u16).clamp(15, 85);
+                    }
+                    _ => {}
+                }
+                return Ok(());
+            }
+            MouseEventKind::Up(MouseButton::Left) if self.drag.is_some() => {
+                self.drag = None;
+                return Ok(());
+            }
+            MouseEventKind::Down(MouseButton::Left) if m.row == self.detail_tab_hits.0 => {
+                let hit = self
+                    .detail_tab_hits
+                    .1
+                    .iter()
+                    .find(|(a, b, _)| m.column >= *a && m.column < *b)
+                    .map(|h| h.2);
+                if let Some(tab) = hit {
+                    if self.tab_available(tab) {
+                        self.detail_tab = tab;
+                        self.detail_scroll = 0;
+                    }
+                    return Ok(());
+                }
+            }
+            _ => {}
         }
         match m.kind {
             MouseEventKind::ScrollDown if inside(self.photo_area) => {
@@ -1935,10 +2132,24 @@ impl App {
         .highlight_style(Style::new().bold().reversed());
         f.render_widget(tabs, top);
 
-        let [left, right] =
-            Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
-                .areas(body);
+        let [left, right] = Layout::horizontal([
+            Constraint::Percentage(self.split),
+            Constraint::Percentage(100 - self.split),
+        ])
+        .areas(body);
         self.list_area = left;
+        self.body_area = body;
+        self.right_area = right;
+        // The divider being dragged lights up on both of its borders.
+        let edge = |which: Drag| {
+            if self.drag == Some(which) {
+                Style::new().fg(pal().code).bold()
+            } else {
+                Style::new()
+            }
+        };
+        let columns_edge = edge(Drag::Columns);
+        let photo_edge = edge(Drag::Photo);
         // Inside the list's borders.
         let row_width = left.width.saturating_sub(2) as usize;
         let now = Instant::now();
@@ -1974,7 +2185,7 @@ impl App {
             format!(" {} ", tab_titles()[self.tab.index()])
         };
         let list = List::new(items)
-            .block(Block::bordered().title(title))
+            .block(Block::bordered().title(title).border_style(columns_edge))
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, left, &mut self.state);
 
@@ -1982,8 +2193,11 @@ impl App {
         let text_area = match (self.current_photo(), self.picker.is_some()) {
             (Some(path), true) => {
                 let count = self.photo_count();
-                let [img_area, rest] =
-                    Layout::vertical([Constraint::Percentage(55), Constraint::Min(6)]).areas(right);
+                let [img_area, rest] = Layout::vertical([
+                    Constraint::Percentage(self.photo_split),
+                    Constraint::Min(6),
+                ])
+                .areas(right);
                 let idx = self.photo_idx.min(count - 1);
                 // The photo's own note says what it shows (a drawer's final state, the inside
                 // of a bag), which the picture alone may not.
@@ -1996,11 +2210,13 @@ impl App {
                     .map(|n| format!("· {n} "))
                     .unwrap_or_default();
                 // The note before the key hints, so a narrow pane cuts the hints, not the note.
-                let block = Block::bordered().title(format!(
-                    "{}{note}{}",
-                    tf(" Photo {}/{} ", &[&(idx + 1), &count]),
-                    t("([ ] step · r rotate · o full screen · O open outside) ")
-                ));
+                let block = Block::bordered()
+                    .title(format!(
+                        "{}{note}{}",
+                        tf(" Photo {}/{} ", &[&(idx + 1), &count]),
+                        t("([ ] step · r rotate · o full screen · O open outside) ")
+                    ))
+                    .border_style(columns_edge.patch(photo_edge));
                 let inner = block.inner(img_area);
                 self.photo_area = img_area;
                 f.render_widget(block, img_area);
@@ -2014,19 +2230,64 @@ impl App {
         } else {
             self.details_text()
         };
-        // The pane scrolls (J/K, the mouse wheel); its title says so when there is more.
+        // The pane scrolls (J/K, the mouse wheel); its bottom edge says so when there is more.
         self.details_area = text_area;
         self.detail_lines = text.lines.len();
         let inner = text_area.height.saturating_sub(2) as usize;
         let max = self.detail_lines.saturating_sub(1) as u16;
         self.detail_scroll = self.detail_scroll.min(max);
-        let title = if self.detail_lines > inner || self.detail_scroll > 0 {
-            t(" Details · J/K scroll ")
+        let scrolls = self.detail_lines > inner || self.detail_scroll > 0;
+        let mut block = Block::bordered().border_style(photo_edge.patch(columns_edge));
+        self.detail_tab_hits = (u16::MAX, Vec::new());
+        if self.tab == Tab::Settings || self.details.is_none() {
+            block = block.title(t(" Details "));
         } else {
-            t(" Details ")
+            // The tabs are the title: the one shown stands out, one with nothing for this
+            // node steps back, and a count says how much each holds.
+            let shown = self.shown_detail_tab();
+            let mut spans = vec![Span::raw(" ")];
+            let mut x = text_area.x + 2;
+            let mut hits = Vec::new();
+            for (i, tab) in DetailTab::ALL.into_iter().enumerate() {
+                if i > 0 {
+                    spans.push(Span::styled(" · ", Style::new().fg(pal().muted)));
+                    x += 3;
+                }
+                let badge = self
+                    .tab_badge(tab)
+                    .filter(|_| tab != DetailTab::Summary)
+                    .map(|n| format!(" {n}"))
+                    .unwrap_or_default();
+                let style = if tab == shown {
+                    Style::new().bold().reversed()
+                } else if !self.tab_available(tab) {
+                    Style::new().fg(pal().muted)
+                } else if tab == DetailTab::Suggestions && !badge.is_empty() {
+                    Style::new().fg(pal().mark)
+                } else {
+                    Style::new()
+                };
+                let span = Span::styled(format!("{}{badge}", tab.title()), style);
+                let w = span.width() as u16;
+                hits.push((x, x + w, tab));
+                x += w;
+                spans.push(span);
+            }
+            spans.push(Span::raw(" "));
+            self.detail_tab_hits = (text_area.y, hits);
+            block = block.title(Line::from(spans));
+        }
+        let keys = match (self.tab == Tab::Settings, scrolls) {
+            (true, false) => String::new(),
+            (true, true) => t(" J/K scroll ").to_string(),
+            (false, false) => t(" H/L tabs ").to_string(),
+            (false, true) => t(" H/L tabs · J/K scroll ").to_string(),
         };
+        if !keys.is_empty() {
+            block = block.title_bottom(Line::from(keys).fg(pal().muted));
+        }
         let details = Paragraph::new(text)
-            .block(Block::bordered().title(title))
+            .block(block)
             .wrap(Wrap { trim: false })
             .scroll((self.detail_scroll, 0));
         f.render_widget(details, text_area);
@@ -2043,7 +2304,7 @@ impl App {
             )
         } else {
             tf(
-                "↑↓ move · → open · ← close · Enter go · J/K scroll details · [ ] o photos · Tab/1-8 tabs · / search · q quit    {}",
+                "↑↓ move · → open · ← close · Enter go · H/L J/K details · < > { } or drag: resize · [ ] o photos · Tab/1-8 tabs · / search · q quit    {}",
                 &[&self.status],
             )
         };
@@ -2098,7 +2359,15 @@ impl App {
             });
         }
         match &self.shown {
-            Some((p, _, _, proto)) if p == path => f.render_widget(Image::new(proto), area),
+            // Fitted pictures keep their shape, so a portrait photo in a wide pane is centred
+            // rather than left against the border.
+            Some((p, _, _, proto)) if p == path => {
+                let size = proto.size();
+                let w = size.width.min(area.width);
+                let h = size.height.min(area.height);
+                let at = Rect::new(area.x + (area.width - w) / 2, area.y, w, h);
+                f.render_widget(Image::new(proto), at)
+            }
             _ => f.render_widget(
                 Paragraph::new(t("(the photo could not be opened)")).fg(pal().muted),
                 area,
@@ -2121,18 +2390,36 @@ impl App {
             *last = last.clone().bold();
         }
         let mut lines = vec![Line::from(title), Line::raw("")];
-        if v["grid"].is_object() {
-            lines.extend(Self::grid_text(&v["grid"], None));
-        } else if v["parent_grid"].is_object() {
-            // A box is shown where it stands in its drawer.
-            lines.extend(Self::grid_text(&v["parent_grid"], n["id"].as_i64()));
+        match self.shown_detail_tab() {
+            DetailTab::Grid => {
+                if v["grid"].is_object() {
+                    lines.extend(Self::grid_text(&v["grid"], None));
+                } else {
+                    // A box is shown where it stands in its drawer.
+                    lines.extend(Self::grid_text(&v["parent_grid"], n["id"].as_i64()));
+                }
+                return Text::from(lines);
+            }
+            DetailTab::Contents => {
+                for c in v["children"].as_array().into_iter().flatten() {
+                    lines.push(Line::from(node_spans(c, &self.snap)));
+                }
+                return Text::from(lines);
+            }
+            DetailTab::Suggestions => {
+                // The hints open with a blank line for when they followed the fields.
+                let hints = self.hints.iter().skip_while(|l| l.width() == 0);
+                lines.extend(hints.cloned());
+                return Text::from(lines);
+            }
+            DetailTab::History => {
+                lines.extend(self.history_lines());
+                return Text::from(lines);
+            }
+            DetailTab::Summary => {}
         }
-        let mut field = |k: &str, val: Span<'static>| {
-            lines.push(Line::from(vec![
-                Span::styled(format!("{k}: "), Style::new().fg(pal().muted)),
-                val,
-            ]))
-        };
+        let mut fields: Vec<(String, Span<'static>)> = Vec::new();
+        let mut field = |k: &str, val: Span<'static>| fields.push((k.to_string(), val));
         field(t("kind"), Span::raw(kind_name(&str_of(n, "kind"))));
         if let Some(c) = n["code"].as_str() {
             field(
@@ -2308,18 +2595,147 @@ impl App {
                 Style::new().fg(pal().muted),
             ),
         );
-        lines.extend(self.hints.iter().cloned());
-        let kids = v["children"].as_array().cloned().unwrap_or_default();
-        if !kids.is_empty() {
-            lines.push(Line::raw(""));
-            lines.push(Line::from(tf("Contents ({})", &[&kids.len()])).bold());
-            for c in &kids {
-                let mut spans = vec![Span::raw("  ")];
-                spans.extend(node_spans(c, &self.snap));
-                lines.push(Line::from(spans));
-            }
+        // Labels padded to one width, so the values line up in a column.
+        let width = fields
+            .iter()
+            .map(|(k, _)| k.chars().count())
+            .max()
+            .unwrap_or(0);
+        for (k, val) in fields {
+            let pad = width - k.chars().count();
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{k}{}  ", " ".repeat(pad)),
+                    Style::new().fg(pal().muted),
+                ),
+                val,
+            ]));
         }
         Text::from(lines)
+    }
+
+    /// The History tab: newest first, under a heading per day, each event in words. A place's
+    /// history includes what came in, went out and was added there.
+    fn history_lines(&self) -> Vec<Line<'static>> {
+        let Some(events) = self.history.as_ref().and_then(|h| h["events"].as_array()) else {
+            return Vec::new();
+        };
+        // A place by its code when it has one, else its name; one gone since by its id.
+        let place = |v: &Value| -> String {
+            match v {
+                Value::Number(n) => n
+                    .as_i64()
+                    .map(|i| {
+                        self.snap.label.get(&i).map_or_else(
+                            || format!("#{i}"),
+                            |l| l.split("  ").next().unwrap_or(l).to_string(),
+                        )
+                    })
+                    .unwrap_or_default(),
+                Value::String(s) => s.clone(),
+                _ => "—".into(),
+            }
+        };
+        let today = chrono::Local::now().date_naive();
+        let mut lines = Vec::new();
+        let mut day = None;
+        for e in events.iter().rev() {
+            let at = chrono::DateTime::parse_from_rfc3339(e["at"].as_str().unwrap_or_default())
+                .map(|d| d.with_timezone(&chrono::Local))
+                .ok();
+            let this = at.map(|a| a.date_naive());
+            if this != day {
+                day = this;
+                let head = match this {
+                    Some(d) if d == today => t("Today").to_string(),
+                    Some(d) if Some(d) == today.pred_opt() => t("Yesterday").to_string(),
+                    Some(d) => d.format("%Y-%m-%d").to_string(),
+                    None => "?".into(),
+                };
+                if !lines.is_empty() {
+                    lines.push(Line::raw(""));
+                }
+                lines.push(Line::from(head).bold());
+            }
+            let time = at.map_or_else(String::new, |a| a.format("%H:%M").to_string());
+            let d = &e["data"];
+            let (verb, detail, style) = if e["item"].is_object() {
+                let name = str_of(&e["item"], "name");
+                match (e["relation"].as_str(), e["type"].as_str()) {
+                    (Some("added"), _) => (t("added here"), name, pal().code),
+                    (Some("in"), Some("plan")) => (t("planned to come"), name, pal().mark),
+                    (Some("in"), _) => (
+                        t("came in"),
+                        format!("{name}  ← {}", place(&d["from"])),
+                        pal().code,
+                    ),
+                    _ => (
+                        t("went out"),
+                        format!("{name}  → {}", place(&d["to"])),
+                        pal().muted,
+                    ),
+                }
+            } else {
+                let own = |v: &'static str, s: String| (t(v), s, pal().furniture);
+                match e["type"].as_str().unwrap_or_default() {
+                    "create" => own("created", place(&d["parent"])),
+                    "move" => own(
+                        "moved",
+                        format!("{} → {}", place(&d["from"]), place(&d["to"])),
+                    ),
+                    "done" => own(
+                        "moved as planned",
+                        format!("{} → {}", place(&d["from"]), place(&d["to"])),
+                    ),
+                    "plan" => own("move planned", format!("→ {}", place(&d["to"]))),
+                    "cancel" => own("plan cancelled", String::new()),
+                    "edit" => own("changed", edit_text(d)),
+                    "photo" => own(
+                        "photo added",
+                        if d["crop"].is_string() {
+                            t("(a crop)").to_string()
+                        } else {
+                            String::new()
+                        },
+                    ),
+                    "observe" => own("observed", str_of(d, "text")),
+                    "review" => own("reviewed", {
+                        let status = match d["as"].as_str() {
+                            Some("toured") => t("toured").to_string(),
+                            _ => str_of(d, "as"),
+                        };
+                        format!("{status}  {}", str_of(d, "note"))
+                    }),
+                    "dispose" => own(
+                        "set aside",
+                        disposition_tr(d["as"].as_str().unwrap_or_default()).to_string(),
+                    ),
+                    "gone" => own("gone", {
+                        let why = str_of(d, "why");
+                        format!(
+                            "{}  {why}",
+                            disposition_tr(d["as"].as_str().unwrap_or_default())
+                        )
+                    }),
+                    "restore" => own("restored", str_of(d, "correction")),
+                    "cell" => own(
+                        "cells",
+                        format!("{} → {}", place(&d["before"]), place(&d["after"])),
+                    ),
+                    "grid" => own("grid set", format!("{}×{}", d["after"][0], d["after"][1])),
+                    "lost" => own("lost", String::new()),
+                    "found" => own("found", place(&d["at"])),
+                    "back" => own("returned", place(&d["from"])),
+                    other => (t("event"), format!("{other} {d}"), pal().muted),
+                }
+            };
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {time}  "), Style::new().fg(pal().muted)),
+                Span::styled(verb.to_string(), Style::new().fg(style)),
+                Span::raw(format!("  {detail}")),
+            ]));
+        }
+        lines
     }
 
     /// A holder's grid for the details pane: title, the map with free cells muted, and the

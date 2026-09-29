@@ -100,3 +100,15 @@ fn a_part_code_or_an_inflected_word_finds_its_box_and_says_why() {
     );
 }
 
+#[test]
+fn a_thing_nothing_here_is_like_asks_for_a_new_group() {
+    let (_d, inv) = setup();
+    let v = inv.suggest("RFID okuyucu kartı", None).unwrap();
+    assert_eq!(v["new_group_likely"], true);
+    // Every holder is still listed, so nothing is decided by omission.
+    assert_eq!(
+        v["complete"]["containers"],
+        v["containers"].as_array().unwrap().len()
+    );
+}
+

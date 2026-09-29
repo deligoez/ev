@@ -141,3 +141,103 @@ fn a_box_moved_out_leaves_its_cells_free() {
         .clone();
     assert_eq!(d["grid"]["free"].as_array().unwrap().len(), 4);
 }
+
+/// Crops are stored to four decimals.
+fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1e-3
+}
+
+/// Drawer `D` as a 3×2 grid with a one-cell box at A1 and a two-cell box at B1–C1, each holding a
+/// thing, and a photo of it on disk.
+fn photographed() -> (TempDir, Inventory, std::path::PathBuf) {
+    let (dir, mut inv) = setup();
+    inv.grid_set("D", 3, 2).unwrap();
+    inv.cells_set(&pairs(&[("D-A4", "A1"), ("D-A3", "B1-C1")]), false)
+        .unwrap();
+    add(&mut inv, "Vida", "item", Some("D-A4"), None);
+    add(&mut inv, "Somun", "item", Some("D-A3"), None);
+    let photo = dir.path().join("drawer.png");
+    image::RgbImage::from_pixel(600, 700, image::Rgb([200, 200, 200]))
+        .save(&photo)
+        .unwrap();
+    (dir, inv, photo)
+}
+
+fn last_crop(inv: &Inventory, r: &str) -> Value {
+    inv.photo_list(r).unwrap()["photos"]
+        .as_array()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap_or(Value::Null)
+}
+
+#[test]
+fn a_grid_photo_crops_every_placed_box_from_the_grid_corners() {
+    let (_d, mut inv, photo) = photographed();
+    // The grid fills the middle 80% of the photo, square to it.
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], Some("son hali"), Some(&corners))
+        .unwrap();
+    // The drawer gets the whole photo, each box a crop.
+    assert!(last_crop(&inv, "D")["crop"].is_null());
+    let a1 = last_crop(&inv, "D-A4");
+    let b1 = last_crop(&inv, "D-A3");
+    let nums = |v: &Value| -> Vec<f64> {
+        v["crop"]
+            .as_str()
+            .unwrap()
+            .split(',')
+            .map(|x| x.parse().unwrap())
+            .collect()
+    };
+    // A1 is the back-left third by half, plus a margin of 0.15 of a cell each side.
+    let a = nums(&a1);
+    assert!(close(a[0], 0.1 + 0.8 * (-0.05)), "{a:?}");
+    assert!(close(a[1], 0.1 + 0.8 * (-0.075)), "{a:?}");
+    assert!(close(a[0] + a[2], 0.1 + 0.8 * (1.0 / 3.0 + 0.05)), "{a:?}");
+    assert!(close(a[1] + a[3], 0.1 + 0.8 * (0.5 + 0.075)), "{a:?}");
+    // B1–C1 spans two columns and reaches the right edge of the grid.
+    let b = nums(&b1);
+    assert!(close(b[0] + b[2], 0.1 + 0.8 * (1.0 + 0.05)), "{b:?}");
+    // Without --place there is no grid to read.
+    assert_eq!(
+        inv.photo_cut(
+            &photo,
+            None,
+            &[("D-A4".into(), "0,0,1,1".parse().unwrap())],
+            None,
+            Some(&corners)
+        )
+        .unwrap_err()
+        .code(),
+        2
+    );
+}
+
+#[test]
+fn a_drawer_is_toured_only_with_photos_that_show_it_as_it_is() {
+    let (_d, mut inv, photo) = photographed();
+    // No photo yet: refused, and the answer names every box that needs one.
+    let e = inv.review("D", "toured", None).unwrap_err();
+    assert_eq!(e.code(), 5);
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    inv.review("D", "toured", None).unwrap();
+    // A box changes after the photo: touring again is refused until it is photographed.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    add(&mut inv, "Pul", "item", Some("D-A4"), None);
+    let e = inv.review("D", "toured", None).unwrap_err();
+    assert_eq!(e.code(), 5);
+    let stale = e.to_json()["error"]["details"]["stale"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let codes: Vec<&str> = stale
+        .iter()
+        .map(|s| s["node"]["code"].as_str().unwrap())
+        .collect();
+    assert!(codes.contains(&"D-A4"), "{codes:?}");
+    assert!(!codes.contains(&"D-A3"), "{codes:?}");
+}

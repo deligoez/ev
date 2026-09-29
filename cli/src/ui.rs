@@ -1887,7 +1887,7 @@ impl App {
 /// and a one-cell divider between titles.
 fn tab_at(x: u16) -> Option<Tab> {
     let mut start = 0u16;
-    for (i, t) in TABS.iter().enumerate() {
+    for (i, t) in tab_titles().iter().enumerate() {
         let width = format!("{} {t}", i + 1).chars().count() as u16 + 2;
         if x >= start && x < start + width {
             return Some(Tab::from_index(i));

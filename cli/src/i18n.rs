@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn text_follows_the_language_and_falls_back_to_english() {
         set_lang(Lang::Tr);
-        assert_eq!(t("Tree"), "Ağaç");
+        assert_eq!(t("Layout"), "Yerleşim");
         assert_eq!(tf("  [with {}]", &[&"Mahmutlar"]), "  [Mahmutlar'de]");
         assert_eq!(t("no such text"), "no such text");
         set_lang(Lang::En);

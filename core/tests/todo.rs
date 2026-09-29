@@ -330,3 +330,66 @@ fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     assert_eq!(c["moves"], 0);
     assert_eq!(c["lost"], 0);
 }
+
+#[test]
+fn one_photo_is_cut_up_among_a_place_and_its_boxes_in_one_step() {
+    let (d, mut inv) = setup();
+    add(&mut inv, "Kutu B", "container", Some("Oda"), Some("S5-02"));
+    add(&mut inv, "Pil", "item", Some("S5-02"), None);
+    let img = d.path().join("drawer.png");
+    image::RgbImage::from_pixel(20, 10, image::Rgb([7, 8, 9]))
+        .save(&img)
+        .unwrap();
+    let crop = |s: &str| s.parse::<ev_core::Crop>().unwrap();
+    // A typo in the last reference attaches nothing at all.
+    let e = inv
+        .photo_cut(
+            &img,
+            Some("Oda"),
+            &[
+                ("S5-01".into(), crop("0,0,0.5,1")),
+                ("S5-99".into(), crop("0.5,0,0.5,1")),
+            ],
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(e.code(), 3);
+    assert!(
+        inv.photo_list("S5-01").unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        inv.photo_list("Oda").unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    let v = inv
+        .photo_cut(
+            &img,
+            Some("Oda"),
+            &[
+                ("S5-01".into(), crop("0,0,0.5,1")),
+                ("S5-02".into(), crop("0.5,0,0.5,1")),
+            ],
+            Some("son hali"),
+        )
+        .unwrap();
+    let attached = v["attached"].as_array().unwrap();
+    assert_eq!(attached.len(), 3);
+    assert!(attached[0]["crop"].is_null());
+    assert_eq!(attached[1]["crop"], "0.0000,0.0000,0.5000,1.0000");
+    // Both boxes count as photographed now, and the whole view is on the room only.
+    let todo = inv.todo().unwrap();
+    let needing: Vec<&str> = todo["photos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|p| p["code"].as_str())
+        .collect();
+    assert!(!needing.contains(&"S5-01") && !needing.contains(&"S5-02"));
+    assert_eq!(todo["counts"]["shared_photos"], 0);
+}

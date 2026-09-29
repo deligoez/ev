@@ -3562,9 +3562,9 @@ mod tests {
         click(&mut app, MouseEventKind::Down(MouseButton::Left), x - 2, y);
         let bx = app.selected_id().unwrap();
         assert_eq!(app.snap.label[&bx], "D-B1  Kutu");
-        // Once on the box, its drawer's plan is only a picture: a click stays put.
+        // On the box, its drawer's grid still opens boxes; a free cell stays put.
         term.draw(|f| app.draw(f)).unwrap();
-        assert!(app.grid_hit.is_none());
+        assert!(app.grid_hit.is_some());
         let (x, y) = cell(0, 1);
         click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
         assert_eq!(app.selected_id(), Some(bx));

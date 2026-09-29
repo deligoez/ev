@@ -104,3 +104,8 @@ pub fn lang() -> Lang {
     LANG.with(Cell::get)
 }
 
+fn turkish() -> &'static HashMap<&'static str, &'static str> {
+    static MAP: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    MAP.get_or_init(|| TR.iter().copied().collect())
+}
+

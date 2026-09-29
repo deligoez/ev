@@ -151,3 +151,17 @@ fn parse_escape(b: &[u8]) -> Step {
     }
 }
 
+fn ss3(c: u8) -> Option<Input> {
+    let code = match c {
+        b'A' => KeyCode::Up,
+        b'B' => KeyCode::Down,
+        b'C' => KeyCode::Right,
+        b'D' => KeyCode::Left,
+        b'H' => KeyCode::Home,
+        b'F' => KeyCode::End,
+        b'P'..=b'S' => KeyCode::F(c - b'P' + 1),
+        _ => return None,
+    };
+    key(code, KeyModifiers::NONE)
+}
+

@@ -145,5 +145,10 @@ and a version is cut only when asked. Before tagging:
    README is not shipped.
 2. Rename `release-notes/next.md` to `release-notes/vX.Y.Z.md` and drop its draft line.
 3. Bump `version` in `core/Cargo.toml` and `cli/Cargo.toml`, run the quality gate, commit.
-4. Tag `vX.Y.Z` and push; the release workflow builds with GoReleaser, publishes the notes file
-   and updates the Homebrew formula in `deligoez/homebrew-tap`.
+4. Tag `vX.Y.Z` and push. The release workflow is [dist](https://opensource.axo.dev/cargo-dist/)'s
+   (`dist-workspace.toml`; regenerate `.github/workflows/release.yml` with `dist generate` after
+   changing it): every target builds natively on its own runner in parallel (macOS on macOS,
+   Linux on x86 and ARM Linux), then the GitHub release gets the archives, `release-notes.yml`
+   puts `release-notes/vX.Y.Z.md` on it, and the formula in `deligoez/homebrew-tap` is updated.
+   A tag with a pre-release suffix (`v0.12.0-rc.1`) makes a pre-release and leaves the tap
+   alone, which is how a change to the pipeline is tried.

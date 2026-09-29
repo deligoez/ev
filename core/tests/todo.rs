@@ -351,6 +351,7 @@ fn one_photo_is_cut_up_among_a_place_and_its_boxes_in_one_step() {
                 ("S5-99".into(), crop("0.5,0,0.5,1")),
             ],
             None,
+            None,
         )
         .unwrap_err();
     assert_eq!(e.code(), 3);

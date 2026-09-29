@@ -968,9 +968,21 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let needs = crate::marks::needs_for(conn, id)?;
     let cells = crate::grid::cells_of(conn, id)?.map(|c| c.name());
     let grid = crate::grid::grid_json(conn, id)?;
+    // A placed box is read against the grid it stands in.
+    let parent_grid = match (&cells, n.parent_id) {
+        (Some(_), Some(p)) => crate::grid::grid_json(conn, p)?,
+        _ => None,
+    };
+    let room = n
+        .fill
+        .is_some()
+        .then(|| crate::placement::room(conn, &n))
+        .transpose()?;
     Ok(json!({
         "cells": cells,
         "grid": grid,
+        "parent_grid": parent_grid,
+        "room": room,
         "tasks": tasks,
         "marks": marks,
         "needs": needs,

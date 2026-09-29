@@ -312,3 +312,124 @@ fn a_place_without_a_theme_shows_what_its_contents_share() {
             .is_empty()
     );
 }
+
+/// A drawer `M` with a bare-buzzer box and an output-module box that also holds a buzzer module:
+/// words alone send the module to the bare buzzers.
+fn module_drawer() -> (TempDir, Inventory) {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    let mut lines = vec![
+        NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        },
+        node("Oda", "room", "Ev"),
+        NewNode {
+            code: Some("M".into()),
+            ..node("Çekmece", "container", "Oda")
+        },
+        NewNode {
+            code: Some("M-A1".into()),
+            theme: Some("Buzzer (çıplak)".into()),
+            ..node("Kutu", "container", "M")
+        },
+        NewNode {
+            code: Some("M-B1".into()),
+            theme: Some("Çıkış modülleri: lazer, RGB".into()),
+            ..node("Kutu", "container", "M")
+        },
+        node("Buzzer, çıplak 12 mm", "item", "M-A1"),
+        node("Pasif buzzer, çıplak", "item", "M-A1"),
+        node("Aktif buzzer modülü", "item", "M-B1"),
+        node("Lazer diyot kartı, 650 nm", "item", "M-B1"),
+        node("RGB LED kartı, 5 mm", "item", "M-B1"),
+    ];
+    for l in &mut lines {
+        l.key = None;
+    }
+    inv.add_batch(lines).unwrap();
+    (dir, inv)
+}
+
+fn flagged(inv: &Inventory, name: &str) -> Option<String> {
+    let v = inv.regroup(Some("M")).unwrap();
+    ["elsewhere", "alone"]
+        .iter()
+        .flat_map(|k| v[*k].as_array().unwrap().clone())
+        .find(|e| e["item"]["name"] == name)
+        .map(|e| e["better"]["holder"]["code"].as_str().unwrap().to_string())
+}
+
+#[test]
+fn facets_keep_modules_and_bare_parts_apart() {
+    let (_d, mut inv) = module_drawer();
+    // Without facets, the buzzer module is flagged for the bare buzzers.
+    assert_eq!(
+        flagged(&inv, "Aktif buzzer modülü").as_deref(),
+        Some("M-A1")
+    );
+    inv.facet_add("modül", Some("modül, kart")).unwrap();
+    inv.facet_add("çıplak", None).unwrap();
+    inv.edit("M-B1", &["tags=+modül".into()]).unwrap();
+    inv.edit("M-A1", &["tags=+çıplak".into()]).unwrap();
+    // With them, it stays among the modules.
+    assert_eq!(flagged(&inv, "Aktif buzzer modülü"), None);
+
+    // A new module is not offered the bare-buzzer box, which is listed apart instead.
+    let v = inv.suggest("buzzer modülü", None).unwrap();
+    assert_eq!(v["facet"][0], "modül");
+    assert!(
+        v["similar"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["container"]["code"] != "M-A1"),
+        "{}",
+        v["similar"]
+    );
+    assert_eq!(v["other_facet"][0]["container"]["code"], "M-A1");
+    assert_eq!(v["other_facet"][0]["container"]["facet"][0], "çıplak");
+    // Any form of a facet word names the facet, even one the inventory never writes bare.
+    for q in ["joystick modülleri", "ses sensörü kartı"] {
+        assert_eq!(inv.suggest(q, None).unwrap()["facet"][0], "modül", "{q}");
+    }
+    // A thing whose words name no facet is free to go anywhere.
+    let v = inv.suggest("buzzer", None).unwrap();
+    assert_eq!(v["similar"][0]["container"]["code"], "M-A1");
+    assert!(v["other_facet"].as_array().unwrap().is_empty());
+    // --for reads the facet from where the thing is.
+    let v = inv
+        .suggest_with("", None, Some("Buzzer, çıplak 12 mm"))
+        .unwrap();
+    assert_eq!(v["facet"][0], "çıplak");
+
+    // The list shows each facet's holders; removing one frees the tags.
+    let l = inv.facet_list().unwrap();
+    assert_eq!(l["facets"].as_array().unwrap().len(), 2);
+    inv.facet_remove("modül").unwrap();
+    assert_eq!(inv.facet_remove("modül").unwrap_err().code(), 3);
+    assert_eq!(inv.facet_add("x", None).unwrap_err().code(), 2);
+}
+
+#[test]
+fn the_tree_carries_theme_fill_size_and_tags() {
+    let (_d, mut inv) = module_drawer();
+    inv.edit(
+        "M-A1",
+        &["fill=40".into(), "size=1x1x1".into(), "tags=+çıplak".into()],
+    )
+    .unwrap();
+    let v = inv.tree(Some("M"), None).unwrap();
+    let a1 = v["tree"][0]["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["code"] == "M-A1")
+        .unwrap()
+        .clone();
+    assert_eq!(a1["theme"], "Buzzer (çıplak)");
+    assert_eq!(a1["fill"], 40);
+    assert_eq!(a1["size"], "1x1x1");
+    assert_eq!(a1["tags"][0], "çıplak");
+}

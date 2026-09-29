@@ -377,6 +377,7 @@ fn one_photo_is_cut_up_among_a_place_and_its_boxes_in_one_step() {
                 ("S5-02".into(), crop("0.5,0,0.5,1")),
             ],
             Some("son hali"),
+            None,
         )
         .unwrap();
     let attached = v["attached"].as_array().unwrap();

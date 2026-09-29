@@ -319,6 +319,23 @@ impl Inventory {
         Ok(json!({ "focus": value }))
     }
 
+    /// Asks a running `ev ui` to show a picture that is not a record — a photo marked with
+    /// `photo_mark` — full screen, titled with `note`, until the person closes it.
+    pub fn focus_file(&mut self, file: &std::path::Path, note: Option<&str>) -> Result<Value> {
+        if !file.is_file() {
+            return Err(Error::NotFound(format!("no file {}", file.display())));
+        }
+        let file = std::path::absolute(file).unwrap_or_else(|_| file.to_path_buf());
+        let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let value = json!({ "file": file.to_string_lossy(), "note": note, "at": at });
+        self.conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('focus', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [value.to_string()],
+        )?;
+        Ok(json!({ "focus": value }))
+    }
+
     /// The pending focus request, if any.
     pub fn focus_request(&self) -> Result<Value> {
         Ok(get_setting(&self.conn, "focus")?

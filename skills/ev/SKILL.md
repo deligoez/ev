@@ -183,7 +183,7 @@ numbered frame on each part (`ev photo mark <file> "1 → A6=x,y,w,h" …`), the
 the same numbers on its cells (`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a
 photo cut before corners were kept), then both in one request, `ev focus --file <parts> --file
 <drawer> --note "<what this is>"` (sent one after the other, the second would replace the
-first). Open each marked file and check every frame sits on its part before sending — the
+first). The person closes them with Esc and reopens them with `m`; no need to send again. Open each marked file and check every frame sits on its part before sending — the
 coordinates are your estimate.
 The marked copies are temporary (not stored, not attached, no history); nothing needs undoing
 after the move. The text still names each part by position, for a person reading without the

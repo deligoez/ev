@@ -195,21 +195,28 @@ fn regroup_finds_the_stray_the_full_box_and_where_a_bigger_one_fits() {
     inv.edit("D-B1", &["fill=95".into()]).unwrap();
 
     let v = inv.regroup(Some("D")).unwrap();
-    let moved: Vec<(&str, &str)> = v["elsewhere"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|e| {
-            (
-                e["item"]["name"].as_str().unwrap(),
-                e["better"]["holder"]["code"].as_str().unwrap(),
-            )
-        })
-        .collect();
+    let pairs = |key: &str| -> Vec<(String, String)> {
+        v[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["item"]["name"].as_str().unwrap().to_string(),
+                    e["better"]["holder"]["code"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    };
+    // The sensor among buttons shares no word with them, so its home says nothing either way
+    // and the move is listed as a guess, not as a sure thing; its neighbours are not listed.
+    assert!(pairs("elsewhere").is_empty(), "{}", v["elsewhere"]);
     assert_eq!(
-        moved,
-        [("DS18B20 sıcaklık sensörü, su geçirmez", "D-C1")],
-        "only the misplaced sensor, not its neighbours"
+        pairs("alone"),
+        [(
+            "DS18B20 sıcaklık sensörü, su geçirmez".to_string(),
+            "D-C1".to_string()
+        )]
     );
     let full = &v["full"][0];
     assert_eq!(full["holder"]["code"], "D-B1");

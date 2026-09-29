@@ -1,6 +1,6 @@
 //! The words people read, in English or Turkish.
 //!
-//! The English text is the key: `t("Tree")` returns it unchanged in English and looks up the
+//! The English text is the key: `t("Layout")` returns it unchanged in English and looks up the
 //! translation otherwise, falling back to English when one is missing. `tf` fills `{}`
 //! placeholders in order, after translating, so a language may move words around a value but
 //! keeps the same number of placeholders (a test checks that). Another language is one more

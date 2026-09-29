@@ -142,6 +142,9 @@ enum Cmd {
     /// Regrouping hints under a place: things that fit better elsewhere, strays with a themed
     /// home, full boxes and bigger spares, sparse boxes to merge, mixed boxes, unknown fill.
     Regroup { reference: Option<String> },
+    /// Holders with things in them and no theme, with what a theme could be read from: their
+    /// contents, the words those share, and the themed holder they read most like.
+    Themes { reference: Option<String> },
     /// Words that mean the same thing when placing: `ev synonym add ldr "ışık sensörü"`.
     #[command(subcommand)]
     Synonym(SynonymCmd),

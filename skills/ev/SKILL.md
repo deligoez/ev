@@ -126,8 +126,9 @@ theme, and give holders a theme whenever you learn what they are for.
 ## Photos
 
 When the person sends a photo of a drawer or box, first confirm its contents against the
-records. Then `ev photo add <holder> <photo>` for the whole view, and for each box or item in
-it `ev photo add <node> <photo> --crop x,y,w,h` with fractions of the upright photo. **Look at
+records. Then attach it in one step: `ev photo cut <photo> --place <holder> <box>=x,y,w,h
+<item>=x,y,w,h …` puts the whole view on the holder and a crop, in fractions of the upright
+photo, on each box or item in it (`ev photo add <node> <photo> --crop x,y,w,h` does one). **Look at
 every crop you cut** (open the stored file) and redo it if it shows the wrong thing — the crop
 coordinates are your estimate, the check is what makes them right. **A group photo goes whole
 on one node only — the place — and every thing in it gets its own crop.** `ev photo add` refuses a

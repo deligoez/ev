@@ -174,9 +174,15 @@ fn task_line(out: &mut String, t_: &Value) {
 }
 
 fn progress_line(p: &Value) -> String {
-    format!(
+    tf(
         "{} places: {} toured, {} kept as is, {} raw; {} changed since their tour",
-        p["units"], p["toured"], p["kept"], p["raw"], p["changed_since_tour"]
+        &[
+            &p["units"],
+            &p["toured"],
+            &p["kept"],
+            &p["raw"],
+            &p["changed_since_tour"],
+        ],
     )
 }
 

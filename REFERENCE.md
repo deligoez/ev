@@ -100,9 +100,10 @@ without one.
 
 | Command | Does |
 |---|---|
-| `ev settings` | `language` (`setting`, `effective`, `system`), `theme` (`setting`), `file` |
+| `ev settings` | `language` (`setting`, `effective`, `system`), `theme` (`setting`), `resume`, `file` |
 | `ev settings language en\|tr\|auto` | the language of `ev ui` and of the readable terminal output |
 | `ev settings theme dark\|light\|auto` | the appearance of `ev ui`; `auto` follows the terminal |
+| `ev settings resume on\|off` | `on` (the default): `ev ui` opens on the node that was selected in the tree when it last closed. The position is kept per database in `ui-state.json` beside the settings file, written on every exit; a node gone since opens at the top |
 
 `auto` language is the computer's, as the system reports it (`sys-locale`): on macOS the first
 of the preferred languages in System Settings, elsewhere the locale variables.

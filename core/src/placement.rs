@@ -1057,6 +1057,7 @@ impl Inventory {
             "considered": CONSIDERED,
             "checked": { "items": checked, "best_where_they_are": at_home },
             "elsewhere": elsewhere,
+            "alone": alone,
             "strays": strays,
             "full": full,
             "sparse": sparse,

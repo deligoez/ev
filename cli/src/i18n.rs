@@ -55,10 +55,9 @@ impl Lang {
 
 /// The computer's preferred language, English when it is not one ev speaks. Read once.
 ///
-/// On macOS that is the first of System Settings' preferred languages, read with `defaults`
-/// rather than CoreFoundation so the release can still be cross-built without the macOS SDK;
-/// a terminal's `LANG` is often `en_US.UTF-8` whatever the system says, so it only counts
-/// elsewhere, or when `defaults` gives nothing.
+/// `sys-locale` asks the system: on macOS the first of System Settings' preferred languages
+/// (a terminal's `LANG` is often `en_US.UTF-8` whatever the system says), elsewhere the
+/// locale variables.
 pub fn system_lang() -> Lang {
     static CACHE: OnceLock<Lang> = OnceLock::new();
     *CACHE.get_or_init(|| {

@@ -1941,10 +1941,150 @@ pub fn set_language_from_settings() -> Lang {
 #[cfg(test)]
 mod tests {
     use super::{App, Tab, tab_at};
+    use crate::i18n::Lang;
+    use crate::input::Input;
+    use crate::settings::{LangPref, Settings, ThemePref};
+    use crate::theme::{self, Mode};
     use ev_core::{Inventory, NewNode};
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::style::Color;
     use ratatui::{Terminal, backend::TestBackend};
     use ratatui_image::picker::Picker;
+
+    fn with_prefs(inv: Inventory, language: LangPref, theme: ThemePref) -> App {
+        let mut app = App::new(inv).unwrap();
+        // Tests do not depend on the COLORFGBG of whoever runs them.
+        app.detected = None;
+        app.set_prefs(Settings { language, theme }).unwrap();
+        app
+    }
+
+    /// The older screen tests read Turkish words, so they run with Turkish chosen.
+    fn app_tr(inv: Inventory) -> App {
+        with_prefs(inv, LangPref::Fixed(Lang::Tr), ThemePref::Auto)
+    }
+
+    fn home() -> (tempfile::TempDir, Inventory) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        inv.add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        (dir, inv)
+    }
+
+    #[test]
+    fn english_is_shown_when_english_is_chosen() {
+        let (_dir, inv) = home();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("1 Tree") && s.contains("8 Settings"), "{s}");
+        assert!(s.contains("Details") && s.contains("kind: home"), "{s}");
+        assert!(!s.contains("Ayrıntı"), "{s}");
+    }
+
+    #[test]
+    fn the_settings_tab_switches_language_and_appearance_and_saves_them() {
+        let (dir, inv) = home();
+        let path = dir.path().join("settings.json");
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.settings_path = Some(path.clone());
+        let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
+
+        press(&mut app, KeyCode::Char('8'));
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Language: English"), "{s}");
+        assert!(s.contains("Appearance: Automatic"), "{s}");
+
+        // Enter moves English to Türkçe, and the whole screen follows at once.
+        press(&mut app, KeyCode::Enter);
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Dil: Türkçe") && s.contains("8 Ayarlar"), "{s}");
+        assert!(s.contains("ayarlar kaydedildi"), "{s}");
+        assert_eq!(
+            Settings::load_from(&path).language,
+            LangPref::Fixed(Lang::Tr)
+        );
+
+        // ← goes back; the appearance row moves Automatic to Dark.
+        press(&mut app, KeyCode::Left);
+        assert_eq!(app.prefs.language, LangPref::Fixed(Lang::En));
+        press(&mut app, KeyCode::Down);
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.prefs.theme, ThemePref::Fixed(Mode::Dark));
+        assert_eq!(
+            Settings::load_from(&path).theme,
+            ThemePref::Fixed(Mode::Dark)
+        );
+    }
+
+    #[test]
+    fn the_palette_follows_the_terminal_while_running() {
+        let (_dir, inv) = home();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let mut term = Terminal::new(TestBackend::new(120, 20)).unwrap();
+        let brand_bg = |term: &Terminal<TestBackend>| term.backend().buffer()[(1, 0)].bg;
+
+        term.draw(|f| app.draw(f)).unwrap();
+        assert_eq!(brand_bg(&term), Color::Cyan);
+
+        // The terminal reports a switch to light (mode 2031): no restart needed.
+        app.handle(Input::Appearance {
+            mode: Mode::Light,
+            notified: true,
+        })
+        .unwrap();
+        assert_eq!(theme::mode(), Mode::Light);
+        term.draw(|f| app.draw(f)).unwrap();
+        assert_eq!(brand_bg(&term), Color::Rgb(0, 110, 140));
+
+        app.handle(Input::Appearance {
+            mode: Mode::Dark,
+            notified: true,
+        })
+        .unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        assert_eq!(brand_bg(&term), Color::Cyan);
+
+        // A fixed appearance ignores the terminal.
+        app.set_prefs(Settings {
+            language: LangPref::Fixed(Lang::En),
+            theme: ThemePref::Fixed(Mode::Light),
+        })
+        .unwrap();
+        app.handle(Input::Appearance {
+            mode: Mode::Dark,
+            notified: true,
+        })
+        .unwrap();
+        assert_eq!(theme::mode(), Mode::Light);
+    }
+
+    #[test]
+    fn a_settings_change_made_elsewhere_shows_up_without_restarting() {
+        let (dir, inv) = home();
+        let path = dir.path().join("settings.json");
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.settings_path = Some(path.clone());
+        app.reload_settings().unwrap();
+        assert_eq!(crate::i18n::lang(), Lang::En);
+        Settings {
+            language: LangPref::Fixed(Lang::Tr),
+            theme: ThemePref::Auto,
+        }
+        .save_to(&path)
+        .unwrap();
+        app.reload_settings().unwrap();
+        assert_eq!(crate::i18n::lang(), Lang::Tr);
+        assert_eq!(super::tab_titles()[0], "Ağaç");
+    }
 
     fn screen(term: &Terminal<TestBackend>) -> String {
         let buf = term.backend().buffer();

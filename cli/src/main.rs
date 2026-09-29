@@ -550,9 +550,13 @@ fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
             s.theme = ThemePref::parse(v)
                 .ok_or_else(|| Error::Usage(format!("theme is dark, light or auto, not `{v}`")))?;
         }
+        (Some("resume"), Some(v)) => {
+            s.resume = settings::parse_switch(v)
+                .ok_or_else(|| Error::Usage(format!("resume is on or off, not `{v}`")))?;
+        }
         (Some(n), Some(_)) => {
             return Err(Error::Usage(format!(
-                "unknown setting `{n}`; there are language and theme"
+                "unknown setting `{n}`; there are language, theme and resume"
             )));
         }
     }

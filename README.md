@@ -67,6 +67,9 @@ anything in their box, where the other box is only a hint), boxes that are mixed
 with a bigger spare box (tagged `boş kap`, with a `size`) and the cells it would fit in, nearly
 empty boxes that could merge, and boxes whose fill is unknown or out of date. Noun compounds
 (`hesap makinesi`, `kablo bağı`) and colour-noun pairs (`yeşil LED`) are matched as such.
+Facets keep kinds of things apart when placing (`ev facet add modül --words "modül, kart"`, then
+tag the holders): a buzzer module is never proposed for the bare-buzzer box, a novel never for
+the technical shelf.
 `ev themes` lists the places with things in them and no theme, with what a theme could be read
 from: the words their contents share and the themed place they read most like (a theme is the
 summary every placement answer leans on, so the agent writes one from this with the person).

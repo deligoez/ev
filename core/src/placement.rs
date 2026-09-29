@@ -226,6 +226,56 @@ fn candidates(word: &str) -> Vec<String> {
     out
 }
 
+const COLORS: &[&str] = &[
+    "kirmizi",
+    "yesil",
+    "mavi",
+    "sari",
+    "siyah",
+    "beyaz",
+    "gri",
+    "turuncu",
+    "mor",
+    "pembe",
+    "kahverengi",
+    "lacivert",
+    "red",
+    "green",
+    "blue",
+    "yellow",
+    "black",
+    "white",
+];
+const COLOR_WEIGHT: f64 = 0.3;
+
+/// Whether `a b` reads as an indefinite noun compound: `a` bare (neither an ending cut off nor
+/// a code nor a colour), `b` carrying only the 3rd-person possessive (-sI / -I), on a soft stem
+/// too (`kablo bağı`, `ahşap vidası`, `kontrol kalemi`). A guess from endings alone: it cannot
+/// tell a noun from an adjective, which a dictionary could.
+fn is_compound(a: &Term, b: &Term) -> bool {
+    let bare = a.surface == a.key
+        && !a.surface.chars().any(|c| c.is_ascii_digit())
+        && !COLORS.contains(&a.key.as_str());
+    // The stem with its last letter hardened back, the way `candidates` does (kalem-i, bağ-ı
+    // → bak, kitab-ı → kitap), so `b`'s key can be compared with it.
+    let hard = |stem: &str| {
+        let mut s = stem.to_string();
+        match s.pop() {
+            Some('b') => s.push('p'),
+            Some('d') => s.push('t'),
+            Some('g') => s.push('k'),
+            Some(c) => s.push(c),
+            None => {}
+        }
+        s
+    };
+    bare && ["si", "su", "i", "u"].iter().any(|e| {
+        b.surface
+            .strip_suffix(e)
+            .is_some_and(|stem| stem == b.key || hard(stem) == b.key)
+    })
+}
+
 /// Chooses a word's stem by looking at the inventory's own words, which is what keeps plain
 /// suffix stripping from cutting too deep. In order: the shortest shorter form that is written
 /// somewhere on its own (`kutuda`→`kutu`, `kitabı`→`kitap`, `modules`→`modül`); the word

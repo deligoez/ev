@@ -288,8 +288,8 @@ static TR: &[(&str, &str)] = &[
         "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab/1-8 sekme · q çık    {}",
     ),
     (
-        "↑↓ move · → open · ← close · Enter/double-click go · Tab/1-8 tabs · / search · q quit    {}",
-        "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-8 sekme · / ara · q çık    {}",
+        "↑↓ move · → open · ← close · Enter go · J/K scroll details · [ ] o photos · Tab/1-8 tabs · / search · q quit    {}",
+        "↑↓ gez · → aç · ← kapat · Enter git · J/K ayrıntıyı kaydır · [ ] o fotoğraf · Tab/1-8 sekme · / ara · q çık    {}",
     ),
     ("(the photo could not be opened)", "(fotoğraf açılamadı)"),
     ("(empty)", "(boş)"),

@@ -2345,6 +2345,103 @@ impl Inventory {
         self.photo_list(&id.to_string())
     }
 
+    /// Cuts one photo up among several nodes in one step: a crop for each `(reference, crop)`,
+    /// and the whole photo on `place` when given (the drawer or box it shows). Every reference
+    /// is resolved and every crop cut before anything is recorded, and the records go in one
+    /// transaction, so a typo leaves nothing half attached. The whole-photo rule of
+    /// `photo_add` applies to `place`.
+    pub fn photo_cut(
+        &mut self,
+        file: &Path,
+        place: Option<&str>,
+        crops: &[(String, crate::Crop)],
+        note: Option<&str>,
+    ) -> Result<Value> {
+        if place.is_none() && crops.is_empty() {
+            return Err(Error::Usage(
+                "give at least one <ref>=x,y,w,h, or --place <ref>".into(),
+            ));
+        }
+        let place = place.map(|p| resolve(&self.conn, p, false)).transpose()?;
+        let targets = crops
+            .iter()
+            .map(|(r, c)| Ok((resolve(&self.conn, r, false)?, *c)))
+            .collect::<Result<Vec<_>>>()?;
+        let original = crate::photo::store_file(&self.photo_dir, file)?;
+        let original_text = original.to_string_lossy().into_owned();
+        if let Some(pid) = place {
+            let others = ids(
+                &self.conn,
+                "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
+                  WHERE p.path = ?1 AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
+                  ORDER BY p.node_id",
+                params![original_text, pid],
+            )?;
+            if !others.is_empty() {
+                let nodes = others
+                    .iter()
+                    .map(|o| brief_json(&self.conn, *o))
+                    .collect::<Result<Vec<_>>>()?;
+                return Err(refused(
+                    format!(
+                        "this photo is already attached whole to {} other node(s)",
+                        others.len()
+                    ),
+                    json!({ "attached_to": nodes }),
+                ));
+            }
+        }
+        let mut rows: Vec<(i64, String, Option<String>, Option<crate::Crop>)> = Vec::new();
+        if let Some(pid) = place {
+            rows.push((pid, original_text.clone(), None, None));
+        }
+        for (id, c) in targets {
+            let cut = crate::photo::store_crop(&self.photo_dir, &original, c)?;
+            rows.push((
+                id,
+                cut.to_string_lossy().into_owned(),
+                Some(original_text.clone()),
+                Some(c),
+            ));
+        }
+        let tx = self.conn.transaction()?;
+        let mut attached = Vec::new();
+        for (id, stored, source, crop) in &rows {
+            let next: i64 = tx.query_row(
+                "SELECT COALESCE(MAX(position) + 1, 0) FROM photos WHERE node_id = ?1",
+                [id],
+                |r| r.get(0),
+            )?;
+            tx.execute(
+                "INSERT INTO photos (node_id, position, path, source, crop, note, added_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    id,
+                    next,
+                    stored,
+                    source,
+                    crop.map(|c| c.to_string()),
+                    note.map(str::trim),
+                    now()
+                ],
+            )?;
+            touch(&tx, *id)?;
+            event(
+                &tx,
+                *id,
+                "photo",
+                json!({ "path": stored, "crop": crop.map(|c| c.to_string()) }),
+            )?;
+            let mut b = brief_json(&tx, *id)?;
+            b["photo"] = json!(next + 1);
+            b["crop"] = json!(crop.map(|c| c.to_string()));
+            b["path"] = json!(stored);
+            attached.push(b);
+        }
+        tx.commit()?;
+        Ok(json!({ "attached": attached }))
+    }
+
     pub fn photo_list(&self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, true)?;
         let mut stmt = self.conn.prepare(

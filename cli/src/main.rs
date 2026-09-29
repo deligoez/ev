@@ -263,9 +263,10 @@ enum Cmd {
         photo: Option<usize>,
         #[arg(long, conflicts_with = "reference")]
         clear: bool,
-        /// Show a picture that is not a record (a marked photo) instead of a node.
+        /// Show pictures that are no record (marked photos) instead of a node; repeat for
+        /// several, stepped through with `[` `]`.
         #[arg(long, conflicts_with_all = ["reference", "clear"])]
-        file: Option<PathBuf>,
+        file: Vec<PathBuf>,
         /// The title shown over --file.
         #[arg(long, requires = "file")]
         note: Option<String>,

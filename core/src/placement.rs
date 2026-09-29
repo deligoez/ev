@@ -534,3 +534,7 @@ pub(crate) fn room(conn: &Connection, n: &Node) -> Result<Value> {
     Ok(json!({ "room": room, "fill": fill, "fill_at": set_at, "stale": stale }))
 }
 
+fn volume(size: &str) -> Option<f64> {
+    parse_size(size).ok().map(|p| p.iter().product())
+}
+

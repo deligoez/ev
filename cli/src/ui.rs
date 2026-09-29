@@ -41,7 +41,7 @@ const BACKGROUND_POLL: Duration = Duration::from_secs(3);
 /// Tab titles in the current language.
 fn tab_titles() -> [&'static str; 8] {
     [
-        t("Tree"),
+        t("Layout"),
         t("Pending"),
         t("Leaving"),
         t("Lost"),

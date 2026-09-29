@@ -67,6 +67,9 @@ anything in their box, where the other box is only a hint), boxes that are mixed
 with a bigger spare box (tagged `boş kap`, with a `size`) and the cells it would fit in, nearly
 empty boxes that could merge, and boxes whose fill is unknown or out of date. Noun compounds
 (`hesap makinesi`, `kablo bağı`) and colour-noun pairs (`yeşil LED`) are matched as such.
+`ev themes` lists the places with things in them and no theme, with what a theme could be read
+from: the words their contents share and the themed place they read most like (a theme is the
+summary every placement answer leans on, so the agent writes one from this with the person).
 `ev audit` finds alike things split across places, holders without a theme, loose items and
 holders whose contents were never inventoried (`unknown=true`).
 

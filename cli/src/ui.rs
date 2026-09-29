@@ -96,6 +96,7 @@ impl Tab {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum DetailTab {
     Summary,
+    Photos,
     Grid,
     Contents,
     Suggestions,
@@ -103,8 +104,9 @@ enum DetailTab {
 }
 
 impl DetailTab {
-    const ALL: [DetailTab; 5] = [
+    const ALL: [DetailTab; 6] = [
         DetailTab::Summary,
+        DetailTab::Photos,
         DetailTab::Grid,
         DetailTab::Contents,
         DetailTab::Suggestions,
@@ -114,6 +116,7 @@ impl DetailTab {
     fn title(self) -> &'static str {
         match self {
             DetailTab::Summary => t("Summary"),
+            DetailTab::Photos => t("Photos"),
             DetailTab::Grid => t("Grid"),
             DetailTab::Contents => t("Contents"),
             DetailTab::Suggestions => t("Suggestions"),
@@ -125,6 +128,7 @@ impl DetailTab {
     fn key(self) -> &'static str {
         match self {
             DetailTab::Summary => "summary",
+            DetailTab::Photos => "photos",
             DetailTab::Grid => "grid",
             DetailTab::Contents => "contents",
             DetailTab::Suggestions => "suggestions",
@@ -135,6 +139,14 @@ impl DetailTab {
     fn from_key(s: &str) -> Option<Self> {
         DetailTab::ALL.into_iter().find(|t| t.key() == s)
     }
+}
+
+/// What a line of the details points at, so a click on it can go there: a node (opened in the
+/// tree) or one of the selected node's photos.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Target {
+    Node(i64),
+    Photo(usize),
 }
 
 /// The list's share of the width, and the photo's share of the right column, in percent.

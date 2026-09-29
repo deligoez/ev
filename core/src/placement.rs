@@ -302,3 +302,12 @@ struct Doc {
     len: usize,
 }
 
+/// Every holder as a weighted bag of words, with document frequencies for IDF.
+pub(crate) struct Index {
+    lex: Lexicon,
+    docs: BTreeMap<i64, Doc>,
+    df: HashMap<String, usize>,
+    avglen: f64,
+    names: HashMap<i64, String>,
+}
+

@@ -130,3 +130,28 @@ fn an_existing_thing_is_placed_by_its_own_words_never_into_itself() {
     );
 }
 
+#[test]
+fn synonyms_carry_a_query_to_the_words_the_inventory_uses() {
+    let (_d, mut inv) = setup();
+    assert_eq!(
+        inv.suggest("fotosel", None).unwrap()["new_group_likely"],
+        true
+    );
+    inv.synonym_add("fotosel, ldr").unwrap();
+    let v = inv.suggest("fotosel", None).unwrap();
+    assert_eq!(top(&v), "D-A1");
+    assert_eq!(v["synonyms_added"][0], "ldr");
+    let id = inv.synonym_list().unwrap()["synonyms"][0]["id"]
+        .as_i64()
+        .unwrap();
+    inv.synonym_remove(id).unwrap();
+    assert!(
+        inv.synonym_list().unwrap()["synonyms"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    // A group needs two phrases.
+    assert_eq!(inv.synonym_add("ldr").unwrap_err().code(), 2);
+}
+

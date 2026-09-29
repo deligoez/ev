@@ -270,6 +270,15 @@ static TR: &[(&str, &str)] = &[
         " Fotoğraf {}/{}  ([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
     ),
     (" Details ", " Ayrıntı "),
+    (" Details · J/K scroll ", " Ayrıntı · J/K kaydır "),
+    ("just now", "az önce"),
+    ("{} min ago", "{} dk önce"),
+    ("{} h ago", "{} sa önce"),
+    ("Suggestions (ev regroup)", "Öneriler (ev regroup)"),
+    (
+        "mixed: half or more fit better elsewhere",
+        "karışık: yarısı ya da fazlası başka yere daha iyi uyar",
+    ),
     (
         "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
         "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",

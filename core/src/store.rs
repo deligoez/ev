@@ -2064,7 +2064,7 @@ pub(crate) fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>)
     n.kind != Kind::Home && (n.kind != Kind::Item || has_children.contains(&n.id))
 }
 
-fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
+pub(crate) fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
     let segments = path(conn, n.id)?;
     let inside: Vec<&str> = all
         .iter()

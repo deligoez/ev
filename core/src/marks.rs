@@ -167,8 +167,9 @@ fn unsure(n: &Node) -> bool {
 const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','found'";
 
 /// Places whose picture of the current state is missing or out of date: a unit with contents
-/// and no whole-view photo, or one whose contents changed after its newest whole-view photo
-/// (crops are pictures of one thing, not of the place). Things moved out count as a change.
+/// and no photo of its own, or one whose contents changed after its newest one. A crop attached
+/// to the place itself counts: it was cut from a wider view to show that place (a box cut out of
+/// a drawer photo). Crops on the things inside do not. Things moved out count as a change.
 fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     let mut out = Vec::new();
     for u in units {

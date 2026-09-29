@@ -9,6 +9,19 @@ Draft for the next release.
   facet (they are listed apart as `other_facet`) and `ev regroup` never proposes one: a buzzer
   module is no longer sent to the bare-buzzer box. `ev facet list|remove`. Schema version 10.
 - **`ev tree` reads as a layout**: each node carries its theme, fill, size and tags.
+- **`ev photo cut --grid` cuts every box of a drawer from one photo.** Give the grid's four
+  corners in the photo (back-left, back-right, front-right, front-left, as fractions); each placed
+  box gets a crop through the photo's perspective. A crop named by hand still wins for its box.
+- **A tour needs current photos.** `ev review <x> --status toured` is refused while the place or
+  a placed box in its grid shows an older state than it has (`details.stale`); attach a photo or
+  run `ev photo current`.
+- **`#id` references.** `ev ui` shows each node's `#id` at the top of its details, and every
+  command takes `#534` in place of a name or code.
+- **`ev ui` draws a grid as its plate**, each box a frame over the cells it covers.
+
+## Changed
+
+- **`ev ui` opens on the newest photo**, not the oldest, with the photo's note in the panel title.
 
 ## Fixed
 

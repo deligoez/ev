@@ -166,11 +166,22 @@ fn signature(n: &Value, parent: Option<i64>) -> String {
 
 fn disposition_tr(d: &str) -> &'static str {
     match d {
-        "trash" => "çöp",
-        "give" => "ver",
-        "sell" => "sat",
-        "return" => "iade",
-        "mistake" => "kayıt hatası",
+        "trash" => t("trash"),
+        "give" => t("give"),
+        "sell" => t("sell"),
+        "return" => t("return"),
+        "mistake" => t("record error"),
+        _ => "?",
+    }
+}
+
+fn kind_name(k: &str) -> &'static str {
+    match k {
+        "home" => t("home"),
+        "room" => t("room"),
+        "furniture" => t("furniture"),
+        "container" => t("container"),
+        "item" => t("item"),
         _ => "?",
     }
 }

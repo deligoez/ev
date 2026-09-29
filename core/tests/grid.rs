@@ -216,6 +216,101 @@ fn a_grid_photo_crops_every_placed_box_from_the_grid_corners() {
 }
 
 #[test]
+fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
+    let (d, mut inv, photo) = photographed();
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let photos_before = inv.photo_list("D").unwrap()["photos"]
+        .as_array()
+        .unwrap()
+        .len();
+    let red = |img: &image::RgbImage, x: u32, y: u32| {
+        let p = img.get_pixel(x, y);
+        p[0] > 200 && p[1] < 80 && p[2] < 80
+    };
+    // By cell, through the corners the cut kept: C2 is the front-right cell, 0.633–0.9 across
+    // and 0.5–0.9 down; its frame runs along those edges.
+    let out = d.path().join("marked.jpg");
+    let v = inv
+        .photo_mark("D", &[("1".into(), "C2".into())], None, Some(&out))
+        .unwrap();
+    assert_eq!(v["marked"], out.to_string_lossy().as_ref());
+    let img = image::open(&out).unwrap().to_rgb8();
+    let (w, h) = (img.width() as f64, img.height() as f64);
+    assert!(
+        red(&img, (0.9 * w) as u32 - 1, (0.7 * h) as u32),
+        "right edge of C2"
+    );
+    assert!(
+        red(&img, (0.8 * w) as u32, (0.9 * h) as u32 - 1),
+        "front edge of C2"
+    );
+    assert!(
+        !red(&img, (0.2 * w) as u32, (0.2 * h) as u32),
+        "A1 is untouched"
+    );
+    // By rectangle on a file; a cell needs a place.
+    let v = inv
+        .photo_mark(
+            photo.to_str().unwrap(),
+            &[("2 → B6".into(), "0.2,0.3,0.2,0.2".into())],
+            None,
+            Some(&out),
+        )
+        .unwrap();
+    assert_eq!(v["marks"][0]["label"], "2 → B6");
+    let img = image::open(&out).unwrap().to_rgb8();
+    assert!(
+        red(&img, (0.2 * w) as u32, (0.4 * h) as u32),
+        "left edge of the rectangle"
+    );
+    let e = inv
+        .photo_mark(
+            photo.to_str().unwrap(),
+            &[("1".into(), "A1".into())],
+            None,
+            Some(&out),
+        )
+        .unwrap_err();
+    assert_eq!(e.code(), 2);
+    // A cell outside the grid is refused; nothing was attached along the way.
+    let e = inv
+        .photo_mark("D", &[("1".into(), "D1".into())], None, Some(&out))
+        .unwrap_err();
+    assert_eq!(e.code(), 2);
+    let photos_after = inv.photo_list("D").unwrap()["photos"]
+        .as_array()
+        .unwrap()
+        .len();
+    assert_eq!(photos_before, photos_after);
+    // It can be sent to a running `ev ui`, which shows it once.
+    let f = inv.focus_file(&out, Some("1 → A6")).unwrap();
+    assert_eq!(f["focus"]["note"], "1 → A6");
+    assert_eq!(inv.focus_request().unwrap()["file"], f["focus"]["file"]);
+}
+
+#[test]
+fn a_place_without_kept_corners_is_marked_by_cell_only_with_corners_given() {
+    let (d, mut inv, photo) = photographed();
+    inv.photo_add("D", &photo, None, None).unwrap();
+    let out = d.path().join("marked.jpg");
+    let e = inv
+        .photo_mark("D", &[("1".into(), "A1".into())], None, Some(&out))
+        .unwrap_err();
+    assert_eq!(e.code(), 5);
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_mark(
+        "D",
+        &[("1".into(), "A1".into())],
+        Some(&corners),
+        Some(&out),
+    )
+    .unwrap();
+    assert!(out.exists());
+}
+
+#[test]
 fn a_drawer_is_toured_only_with_photos_that_show_it_as_it_is() {
     let (_d, mut inv, photo) = photographed();
     // No photo yet: refused, and the answer names every box that needs one.

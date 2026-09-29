@@ -2144,6 +2144,39 @@ mod tests {
     }
 
     #[test]
+    fn the_picture_protocol_comes_from_the_answers_read_by_ev_ui() {
+        use crate::input::Graphics;
+        use ratatui_image::picker::ProtocolType;
+        let (_dir, inv) = home();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.picker = Some(Picker::halfblocks());
+        app.probe = Some(super::ImageProbe::default());
+        for g in [
+            Graphics::Kitty,
+            Graphics::Attributes { sixel: false },
+            Graphics::CellSize {
+                width: 10,
+                height: 20,
+            },
+        ] {
+            app.handle(Input::Graphics(g)).unwrap();
+        }
+        // Nothing changes until the status report says the answers are complete.
+        assert_eq!(
+            app.picker.as_ref().unwrap().protocol_type(),
+            ProtocolType::Halfblocks
+        );
+        app.handle(Input::Graphics(Graphics::Done)).unwrap();
+        let p = app.picker.as_ref().unwrap();
+        if std::env::var_os("WEZTERM_EXECUTABLE").is_none()
+            && std::env::var_os("KONSOLE_VERSION").is_none()
+        {
+            assert_eq!(p.protocol_type(), ProtocolType::Kitty);
+        }
+        assert!(app.probe.is_none());
+    }
+
+    #[test]
     fn a_settings_change_made_elsewhere_shows_up_without_restarting() {
         let (dir, inv) = home();
         let path = dir.path().join("settings.json");

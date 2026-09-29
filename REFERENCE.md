@@ -12,6 +12,7 @@
 | qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
 | note, theme | `--note`, `--theme`, `edit note=` | empty clears |
 | fill | `--fill`, `edit fill=` | 0–100 estimate |
+| size | `--size`, `edit size=` | `WxDxH` or `WxD` in grid units, e.g. `1x2x0.5` (`×` and a decimal comma accepted); empty clears. What `regroup` compares when it offers a bigger spare box |
 | tags | `--tag` (repeatable), `edit tags=+x` / `tags=-x` | stored lowercase |
 | photos | `--photo` (repeatable), `edit photos=+p` / `photos=-p` | stored as absolute paths |
 | to | `--to`, `edit to=` | place the node should be taken to; empty clears |

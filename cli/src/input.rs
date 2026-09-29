@@ -22,7 +22,26 @@ pub enum Input {
         mode: Mode,
         notified: bool,
     },
+    /// An answer to the picture-protocol query (`IMAGE_QUERY`).
+    Graphics(Graphics),
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Graphics {
+    /// The kitty graphics protocol answered OK.
+    Kitty,
+    /// Device attributes; `sixel` when they include 4.
+    Attributes { sixel: bool },
+    /// Cell size in pixels, from `CSI 16 t`.
+    CellSize { width: u16, height: u16 },
+    /// The status report that ends the query: every terminal answers it.
+    Done,
+}
+
+/// Which picture protocol the terminal speaks and its cell size, ended by a status report so
+/// the answers are known to be complete. The same queries ratatui-image sends, but answered
+/// through this reader, so a terminal that never answers leaves no thread waiting on stdin.
+pub const IMAGE_QUERY: &str = "\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[c\x1b[16t\x1b[5n";
 
 /// Turns on the appearance reports and asks for the current state both ways (DSR 996 for
 /// terminals with mode 2031, OSC 11 for the rest).
@@ -174,16 +193,16 @@ fn parse_string(b: &[u8]) -> Step {
             _ => None,
         };
         if let Some(end) = end {
-            let input = if b[1] == b']' {
-                std::str::from_utf8(&b[2..i])
-                    .ok()
-                    .and_then(theme::parse_osc11)
-                    .map(|mode| Input::Appearance {
-                        mode,
-                        notified: false,
-                    })
-            } else {
-                None
+            let body = std::str::from_utf8(&b[2..i]).unwrap_or("");
+            let input = match b[1] {
+                b']' => theme::parse_osc11(body).map(|mode| Input::Appearance {
+                    mode,
+                    notified: false,
+                }),
+                b'_' if body.starts_with("Gi=31;") && body.ends_with("OK") => {
+                    Some(Input::Graphics(Graphics::Kitty))
+                }
+                _ => None,
             };
             return Step::Done(end, input);
         }

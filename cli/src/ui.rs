@@ -2112,7 +2112,7 @@ mod tests {
         let photo = dir.path().join("p.png");
         img.save(&photo).unwrap();
         inv.photo_add("Ev", &photo, None, None).unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         app.picker = Some(Picker::halfblocks());
         let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
@@ -2141,7 +2141,7 @@ mod tests {
             .unwrap();
         inv.photo_add("Ev", &photo, None, Some("ilk")).unwrap();
         inv.photo_add("Ev", &photo, None, Some("ikinci")).unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         app.picker = Some(Picker::halfblocks());
         let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
 
@@ -2174,7 +2174,7 @@ mod tests {
             .save(&photo)
             .unwrap();
         inv.photo_add("Ev", &photo, None, None).unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         app.picker = Some(Picker::halfblocks());
         let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
 
@@ -2218,7 +2218,7 @@ mod tests {
         }
         inv.task_add("Kutuyu aç", "hiç açılmadı", &["Kutu".into()], None)
             .unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         press(&mut app, KeyCode::Char('7'));
         let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
@@ -2254,7 +2254,7 @@ mod tests {
             .save(&photo)
             .unwrap();
         inv.photo_add("Çekiç", &photo, None, Some("yakın")).unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         press(&mut app, KeyCode::Char('3'));
         assert!(!app.fullscreen);
 
@@ -2284,7 +2284,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        let mut app = App::new(inv).unwrap();
+        let mut app = app_tr(inv);
         let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
         press(&mut app, KeyCode::Char('/'));
         press(&mut app, KeyCode::Char('e'));

@@ -475,8 +475,11 @@ impl Index {
     }
 
     /// Whether a word is rare enough here to say what a thing is.
+    /// A two-word term is rare by construction, so it never counts here on its own: it adds to
+    /// a score, but a move is only flagged on a word that says what the thing is.
     fn specific(&self, key: &str) -> bool {
-        self.idf(key) >= SPECIFIC || self.df.get(key).is_some_and(|d| *d <= SPECIFIC_DF)
+        !key.contains('+')
+            && (self.idf(key) >= SPECIFIC || self.df.get(key).is_some_and(|d| *d <= SPECIFIC_DF))
     }
 
     /// Scores every holder not in `skip`, ignoring words that came from nodes in `exclude`

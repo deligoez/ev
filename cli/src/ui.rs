@@ -2544,7 +2544,12 @@ mod tests {
         let mut app = App::new(inv).unwrap();
         // Tests do not depend on the COLORFGBG of whoever runs them.
         app.detected = None;
-        app.set_prefs(Settings { language, theme }).unwrap();
+        app.set_prefs(Settings {
+            language,
+            theme,
+            ..Default::default()
+        })
+        .unwrap();
         app
     }
 
@@ -2646,6 +2651,7 @@ mod tests {
         app.set_prefs(Settings {
             language: LangPref::Fixed(Lang::En),
             theme: ThemePref::Fixed(Mode::Light),
+            ..Default::default()
         })
         .unwrap();
         app.handle(Input::Appearance {
@@ -2687,6 +2693,22 @@ mod tests {
             assert_eq!(p.protocol_type(), ProtocolType::Kitty);
         }
         assert!(app.probe.is_none());
+    }
+
+    #[test]
+    fn it_reopens_on_the_tree_node_it_was_on_and_on_the_top_when_that_is_gone() {
+        let (_dir, inv) = led_drawer();
+        let led = inv.resolve("Kırmızı LED 10 mm", false).unwrap();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        // A new session starts on a node inside a collapsed box.
+        app.resume_at(led).unwrap();
+        assert_eq!(app.selected_id(), Some(led));
+        // The tree's position is what is kept, even when another tab is open at exit.
+        app.switch(Tab::Search).unwrap();
+        assert_eq!(app.tree_position(), Some(led));
+        // A node deleted since leaves the first row selected rather than nothing.
+        app.resume_at(999_999).unwrap();
+        assert_eq!(app.state.selected(), Some(0));
     }
 
     #[test]
@@ -2887,6 +2909,7 @@ mod tests {
         Settings {
             language: LangPref::Fixed(Lang::Tr),
             theme: ThemePref::Auto,
+            ..Default::default()
         }
         .save_to(&path)
         .unwrap();

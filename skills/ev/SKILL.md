@@ -254,4 +254,5 @@ Field reference and payload shapes: `REFERENCE.md` in the ev repository.
 asks for the other language, or for a fixed light or dark look, change it for them with
 `ev settings language tr|en|auto` or `ev settings theme dark|light|auto` — an open `ev ui`
 follows within a second. `auto` is the default for both: the computer's language, and the
-terminal's own light or dark background, followed live.
+terminal's own light or dark background, followed live. `ev ui` reopens where the person left
+the tree; `ev settings resume off` if they would rather start at the top.

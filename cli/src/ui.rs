@@ -3662,6 +3662,13 @@ mod tests {
         let s = shown(&mut app, "D-B1", 150, 40);
         assert!(s.contains("2×1 grid, row 1 at the back"), "{s}");
         assert!(s.contains(" 1 │ A1  │ B1  │"), "{s}");
+        // A neighbour on it opens with a click, from the box as from the drawer.
+        let (x, y) = (app.details_area.x + 1 + 5, app.details_area.y + 1 + 5);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
+        let a1 = app.inv.resolve("D-A1", false).unwrap();
+        assert_eq!(app.selected_id(), Some(a1));
+        // The grid stays open, so the drawer can be walked box by box.
+        assert_eq!(app.shown_detail_tab(), DetailTab::Grid);
         // The stray LED, with where it would fit better.
         app.detail_tab = DetailTab::Suggestions;
         let s = shown(&mut app, "D-B1", 150, 40);

@@ -732,6 +732,40 @@ pub fn human(v: &Value) -> String {
     out
 }
 
+fn settings(out: &mut String, v: &Value) {
+    let lang = &v["language"];
+    let setting = |x: &str| match x {
+        "auto" => t("Automatic").to_string(),
+        "en" => "English".to_string(),
+        "tr" => "Türkçe".to_string(),
+        "dark" => t("Dark").to_string(),
+        "light" => t("Light").to_string(),
+        other => other.to_string(),
+    };
+    let _ = writeln!(
+        out,
+        "{}: {}  ({})",
+        t("Language"),
+        setting(&s(lang, "setting")),
+        tf(
+            "shown in {}; the computer's language is {}",
+            &[
+                &setting(&s(lang, "effective")),
+                &setting(&s(lang, "system"))
+            ]
+        )
+    );
+    let _ = writeln!(
+        out,
+        "{}: {}",
+        t("Appearance"),
+        setting(&s(&v["theme"], "setting"))
+    );
+    if let Some(f) = v["file"].as_str() {
+        let _ = writeln!(out, "{}", tf("Saved in {}", &[&f]));
+    }
+}
+
 pub fn error(e: &Error) -> String {
     let mut out = format!("error: {e}\n");
     let v = e.to_json();

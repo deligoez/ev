@@ -84,3 +84,18 @@ impl Parser {
     }
 }
 
+fn parse(b: &[u8]) -> Step {
+    match b[0] {
+        0x1b => parse_escape(b),
+        b'\r' | b'\n' => Step::Done(1, key(KeyCode::Enter, KeyModifiers::NONE)),
+        b'\t' => Step::Done(1, key(KeyCode::Tab, KeyModifiers::NONE)),
+        0x7f | 0x08 => Step::Done(1, key(KeyCode::Backspace, KeyModifiers::NONE)),
+        c @ 0x01..=0x1a => Step::Done(
+            1,
+            key(KeyCode::Char((c - 1 + b'a') as char), KeyModifiers::CONTROL),
+        ),
+        c if c < 0x20 => Step::Done(1, None),
+        _ => parse_char(b),
+    }
+}
+

@@ -131,10 +131,20 @@ enum Cmd {
     Place(PlaceCmd),
     /// Where could this go: rules, where similar things are, and every place that can hold it.
     Suggest {
-        text: String,
+        /// What the thing is; add category words in both languages for a better match.
+        text: Vec<String>,
         #[arg(long)]
         tag: Option<String>,
+        /// Use an existing node's own name, note and tags (it does not vote for itself).
+        #[arg(long = "for")]
+        for_ref: Option<String>,
     },
+    /// Regrouping hints under a place: things that fit better elsewhere, strays with a themed
+    /// home, full boxes and bigger spares, sparse boxes to merge, mixed boxes, unknown fill.
+    Regroup { reference: Option<String> },
+    /// Words that mean the same thing when placing: `ev synonym add ldr "ışık sensörü"`.
+    #[command(subcommand)]
+    Synonym(SynonymCmd),
     /// Where the inventory could be tidier: alike things split up, holders without a theme,
     /// items lying loose in a room or on furniture.
     Audit,
@@ -242,6 +252,19 @@ enum Cmd {
         #[arg(long, conflicts_with = "reference")]
         clear: bool,
     },
+}
+
+#[derive(Subcommand)]
+enum SynonymCmd {
+    /// A group of words or phrases that mean the same thing: `ldr "ışık sensörü" fotodirenç`.
+    Add {
+        #[arg(required = true)]
+        words: Vec<String>,
+    },
+    /// Every synonym group.
+    List,
+    /// Drop a group by id.
+    Remove { id: i64 },
 }
 
 #[derive(Subcommand)]

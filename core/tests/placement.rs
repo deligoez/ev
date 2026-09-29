@@ -219,3 +219,24 @@ fn regroup_finds_the_stray_the_full_box_and_where_a_bigger_one_fits() {
     assert_eq!(spare["fits_at"][0], "B1");
     assert!(v["checked"]["items"].as_i64().unwrap() >= 7);
 }
+
+#[test]
+fn a_thing_that_holds_things_is_never_its_own_better_place() {
+    let (_d, mut inv) = setup();
+    // A kit recorded as an item with its parts inside: it is a holder, and the part inside
+    // it shares the kit's rare words, so the kit matches itself best.
+    inv.add(NewNode {
+        code: Some("KIT".into()),
+        ..node("LiPo pil kutusu + Seeed Rider Pro seti", "item", "D-A2")
+    })
+    .unwrap();
+    inv.add(node("Seeed LiPo Rider Pro kartı", "item", "KIT"))
+        .unwrap();
+    let kit = inv.show("KIT", false).unwrap()["node"]["id"].clone();
+    let v = inv.regroup(Some("D")).unwrap();
+    for e in v["elsewhere"].as_array().unwrap() {
+        if e["item"]["id"] == kit {
+            assert_ne!(e["better"]["holder"]["id"], kit, "{e}");
+        }
+    }
+}

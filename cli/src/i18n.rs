@@ -240,9 +240,10 @@ static TR: &[(&str, &str)] = &[
         " Search: \"{}\" · ✕ clear (x) ",
         " Ara: \"{}\" · ✕ temizle (x) ",
     ),
+    (" Photo {}/{} ", " Fotoğraf {}/{} "),
     (
-        " Photo {}/{}  ([ ] step · r rotate · o full screen · O open outside) ",
-        " Fotoğraf {}/{}  ([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
+        "([ ] step · r rotate · o full screen · O open outside) ",
+        "([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
     ),
     (" Details ", " Ayrıntı "),
     (" Details · J/K scroll ", " Ayrıntı · J/K kaydır "),

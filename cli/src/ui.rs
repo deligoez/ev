@@ -218,6 +218,47 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+/// A grid's cells by row (row 1 at the back), each the id of the box on it or `None`.
+fn grid_map(g: &Value) -> Vec<Vec<Option<i64>>> {
+    g["map"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|row| {
+            row.as_array()
+                .into_iter()
+                .flatten()
+                .map(Value::as_i64)
+                .collect()
+        })
+        .collect()
+}
+
+/// Which box of a drawn grid sits at `(x, y)`, counted from the grid's first frame line and
+/// its row labels. The frame between two cells of one box belongs to that box; a frame between
+/// two boxes, and a free cell, to none.
+fn grid_box_at(map: &[Vec<Option<i64>>], x: usize, y: usize) -> Option<i64> {
+    const W: usize = 6;
+    let at = |r: usize, c: usize| map.get(r).and_then(|row| row.get(c)).copied().flatten();
+    let x = x.checked_sub(3)?;
+    let (c, on_edge) = (x / W, x.is_multiple_of(W));
+    let (r, on_rule) = (y / 2, y.is_multiple_of(2));
+    match (on_rule, on_edge) {
+        (false, false) => at(r, c),
+        (false, true) if c > 0 && at(r, c - 1) == at(r, c) => at(r, c),
+        (true, false) if r > 0 && at(r - 1, c) == at(r, c) => at(r, c),
+        (true, true) if r > 0 && c > 0 => {
+            let id = at(r, c);
+            [at(r - 1, c - 1), at(r - 1, c), at(r, c - 1)]
+                .iter()
+                .all(|&o| o == id)
+                .then_some(id)
+                .flatten()
+        }
+        _ => None,
+    }
+}
+
 /// An edit event in words: each field with what it became, and what it was when both are short
 /// enough to read side by side.
 fn edit_text(d: &Value) -> String {

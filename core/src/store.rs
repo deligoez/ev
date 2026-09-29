@@ -1098,7 +1098,7 @@ pub(crate) fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
-fn touch(conn: &Connection, id: i64) -> Result<()> {
+pub(crate) fn touch(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE nodes SET updated_at = ?1 WHERE id = ?2",
         params![now(), id],

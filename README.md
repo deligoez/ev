@@ -58,6 +58,12 @@ It enumerates everything instead of ranking a few, so nothing is missed. `ev aud
 things split across places (Turkish word forms grouped), holders without a theme, loose items
 and holders whose contents were never inventoried (`unknown=true`).
 
+**Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
+the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
+map and lists the free cells, `ev ui` shows it in the drawer's details, and `ev suggest` names
+the free cells. Boxes trade places in one `ev cell` call, and `--recode` renames them after
+their cells.
+
 **A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
 counts the places a person opens one at a time (the innermost labelled holders) as raw,
 toured or kept as is, and flags toured ones that changed since. `ev observe` keeps what was

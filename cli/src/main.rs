@@ -211,6 +211,24 @@ enum Cmd {
     /// Things to buy or make.
     #[command(subcommand)]
     Need(NeedCmd),
+    /// A holder laid out in cells (a gridfinity drawer): show its map, or set its size.
+    Grid {
+        reference: String,
+        #[arg(long, requires = "rows")]
+        cols: Option<i64>,
+        #[arg(long, requires = "cols")]
+        rows: Option<i64>,
+        #[arg(long, conflicts_with_all = ["cols", "rows"])]
+        clear: bool,
+    },
+    /// Place boxes in their holder's grid: `<ref>=A3` or `<ref>=A3-B4`, several at once;
+    /// `<ref>=` takes one out. --recode names each box `<holder code>-<back-left cell>`.
+    Cell {
+        #[arg(required = true)]
+        pairs: Vec<String>,
+        #[arg(long)]
+        recode: bool,
+    },
     /// Show or change display settings: `language en|tr|auto`, `theme dark|light|auto`.
     Settings {
         name: Option<String>,

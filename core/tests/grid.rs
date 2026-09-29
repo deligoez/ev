@@ -294,6 +294,33 @@ fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
 }
 
 #[test]
+fn a_cut_preview_frames_every_box_it_would_cut_and_attaches_nothing() {
+    let (d, inv, photo) = photographed();
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    let out = d.path().join("preview.jpg");
+    let v = inv
+        .photo_cut_preview(&photo, Some("D"), &[], Some(&corners), Some(&out))
+        .unwrap();
+    // Both placed boxes, framed on their cells: B1–C1's right edge is the grid's.
+    assert_eq!(v["framed"], 2);
+    let img = image::open(&out).unwrap().to_rgb8();
+    let (w, h) = (img.width() as f64, img.height() as f64);
+    let p = img.get_pixel((0.9 * w) as u32 - 1, (0.3 * h) as u32);
+    assert!(p[0] > 200 && p[1] < 80, "right edge of B1–C1 is red: {p:?}");
+    assert!(
+        inv.photo_list("D").unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    // Nothing to frame is a usage error.
+    let e = inv
+        .photo_cut_preview(&photo, Some("D"), &[], None, Some(&out))
+        .unwrap_err();
+    assert_eq!(e.code(), 2);
+}
+
+#[test]
 fn a_place_without_kept_corners_is_marked_by_cell_only_with_corners_given() {
     let (d, mut inv, photo) = photographed();
     inv.photo_add("D", &photo, None, None).unwrap();

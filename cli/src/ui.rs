@@ -1386,6 +1386,11 @@ impl App {
         self.load_details()
     }
 
+    fn scroll_details(&mut self, delta: i32) {
+        let max = self.detail_lines.saturating_sub(1) as i32;
+        self.detail_scroll = (self.detail_scroll as i32 + delta).clamp(0, max.max(0)) as u16;
+    }
+
     fn step(&mut self, delta: isize) -> Result<()> {
         let cur = self.state.selected().unwrap_or(0) as isize;
         self.select((cur + delta).max(0) as usize)

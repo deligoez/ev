@@ -49,15 +49,18 @@ fn line(n: &Value) -> String {
     }
     match s(n, "state").as_str() {
         "candidate" => {
-            let _ = write!(out, "  (candidate: {})", s(n, "disposition"));
+            out.push_str(&tf(
+                "  (candidate: {})",
+                &[&disposition(&s(n, "disposition"))],
+            ));
         }
         "gone" => {
-            let _ = write!(out, "  (gone: {})", s(n, "disposition"));
+            out.push_str(&tf("  (gone: {})", &[&disposition(&s(n, "disposition"))]));
         }
         _ => {}
     }
     if n["lost"].as_bool() == Some(true) {
-        out.push_str("  (lost)");
+        out.push_str(t("  (lost)"));
     }
     out.push_str(&place_marks(n));
     out

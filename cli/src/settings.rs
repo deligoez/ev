@@ -92,6 +92,27 @@ pub fn cycle<T: PartialEq + Copy>(all: &[T], cur: T, forward: bool) -> T {
 pub struct Settings {
     pub language: LangPref,
     pub theme: ThemePref,
+    /// `ev ui` opens on the node that was selected in the tree when it last closed.
+    pub resume: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            language: LangPref::default(),
+            theme: ThemePref::default(),
+            resume: true,
+        }
+    }
+}
+
+/// `on` or `off`, as `ev settings resume` takes it.
+pub fn parse_switch(s: &str) -> Option<bool> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "on" | "true" | "yes" => Some(true),
+        "off" | "false" | "no" => Some(false),
+        _ => None,
+    }
 }
 
 impl Settings {
@@ -118,6 +139,7 @@ impl Settings {
                 .as_str()
                 .and_then(ThemePref::parse)
                 .unwrap_or_default(),
+            resume: v["resume"].as_bool().unwrap_or(true),
         }
     }
 
@@ -134,6 +156,7 @@ impl Settings {
         let text = serde_json::to_string_pretty(&json!({
             "language": self.language.as_str(),
             "theme": self.theme.as_str(),
+            "resume": self.resume,
         }))
         .unwrap_or_default();
         std::fs::write(path, text + "\n")
@@ -147,8 +170,51 @@ impl Settings {
                 "system": i18n::system_lang().code(),
             },
             "theme": { "setting": self.theme.as_str() },
+            "resume": self.resume,
             "file": path.map(|p| p.display().to_string()),
         })
+    }
+}
+
+/// Where `ev ui` was when it last closed. This is state, not a preference, so it lives in its
+/// own file beside the settings (`ui-state.json`): writing it on every exit does not look like
+/// a settings change to an open `ev ui`. Positions are kept per database, since ids of one
+/// inventory mean nothing in another.
+pub struct UiState {
+    path: PathBuf,
+}
+
+impl UiState {
+    pub fn beside(settings: &Path) -> UiState {
+        let dir = settings.parent().unwrap_or(Path::new("."));
+        UiState {
+            path: dir.join("ui-state.json"),
+        }
+    }
+
+    fn read(&self) -> Value {
+        std::fs::read_to_string(&self.path)
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_else(|| json!({}))
+    }
+
+    /// The node selected in the tree when `ev ui` last closed on `db`.
+    pub fn last(&self, db: &Path) -> Option<i64> {
+        self.read()["last"][db.display().to_string()].as_i64()
+    }
+
+    pub fn remember(&self, db: &Path, id: i64) -> std::io::Result<()> {
+        let mut v = self.read();
+        if !v["last"].is_object() {
+            v["last"] = json!({});
+        }
+        v["last"][db.display().to_string()] = json!(id);
+        if let Some(dir) = self.path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let text = serde_json::to_string_pretty(&v).unwrap_or_default();
+        std::fs::write(&self.path, text + "\n")
     }
 }
 

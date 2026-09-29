@@ -225,15 +225,31 @@ fn parse_csi(b: &[u8]) -> Step {
     if let Some(private) = body.strip_prefix('?') {
         // Mode 2031's report, also the answer to DSR 996.
         let input = match (fin, private) {
-            (b'n', "997;1") => Some(Mode::Dark),
-            (b'n', "997;2") => Some(Mode::Light),
+            (b'n', "997;1") => Some(Input::Appearance {
+                mode: Mode::Dark,
+                notified: true,
+            }),
+            (b'n', "997;2") => Some(Input::Appearance {
+                mode: Mode::Light,
+                notified: true,
+            }),
+            (b'c', attrs) => Some(Input::Graphics(Graphics::Attributes {
+                sixel: attrs.split(';').any(|a| a == "4"),
+            })),
             _ => None,
-        }
-        .map(|mode| Input::Appearance {
-            mode,
-            notified: true,
-        });
+        };
         return Step::Done(n, input);
+    }
+    match (fin, body.split(';').collect::<Vec<_>>().as_slice()) {
+        (b't', ["6", h, w]) => {
+            let size = h.parse().ok().zip(w.parse().ok());
+            return Step::Done(
+                n,
+                size.map(|(height, width)| Input::Graphics(Graphics::CellSize { width, height })),
+            );
+        }
+        (b'n', ["0"]) => return Step::Done(n, Some(Input::Graphics(Graphics::Done))),
+        _ => {}
     }
     let params: Vec<u16> = body.split(';').map(|p| p.parse().unwrap_or(0)).collect();
     let modifiers = params

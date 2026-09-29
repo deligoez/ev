@@ -148,6 +148,10 @@ enum Cmd {
     /// Words that mean the same thing when placing: `ev synonym add ldr "ışık sensörü"`.
     #[command(subcommand)]
     Synonym(SynonymCmd),
+    /// Kinds of things kept apart when placing (modules and bare parts, novels and technical
+    /// books): `ev facet add modül --words "modül, kart"`, then tag holders with it.
+    #[command(subcommand)]
+    Facet(FacetCmd),
     /// Where the inventory could be tidier: alike things split up, holders without a theme,
     /// items lying loose in a room or on furniture.
     Audit,

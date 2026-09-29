@@ -1521,6 +1521,24 @@ mod tests {
         lex.key(&terms(w)[0].surface)
     }
 
+    /// Writes `word<TAB>key` for every word of `EV_WORDS` (first column), stemmed against those
+    /// same words, to `EV_OUT`; `tools/measure/stems.py` scores it.
+    #[test]
+    #[ignore]
+    fn dump_keys() {
+        let words: Vec<String> = std::fs::read_to_string(std::env::var("EV_WORDS").unwrap())
+            .unwrap()
+            .lines()
+            .filter_map(|l| l.split('\t').next().map(str::to_string))
+            .collect();
+        let lex = Lexicon::new(words.iter().map(String::as_str));
+        let out: String = words
+            .iter()
+            .map(|w| format!("{w}\t{}\n", lex.key(w)))
+            .collect();
+        std::fs::write(std::env::var("EV_OUT").unwrap(), out).unwrap();
+    }
+
     #[test]
     fn turkish_word_forms_meet_at_the_inventorys_own_base_form() {
         let lex = lexicon();

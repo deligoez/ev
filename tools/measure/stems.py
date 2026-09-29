@@ -26,3 +26,4 @@ for line in open(judged_path, encoding="utf-8"):
         skip.add(word)
 
 out = data / "stems-now.tsv"
+env = dict(os.environ, EV_WORDS=str(baseline_path), EV_OUT=str(out))

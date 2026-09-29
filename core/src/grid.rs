@@ -120,6 +120,51 @@ impl std::str::FromStr for GridCorners {
     }
 }
 
+impl std::fmt::Display for GridCorners {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let v: Vec<String> = self
+            .0
+            .iter()
+            .flat_map(|(x, y)| [format!("{x:.4}"), format!("{y:.4}")])
+            .collect();
+        write!(f, "{}", v.join(","))
+    }
+}
+
+/// Where `cells` of `holder`'s grid are in a photo whose grid corners are known: the four
+/// corners of that rectangle of cells (back-left, back-right, front-right, front-left), as
+/// fractions of the upright photo.
+pub(crate) fn cells_quad(
+    conn: &Connection,
+    holder: i64,
+    corners: &GridCorners,
+    cells: &Cells,
+) -> Result<[(f64, f64); 4]> {
+    let Some((cols, rows)) = grid_of(conn, holder)? else {
+        return Err(refused(
+            "this place has no grid; set one with `ev grid <ref> --cols N --rows M`",
+            json!({ "holder": brief_json(conn, holder)? }),
+        ));
+    };
+    if cells.col + cells.width > cols || cells.row + cells.depth > rows {
+        return Err(Error::Usage(format!(
+            "{} is outside the {cols}×{rows} grid",
+            cells.name()
+        )));
+    }
+    let map = projection(corners);
+    let (cols, rows) = (cols as f64, rows as f64);
+    let (u0, u1) = (
+        cells.col as f64 / cols,
+        (cells.col + cells.width) as f64 / cols,
+    );
+    let (v0, v1) = (
+        cells.row as f64 / rows,
+        (cells.row + cells.depth) as f64 / rows,
+    );
+    Ok([map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)])
+}
+
 /// The projective map from the grid's unit square (u across from the left, v from the back) to
 /// the photo, through its four corners. Unlike an even (bilinear) split it keeps a photo's
 /// perspective: rows further back come out shorter, as they are in the picture.

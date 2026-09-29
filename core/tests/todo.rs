@@ -195,6 +195,71 @@ fn a_place_needs_a_new_photo_once_its_contents_change() {
 }
 
 #[test]
+fn a_crop_cut_for_the_place_itself_is_its_current_photo() {
+    let (d, mut inv) = setup();
+    let img = d.path().join("drawer.png");
+    image::RgbImage::from_pixel(16, 16, image::Rgb([9, 9, 9]))
+        .save(&img)
+        .unwrap();
+    let needed = |inv: &Inventory| inv.todo().unwrap()["counts"]["photos"].as_u64().unwrap();
+    assert_eq!(needed(&inv), 1);
+    // The box cut out of a wider drawer photo pictures the box.
+    inv.photo_add("S5-01", &img, Some("0,0,0.5,0.5".parse().unwrap()), None)
+        .unwrap();
+    assert_eq!(needed(&inv), 0);
+}
+
+#[test]
+fn codes_rotate_between_boxes_in_one_step() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Kutu B", "container", Some("Oda"), Some("S5-02"));
+    add(&mut inv, "Kutu C", "container", Some("Oda"), Some("S5-03"));
+    // One at a time, the first new code is still taken.
+    assert_eq!(
+        inv.edit("S5-01", &["code=S5-02".into()])
+            .unwrap_err()
+            .code(),
+        5
+    );
+    let pairs = |p: &[(&str, &str)]| -> Vec<(String, String)> {
+        p.iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    };
+    let v = inv
+        .recode(&pairs(&[
+            ("S5-01", "S5-02"),
+            ("S5-02", "S5-03"),
+            ("S5-03", "S5-01"),
+        ]))
+        .unwrap();
+    assert_eq!(v["recoded"].as_array().unwrap().len(), 3);
+    assert_eq!(inv.show("Samla", false).unwrap()["node"]["code"], "S5-02");
+    assert_eq!(inv.show("Kutu C", false).unwrap()["node"]["code"], "S5-01");
+    // Every new code needs a new label.
+    assert_eq!(
+        inv.show("Kutu B", false).unwrap()["marks"]["label"]["value"],
+        "needed"
+    );
+    // A code that belongs to a node outside the set is still refused, and nothing changes.
+    add(&mut inv, "Kutu D", "container", Some("Oda"), Some("S5-09"));
+    assert_eq!(
+        inv.recode(&pairs(&[("S5-01", "S5-09")]))
+            .unwrap_err()
+            .code(),
+        5
+    );
+    assert_eq!(inv.show("Kutu C", false).unwrap()["node"]["code"], "S5-01");
+    // Two nodes cannot end up with one code.
+    assert_eq!(
+        inv.recode(&pairs(&[("S5-01", "S5-07"), ("S5-02", "s5-07")]))
+            .unwrap_err()
+            .code(),
+        2
+    );
+}
+
+#[test]
 fn a_whole_photo_goes_on_one_node_and_crops_on_the_rest() {
     let (d, mut inv) = setup();
     let img = d.path().join("drawer.png");

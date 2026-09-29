@@ -587,3 +587,13 @@ fn theme_key(index: &Index, n: &Node) -> Vec<String> {
     k
 }
 
+/// Groups of words that mean the same thing here (`ldr, ışık sensörü, fotodirenç`), each
+/// phrase split into its search words.
+fn synonym_groups(conn: &Connection) -> Result<Vec<(i64, Vec<Term>)>> {
+    let mut stmt = conn.prepare("SELECT id, words FROM synonyms ORDER BY id")?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows.into_iter().map(|(id, w)| (id, terms(&w))).collect())
+}
+

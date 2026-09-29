@@ -186,6 +186,15 @@ fn progress_line(p: &Value) -> String {
     )
 }
 
+fn goal(v: &Value) -> String {
+    match v["goal"].as_str() {
+        Some("organize") => t("organize").to_string(),
+        Some("track") => t("track").to_string(),
+        Some(other) => other.to_string(),
+        None => t("(not set)").to_string(),
+    }
+}
+
 fn need_line(n: &Value) -> String {
     let qty = n["qty"]
         .as_i64()

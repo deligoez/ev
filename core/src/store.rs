@@ -796,7 +796,7 @@ fn db_enum<T: std::str::FromStr<Err = Error>>(idx: usize, s: String) -> rusqlite
     })
 }
 
-fn load(conn: &Connection, id: i64) -> Result<Node> {
+pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
     let node = conn
         .query_row(
             &format!("SELECT {NODE_COLUMNS} FROM nodes WHERE id = ?1"),

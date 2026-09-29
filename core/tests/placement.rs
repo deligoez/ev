@@ -178,3 +178,44 @@ fn room_comes_from_fill_and_goes_stale_when_the_contents_change() {
     );
 }
 
+#[test]
+fn regroup_finds_the_stray_the_full_box_and_where_a_bigger_one_fits() {
+    let (_d, mut inv) = setup();
+    inv.grid_set("D", 3, 2).unwrap();
+    let pairs: Vec<(String, String)> = [
+        ("D-A1", "A1"),
+        ("D-B1", "B1"),
+        ("D-C1", "C1"),
+        ("D-A2", "A2"),
+    ]
+    .iter()
+    .map(|(a, b)| (a.to_string(), b.to_string()))
+    .collect();
+    inv.cells_set(&pairs, false).unwrap();
+    inv.edit("D-B1", &["fill=95".into()]).unwrap();
+
+    let v = inv.regroup(Some("D")).unwrap();
+    let moved: Vec<(&str, &str)> = v["elsewhere"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                e["item"]["name"].as_str().unwrap(),
+                e["better"]["holder"]["code"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        moved,
+        [("DS18B20 sıcaklık sensörü, su geçirmez", "D-C1")],
+        "only the misplaced sensor, not its neighbours"
+    );
+    let full = &v["full"][0];
+    assert_eq!(full["holder"]["code"], "D-B1");
+    let spare = &full["bigger_spares"][0];
+    assert_eq!(spare["size"], "1x2x1");
+    // The 1×2 spare fits where the full box stands plus the free cell in front of it.
+    assert_eq!(spare["fits_at"][0], "B1");
+    assert!(v["checked"]["items"].as_i64().unwrap() >= 7);
+}

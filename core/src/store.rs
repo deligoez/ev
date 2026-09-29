@@ -1048,6 +1048,18 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     if n.unknown {
         v["unknown"] = json!(true);
     }
+    // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
+    for (k, val) in [("theme", &n.theme), ("size", &n.size)] {
+        if let Some(x) = val {
+            v[k] = json!(x);
+        }
+    }
+    if let Some(f) = n.fill {
+        v["fill"] = json!(f);
+    }
+    if !n.tags.is_empty() {
+        v["tags"] = json!(n.tags);
+    }
     v["updated_at"] = json!(n.updated_at);
     v["items"] = json!(item_total(conn, id)?);
     let children = if depth == 0 {

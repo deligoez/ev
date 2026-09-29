@@ -41,3 +41,7 @@ broke = [
     for w in words
     if baseline[w] == expected[w] and got[w] != expected[w]
 ]
+print(f"{right}/{len(words)}  fixed {len(fixed)}  broke {len(broke)}")
+for name, rows in (("fixed", fixed), ("broke", broke)):
+    if rows:
+        print(f"  {name}: " + "  ".join(rows))

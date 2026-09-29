@@ -3354,7 +3354,7 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("1 Layout") && s.contains("8 Settings"), "{s}");
-        assert!(s.contains("Summary · Grid"), "{s}");
+        assert!(s.contains("Summary · Photos · Grid"), "{s}");
         assert!(
             s.lines()
                 .any(|l| l.contains("kind ") && l.contains(" home")),
@@ -3534,7 +3534,9 @@ mod tests {
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
         app.picker = Some(Picker::halfblocks());
         app.reveal(drawer).unwrap();
-        // `L` steps from the summary to the grid, the next tab this drawer has.
+        // `L` steps from the summary through the photos to the grid.
+        press(&mut app, KeyCode::Char('L'));
+        assert_eq!(app.shown_detail_tab(), DetailTab::Photos);
         press(&mut app, KeyCode::Char('L'));
         let mut term = Terminal::new(TestBackend::new(140, 40)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
@@ -3543,6 +3545,53 @@ mod tests {
         assert!(s.contains(" 1    ·  │ B1        │"), "{s}");
         assert!(s.contains("┌───────────┐"), "{s}");
         assert!(s.contains("free (4): A1 A2 B2 C2"), "{s}");
+
+        // On the drawer's own grid a box opens with a click, on its cells or on the frame
+        // inside it; a free cell does nothing.
+        let (x0, y0) = (app.details_area.x + 1, app.details_area.y + 1 + 4);
+        let cell = |col: u16, line: u16| (x0 + 3 + col * 6 + 2, y0 + line);
+        let (x, y) = cell(0, 1);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
+        assert_eq!(app.selected_id(), Some(drawer));
+        let (x, y) = cell(2, 1);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x - 2, y);
+        let bx = app.selected_id().unwrap();
+        assert_eq!(app.snap.label[&bx], "D-B1  Kutu");
+        // Once on the box, its drawer's plan is only a picture: a click stays put.
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(app.grid_hit.is_none());
+        let (x, y) = cell(0, 1);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
+        assert_eq!(app.selected_id(), Some(bx));
+    }
+
+    #[test]
+    fn a_grid_click_finds_the_box_under_it_frames_included() {
+        use super::grid_box_at;
+        // Row 1: A1 alone, B1–C1 one box. Row 2: A2 free, B2–C2 another box.
+        let map = vec![
+            vec![Some(1), Some(2), Some(2)],
+            vec![None, Some(3), Some(3)],
+        ];
+        // Cell lines are odd, frame lines even; columns start after the 3-column row label.
+        assert_eq!(grid_box_at(&map, 3 + 2, 1), Some(1));
+        assert_eq!(
+            grid_box_at(&map, 3 + 6, 1),
+            None,
+            "the frame between A1 and B1"
+        );
+        assert_eq!(
+            grid_box_at(&map, 3 + 12, 1),
+            Some(2),
+            "the frame inside B1–C1"
+        );
+        assert_eq!(
+            grid_box_at(&map, 3 + 8, 2),
+            None,
+            "the frame between rows 1 and 2"
+        );
+        assert_eq!(grid_box_at(&map, 3 + 2, 3), None, "a free cell");
+        assert_eq!(grid_box_at(&map, 1, 1), None, "the row label");
     }
 
     fn add(inv: &mut Inventory, name: &str, kind: &str, parent: &str, code: Option<&str>) {
@@ -3694,6 +3743,77 @@ mod tests {
     }
 
     #[test]
+    fn photos_history_and_contents_lines_open_what_they_name_with_a_click() {
+        let (dir, mut inv) = led_drawer();
+        let photo = dir.path().join("p.png");
+        image::RgbImage::from_pixel(8, 8, image::Rgb([9, 9, 9]))
+            .save(&photo)
+            .unwrap();
+        for note in ["eski", "yeni"] {
+            inv.photo_add("D-B1", &photo, None, Some(note)).unwrap();
+        }
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.detail_tab = DetailTab::Photos;
+        let s = shown(&mut app, "D-B1", 150, 40);
+        // Newest first, the one shown marked; a click on the older shows it.
+        let (new, old) = (s.find("yeni").unwrap(), s.find("eski").unwrap());
+        assert!(new < old && s.contains("▶  2"), "{s}");
+        let (x, first) = (app.details_area.x + 5, app.details_area.y + 1 + 2);
+        click(
+            &mut app,
+            MouseEventKind::Down(MouseButton::Left),
+            x,
+            first + 1,
+        );
+        assert_eq!(app.photo_idx, 0);
+        // The contents open in the tree.
+        app.detail_tab = DetailTab::Contents;
+        let _ = shown(&mut app, "D-B1", 150, 40);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, first);
+        let opened = app.selected_id().unwrap();
+        assert_eq!(
+            app.snap.parent[&opened],
+            app.inv.resolve("D-B1", false).unwrap()
+        );
+        // And so does a thing named in a drawer's history.
+        app.detail_tab = DetailTab::History;
+        let s = shown(&mut app, "D-A1", 150, 40);
+        let line = s
+            .lines()
+            .position(|l| l.contains("added here  Kırmızı LED 5 mm"))
+            .unwrap() as u16;
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, line);
+        assert_eq!(
+            app.snap.label[&app.selected_id().unwrap()],
+            "Kırmızı LED 5 mm"
+        );
+    }
+
+    #[test]
+    fn the_key_hints_fit_the_width_dropping_the_least_useful_first() {
+        let (_dir, inv) = led_drawer();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let _ = shown(&mut app, "D-B1", 150, 40);
+        let wide = app.help_line(300, true);
+        assert!(
+            wide.contains("J/K scroll") && wide.contains("resize"),
+            "{wide}"
+        );
+        // No photo, no photo keys.
+        assert!(!wide.contains("photos"), "{wide}");
+        let narrow = app.help_line(60, true);
+        assert!(narrow.chars().count() <= 60, "{narrow}");
+        assert!(
+            narrow.starts_with("↑↓ move") && narrow.ends_with("q quit"),
+            "{narrow}"
+        );
+        assert!(!narrow.contains("resize"), "{narrow}");
+        // A status message stays.
+        app.status = "saved".into();
+        assert!(app.help_line(40, true).ends_with("    saved"));
+    }
+
+    #[test]
     fn the_details_pane_scrolls_to_contents_below_its_edge() {
         let (_dir, mut inv) = home();
         add(&mut inv, "Oda", "room", "Ev", None);
@@ -3816,7 +3936,7 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(s.contains("Fotoğraf 1/1"), "{s}");
-        assert!(s.contains("Özet · Izgara"), "{s}");
+        assert!(s.contains("Özet · Fotoğraflar 1 · Izgara"), "{s}");
     }
 
     #[test]

@@ -858,6 +858,8 @@ impl Inventory {
             let mut skip = outside.clone();
             // Moving a thing out of its box into the drawer around it is not a regroup.
             skip.extend(ancestors(parent));
+            // A thing that holds things is a holder too, but never a better place for itself.
+            skip.extend(subtree(&all, item.id));
             let ranked = index.score(&q, &HashSet::from([item.id]), &skip);
             let Some(best) = ranked.first() else {
                 continue;

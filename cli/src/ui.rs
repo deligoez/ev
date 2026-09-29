@@ -218,6 +218,32 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+/// Key hints joined with ` · ` in the order given, fitted to `width`: while they do not fit, the
+/// least useful part (highest rank, the last of its rank) is left out; rank 0 always stays, and
+/// so does the status message, after them.
+fn fit_hints(mut parts: Vec<(u8, &str)>, width: usize, status: &str) -> String {
+    let status = if status.is_empty() {
+        String::new()
+    } else {
+        format!("    {status}")
+    };
+    let room = width.saturating_sub(status.chars().count());
+    let join = |p: &[(u8, &str)]| p.iter().map(|x| x.1).collect::<Vec<_>>().join(" · ");
+    while join(&parts).chars().count() > room {
+        let Some(worst) = parts
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.0 > 0)
+            .max_by_key(|(i, p)| (p.0, *i))
+            .map(|(i, _)| i)
+        else {
+            break;
+        };
+        parts.remove(worst);
+    }
+    format!("{}{status}", join(&parts))
+}
+
 /// A grid's cells by row (row 1 at the back), each the id of the box on it or `None`.
 fn grid_map(g: &Value) -> Vec<Vec<Option<i64>>> {
     g["map"]

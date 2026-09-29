@@ -177,6 +177,15 @@ one", "2nd from the left in the middle row" — in tables, proposals and questio
 proposal that says what goes where names both ends by position: the part in the photo and the
 cell or box it goes to.
 
+**Show a placement proposal, don't only write it.** When you propose where the things in a
+photo go, mark both ends and put them on the person's screen: the parts photo with a numbered
+frame on each part (`ev photo mark <file> "1 → A6=x,y,w,h" … --show "<what this is>"`), then
+the destination with the same numbers on its cells (`ev photo mark <drawer> 1=A6 2=B6 …
+--show "…"`; `--grid <corners>` for a photo cut before corners were kept). Open the marked file
+and check every frame sits on its part before sending it — the coordinates are your estimate.
+The marked copies are temporary (not stored, not attached, no history); nothing needs undoing
+after the move. The text still names each part by position, for a person reading without the
+screen.
 **Every photo of a place is attached the moment it arrives** — including one the person sends
 only to confirm a state ("son hali bu mu?"). A photo that confirmed something and was not
 attached leaves the place's current photo older than the place, which is the exact slip this

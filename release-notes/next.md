@@ -18,6 +18,8 @@ Draft for the next release.
 - **`#id` references.** `ev ui` shows each node's `#id` at the top of its details, and every
   command takes `#534` in place of a name or code.
 - **`ev ui` draws a grid as its plate**, each box a frame over the cells it covers.
+- **`ev ui` reopens where you left it**: on the node selected in the tree when it last closed,
+  per database. A new setting, on by default (Settings tab, or `ev settings resume on|off`).
 
 ## Changed
 

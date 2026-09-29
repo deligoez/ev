@@ -275,6 +275,21 @@ enum SynonymCmd {
 }
 
 #[derive(Subcommand)]
+enum FacetCmd {
+    /// A kind of thing kept apart (`modül --words "modül, kart"`); holders join it by carrying
+    /// its name as a tag. Adding an existing facet replaces its words.
+    Add {
+        name: String,
+        /// Comma-separated words that also tell a thing's facet from its name.
+        #[arg(long)]
+        words: Option<String>,
+    },
+    /// Every facet with its words and the holders tagged with it.
+    List,
+    /// Drop a facet; the tags stay on the holders.
+    Remove { name: String },
+}
+#[derive(Subcommand)]
 enum NeedCmd {
     /// Something to buy (or --make, e.g. 3D print), optionally for a place.
     Add {

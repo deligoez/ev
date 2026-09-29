@@ -169,18 +169,34 @@ has not been toured on the strength of the conversation alone; ask first.
 
 ## Photos
 
+**Every photo of a place is attached the moment it arrives** — including one the person sends
+only to confirm a state ("son hali bu mu?"). A photo that confirmed something and was not
+attached leaves the place's current photo older than the place, which is the exact slip this
+rule exists for. The newest photo is the current one; older photos stay as history, never
+replaced or removed.
+
 When the person sends a photo of a drawer or box, first confirm its contents against the
-records. Then attach it in one step: `ev photo cut <photo> --place <holder> <box>=x,y,w,h
-<item>=x,y,w,h …` puts the whole view on the holder and a crop, in fractions of the upright
-photo, on each box or item in it (`ev photo add <node> <photo> --crop x,y,w,h` does one). **Look at
-every crop you cut** (open the stored file) and redo it if it shows the wrong thing — the crop
-coordinates are your estimate, the check is what makes them right. **A group photo goes whole
-on one node only — the place — and every thing in it gets its own crop.** `ev photo add` refuses a
-whole photo that is already attached whole elsewhere; when it does, cut the crop — do not reach for
-`--whole` to get past it. `shared_photos` in `ev todo` lists any slip of this kind. Close-ups the person sends
-later (screw heads, labels) go to the item, cropped to the thing itself, and a photo of an
-empty holder goes to the holder. Photos are copied into
-`~/.ev/photos`; the original may then be deleted.
+records. Then attach it in one step. **A drawer with a grid is cut by its corners**:
+`ev photo cut <photo> --place <drawer> --grid blx,bly,brx,bry,frx,fry,flx,fly` takes the grid's
+four corners as fractions of the upright photo — back-left, back-right, front-right, front-left
+— and cuts a crop for every placed box from the grid, with the photo's perspective, so no box is
+left on an older photo. Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
+<item>=x,y,w,h …` puts the whole view on the holder and a crop on each box or item named
+(`ev photo add <node> <photo> --crop x,y,w,h` does one); a crop named by hand wins over the
+grid's for the same box. **Look at every crop you cut** (open the stored file) and redo it if
+it shows the wrong thing — the coordinates are your estimate, the check is what makes them right.
+**A group photo goes whole on one node only — the place — and every thing in it gets its own
+crop.** `ev photo add` refuses a whole photo that is already attached whole elsewhere; when it
+does, cut the crop — do not reach for `--whole` to get past it. `shared_photos` in `ev todo`
+lists any slip of this kind. A photo of what is inside a bag or box goes on the things in it once
+they are recorded, not on the bag. Close-ups the person sends later (screw heads, labels) go to
+the item, cropped to the thing itself, and a photo of an empty holder goes to the holder. Photos
+are copied into `~/.ev/photos`; the original may then be deleted.
+
+**A tour is not finished on an old photo.** `ev review <place> --status toured` is refused while
+the place or any placed box in its grid has no photo or one older than its last change
+(`details.stale`); attach a current photo, or say an old one still holds with
+`ev photo current <ref>`.
 
 ## Going somewhere
 

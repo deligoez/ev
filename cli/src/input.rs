@@ -99,3 +99,30 @@ fn parse(b: &[u8]) -> Step {
     }
 }
 
+fn parse_char(b: &[u8]) -> Step {
+    let len = match b[0] {
+        0x00..=0x7f => 1,
+        0xc0..=0xdf => 2,
+        0xe0..=0xef => 3,
+        0xf0..=0xf7 => 4,
+        _ => return Step::Done(1, None),
+    };
+    if b.len() < len {
+        return Step::More;
+    }
+    match std::str::from_utf8(&b[..len])
+        .ok()
+        .and_then(|s| s.chars().next())
+    {
+        Some(c) => {
+            let m = if c.is_uppercase() {
+                KeyModifiers::SHIFT
+            } else {
+                KeyModifiers::NONE
+            };
+            Step::Done(len, key(KeyCode::Char(c), m))
+        }
+        None => Step::Done(1, None),
+    }
+}
+

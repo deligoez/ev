@@ -2101,7 +2101,7 @@ mod tests {
         let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        assert!(s.contains("1 Tree") && s.contains("8 Settings"), "{s}");
+        assert!(s.contains("1 Layout") && s.contains("8 Settings"), "{s}");
         assert!(s.contains("Details") && s.contains("kind: home"), "{s}");
         assert!(!s.contains("Ayrıntı"), "{s}");
     }
@@ -2219,6 +2219,37 @@ mod tests {
     }
 
     #[test]
+    fn a_grid_holder_shows_its_map_and_a_box_its_cells() {
+        let (_dir, mut inv) = home();
+        for (name, kind, parent, code) in [
+            ("Oda", "room", "Ev", None),
+            ("Çekmece", "container", "Oda", Some("D")),
+            ("Kutu", "container", "D", Some("D-B1")),
+        ] {
+            inv.add(NewNode {
+                name: name.into(),
+                kind: kind.into(),
+                parent: Some(parent.into()),
+                code: code.map(Into::into),
+                ..Default::default()
+            })
+            .unwrap();
+        }
+        inv.grid_set("D", 3, 2).unwrap();
+        inv.cells_set(&[("D-B1".into(), "B1-C1".into())], false)
+            .unwrap();
+        let drawer = inv.resolve("D", false).unwrap();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.reveal(drawer).unwrap();
+        let mut term = Terminal::new(TestBackend::new(140, 30)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("3×2 grid, row 1 at the back"), "{s}");
+        assert!(s.contains("1  ·    B1   B1"), "{s}");
+        assert!(s.contains("free (4): A1 A2 B2 C2"), "{s}");
+    }
+
+    #[test]
     fn a_settings_change_made_elsewhere_shows_up_without_restarting() {
         let (dir, inv) = home();
         let path = dir.path().join("settings.json");
@@ -2234,7 +2265,7 @@ mod tests {
         .unwrap();
         app.reload_settings().unwrap();
         assert_eq!(crate::i18n::lang(), Lang::Tr);
-        assert_eq!(super::tab_titles()[0], "Ağaç");
+        assert_eq!(super::tab_titles()[0], "Yerleşim");
     }
 
     fn screen(term: &Terminal<TestBackend>) -> String {
@@ -2456,10 +2487,10 @@ mod tests {
 
     #[test]
     fn tab_titles_are_hit_by_their_columns() {
-        // " 1 Ağaç " spans columns 0..8, then a divider, then " 2 Bekleyen ".
+        // " 1 Layout " spans columns 0..10, then a divider, then " 2 Pending ".
         assert!(tab_at(0) == Some(Tab::Tree));
-        assert!(tab_at(7) == Some(Tab::Tree));
-        assert!(tab_at(8).is_none());
-        assert!(tab_at(9) == Some(Tab::Pending));
+        assert!(tab_at(9) == Some(Tab::Tree));
+        assert!(tab_at(10).is_none());
+        assert!(tab_at(11) == Some(Tab::Pending));
     }
 }

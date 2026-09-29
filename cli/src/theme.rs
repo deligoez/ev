@@ -112,3 +112,29 @@ pub fn parse_osc11(payload: &str) -> Option<Mode> {
     Some(mode_of(r, g, b))
 }
 
+/// `COLORFGBG` (`fg;bg`, set by some terminals): a background of 7 or 15 is light.
+pub fn from_colorfgbg(v: &str) -> Option<Mode> {
+    let bg: u8 = v.rsplit(';').next()?.trim().parse().ok()?;
+    Some(if matches!(bg, 7 | 15) {
+        Mode::Light
+    } else {
+        Mode::Dark
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn background_answers_read_as_light_or_dark() {
+        assert_eq!(parse_osc11("11;rgb:ffff/ffff/ffff"), Some(Mode::Light));
+        assert_eq!(parse_osc11("11;rgb:1a1a/1a1a/1f1f"), Some(Mode::Dark));
+        assert_eq!(parse_osc11("11;rgb:f/f/e"), Some(Mode::Light));
+        assert_eq!(parse_osc11("10;rgb:ffff/ffff/ffff"), None);
+        assert_eq!(parse_osc11("11;rgb:zz/00/00"), None);
+        assert_eq!(from_colorfgbg("0;15"), Some(Mode::Light));
+        assert_eq!(from_colorfgbg("15;0"), Some(Mode::Dark));
+        assert_eq!(from_colorfgbg("15;default;0"), Some(Mode::Dark));
+    }
+}

@@ -597,3 +597,434 @@ fn synonym_groups(conn: &Connection) -> Result<Vec<(i64, Vec<Term>)>> {
     Ok(rows.into_iter().map(|(id, w)| (id, terms(&w))).collect())
 }
 
+/// The query with every synonym group it touches added in, and the words that were added.
+fn expand(query: Vec<Term>, groups: &[(i64, Vec<Term>)]) -> (Vec<Term>, Vec<String>) {
+    let mut out = query;
+    let mut added = Vec::new();
+    for (_, group) in groups {
+        if group.iter().any(|g| out.iter().any(|q| q.key == g.key)) {
+            for g in group {
+                if !out.iter().any(|q| q.key == g.key) {
+                    added.push(g.surface.clone());
+                    out.push(Term {
+                        weight: Q_SYNONYM,
+                        ..g.clone()
+                    });
+                }
+            }
+        }
+    }
+    (out, added)
+}
+
+const CONSIDERED: &str = "each holder is scored on its own theme (×3), name (×2.5) and note (×1), \
+and on the names (×2), tags (×1.5) and notes (×1) of the things directly inside it; rare words \
+weigh more than common ones (IDF), repeats count less and less (BM25, k1=1.2, b=0.5), Turkish \
+endings are cut, codes like KY-018 are kept whole; ties go to the lower id";
+
+impl Inventory {
+    /// Where could this go: holders ranked by how well they match the description (or an
+    /// existing node's own words, with `for_ref`), the rules, and every holder in the tree.
+    pub fn suggest_with(
+        &self,
+        text: &str,
+        tag: Option<&str>,
+        for_ref: Option<&str>,
+    ) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let mut query = terms(text);
+        if let Some(t) = tag {
+            query.extend(terms(t));
+        }
+        let mut exclude = HashSet::new();
+        let mut skip = HashSet::new();
+        let mut for_node = Value::Null;
+        if let Some(r) = for_ref {
+            let id = resolve(&self.conn, r, false)?;
+            let n = all
+                .iter()
+                .find(|n| n.id == id)
+                .ok_or_else(|| Error::NotFound(format!("no live node {r}")))?;
+            query.extend(node_terms(n));
+            exclude.insert(id);
+            // A box cannot go into itself or anything inside it.
+            skip = subtree(&all, id);
+            for_node = brief_json(&self.conn, id)?;
+        }
+        if query.is_empty() {
+            return Err(Error::Usage(
+                "describe the thing to place (a word of 3+ letters or a part code), or give --for"
+                    .into(),
+            ));
+        }
+        let index = Index::build(&all);
+        let groups: Vec<(i64, Vec<Term>)> = synonym_groups(&self.conn)?
+            .into_iter()
+            .map(|(id, ts)| (id, index.keyed(ts)))
+            .collect();
+        let (query, synonyms) = expand(index.keyed(query), &groups);
+        let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
+        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+        let ranked = index.score(&query, &exclude, &skip);
+        let similar = ranked
+            .iter()
+            .take(12)
+            .map(|s| {
+                let n = by_id[&s.id];
+                let mut c = holder_json(&self.conn, n, &all)?;
+                c["room"] = room(&self.conn, n)?;
+                Ok(json!({
+                    "container": c,
+                    "score": round(s.score),
+                    "coverage": round(s.coverage),
+                    "specific": is_specific(s),
+                    "matched": s.matched,
+                    "count": s.items.len(),
+                    "matches": s.items,
+                }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let holders = all
+            .iter()
+            .filter(|n| is_holder(n, &has_children) && !skip.contains(&n.id))
+            .map(|n| {
+                let mut c = holder_json(&self.conn, n, &all)?;
+                c["room"] = room(&self.conn, n)?;
+                Ok(c)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut words: Vec<&str> = Vec::new();
+        for t in &query {
+            if !words.contains(&t.surface.as_str()) {
+                words.push(&t.surface);
+            }
+        }
+        Ok(json!({
+            "query": text,
+            "for": for_node,
+            "words": words,
+            "synonyms_added": synonyms,
+            // No holder matched on a word that says what the thing is: it has no group yet.
+            "new_group_likely": ranked.first().is_none_or(|s| s.coverage < GROUP_COVERAGE),
+            "considered": CONSIDERED,
+            "rules": rules_json(&self.conn)?,
+            "similar": similar,
+            "containers": holders,
+            "complete": { "containers": holders.len(), "note": "every place in the tree that can hold something is listed" },
+        }))
+    }
+
+    /// Kept for callers without `--for`.
+    pub fn suggest(&self, text: &str, tag: Option<&str>) -> Result<Value> {
+        self.suggest_with(text, tag, None)
+    }
+
+    /// Regrouping hints for the holders under `reference` (or everywhere), all from the same
+    /// score as `suggest`: things that would fit better in another holder here, strays whose
+    /// kind has a themed home, full holders with a bigger spare box that would fit, sparse
+    /// holders that could merge, mixed holders, and holders whose fill is unknown or stale.
+    pub fn regroup(&self, reference: Option<&str>) -> Result<Value> {
+        let all = live_nodes(&self.conn)?;
+        let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
+        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+        let (root, scope) = match reference {
+            Some(r) => {
+                let id = resolve(&self.conn, r, false)?;
+                (Some(id), subtree(&all, id))
+            }
+            None => (None, all.iter().map(|n| n.id).collect()),
+        };
+        let holders: Vec<&Node> = all
+            .iter()
+            .filter(|n| scope.contains(&n.id) && is_holder(n, &has_children))
+            .collect();
+        let holder_ids: HashSet<i64> = holders.iter().map(|h| h.id).collect();
+        // Candidates are the holders in scope; the rest of the house is not a regroup.
+        let outside: HashSet<i64> = all
+            .iter()
+            .filter(|n| !holder_ids.contains(&n.id))
+            .map(|n| n.id)
+            .collect();
+        let index = Index::build(&all);
+        let groups: Vec<(i64, Vec<Term>)> = synonym_groups(&self.conn)?
+            .into_iter()
+            .map(|(id, ts)| (id, index.keyed(ts)))
+            .collect();
+        let node_terms = |n: &Node| expand(index.keyed(node_terms(n)), &groups).0;
+        let theme_key = |n: &Node| theme_key(&index, n);
+        let ancestors = |id: i64| {
+            let mut out = HashSet::new();
+            let mut cur = by_id.get(&id).and_then(|n| n.parent_id);
+            while let Some(p) = cur {
+                out.insert(p);
+                cur = by_id.get(&p).and_then(|n| n.parent_id);
+            }
+            out
+        };
+
+        // Things that would fit better elsewhere, and how often a thing's best place is
+        // where it already is.
+        let mut elsewhere = Vec::new();
+        let mut checked = 0;
+        let mut at_home = 0;
+        let mut elsewhere_by_holder: BTreeMap<i64, Vec<String>> = BTreeMap::new();
+        let mut best_of: HashMap<i64, i64> = HashMap::new();
+        let mut flagged: HashSet<i64> = HashSet::new();
+        for item in all.iter().filter(|n| n.kind == Kind::Item) {
+            let Some(parent) = item.parent_id else {
+                continue;
+            };
+            if !holder_ids.contains(&parent) {
+                continue;
+            }
+            let q = node_terms(item);
+            if q.is_empty() {
+                continue;
+            }
+            let mut skip = outside.clone();
+            // Moving a thing out of its box into the drawer around it is not a regroup.
+            skip.extend(ancestors(parent));
+            let ranked = index.score(&q, &HashSet::from([item.id]), &skip);
+            let Some(best) = ranked.first() else {
+                continue;
+            };
+            checked += 1;
+            best_of.insert(item.id, best.id);
+            // A holder with the same theme as this one is the same group split over boxes.
+            let same_group = |id: i64| {
+                id == parent
+                    || (!theme_key(by_id[&parent]).is_empty()
+                        && theme_key(by_id[&id]) == theme_key(by_id[&parent]))
+            };
+            if same_group(best.id) {
+                at_home += 1;
+                continue;
+            }
+            let here = ranked
+                .iter()
+                .find(|s| s.id == parent)
+                .map_or(0.0, |s| s.score);
+            elsewhere_by_holder
+                .entry(parent)
+                .or_default()
+                .push(item.name.clone());
+            // Only a match on a word that says what the thing is makes another holder better.
+            if best.score >= CLEAR && best.score >= ELSEWHERE * here && is_specific(best) {
+                flagged.insert(item.id);
+                elsewhere.push(json!({
+                    "item": brief_json(&self.conn, item.id)?,
+                    "now": { "holder": brief_json(&self.conn, parent)?, "score": round(here) },
+                    "better": { "holder": brief_json(&self.conn, best.id)?, "score": round(best.score), "matched": best.matched },
+                }));
+            }
+        }
+
+        // Strays: things named for another holder's theme, whose best score is that holder too,
+        // but by too small a margin to be flagged above: worth a look, not a move.
+        let mut strays = Vec::new();
+        let mut seen_items = HashSet::new();
+        for h in &holders {
+            let themed: Vec<Term> = h
+                .theme
+                .iter()
+                .flat_map(|t| index.keyed(terms(t)))
+                .filter(|t| index.specific(&t.key))
+                .collect();
+            for t in themed {
+                for item in all.iter().filter(|n| {
+                    n.kind == Kind::Item
+                        && n.parent_id != Some(h.id)
+                        && n.parent_id.is_some_and(|p| holder_ids.contains(&p))
+                        // A holder the thing is already inside is not somewhere else.
+                        && !ancestors(n.id).contains(&h.id)
+                        && best_of.get(&n.id) == Some(&h.id)
+                        && !flagged.contains(&n.id)
+                }) {
+                    let parent = item.parent_id.unwrap_or_default();
+                    let parent_theme = by_id[&parent].theme.clone().unwrap_or_default();
+                    let in_theme = index
+                        .keyed(terms(&parent_theme))
+                        .iter()
+                        .any(|x| x.key == t.key);
+                    let named = index
+                        .keyed(terms(&item.name))
+                        .iter()
+                        .any(|x| x.key == t.key);
+                    if named && !in_theme && seen_items.insert((item.id, h.id)) {
+                        strays.push(json!({
+                            "term": t.surface,
+                            "item": brief_json(&self.conn, item.id)?,
+                            "now": brief_json(&self.conn, parent)?,
+                            "home": brief_json(&self.conn, h.id)?,
+                        }));
+                    }
+                }
+            }
+        }
+
+        // Spare boxes: things tagged "boş kap" (or "spare box") with a size.
+        let spares: Vec<&Node> = all
+            .iter()
+            .filter(|n| {
+                n.size.is_some()
+                    && n.tags
+                        .iter()
+                        .any(|t| matches!(fold(t).as_str(), "bos kap" | "spare box"))
+            })
+            .collect();
+
+        let mut full = Vec::new();
+        let mut sparse = Vec::new();
+        let mut unknown_fill = Vec::new();
+        for h in &holders {
+            if !matches!(h.kind, Kind::Container | Kind::Item) {
+                continue;
+            }
+            let r = room(&self.conn, h)?;
+            let has_items = all.iter().any(|c| c.parent_id == Some(h.id));
+            if !has_items {
+                continue;
+            }
+            if r["room"] == "unknown" || r["stale"] == true {
+                unknown_fill.push(json!({
+                    "holder": brief_json(&self.conn, h.id)?,
+                    "fill": r["fill"],
+                    "stale": r["stale"] == true,
+                }));
+                continue;
+            }
+            let fill = r["fill"].as_i64().unwrap_or(0);
+            if fill >= FULL {
+                let own = h.size.as_deref().and_then(volume);
+                let bigger: Vec<Value> = spares
+                    .iter()
+                    .filter(|s| {
+                        let v = s.size.as_deref().and_then(volume);
+                        matches!((own, v), (Some(o), Some(v)) if v > o) || own.is_none()
+                    })
+                    .map(|s| {
+                        let mut v = brief_json(&self.conn, s.id)?;
+                        v["size"] = json!(s.size);
+                        v["qty"] = json!(s.qty);
+                        v["fits_at"] = json!(fits_at(&self.conn, h, s)?);
+                        Ok(v)
+                    })
+                    .collect::<Result<_>>()?;
+                full.push(json!({
+                    "holder": brief_json(&self.conn, h.id)?,
+                    "fill": fill,
+                    "size": h.size,
+                    "bigger_spares": bigger,
+                }));
+            } else if fill <= SPARSE {
+                // The sibling that best matches this holder's own words, with room.
+                let mut q = node_terms(h);
+                for c in all.iter().filter(|c| c.parent_id == Some(h.id)) {
+                    q.extend(terms(&c.name));
+                }
+                let mut skip: HashSet<i64> = all
+                    .iter()
+                    .filter(|n| n.parent_id != h.parent_id || n.id == h.id)
+                    .map(|n| n.id)
+                    .collect();
+                skip.extend(outside.iter().copied());
+                let own_items: HashSet<i64> = all
+                    .iter()
+                    .filter(|c| c.parent_id == Some(h.id))
+                    .map(|c| c.id)
+                    .chain([h.id])
+                    .collect();
+                let ranked = index.score(&q, &own_items, &skip);
+                let mut into = Value::Null;
+                for s in ranked.iter().filter(|s| s.score >= CLEAR) {
+                    let r = room(&self.conn, by_id[&s.id])?;
+                    if r["room"] == "yes" {
+                        into = json!({ "holder": brief_json(&self.conn, s.id)?, "score": round(s.score), "room": r });
+                        break;
+                    }
+                }
+                sparse.push(json!({
+                    "holder": brief_json(&self.conn, h.id)?,
+                    "fill": fill,
+                    "merge_into": into,
+                }));
+            }
+        }
+
+        // Mixed: at least three things, and for half or more of them another holder here
+        // scores higher than this one.
+        let mut mixed = Vec::new();
+        for (h, names) in &elsewhere_by_holder {
+            let count = all
+                .iter()
+                .filter(|c| c.parent_id == Some(*h) && c.kind == Kind::Item)
+                .count();
+            if count >= 3 && names.len() * 2 >= count {
+                mixed.push(json!({
+                    "holder": brief_json(&self.conn, *h)?,
+                    "items": count,
+                    "better_elsewhere": names,
+                }));
+            }
+        }
+
+        Ok(json!({
+            "scope": root.map(|r| brief_json(&self.conn, r)).transpose()?,
+            "considered": CONSIDERED,
+            "checked": { "items": checked, "best_where_they_are": at_home },
+            "elsewhere": elsewhere,
+            "strays": strays,
+            "full": full,
+            "sparse": sparse,
+            "mixed": mixed,
+            "unknown_fill": unknown_fill,
+        }))
+    }
+}
+
+impl Inventory {
+    /// Adds a group of words that mean the same thing for placing (`ldr, ışık sensörü`): a
+    /// query with one of them also looks for the others.
+    pub fn synonym_add(&mut self, words: &str) -> Result<Value> {
+        let phrases: Vec<&str> = words
+            .split(',')
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+            .collect();
+        if phrases.len() < 2 || phrases.iter().any(|p| terms(p).is_empty()) {
+            return Err(Error::Usage(
+                "give two or more comma-separated words or phrases, each with a searchable word"
+                    .into(),
+            ));
+        }
+        self.conn.execute(
+            "INSERT INTO synonyms (words, created_at) VALUES (?1, ?2)",
+            rusqlite::params![phrases.join(", "), crate::store::now()],
+        )?;
+        self.synonym_list()
+    }
+
+    pub fn synonym_list(&self) -> Result<Value> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, words FROM synonyms ORDER BY id")?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok(json!({ "id": r.get::<_, i64>(0)?, "words": r.get::<_, String>(1)? }))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(json!({ "synonyms": rows }))
+    }
+
+    pub fn synonym_remove(&mut self, id: i64) -> Result<Value> {
+        if self
+            .conn
+            .execute("DELETE FROM synonyms WHERE id = ?1", [id])?
+            == 0
+        {
+            return Err(Error::NotFound(format!("no synonym group {id}")));
+        }
+        self.synonym_list()
+    }
+}
+

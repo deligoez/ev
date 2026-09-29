@@ -673,7 +673,14 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Lost { reference: Some(r) } => inv.mark_lost(&r),
         Cmd::Lost { reference: None } => inv.lost_list(),
         Cmd::Found { reference } => inv.found(&reference),
-        Cmd::History { reference } => inv.history(&reference),
+        Cmd::History {
+            reference,
+            contents: false,
+        } => inv.history(&reference),
+        Cmd::History {
+            reference,
+            contents: true,
+        } => inv.history_with_contents(&reference),
         Cmd::Ui => ui::run(inv, &db).map(|()| Value::Null),
         Cmd::Lend { reference, to } => inv.lend(&reference, &to),
         Cmd::Back { reference } => inv.back(&reference),

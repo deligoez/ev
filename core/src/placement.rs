@@ -556,3 +556,15 @@ fn subtree(all: &[Node], id: i64) -> HashSet<i64> {
     out
 }
 
+/// The query words for an existing node: its name, then its tags and note at lower weights.
+fn node_terms(n: &Node) -> Vec<Term> {
+    let mut q = weighted(terms(&n.name), Q_NAME);
+    for tag in &n.tags {
+        q.extend(weighted(terms(tag), Q_TAG));
+    }
+    if let Some(t) = &n.note {
+        q.extend(weighted(terms(t), Q_NOTE));
+    }
+    q
+}
+

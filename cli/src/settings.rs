@@ -212,10 +212,13 @@ impl UiState {
     /// Keeps where `ev ui` was on `db` (when a node was selected) and its layout.
     pub fn save(&self, db: &Path, id: Option<i64>, layout: Value) -> std::io::Result<()> {
         let mut v = self.read();
-        if !v["last"].is_object() {
-            v["last"] = json!({});
+        if let Some(id) = id {
+            if !v["last"].is_object() {
+                v["last"] = json!({});
+            }
+            v["last"][db.display().to_string()] = json!(id);
         }
-        v["last"][db.display().to_string()] = json!(id);
+        v["layout"] = layout;
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir)?;
         }

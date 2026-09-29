@@ -258,6 +258,19 @@ fn prune_older(dir: &Path, age: Duration) {
     }
 }
 
+/// Where a marked copy of `file` goes when no place is given: `<temp>/ev-marks`, a scratch folder
+/// whose files older than a day are removed first.
+fn scratch_copy(file: &Path) -> PathBuf {
+    let dir = std::env::temp_dir().join("ev-marks");
+    prune_older(&dir, Duration::from_secs(24 * 3600));
+    let stem = file
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "photo".into());
+    let ms = chrono::Utc::now().timestamp_millis();
+    dir.join(format!("{stem}-marked-{ms}.jpg"))
+}
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \

@@ -406,6 +406,8 @@ static TR: &[(&str, &str)] = &[
     ("(no pending moves)", "(bekleyen taşıma yok)"),
     ("(nothing lost)", "(kayıp bir şey yok)"),
     ("holds {}", "içinde: {}"),
+    ("photo {}, crop {}", "fotoğraf {}, kesit {}"),
+    ("photo {}, whole", "fotoğraf {}, tam"),
 ];
 
 #[cfg(test)]

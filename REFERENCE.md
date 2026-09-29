@@ -206,12 +206,19 @@ other exits 5).
 | `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
 | `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays) |
 | `ev photo add <ref> <file> --whole` | attach a whole photo that is already attached whole to another node; without `--whole` (and without `--crop`) that is refused with exit 5 and `details.attached_to` |
-| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--note n]` | one photo cut up among several nodes in one step: a crop for each `<ref>=`, and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `attached`: `[NodeRef + photo, crop, path]` |
+| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--grid <corners>] [--note n]` | one photo cut up among several nodes in one step: a crop for each `<ref>=`, and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `--grid blx,bly,brx,bry,frx,fry,flx,fly` (needs `--place`, a place with a grid) gives the grid's back-left, back-right, front-right and front-left corners as fractions of the upright photo and adds a crop for every placed box, mapped with the photo's perspective and widened by a small margin; a crop named by hand wins for its box. `attached`: `[NodeRef + photo, crop, path]` |
 | `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 
-In `ev ui`, `[` / `]` or the wheel over the photo step through the selected node's photos, `o` or a
-click shows the current one full screen (with its note), and `O` opens it in the system viewer.
+`ev review <ref> --status toured` is refused (exit 5) while the place, or a placed box in its grid,
+has no photo or only one older than its last change; `details.stale` lists them
+(`node`, `reason`: `none`|`changed`, `photo_at`, `changed_at`).
+
+In `ev ui`, the newest photo shows first, with its note in the panel title; `[` / `]` or the wheel
+over the photo step through the selected node's photos, `o` or a click shows the current one full
+screen (with its note), and `O` opens it in the system viewer. The details start with the node's
+`#id`, which any command takes in place of a name or code (`ev show #534`). A place with a grid is
+drawn as its plate, each box a frame over the cells it covers.
 
 ## Plan
 

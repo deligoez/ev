@@ -15,12 +15,6 @@ that fixes them.
   differences, preferring the soft stem broke dolap/çubuk/eşik and fixed none, and taking the
   shared stem when shorter fixed 3 and broke 6 (kendi→kend, yeri→yer); only a dictionary tells
   bağ from bak. Waiting for Çözgü's embeddable core.
-- **A thing alone of its kind in its holder is flagged on any rare word.** Leave-one-out
-  scoring takes the thing's own words out of its holder, so when nothing else there shares a
-  word with it, its home scores 0 and a single rare word elsewhere wins: the heat gun in
-  K4x2-07 (next to other Bosch tools, but no other "tabanca") is flagged for the MQ gas box on
-  "hava"; the "Dur Yolcu" dagger in K4x4-05-Ü for the labelling drawer. A home's theme and
-  kind (tools, keepsakes) should count for it even when no other thing repeats its words.
 - **Measuring placement has no answer key.** `regroup`'s "best where they are" treats the
   current layout as correct, but the layout has known misplacements, so a better scorer can
   show no gain. A reviewed list of where each flagged thing belongs is needed to measure.

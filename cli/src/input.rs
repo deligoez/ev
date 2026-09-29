@@ -258,3 +258,185 @@ fn modifiers_of(m: u16) -> KeyModifiers {
     out
 }
 
+/// SGR mouse report `<b;x;y` with `M` for press/drag and `m` for release; x and y are 1-based.
+fn sgr_mouse(body: &str, press: bool) -> Option<Input> {
+    let mut it = body.split(';').map(|p| p.parse::<u16>().ok());
+    let (cb, x, y) = (it.next()??, it.next()??, it.next()??);
+    let mut modifiers = KeyModifiers::NONE;
+    if cb & 4 != 0 {
+        modifiers |= KeyModifiers::SHIFT;
+    }
+    if cb & 8 != 0 {
+        modifiers |= KeyModifiers::ALT;
+    }
+    if cb & 16 != 0 {
+        modifiers |= KeyModifiers::CONTROL;
+    }
+    let button = match cb & 3 {
+        0 => MouseButton::Left,
+        1 => MouseButton::Middle,
+        _ => MouseButton::Right,
+    };
+    let kind = if cb & 64 != 0 {
+        match cb & 3 {
+            0 => MouseEventKind::ScrollUp,
+            1 => MouseEventKind::ScrollDown,
+            2 => MouseEventKind::ScrollLeft,
+            _ => MouseEventKind::ScrollRight,
+        }
+    } else if cb & 32 != 0 {
+        if cb & 3 == 3 {
+            MouseEventKind::Moved
+        } else {
+            MouseEventKind::Drag(button)
+        }
+    } else if press {
+        MouseEventKind::Down(button)
+    } else {
+        MouseEventKind::Up(button)
+    };
+    Some(Input::Mouse(MouseEvent {
+        kind,
+        column: x.saturating_sub(1),
+        row: y.saturating_sub(1),
+        modifiers,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn keys(p: &mut Parser, bytes: &[u8]) -> Vec<Input> {
+        p.feed(bytes)
+    }
+
+    fn k(c: KeyCode) -> Input {
+        Input::Key(KeyEvent::new(c, KeyModifiers::NONE))
+    }
+
+    #[test]
+    fn an_appearance_report_does_not_swallow_the_keys_after_it() {
+        let mut p = Parser::default();
+        let got = keys(&mut p, b"\x1b[?997;2nj\x1b[?997;1nq");
+        assert_eq!(
+            got,
+            vec![
+                Input::Appearance {
+                    mode: Mode::Light,
+                    notified: true
+                },
+                k(KeyCode::Char('j')),
+                Input::Appearance {
+                    mode: Mode::Dark,
+                    notified: true
+                },
+                k(KeyCode::Char('q')),
+            ]
+        );
+        assert!(!p.pending());
+    }
+
+    #[test]
+    fn a_background_answer_is_read_whole_in_pieces_and_either_terminator() {
+        let mut p = Parser::default();
+        assert!(keys(&mut p, b"\x1b]11;rgb:ffff/ff").is_empty());
+        assert!(p.pending());
+        let got = keys(&mut p, b"ff/ffff\x1b\\k");
+        assert_eq!(
+            got,
+            vec![
+                Input::Appearance {
+                    mode: Mode::Light,
+                    notified: false
+                },
+                k(KeyCode::Char('k'))
+            ]
+        );
+        let got = keys(&mut p, b"\x1b]11;rgb:1a1a/1a1a/1f1f\x07");
+        assert_eq!(
+            got,
+            vec![Input::Appearance {
+                mode: Mode::Dark,
+                notified: false
+            }]
+        );
+        // A graphics protocol reply is dropped, not typed.
+        assert!(keys(&mut p, b"\x1b_Gi=1;OK\x1b\\").is_empty());
+    }
+
+    #[test]
+    fn keys_the_ui_uses_are_recognised() {
+        let mut p = Parser::default();
+        let got = keys(
+            &mut p,
+            b"\x1b[A\x1b[B\x1bOC\x1b[D\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[Z\t\r\x7f",
+        );
+        let codes: Vec<KeyCode> = got
+            .into_iter()
+            .map(|i| match i {
+                Input::Key(k) => k.code,
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            codes,
+            vec![
+                KeyCode::Up,
+                KeyCode::Down,
+                KeyCode::Right,
+                KeyCode::Left,
+                KeyCode::PageUp,
+                KeyCode::PageDown,
+                KeyCode::Home,
+                KeyCode::End,
+                KeyCode::BackTab,
+                KeyCode::Tab,
+                KeyCode::Enter,
+                KeyCode::Backspace,
+            ]
+        );
+        let got = keys(&mut p, "\x03\x15ğR".as_bytes());
+        assert_eq!(
+            got,
+            vec![
+                Input::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+                Input::Key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL)),
+                k(KeyCode::Char('ğ')),
+                Input::Key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::SHIFT)),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_lone_escape_is_the_esc_key_only_once_nothing_follows() {
+        let mut p = Parser::default();
+        assert!(keys(&mut p, b"\x1b").is_empty());
+        assert!(p.pending());
+        assert_eq!(p.flush(), vec![k(KeyCode::Esc)]);
+        // A split arrow key is not an Esc.
+        assert!(keys(&mut p, b"\x1b").is_empty());
+        assert_eq!(keys(&mut p, b"[A"), vec![k(KeyCode::Up)]);
+    }
+
+    #[test]
+    fn sgr_mouse_reports_become_mouse_events() {
+        let mut p = Parser::default();
+        let got = keys(&mut p, b"\x1b[<0;10;5M\x1b[<0;10;5m\x1b[<65;3;4M");
+        let kinds: Vec<(MouseEventKind, u16, u16)> = got
+            .into_iter()
+            .map(|i| match i {
+                Input::Mouse(m) => (m.kind, m.column, m.row),
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (MouseEventKind::Down(MouseButton::Left), 9, 4),
+                (MouseEventKind::Up(MouseButton::Left), 9, 4),
+                (MouseEventKind::ScrollDown, 2, 3),
+            ]
+        );
+    }
+}

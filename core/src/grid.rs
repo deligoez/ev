@@ -99,3 +99,20 @@ pub(crate) fn grid_of(conn: &Connection, id: i64) -> Result<Option<(i64, i64)>> 
         .optional()?)
 }
 
+pub(crate) fn cells_of(conn: &Connection, id: i64) -> Result<Option<Cells>> {
+    Ok(conn
+        .query_row(
+            "SELECT col, row, width, depth FROM cells WHERE node_id = ?1",
+            [id],
+            |r| {
+                Ok(Cells {
+                    col: r.get(0)?,
+                    row: r.get(1)?,
+                    width: r.get(2)?,
+                    depth: r.get(3)?,
+                })
+            },
+        )
+        .optional()?)
+}
+

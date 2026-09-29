@@ -189,11 +189,11 @@ fn kind_name(k: &str) -> &'static str {
 fn name_style(n: &Value) -> Style {
     let s = match n["kind"].as_str() {
         Some("home" | "room") => Style::new().bold(),
-        Some("furniture") => Style::new().fg(FURNITURE),
+        Some("furniture") => Style::new().fg(pal().furniture),
         _ => Style::new(),
     };
     if n["state"] == "candidate" {
-        s.fg(MUTED)
+        s.fg(pal().muted)
     } else {
         s
     }

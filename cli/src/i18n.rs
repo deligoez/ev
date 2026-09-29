@@ -275,6 +275,11 @@ static TR: &[(&str, &str)] = &[
     ("{} min ago", "{} dk önce"),
     ("{} h ago", "{} sa önce"),
     ("Suggestions (ev regroup)", "Öneriler (ev regroup)"),
+    ("  (a guess)", "  (tahmin)"),
+    (
+        "Sharing no word with anything in its holder (a guess; look before moving):",
+        "Kabındaki hiçbir şeyle kelime paylaşmıyor (tahmin; taşımadan önce bak):",
+    ),
     (
         "mixed: half or more fit better elsewhere",
         "karışık: yarısı ya da fazlası başka yere daha iyi uyar",

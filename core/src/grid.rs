@@ -116,3 +116,25 @@ pub(crate) fn cells_of(conn: &Connection, id: i64) -> Result<Option<Cells>> {
         .optional()?)
 }
 
+/// The live boxes placed in `holder`'s grid, in reading order.
+fn placed(conn: &Connection, holder: i64) -> Result<Vec<(i64, Cells)>> {
+    let mut stmt = conn.prepare(
+        "SELECT c.node_id, c.col, c.row, c.width, c.depth FROM cells c
+           JOIN nodes n ON n.id = c.node_id
+          WHERE n.parent_id = ?1 AND n.state != 'gone'
+          ORDER BY c.row, c.col",
+    )?;
+    let rows = stmt.query_map([holder], |r| {
+        Ok((
+            r.get(0)?,
+            Cells {
+                col: r.get(1)?,
+                row: r.get(2)?,
+                width: r.get(3)?,
+                depth: r.get(4)?,
+            },
+        ))
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+

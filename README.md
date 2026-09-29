@@ -62,11 +62,13 @@ whole (`KY-018`), and the same question always gets the same answer. `ev suggest
 places something already recorded by its own words.
 
 **What could regroup?** `ev regroup <drawer>` asks the same question of every thing inside:
-what would fit better in another box, boxes that are mixed, full boxes with a bigger spare box
-(tagged `boş kap`, with a `size`) and the cells it would fit in, nearly empty boxes that could
-merge, and boxes whose fill is unknown or out of date. `ev audit` finds alike things split
-across places, holders without a theme, loose items and holders whose contents were never
-inventoried (`unknown=true`).
+what would fit better in another box (and, apart, the guesses: things that share no word with
+anything in their box, where the other box is only a hint), boxes that are mixed, full boxes
+with a bigger spare box (tagged `boş kap`, with a `size`) and the cells it would fit in, nearly
+empty boxes that could merge, and boxes whose fill is unknown or out of date. Noun compounds
+(`hesap makinesi`, `kablo bağı`) and colour-noun pairs (`yeşil LED`) are matched as such.
+`ev audit` finds alike things split across places, holders without a theme, loose items and
+holders whose contents were never inventoried (`unknown=true`).
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the

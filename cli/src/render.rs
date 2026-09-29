@@ -155,20 +155,20 @@ fn review_mark(r: &Value) -> &'static str {
     }
 }
 
-fn task_line(out: &mut String, t: &Value) {
-    let pos = t["position"]
+fn task_line(out: &mut String, t_: &Value) {
+    let pos = t_["position"]
         .as_i64()
         .map(|p| format!("{p}."))
         .unwrap_or_else(|| "-".into());
-    let state = match t["status"].as_str() {
-        Some("doing") => " (in progress)",
-        Some("done") => " (done)",
-        Some("dropped") => " (dropped)",
+    let state = match t_["status"].as_str() {
+        Some("doing") => t(" (in progress)"),
+        Some("done") => t(" (done)"),
+        Some("dropped") => t(" (dropped)"),
         _ => "",
     };
-    let _ = writeln!(out, "{pos} #{} {}{state}", t["id"], s(t, "title"));
-    let _ = writeln!(out, "     why: {}", s(t, "why"));
-    for n in t["nodes"].as_array().into_iter().flatten() {
+    let _ = writeln!(out, "{pos} #{} {}{state}", t_["id"], s(t_, "title"));
+    let _ = writeln!(out, "     {}", tf("why: {}", &[&s(t_, "why")]));
+    for n in t_["nodes"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "     • {}", s(n, "path_text"));
     }
 }

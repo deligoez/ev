@@ -89,6 +89,120 @@ impl Cells {
     }
 }
 
+/// Where a grid's outer corners are in a photo, as fractions of the upright photo, in the order
+/// back-left, back-right, front-right, front-left (row 1 is the back): `x1,y1,…,x4,y4`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GridCorners(pub [(f64, f64); 4]);
+
+impl std::str::FromStr for GridCorners {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let bad = || {
+            Error::Usage(format!(
+                "grid corners `{s}` are eight fractions 0–1: back-left x,y, back-right x,y, \
+                 front-right x,y, front-left x,y"
+            ))
+        };
+        let v: Vec<f64> = s
+            .split(',')
+            .map(|p| p.trim().parse::<f64>())
+            .collect::<std::result::Result<_, _>>()
+            .map_err(|_| bad())?;
+        if v.len() != 8 || v.iter().any(|x| !(0.0..=1.0).contains(x)) {
+            return Err(bad());
+        }
+        Ok(GridCorners([
+            (v[0], v[1]),
+            (v[2], v[3]),
+            (v[4], v[5]),
+            (v[6], v[7]),
+        ]))
+    }
+}
+
+/// The projective map from the grid's unit square (u across from the left, v from the back) to
+/// the photo, through its four corners. Unlike an even (bilinear) split it keeps a photo's
+/// perspective: rows further back come out shorter, as they are in the picture.
+fn projection(corners: &GridCorners) -> impl Fn(f64, f64) -> (f64, f64) {
+    let [(x0, y0), (x1, y1), (x2, y2), (x3, y3)] = corners.0;
+    let (dx1, dx2, dx3) = (x1 - x2, x3 - x2, x0 - x1 + x2 - x3);
+    let (dy1, dy2, dy3) = (y1 - y2, y3 - y2, y0 - y1 + y2 - y3);
+    let den = dx1 * dy2 - dx2 * dy1;
+    let (g, h) = if den.abs() < 1e-12 || (dx3.abs() < 1e-12 && dy3.abs() < 1e-12) {
+        (0.0, 0.0)
+    } else {
+        ((dx3 * dy2 - dx2 * dy3) / den, (dx1 * dy3 - dx3 * dy1) / den)
+    };
+    let (a, b, c) = (x1 - x0 + g * x1, x3 - x0 + h * x3, x0);
+    let (d, e, f) = (y1 - y0 + g * y1, y3 - y0 + h * y3, y0);
+    move |u, v| {
+        let w = g * u + h * v + 1.0;
+        ((a * u + b * v + c) / w, (d * u + e * v + f) / w)
+    }
+}
+
+/// How far past its cells a box's crop reaches, as a share of a cell: a box's rim stands above
+/// the floor the corners are read at, and a little more is better than a cut-off label.
+const CROP_MARGIN: f64 = 0.15;
+
+/// The crop of every box placed in `holder`'s grid, read off one photo from where the grid's
+/// four corners are in it. Each box's cells are mapped through the corners (bilinear, so a
+/// photo taken at an angle still maps) and the crop is the rectangle around them.
+pub(crate) fn grid_crops(
+    conn: &Connection,
+    holder: i64,
+    corners: &GridCorners,
+) -> Result<Vec<(i64, crate::Crop)>> {
+    let Some((cols, rows)) = grid_of(conn, holder)? else {
+        return Err(refused(
+            "this place has no grid; set one with `ev grid <ref> --cols N --rows M`",
+            json!({ "holder": brief_json(conn, holder)? }),
+        ));
+    };
+    let map = projection(corners);
+    let (cols, rows) = (cols as f64, rows as f64);
+    let (mu, mv) = (CROP_MARGIN / cols, CROP_MARGIN / rows);
+    Ok(placed(conn, holder)?
+        .into_iter()
+        .map(|(id, c)| {
+            let u0 = c.col as f64 / cols - mu;
+            let u1 = (c.col + c.width) as f64 / cols + mu;
+            let v0 = c.row as f64 / rows - mv;
+            let v1 = (c.row + c.depth) as f64 / rows + mv;
+            let pts = [map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)];
+            let x0 = pts
+                .iter()
+                .map(|p| p.0)
+                .fold(f64::MAX, f64::min)
+                .clamp(0.0, 1.0);
+            let x1 = pts
+                .iter()
+                .map(|p| p.0)
+                .fold(f64::MIN, f64::max)
+                .clamp(0.0, 1.0);
+            let y0 = pts
+                .iter()
+                .map(|p| p.1)
+                .fold(f64::MAX, f64::min)
+                .clamp(0.0, 1.0);
+            let y1 = pts
+                .iter()
+                .map(|p| p.1)
+                .fold(f64::MIN, f64::max)
+                .clamp(0.0, 1.0);
+            (
+                id,
+                crate::Crop {
+                    x: x0,
+                    y: y0,
+                    w: x1 - x0,
+                    h: y1 - y0,
+                },
+            )
+        })
+        .collect())
+}
+
 pub(crate) fn grid_of(conn: &Connection, id: i64) -> Result<Option<(i64, i64)>> {
     Ok(conn
         .query_row(

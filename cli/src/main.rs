@@ -679,6 +679,23 @@ fn run(cli: Cli) -> Result<Value> {
             let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
             inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
         }
+        Cmd::Photo(PhotoCmd::Cut {
+            file,
+            pieces,
+            place,
+            note,
+        }) => {
+            let crops = pieces
+                .iter()
+                .map(|p| {
+                    let (r, c) = p
+                        .rsplit_once('=')
+                        .ok_or_else(|| Error::Usage(format!("`{p}` is not <ref>=x,y,w,h")))?;
+                    Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            inv.photo_cut(&file, place.as_deref(), &crops, note.as_deref())
+        }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
         Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),

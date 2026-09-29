@@ -113,3 +113,61 @@ fn weighted(ts: Vec<Term>, w: f64) -> Vec<Term> {
         .collect()
 }
 
+/// The words of a text worth matching, keyed by their written form for now (the index turns
+/// words into stems with `Lexicon`). Letters-and-digits runs joined by hyphens that mix
+/// letters and digits (`KY-018`, `HC-SR04`) are kept whole as codes as well as split; plain
+/// numbers are dropped (dates, counts).
+pub(crate) fn terms(text: &str) -> Vec<Term> {
+    let folded = fold(text);
+    let mut out = Vec::new();
+    let mut push = |w: &str| {
+        if w.is_empty() || w.chars().all(|c| c.is_ascii_digit()) {
+            return;
+        }
+        let has_digit = w.chars().any(|c| c.is_ascii_digit());
+        let keep = if has_digit {
+            w.chars().count() >= 2
+        } else {
+            w.chars().count() >= 3 && !FILLER.contains(&w)
+        };
+        if keep {
+            out.push(Term {
+                key: w.to_string(),
+                surface: w.to_string(),
+                weight: 1.0,
+            });
+        }
+    };
+    for chunk in folded.split(|c: char| !(c.is_alphanumeric() || c == '-')) {
+        let chunk = chunk.trim_matches('-');
+        if chunk.is_empty() {
+            continue;
+        }
+        let digits = chunk.chars().any(|c| c.is_ascii_digit());
+        let letters = chunk.chars().any(|c| c.is_alphabetic());
+        if chunk.contains('-') && digits && letters {
+            push(&chunk.replace('-', ""));
+        }
+        for part in chunk.split('-') {
+            push(part);
+        }
+    }
+    out
+}
+
+/// Turkish noun endings in the order they stack, outermost first, as they read after folding
+/// (ı→i, ü→u, ö→o, ğ→g): relative `-ki` after a locative, case, possessive, plural, and
+/// "with" (`-lı`). `-sız` ("without") is deliberately not an ending here: `modülsüz` must not
+/// match `modül`. Derivations such as `-lık` stay too: `sıcaklık` is not `sıcak`.
+const ENDINGS: &[&[&str]] = &[
+    &["daki", "deki", "taki", "teki"],
+    &[
+        "ndan", "nden", "dan", "den", "tan", "ten", "nin", "nun", "yla", "yle", "nda", "nde", "da",
+        "de", "ta", "te", "in", "un", "ya", "ye", "yi", "yu", "na", "ne", "ni", "nu", "a", "e",
+        "i", "u",
+    ],
+    &["lari", "leri", "si", "su", "i", "u"],
+    &["lar", "ler"],
+    &["li", "lu"],
+];
+

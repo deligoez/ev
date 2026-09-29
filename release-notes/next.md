@@ -18,6 +18,12 @@ Draft for the next release.
 - **`#id` references.** `ev ui` shows each node's `#id` at the top of its details, and every
   command takes `#534` in place of a name or code.
 - **`ev ui` draws a grid as its plate**, each box a frame over the cells it covers.
+- **`ev ui` details have tabs** — Summary, Grid, Contents, Suggestions, History (`H`/`L` or a
+  click), each title with its count; the History tab tells a place's story newest first, with
+  what came in, went out and was added (`ev history <x> --contents` prints the same).
+- **Resizable panes in `ev ui`**: drag the divider between the list and the details, or under
+  the photo (`<` `>` `{` `}` from the keyboard; a double click resets). Sizes and the details
+  tab are kept between sessions. A photo narrower than its pane is centred.
 - **`ev ui` reopens where you left it**: on the node selected in the tree when it last closed,
   per database. A new setting, on by default (Settings tab, or `ev settings resume on|off`).
 

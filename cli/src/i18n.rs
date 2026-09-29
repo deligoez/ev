@@ -253,7 +253,7 @@ static TR: &[(&str, &str)] = &[
         "([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
     ),
     (" Details ", " Ayrıntı "),
-    (" Details · J/K scroll ", " Ayrıntı · J/K kaydır "),
+    (" J/K scroll ", " J/K kaydır "),
     ("just now", "az önce"),
     ("{} min ago", "{} dk önce"),
     ("{} h ago", "{} sa önce"),

@@ -57,6 +57,12 @@ enum Cmd {
         #[arg(required = true)]
         assignments: Vec<String>,
     },
+    /// Give several nodes new codes at once: swap or rotate codes when boxes change places.
+    Recode {
+        /// <ref>=<new code>; an empty code clears it.
+        #[arg(required = true)]
+        pairs: Vec<String>,
+    },
     /// Move now, or plan a move with --plan.
     Move {
         reference: String,

@@ -85,3 +85,35 @@ fn boxes_are_placed_checked_and_mapped() {
     assert_eq!(inv.grid_clear("D").unwrap_err().code(), 5);
 }
 
+#[test]
+fn boxes_trade_places_and_codes_in_one_step() {
+    let (_d, mut inv) = setup();
+    inv.grid_set("D", 3, 4).unwrap();
+    inv.cells_set(
+        &pairs(&[("D-A4", "A4-B4"), ("D-A3", "A3"), ("D-B3", "B3")]),
+        false,
+    )
+    .unwrap();
+    // The tall box goes back a row and the two small ones come forward: one at a time each
+    // move would overlap, together they fit, and the codes follow the cells.
+    let v = inv
+        .cells_set(
+            &pairs(&[("Uzun kutu", "A3-B3"), ("Sıcaklık", "A4"), ("Giriş", "B4")]),
+            true,
+        )
+        .unwrap();
+    assert_eq!(v["placed"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        inv.show("Uzun kutu", false).unwrap()["node"]["code"],
+        "D-A3"
+    );
+    assert_eq!(inv.show("Sıcaklık", false).unwrap()["node"]["code"], "D-A4");
+    assert_eq!(inv.show("Giriş", false).unwrap()["node"]["code"], "D-B4");
+    assert_eq!(inv.show("D-A3", false).unwrap()["cells"], "A3-B3");
+    // New codes need their labels printed.
+    assert_eq!(
+        inv.show("D-B4", false).unwrap()["marks"]["label"]["value"],
+        "needed"
+    );
+}
+

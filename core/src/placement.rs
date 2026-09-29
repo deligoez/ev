@@ -568,3 +568,8 @@ fn node_terms(n: &Node) -> Vec<Term> {
     q
 }
 
+/// Whether a scored holder matched on at least one word rare enough to say what the thing is.
+fn is_specific(s: &Scored) -> bool {
+    s.matched.iter().any(|m| m["specific"] == true)
+}
+

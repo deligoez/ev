@@ -40,3 +40,23 @@ def misses(ev, db):
         return len(items), dict(m for m in pool.map(best, items) if m)
 
 
+def prefixed(name, table):
+    return next((v for k, v in table.items() if name.startswith(k)), None)
+
+
+args = sys.argv[1:]
+if not args or len(args) % 2:
+    sys.exit("usage: placement.py <ev> <db> [<ev> <db> ...]")
+for ev, db in zip(args[::2], args[1::2]):
+    total, missed = misses(ev, db)
+    wrong = 0
+    for name, where in missed.items():
+        if any(name.startswith(e) for e in excluded):
+            continue
+        target = prefixed(name, moves)
+        if target is None or not where.startswith(target):
+            wrong += 1
+    # A move whose item is not missed was predicted at its current, wrong place.
+    wrong += sum(1 for k in moves if not any(n.startswith(k) for n in missed))
+    n = total - sum(1 for e in excluded if e)
+    print(f"{n - wrong}/{n}  ({len(missed)} of {total} items best elsewhere)  {ev}")

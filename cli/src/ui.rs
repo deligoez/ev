@@ -618,6 +618,8 @@ struct App {
     /// Pictures sent together with `ev focus --file`, the one shown, and their note; full
     /// screen until closed.
     overlay: Option<(Vec<String>, usize, Option<String>)>,
+    /// The marked photos closed last, for `m` to open again.
+    last_overlay: Option<(Vec<String>, usize, Option<String>)>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -733,10 +735,23 @@ impl App {
             detail_targets: Vec::new(),
             grid_hit: None,
             overlay: None,
+            last_overlay: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
-        app.focus_seen = app.inv.focus_request()?["at"].as_str().map(str::to_string);
+        let req = app.inv.focus_request()?;
+        app.focus_seen = req["at"].as_str().map(str::to_string);
+        // ...but its marked photos, while still on disk, are one `m` away.
+        let files: Vec<String> = req["files"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|f| f.as_str().map(str::to_string))
+            .filter(|f| std::path::Path::new(f).is_file())
+            .collect();
+        if !files.is_empty() {
+            app.last_overlay = Some((files, 0, req["note"].as_str().map(str::to_string)));
+        }
         app.rebuild()?;
         Ok(app)
     }
@@ -1896,7 +1911,21 @@ impl App {
 
     fn close_fullscreen(&mut self) {
         self.fullscreen = false;
-        self.overlay = None;
+        if let Some(o) = self.overlay.take() {
+            self.last_overlay = Some(o);
+        }
+    }
+
+    /// `m`: the marked photos shown last, again — closed in this session, or sent before this
+    /// `ev ui` started (it treats that request as seen, but keeps its pictures at hand).
+    fn reopen_marked(&mut self) {
+        match self.last_overlay.clone() {
+            Some(o) => {
+                self.overlay = Some(o);
+                self.fullscreen = true;
+            }
+            None => self.status = t("no marked photos to show").to_string(),
+        }
     }
 
     /// `[` `]` over pictures sent together: the previous or next one, stopping at the ends.
@@ -1993,6 +2022,7 @@ impl App {
             KeyCode::Char(c @ '1'..='8') => {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
+            KeyCode::Char('m') => self.reopen_marked(),
             KeyCode::Char('/') => {
                 self.searching = true;
                 self.query.clear();
@@ -2067,7 +2097,10 @@ impl App {
             match m.kind {
                 MouseEventKind::ScrollDown if self.overlay.is_none() => self.step_photo(1),
                 MouseEventKind::ScrollUp if self.overlay.is_none() => self.step_photo(-1),
-                MouseEventKind::Down(MouseButton::Left) => self.close_fullscreen(),
+                // A marked photo closes with Esc only: a stray click would lose what was shown.
+                MouseEventKind::Down(MouseButton::Left) if self.overlay.is_none() => {
+                    self.close_fullscreen()
+                }
                 _ => {}
             }
             return Ok(());
@@ -2326,11 +2359,14 @@ impl App {
                 inner,
             );
         }
-        let keys = if at.1 > 1 {
-            t("[ ] ← → step · r/R rotate · O open outside · Esc/o/click close")
-        } else {
-            t("r/R rotate · O open outside · Esc/o/click close")
-        };
+        let mut parts = vec![(0, t("Esc/o close"))];
+        if at.1 > 1 {
+            parts.push((0, t("[ ] ← → step")));
+        }
+        parts.push((1, t("m opens it again later")));
+        parts.push((2, t("r/R rotate")));
+        parts.push((3, t("O open outside")));
+        let keys = fit_hints(parts, bottom.width as usize, "");
         f.render_widget(Paragraph::new(keys).fg(pal().muted), bottom);
     }
 
@@ -2599,6 +2635,10 @@ impl App {
             Tab::Plan => parts.push((1, t("Enter open/close section"))),
             _ => parts.push((1, t("Enter show in tree"))),
         }
+        // Marked photos closed are one key away; said early, so a narrow screen keeps it.
+        if self.last_overlay.is_some() {
+            parts.push((1, t("m marked photos")));
+        }
         parts.push((2, t("/ search")));
         if self.details.is_some() {
             parts.push((2, t("H/L details tabs")));
@@ -2612,27 +2652,7 @@ impl App {
         parts.push((4, t("Tab/1-8 tabs")));
         parts.push((5, t("< > { } or drag: resize")));
         parts.push((0, t("q quit")));
-        let status = if self.status.is_empty() {
-            String::new()
-        } else {
-            format!("    {}", self.status)
-        };
-        let room = width.saturating_sub(status.chars().count());
-        let join = |p: &[(u8, &str)]| p.iter().map(|x| x.1).collect::<Vec<_>>().join(" · ");
-        while join(&parts).chars().count() > room {
-            // The least useful part, the last of its rank, goes first.
-            let Some(worst) = parts
-                .iter()
-                .enumerate()
-                .filter(|(_, p)| p.0 > 0)
-                .max_by_key(|(i, p)| (p.0, *i))
-                .map(|(i, _)| i)
-            else {
-                break;
-            };
-            parts.remove(worst);
-        }
-        format!("{}{status}", join(&parts))
+        fit_hints(parts, width, &self.status)
     }
 
     fn photo_count(&self) -> usize {

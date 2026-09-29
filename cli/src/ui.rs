@@ -91,6 +91,65 @@ impl Tab {
     }
 }
 
+/// The tabs of the details pane. Each shows the node's `#id` and path on top; a tab the
+/// selected node has nothing for is dimmed, and choosing it shows the summary instead.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum DetailTab {
+    Summary,
+    Grid,
+    Contents,
+    Suggestions,
+    History,
+}
+
+impl DetailTab {
+    const ALL: [DetailTab; 5] = [
+        DetailTab::Summary,
+        DetailTab::Grid,
+        DetailTab::Contents,
+        DetailTab::Suggestions,
+        DetailTab::History,
+    ];
+
+    fn title(self) -> &'static str {
+        match self {
+            DetailTab::Summary => t("Summary"),
+            DetailTab::Grid => t("Grid"),
+            DetailTab::Contents => t("Contents"),
+            DetailTab::Suggestions => t("Suggestions"),
+            DetailTab::History => t("History"),
+        }
+    }
+
+    /// The name kept in `ui-state.json`, which does not change with the language.
+    fn key(self) -> &'static str {
+        match self {
+            DetailTab::Summary => "summary",
+            DetailTab::Grid => "grid",
+            DetailTab::Contents => "contents",
+            DetailTab::Suggestions => "suggestions",
+            DetailTab::History => "history",
+        }
+    }
+
+    fn from_key(s: &str) -> Option<Self> {
+        DetailTab::ALL.into_iter().find(|t| t.key() == s)
+    }
+}
+
+/// The list's share of the width, and the photo's share of the right column, in percent.
+const SPLIT: u16 = 55;
+const PHOTO_SPLIT: u16 = 55;
+
+/// Which divider is being dragged with the mouse.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Drag {
+    /// Between the list and the right column.
+    Columns,
+    /// Between the photo and the details.
+    Photo,
+}
+
 /// One visible line of a list: the node it points at and how to draw it.
 #[derive(Clone)]
 struct Row {

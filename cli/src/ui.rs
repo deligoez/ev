@@ -3970,9 +3970,12 @@ mod tests {
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(
-            s.contains("1 → A6 · 1/2") && s.contains("Esc/o/click close"),
+            s.contains("1 → A6 · 1/2") && s.contains("Esc/o close · [ ] ← → step"),
             "{s}"
         );
+        // A stray click does not close it.
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), 10, 5);
+        assert!(app.overlay.is_some());
         // Sent together, they are stepped through; the end holds.
         press(&mut app, KeyCode::Char(']'));
         press(&mut app, KeyCode::Char(']'));
@@ -3982,16 +3985,30 @@ mod tests {
             app.shown_picture(),
             Some(drawer.to_string_lossy().into_owned())
         );
-        // Esc closes it for good; the same request is not shown again.
+        // Esc closes it; the same request is not shown again, but `m` opens it, and the key
+        // hints say so.
         press(&mut app, KeyCode::Esc);
         app.apply_focus().unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
         assert!(
-            !s.contains("Esc/o/click close") && s.contains("Summary"),
+            s.contains("Summary") && s.contains("m marked photos"),
             "{s}"
         );
         assert!(app.overlay.is_none());
+        press(&mut app, KeyCode::Char('m'));
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("1 → A6 · 2/2"));
+        // A restarted `ev ui` treats the request as seen, and still opens it with `m`.
+        let inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+        let mut again = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        again.apply_focus().unwrap();
+        assert!(again.overlay.is_none());
+        press(&mut again, KeyCode::Char('m'));
+        assert_eq!(
+            again.shown_picture(),
+            Some(marked.to_string_lossy().into_owned())
+        );
     }
 
     #[test]

@@ -414,6 +414,24 @@ enum PhotoCmd {
         #[arg(long)]
         grid: Option<String>,
     },
+    /// Draw numbered marks on a copy of a photo, to show which thing is meant and where it goes:
+    /// `<label>=x,y,w,h` (fractions of the upright photo) or `<label>=A6` (cells of the grid,
+    /// when TARGET is a place). The copy is temporary: not stored, not attached.
+    Mark {
+        /// A photo file, or a place whose newest whole photo is marked.
+        target: String,
+        #[arg(required = true)]
+        marks: Vec<String>,
+        /// The grid's corners in the photo, when it did not keep them (see `photo cut --grid`).
+        #[arg(long)]
+        grid: Option<String>,
+        /// Where to write the marked copy; a scratch folder otherwise.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Also show it full screen in a running `ev ui`, titled with this note.
+        #[arg(long)]
+        show: Option<String>,
+    },
     /// A node's photos, numbered from 1.
     List { reference: String },
     /// Detach the n-th photo of a node.

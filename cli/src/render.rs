@@ -200,11 +200,11 @@ fn need_line(n: &Value) -> String {
         .as_i64()
         .map(|q| format!("{q} × "))
         .unwrap_or_default();
-    let make = if n["make"] == true { " (make)" } else { "" };
+    let make = if n["make"] == true { t(" (make)") } else { "" };
     let for_ = n["for"]
         .get("path_text")
         .and_then(Value::as_str)
-        .map(|p| format!("  for {p}"))
+        .map(|p| tf("  for {}", &[&p]))
         .unwrap_or_default();
     format!("#{} {qty}{}{make}{for_}", n["id"], s(n, "text"))
 }

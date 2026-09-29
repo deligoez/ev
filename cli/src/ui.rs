@@ -586,8 +586,8 @@ struct App {
     /// The selected node's photos (`ev photo list`), and what each drawn details line points at.
     photos: Vec<Value>,
     detail_targets: Vec<Option<Target>>,
-    /// A drawer's own grid on the Grid tab, whose boxes open with a click. A box's view of its
-    /// drawer is not clickable, so a stray click there does not jump away.
+    /// The grid on the Grid tab, whose boxes open with a click: a drawer's own, or the one a
+    /// box stands in.
     grid_hit: Option<Vec<Vec<Option<i64>>>>,
 }
 

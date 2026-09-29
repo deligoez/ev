@@ -398,6 +398,10 @@ enum PhotoCmd {
         place: Option<String>,
         #[arg(long)]
         note: Option<String>,
+        /// The --place grid's corners in the photo, back-left, back-right, front-right,
+        /// front-left, as x,y fractions: every box placed in the grid gets its crop from them.
+        #[arg(long)]
+        grid: Option<String>,
     },
     /// A node's photos, numbered from 1.
     List { reference: String },

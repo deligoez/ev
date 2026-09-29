@@ -203,7 +203,7 @@ fn name_style(n: &Value) -> Style {
 fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     let mut out = Vec::new();
     if let Some(c) = n["code"].as_str() {
-        out.push(Span::styled(c.to_string(), Style::new().fg(CODE)));
+        out.push(Span::styled(c.to_string(), Style::new().fg(pal().code)));
         out.push(Span::raw("  "));
     }
     out.push(Span::styled(str_of(n, "name"), name_style(n)));

@@ -423,6 +423,54 @@ impl Inventory {
         show(&self.conn, id)
     }
 
+    /// Gives several nodes new codes at once, so codes can be swapped or rotated when boxes
+    /// change places in a grid: uniqueness is checked against the codes they end up with, not
+    /// the ones they are leaving. An empty code clears it. All or nothing.
+    pub fn recode(&mut self, pairs: &[(String, String)]) -> Result<Value> {
+        if pairs.is_empty() {
+            return Err(Error::Usage("give at least one <ref>=<code>".into()));
+        }
+        let tx = self.conn.transaction()?;
+        let mut nodes = Vec::new();
+        for (reference, code) in pairs {
+            let n = load(&tx, resolve(&tx, reference, false)?)?;
+            if nodes.iter().any(|(m, _): &(Node, &String)| m.id == n.id) {
+                return Err(Error::Usage(format!("{} is given twice", label(&n))));
+            }
+            nodes.push((n, code));
+        }
+        let mut folded = std::collections::HashSet::new();
+        for (_, code) in &nodes {
+            let c = code.trim();
+            if !c.is_empty() && !folded.insert(fold(c)) {
+                return Err(Error::Usage(format!("code `{c}` is given twice")));
+            }
+        }
+        for (n, _) in &nodes {
+            tx.execute(
+                "UPDATE nodes SET code = NULL, code_folded = NULL WHERE id = ?1",
+                [n.id],
+            )?;
+        }
+        let mut out = Vec::new();
+        for (n, code) in &nodes {
+            apply_edit(&tx, n, "code", code)?;
+            let after = load(&tx, n.id)?;
+            if after.code != n.code {
+                touch(&tx, n.id)?;
+                event(
+                    &tx,
+                    n.id,
+                    "edit",
+                    json!({ "code": { "before": n.code, "after": after.code } }),
+                )?;
+            }
+            out.push(json!({ "id": n.id, "name": n.name, "before": n.code, "after": after.code }));
+        }
+        tx.commit()?;
+        Ok(json!({ "recoded": out }))
+    }
+
     pub fn move_to(&mut self, reference: &str, to: &str, plan: bool) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;

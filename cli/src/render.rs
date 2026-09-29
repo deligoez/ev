@@ -148,10 +148,10 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
 
 fn review_mark(r: &Value) -> &'static str {
     match r["status"].as_str() {
-        Some("toured") if r["changed_since"] == true => "[toured, changed since]",
-        Some("toured") => "[toured]",
-        Some("kept") => "[kept as is]",
-        _ => "[raw]",
+        Some("toured") if r["changed_since"] == true => t("[toured, changed since]"),
+        Some("toured") => t("[toured]"),
+        Some("kept") => t("[kept as is]"),
+        _ => t("[raw]"),
     }
 }
 

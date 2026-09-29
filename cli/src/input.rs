@@ -191,3 +191,55 @@ fn parse_string(b: &[u8]) -> Step {
     Step::More
 }
 
+fn parse_csi(b: &[u8]) -> Step {
+    // Parameters and intermediates, then one final byte in 0x40..=0x7e.
+    let Some(end) = b[2..].iter().position(|c| (0x40..=0x7e).contains(c)) else {
+        return Step::More;
+    };
+    let end = end + 2;
+    let body = std::str::from_utf8(&b[2..end]).unwrap_or("");
+    let fin = b[end];
+    let n = end + 1;
+    if let Some(sgr) = body.strip_prefix('<') {
+        return Step::Done(n, sgr_mouse(sgr, fin == b'M'));
+    }
+    if let Some(private) = body.strip_prefix('?') {
+        // Mode 2031's report, also the answer to DSR 996.
+        let input = match (fin, private) {
+            (b'n', "997;1") => Some(Mode::Dark),
+            (b'n', "997;2") => Some(Mode::Light),
+            _ => None,
+        }
+        .map(|mode| Input::Appearance {
+            mode,
+            notified: true,
+        });
+        return Step::Done(n, input);
+    }
+    let params: Vec<u16> = body.split(';').map(|p| p.parse().unwrap_or(0)).collect();
+    let modifiers = params
+        .get(1)
+        .map(|&m| modifiers_of(m))
+        .unwrap_or(KeyModifiers::NONE);
+    let code = match fin {
+        b'A' => KeyCode::Up,
+        b'B' => KeyCode::Down,
+        b'C' => KeyCode::Right,
+        b'D' => KeyCode::Left,
+        b'H' => KeyCode::Home,
+        b'F' => KeyCode::End,
+        b'Z' => return Step::Done(n, key(KeyCode::BackTab, KeyModifiers::SHIFT)),
+        b'~' => match params.first().copied().unwrap_or(0) {
+            1 | 7 => KeyCode::Home,
+            2 => KeyCode::Insert,
+            3 => KeyCode::Delete,
+            4 | 8 => KeyCode::End,
+            5 => KeyCode::PageUp,
+            6 => KeyCode::PageDown,
+            _ => return Step::Done(n, None),
+        },
+        _ => return Step::Done(n, None),
+    };
+    Step::Done(n, key(code, modifiers))
+}
+

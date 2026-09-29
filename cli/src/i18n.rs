@@ -210,8 +210,15 @@ static TR: &[(&str, &str)] = &[
     ),
     ("Saved in {}", "Kaydedildiği yer: {}"),
     (
-        "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto",
-        "Komut satırından: ev settings language en|tr|auto, ev settings theme dark|light|auto",
+        "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto, ev settings resume on|off",
+        "Komut satırından: ev settings language en|tr|auto, ev settings theme dark|light|auto, ev settings resume on|off",
+    ),
+    ("Reopen where I left off", "Kaldığım yerden aç"),
+    ("On", "Açık"),
+    ("Off", "Kapalı"),
+    (
+        "On: ev ui opens on the node that was selected in the tree when it last closed, for each database on its own. Off: it opens at the top.",
+        "Açık: ev ui, en son kapandığında Yerleşim ağacında seçili olan düğümde açılır; her veritabanı için ayrı. Kapalı: en baştan açılır.",
     ),
     ("settings saved", "ayarlar kaydedildi"),
     (

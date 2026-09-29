@@ -2063,6 +2063,14 @@ fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {
     if n.unknown {
         v["unknown"] = json!(true);
     }
+    // A grid holder says how many cells are still free, and which: room for a new box.
+    if let Some(g) = crate::grid::grid_json(conn, n.id)? {
+        v["grid"] = json!({ "cols": g["cols"], "rows": g["rows"], "free": g["free"] });
+    }
+    // A box in a grid says where in it.
+    if let Some(c) = crate::grid::cells_of(conn, n.id)? {
+        v["cells"] = json!(c.name());
+    }
     Ok(v)
 }
 

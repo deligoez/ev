@@ -75,3 +75,7 @@ pub fn set_mode(m: Mode) {
     MODE.with(|c| c.set(m));
 }
 
+pub fn mode() -> Mode {
+    MODE.with(Cell::get)
+}
+

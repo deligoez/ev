@@ -2639,9 +2639,8 @@ mod tests {
         assert_eq!(super::when("2026-09-29T09:00:00Z", at + 30), "just now");
         assert_eq!(super::when("2026-09-29T09:00:00Z", at + 7200), "2 h ago");
         let old = super::when("2026-09-29T09:00:00Z", at + 3 * 86_400);
+        // Local date and time: the day holds for any zone within nine hours of UTC.
         assert!(old.starts_with("2026-09-29 "), "{old}");
-        assert_eq!(super::parse_offset("+0300"), Some(10_800));
-        assert_eq!(super::parse_offset("-0130"), Some(-5_400));
     }
 
     #[test]

@@ -380,6 +380,45 @@ impl Inventory {
                 tx.execute("DELETE FROM reviews WHERE node_id = ?1", [id])?;
             }
             s if REVIEWS.contains(&s) => {
+                // A place is toured with photos that show it as it is now: its own and those of
+                // every box in its grid, whenever their contents changed after their newest
+                // photo. Fix it with a photo (`ev photo cut … --grid`) or `ev photo current`.
+                if s == "toured" {
+                    let mut check = vec![id];
+                    check.extend(crate::grid::placed(&tx, id)?.into_iter().map(|(b, _)| b));
+                    let mut stale = Vec::new();
+                    for n in check {
+                        let holds: i64 = tx.query_row(
+                            "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone'",
+                            [n],
+                            |r| r.get(0),
+                        )?;
+                        if holds == 0 {
+                            continue;
+                        }
+                        if let Some((reason, photo_at, changed)) =
+                            crate::marks::photo_stale(&tx, n)?
+                        {
+                            stale.push(json!({
+                                "node": brief(&tx, n)?,
+                                "reason": reason,
+                                "photo_at": photo_at,
+                                "changed_at": changed,
+                            }));
+                        }
+                    }
+                    if !stale.is_empty() {
+                        return Err(refused(
+                            format!(
+                                "{} photo(s) are older than what they show; attach a current \
+                                 photo (`ev photo cut <photo> --place <ref> --grid …`) or say \
+                                 an old one still holds (`ev photo current <ref>`)",
+                                stale.len()
+                            ),
+                            json!({ "stale": stale }),
+                        ));
+                    }
+                }
                 tx.execute(
                     "INSERT INTO reviews (node_id, status, at, note) VALUES (?1, ?2, ?3, ?4)
                      ON CONFLICT(node_id) DO UPDATE SET status = excluded.status,

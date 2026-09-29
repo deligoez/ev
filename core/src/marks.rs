@@ -213,18 +213,7 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
             (Some(p), Some(a)) => Some(p.max(a)),
             (p, a) => p.or(a),
         };
-        let changed: Option<String> = conn.query_row(
-            &format!(
-                "WITH RECURSIVE d(id) AS (
-                     SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
-                 )
-                 SELECT MAX(at) FROM events
-                  WHERE (node_id IN d AND node_id != ?1 AND type IN ({CONTENT_EVENTS}))
-                     OR (type IN ('move','done') AND json_extract(data, '$.from') IN d)"
-            ),
-            [id],
-            |r| r.get(0),
-        )?;
+        let changed = contents_changed_at(conn, id)?;
         let reason = match (&photo_at, &changed) {
             (None, _) => Some("none"),
             (Some(p), Some(c)) if c > p => Some("changed"),

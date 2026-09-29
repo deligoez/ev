@@ -2537,6 +2537,122 @@ mod tests {
         assert!(s.contains("free (4): A1 A2 B2 C2"), "{s}");
     }
 
+    fn add(inv: &mut Inventory, name: &str, kind: &str, parent: &str, code: Option<&str>) {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: kind.into(),
+            parent: Some(parent.into()),
+            code: code.map(Into::into),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+
+    /// A drawer `D` in a 2×1 grid: a red LED box, and a buzzer box with a red LED in it.
+    fn led_drawer() -> (tempfile::TempDir, Inventory) {
+        let (dir, mut inv) = home();
+        add(&mut inv, "Oda", "room", "Ev", None);
+        add(&mut inv, "Çekmece", "container", "Oda", Some("D"));
+        add(&mut inv, "Kutu", "container", "D", Some("D-A1"));
+        add(&mut inv, "Kutu", "container", "D", Some("D-B1"));
+        inv.edit("D-A1", &["theme=Kırmızı LED".into(), "size=1x1x1".into()])
+            .unwrap();
+        inv.edit("D-B1", &["theme=Buzzer".into(), "fill=50".into()])
+            .unwrap();
+        for (name, parent) in [
+            ("Kırmızı LED 5 mm", "D-A1"),
+            ("Kırmızı LED 3 mm", "D-A1"),
+            ("Aktif buzzer", "D-B1"),
+            ("Pasif buzzer", "D-B1"),
+            ("Kırmızı LED 10 mm", "D-B1"),
+        ] {
+            add(&mut inv, name, "item", parent, None);
+        }
+        inv.grid_set("D", 2, 1).unwrap();
+        inv.cells_set(
+            &[("D-A1".into(), "A1".into()), ("D-B1".into(), "B1".into())],
+            false,
+        )
+        .unwrap();
+        (dir, inv)
+    }
+
+    fn shown(app: &mut App, reference: &str, w: u16, h: u16) -> String {
+        let id = app.inv.resolve(reference, false).unwrap();
+        app.reveal(id).unwrap();
+        let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        screen(&term)
+    }
+
+    #[test]
+    fn a_box_shows_its_drawer_map_size_room_and_what_would_fit_better_elsewhere() {
+        let (_dir, inv) = led_drawer();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let s = shown(&mut app, "D-B1", 150, 40);
+        // The drawer's map, with this box among the others.
+        assert!(s.contains("2×1 grid, row 1 at the back"), "{s}");
+        assert!(s.contains(" 1  A1   B1"), "{s}");
+        // Room from the fill, not only the percentage.
+        assert!(s.contains("▮▮▯▯  room (50% full)"), "{s}");
+        // The stray LED, with where it would fit better.
+        assert!(s.contains("Suggestions (ev regroup)"), "{s}");
+        assert!(s.contains("→ D-A1  Kırmızı LED 10 mm"), "{s}");
+        // No database id among the fields.
+        assert!(!s.contains("id: "), "{s}");
+        let s = shown(&mut app, "D-A1", 150, 40);
+        assert!(s.contains("size: 1x1x1"), "{s}");
+    }
+
+    #[test]
+    fn the_details_pane_scrolls_to_contents_below_its_edge() {
+        let (_dir, mut inv) = home();
+        add(&mut inv, "Oda", "room", "Ev", None);
+        add(&mut inv, "Çekmece", "container", "Oda", Some("D"));
+        for i in 0..40 {
+            add(&mut inv, &format!("Parça {i:02}"), "item", "D", None);
+        }
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let s = shown(&mut app, "D", 150, 24);
+        assert!(!s.contains("Parça 39"), "{s}");
+        assert!(s.contains("Details · J/K scroll"), "{s}");
+        for _ in 0..20 {
+            press(&mut app, KeyCode::Char('J'));
+        }
+        let mut term = Terminal::new(TestBackend::new(150, 24)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Parça 39"), "{s}");
+        // Another node starts at the top again.
+        let s = shown(&mut app, "Oda", 150, 24);
+        assert!(s.contains("Details ─"), "{s}");
+    }
+
+    #[test]
+    fn long_rows_end_in_an_ellipsis_and_times_read_as_ago() {
+        crate::i18n::set_lang(Lang::En);
+        let spans = vec![
+            ratatui::text::Span::raw("abcdef"),
+            ratatui::text::Span::raw("ghij"),
+        ];
+        let cut: String = super::fit(spans, 6)
+            .iter()
+            .map(|s| s.content.to_string())
+            .collect();
+        assert_eq!(cut, "abcde…");
+        assert_eq!(super::fill_bar(50), "▮▮▯▯");
+        assert_eq!(super::fill_bar(95), "▮▮▮▮");
+        let at = chrono::DateTime::parse_from_rfc3339("2026-09-29T09:00:00Z")
+            .unwrap()
+            .timestamp();
+        assert_eq!(super::when("2026-09-29T09:00:00Z", at + 30), "just now");
+        assert_eq!(super::when("2026-09-29T09:00:00Z", at + 7200), "2 h ago");
+        let old = super::when("2026-09-29T09:00:00Z", at + 3 * 86_400);
+        assert!(old.starts_with("2026-09-29 "), "{old}");
+        assert_eq!(super::parse_offset("+0300"), Some(10_800));
+        assert_eq!(super::parse_offset("-0130"), Some(-5_400));
+    }
+
     #[test]
     fn a_settings_change_made_elsewhere_shows_up_without_restarting() {
         let (dir, inv) = home();

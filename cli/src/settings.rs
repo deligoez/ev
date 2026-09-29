@@ -259,10 +259,13 @@ mod tests {
         let state = UiState::beside(&dir.path().join("settings.json"));
         let (a, b) = (Path::new("/x/ev.db"), Path::new("/y/ev.db"));
         assert_eq!(state.last(a), None);
-        state.remember(a, 534).unwrap();
-        state.remember(b, 7).unwrap();
+        state.save(a, Some(534), json!({"split": 40})).unwrap();
+        state.save(b, Some(7), json!({"split": 60})).unwrap();
+        // An exit with nothing selected keeps the last position.
+        state.save(a, None, json!({"split": 60})).unwrap();
         assert_eq!(state.last(a), Some(534));
         assert_eq!(state.last(b), Some(7));
+        assert_eq!(state.layout()["split"], 60);
         assert!(dir.path().join("ui-state.json").exists());
     }
 

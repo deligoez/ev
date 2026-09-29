@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -181,6 +181,27 @@ PRAGMA user_version = 7;
 COMMIT;
 ";
 
+/// Gridfinity-style holders (spec §22): a drawer's grid, and the rectangle of cells each box
+/// in it covers. Columns and rows are 0-based here; people read them as A… and 1…, row 1 at
+/// the back.
+const SCHEMA_V8: &str = "
+BEGIN;
+CREATE TABLE grids (
+    node_id INTEGER PRIMARY KEY REFERENCES nodes(id),
+    cols INTEGER NOT NULL,
+    rows INTEGER NOT NULL
+);
+CREATE TABLE cells (
+    node_id INTEGER PRIMARY KEY REFERENCES nodes(id),
+    col INTEGER NOT NULL,
+    row INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    depth INTEGER NOT NULL
+);
+PRAGMA user_version = 8;
+COMMIT;
+";
+
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
@@ -231,6 +252,9 @@ impl Inventory {
         }
         if version < 7 {
             conn.execute_batch(SCHEMA_V7)?;
+        }
+        if version < 8 {
+            conn.execute_batch(SCHEMA_V8)?;
         }
         let photo_dir = path
             .parent()

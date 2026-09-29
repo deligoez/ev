@@ -244,7 +244,8 @@ finds `K4x4-07-Ü`.
 - `ev find <text> [--tag t] [--kind k]` — where is it?
 - `ev show <ref>` — one node, its path, children, pending move, disposition.
 - `ev tree [<ref>] [--depth n]` — the whole picture.
-- `ev history <ref>` — what happened to it.
+- `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out
+  or was added there.
 
 Field reference and payload shapes: `REFERENCE.md` in the ev repository.
 

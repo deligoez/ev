@@ -137,7 +137,7 @@ pub fn tf(en: &'static str, args: &[&dyn Display]) -> String {
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.
 static TR: &[(&str, &str)] = &[
     // Tabs
-    ("Tree", "Ağaç"),
+    ("Layout", "Yerleşim"),
     ("Pending", "Bekleyen"),
     ("Leaving", "Çıkış"),
     ("Lost", "Kayıp"),

@@ -320,6 +320,8 @@ fn reference_table_of_section_4() {
 
     let s501 = inv.resolve("S5-01", false).unwrap();
     assert_eq!(inv.resolve(&s501.to_string(), false).unwrap(), s501);
+    // `#id`, as ev ui prints it, names the same node.
+    assert_eq!(inv.resolve(&format!("#{s501}"), false).unwrap(), s501);
     assert_eq!(inv.resolve("s5-01", false).unwrap(), s501);
     let k = inv.resolve("k4x4-07-u", false).unwrap();
     assert_eq!(inv.brief(k).unwrap().code.as_deref(), Some("K4x4-07-Ü"));

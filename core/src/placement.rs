@@ -508,3 +508,29 @@ fn round(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
 }
 
+/// How full a holder is, and whether that is still known: a fill estimate is stale once the
+/// contents changed after it was given.
+pub(crate) fn room(conn: &Connection, n: &Node) -> Result<Value> {
+    let Some(fill) = n.fill else {
+        return Ok(json!({ "room": "unknown" }));
+    };
+    let set_at: Option<String> = conn.query_row(
+        "SELECT COALESCE(
+             (SELECT MAX(at) FROM events WHERE node_id = ?1 AND type = 'edit'
+                AND json_extract(data, '$.fill') IS NOT NULL),
+             (SELECT created_at FROM nodes WHERE id = ?1))",
+        [n.id],
+        |r| r.get(0),
+    )?;
+    let changed = crate::marks::contents_changed_at(conn, n.id)?;
+    let stale = matches!((&set_at, &changed), (Some(s), Some(c)) if c > s);
+    let room = if fill >= FULL {
+        "none"
+    } else if fill >= ROOM {
+        "little"
+    } else {
+        "yes"
+    };
+    Ok(json!({ "room": room, "fill": fill, "fill_at": set_at, "stale": stale }))
+}
+

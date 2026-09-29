@@ -1,12 +1,18 @@
 //! `ev ui`: a read-only terminal browser that follows the database as it changes.
+//!
+//! It never writes the database. The one thing it writes is the display settings file, from
+//! the Settings tab.
 
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, Instant};
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::{Duration, Instant, SystemTime};
 
 use ev_core::{Error, Inventory, Result};
 use ratatui::crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-    KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind,
 };
 use ratatui::crossterm::execute;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -19,21 +25,32 @@ use ratatui_image::protocol::Protocol;
 use ratatui_image::{Image, Resize};
 use serde_json::Value;
 
+use crate::i18n::{self, Lang, t, tf};
+use crate::input::{self, Input};
+use crate::settings::{self, LangPref, Settings, ThemePref};
+use crate::theme::{self, Mode, pal};
+
 const POLL: Duration = Duration::from_millis(500);
 const HIGHLIGHT_FOR: Duration = Duration::from_secs(6);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
-const TABS: [&str; 7] = [
-    "Ağaç",
-    "Bekleyen",
-    "Çıkış",
-    "Kayıp",
-    "Götür/İade",
-    "Ara",
-    "Yapılacak",
-];
+/// How long a lone ESC waits for the rest of a sequence before it counts as the Esc key.
+const ESC_WAIT: Duration = Duration::from_millis(30);
+/// How often a terminal without mode 2031 is asked for its background again.
+const BACKGROUND_POLL: Duration = Duration::from_secs(3);
 
-/// The Yapılacak section that starts collapsed: unclear records are a long, low-priority list.
-const UNCLEAR_SECTION: i64 = -14;
+/// Tab titles in the current language.
+fn tab_titles() -> [&'static str; 8] {
+    [
+        t("Tree"),
+        t("Pending"),
+        t("Leaving"),
+        t("Lost"),
+        t("Errands"),
+        t("Search"),
+        t("To do"),
+        t("Settings"),
+    ]
+}
 
 // Named colours follow the terminal's own palette, so light and dark themes both work.
 const CODE: Color = Color::Cyan;

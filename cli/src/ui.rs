@@ -2669,6 +2669,27 @@ mod tests {
     }
 
     #[test]
+    fn a_place_without_a_theme_shows_what_its_contents_share() {
+        let (_dir, mut inv) = home();
+        add(&mut inv, "Oda", "room", "Ev", None);
+        add(&mut inv, "Kutu", "container", "Oda", Some("K"));
+        add(&mut inv, "RP-SMA çubuk anten", "item", "K", None);
+        add(&mut inv, "U.FL anten kablosu", "item", "K", None);
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let s = shown(&mut app, "K", 150, 30);
+        assert!(s.contains("No theme yet (ev themes)"), "{s}");
+        assert!(s.contains("words: anten (2)"), "{s}");
+        // A themed place shows no hints.
+        app.inv.edit("K", &["theme=Antenler".into()]).unwrap();
+        let s = shown(&mut app, "Oda", 150, 30);
+        let s2 = shown(&mut app, "K", 150, 30);
+        assert!(
+            !s.contains("No theme yet") && !s2.contains("No theme yet"),
+            "{s2}"
+        );
+    }
+
+    #[test]
     fn long_rows_end_in_an_ellipsis_and_times_read_as_ago() {
         crate::i18n::set_lang(Lang::En);
         let spans = vec![

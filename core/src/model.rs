@@ -145,6 +145,8 @@ pub struct NewNode {
     #[serde(default)]
     pub fill: Option<i64>,
     #[serde(default)]
+    pub size: Option<String>,
+    #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]
     pub photos: Vec<String>,

@@ -405,6 +405,23 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
 }
 
 /// How much room a holder has, from the `room` object `ev suggest` and `ev regroup` attach.
+/// `ev themes`' shared words with how many things name each: `anten (2), SMA (2)`.
+pub fn theme_words(e: &Value) -> String {
+    e["words"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|w| {
+            format!(
+                "{} ({})",
+                w["word"].as_str().unwrap_or_default(),
+                w["things"]
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub fn room_text(r: &Value) -> String {
     let fill = &r["fill"];
     let mut out = match r["room"].as_str() {

@@ -684,6 +684,16 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    if let Some(list) = v.get("attached").and_then(Value::as_array) {
+        for n in list {
+            let what = match n["crop"].as_str() {
+                Some(c) => tf("photo {}, crop {}", &[&n["photo"], &c]),
+                None => tf("photo {}, whole", &[&n["photo"]]),
+            };
+            let _ = writeln!(out, "{}  ({what})", line(n));
+        }
+        return out;
+    }
     if let Some(list) = v.get("recoded").and_then(Value::as_array) {
         for r in list {
             let code = |k: &str| r[k].as_str().unwrap_or("—").to_string();

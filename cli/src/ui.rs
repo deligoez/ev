@@ -1189,10 +1189,59 @@ impl App {
             _ => None,
         };
         self.hints = match self.details.clone() {
-            Some(v) if self.tab != Tab::Settings => self.placement_hints(&v),
+            Some(v) if self.tab != Tab::Settings => {
+                let mut lines = self.placement_hints(&v);
+                lines.extend(self.theme_hints(&v));
+                lines
+            }
             _ => Vec::new(),
         };
         Ok(())
+    }
+    /// For a place with things in it and no theme: what `ev themes` reads from its contents,
+    /// so a theme can be written while looking at it.
+    fn theme_hints(&self, v: &Value) -> Vec<Line<'static>> {
+        let n = &v["node"];
+        let placeish = matches!(n["kind"].as_str(), Some("container" | "furniture"));
+        if !placeish || n["theme"].is_string() {
+            return Vec::new();
+        }
+        let Some(id) = n["id"].as_i64() else {
+            return Vec::new();
+        };
+        let Ok(r) = self.inv.themes(Some(&id.to_string())) else {
+            return Vec::new();
+        };
+        let Some(e) = r["themes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|e| e["holder"]["id"].as_i64() == Some(id))
+        else {
+            return Vec::new();
+        };
+        let mut lines = vec![
+            Line::raw(""),
+            Line::from(t("No theme yet (ev themes)")).bold(),
+            Line::from(vec![
+                Span::styled(format!("  {}", t("words: ")), Style::new().fg(pal().muted)),
+                Span::raw(crate::render::theme_words(e)),
+            ]),
+        ];
+        if e["like"].is_object() {
+            let code = e["like"]["code"]
+                .as_str()
+                .map_or_else(|| str_of(&e["like"], "name"), str::to_string);
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("  {}", t("reads like: ")),
+                    Style::new().fg(pal().muted),
+                ),
+                Span::styled(code, Style::new().fg(pal().code)),
+                Span::raw(format!("  {}", str_of(&e["like"], "theme"))),
+            ]));
+        }
+        lines
     }
 
     /// What `ev regroup` says about the selected holder: things in it that would fit better

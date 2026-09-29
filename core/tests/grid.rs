@@ -285,9 +285,12 @@ fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
         .len();
     assert_eq!(photos_before, photos_after);
     // It can be sent to a running `ev ui`, which shows it once.
-    let f = inv.focus_file(&out, Some("1 → A6")).unwrap();
+    let f = inv
+        .focus_file(&[out.clone(), photo.clone()], Some("1 → A6"))
+        .unwrap();
     assert_eq!(f["focus"]["note"], "1 → A6");
-    assert_eq!(inv.focus_request().unwrap()["file"], f["focus"]["file"]);
+    assert_eq!(f["focus"]["files"].as_array().unwrap().len(), 2);
+    assert_eq!(inv.focus_request().unwrap()["files"], f["focus"]["files"]);
 }
 
 #[test]

@@ -277,12 +277,15 @@ fn is_compound(a: &Term, b: &Term) -> bool {
 }
 
 /// Chooses a word's stem by looking at the inventory's own words, which is what keeps plain
-/// suffix stripping from cutting too deep. In order: the shortest shorter form that is written
+/// suffix stripping from cutting too deep. In order: the longest shorter form that some word
+/// carries a plural ending on (`bağları` makes `bağ` a noun, so `bağı`→`bağ` rather than the
+/// hardened `bak`; `bacaklarında`→`bacak`); the shortest shorter form that is written
 /// somewhere on its own (`kutuda`→`kutu`, `kitabı`→`kitap`, `modules`→`modül`); the word
 /// itself if it is written on its own, so a base form is never cut further (`kutu` stays,
 /// though it could read as `kut`+`u`); the longest shorter form two different words lead to
 /// (`vidası` with `vidaları`→`vida`); the word itself. The known gap: two forms whose base is
-/// written nowhere, both themselves written on their own, stay apart.
+/// written nowhere, both themselves written on their own, stay apart; and a word that is a root
+/// of its own may still be cut to another (`altın`→`alt`), which only a dictionary could tell.
 pub(crate) struct Lexicon {
     words: HashSet<String>,
     shared: HashMap<String, usize>,

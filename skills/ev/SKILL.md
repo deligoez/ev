@@ -116,15 +116,35 @@ person can answer "did 1 and 3". Act only on the numbers they name; ask about th
 
 ## Where should this go?
 
-Never answer from memory. Run `ev suggest "<what it is>"` first and decide over its whole
-output: the rules, where alike things already are, and every holder in `containers`
-(`complete.containers` says how many; all of them are there). Say what you weighed —
-"looked at N holders, rules X and Y; alike things are in A" — so the person can see the
-answer was not recalled. Prefer putting a thing with its kind; mind the rules; offer an
-empty or lightly filled holder when nothing alike exists. When the person corrects a
-placement, record the reason as `ev rule add` or a container `theme`, so the next session
-knows it. Run `ev audit` now and then to find alike things split up and holders without a
-theme, and give holders a theme whenever you learn what they are for.
+Never answer from memory. The decision is `ev suggest`'s ranking plus your judgement over it,
+in this order:
+
+1. **Describe it the way the inventory is written.** Name + part code + what kind of thing it
+   is, in Turkish and English when both are used here: `ev suggest "KY-018 LDR ışık sensörü
+   modülü"`, not just `KY-018`. The category words are what find the family box. For a thing
+   already recorded use `ev suggest --for <ref>`: its own name, tags and note are the query.
+2. **Read the ranking with its reasons.** `similar` is best first; each entry says which words
+   matched, from which field or thing, and how many points. A match on a `specific` word
+   (marked `*` in text output) says what the thing is; a match only on common words ("sensör",
+   "modül") says only its family.
+3. **If `new_group_likely` is true, nothing here is this kind of thing.** Do not squeeze it into
+   the least bad box: propose a new group — an empty box or free cell first (`ev find kutu
+   --tag "boş kap"`, the drawer's `grid.free`), or a mixed box if it is one of a kind.
+4. **Check the rules and the room.** Every rule in `rules` applies. `room` comes from `fill`:
+   `none` means the best box is full — say so and offer the next one or a bigger box; `unknown`
+   or `stale` means estimate the fill from the photo (0/25/50/75/100) and record it with
+   `ev edit <box> fill=N` before you rely on it.
+5. **Say what you weighed**: "best: F2 (ışık*, ldr*; 69% of the description), room yes; rule 6
+   applies; next was C5". The person can then disagree with a reason, not a guess.
+6. **Turn corrections into data.** When the person picks another place, record why: a `theme`
+   on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
+   miss was two words for one thing. Give boxes a `size` (`1x2x0.5`) and tag empty ones
+   `boş kap`, so regrouping can offer them.
+
+At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
+proposals: things better off elsewhere, mixed boxes, full boxes and the bigger spare box with
+the cells it fits, nearly empty boxes to merge, unknown fills. It only reports; nothing moves
+until the person says so. Run `ev audit` now and then for alike things split across the house.
 
 ## Photos
 

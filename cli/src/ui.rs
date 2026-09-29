@@ -589,6 +589,8 @@ struct App {
     /// The grid on the Grid tab, whose boxes open with a click: a drawer's own, or the one a
     /// box stands in.
     grid_hit: Option<Vec<Vec<Option<i64>>>>,
+    /// A picture sent with `ev focus --file` and its note, shown full screen until closed.
+    overlay: Option<(String, Option<String>)>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -703,6 +705,7 @@ impl App {
             photos: Vec::new(),
             detail_targets: Vec::new(),
             grid_hit: None,
+            overlay: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1678,8 +1681,9 @@ impl App {
     }
 
     /// Shows what `ev focus` asked for: the node in the tree and, when a photo was named, that
-    /// photo full screen. Each request is shown once; the UI never writes, so it remembers the
-    /// request's time instead of clearing it.
+    /// photo full screen; or a picture that is no record (`--file`, a marked photo) full screen.
+    /// Each request is shown once; the UI never writes, so it remembers the request's time
+    /// instead of clearing it.
     fn apply_focus(&mut self) -> Result<()> {
         let req = self.inv.focus_request()?;
         let at = req["at"].as_str().map(str::to_string);
@@ -1687,10 +1691,20 @@ impl App {
             return Ok(());
         }
         self.focus_seen = at;
+        if let Some(file) = req["file"].as_str() {
+            let note = req["note"].as_str().map(str::to_string);
+            self.status = tf(
+                "showing: {}",
+                &[&note.clone().unwrap_or_else(|| file.into())],
+            );
+            self.overlay = Some((file.to_string(), note));
+            self.fullscreen = true;
+            return Ok(());
+        }
         let Some(id) = req["id"].as_i64() else {
             return Ok(());
         };
-        self.fullscreen = false;
+        self.close_fullscreen();
         self.reveal(id)?;
         if let Some(n) = req["photo"].as_i64() {
             self.photo_idx = (n - 1).max(0) as usize;
@@ -1833,15 +1847,29 @@ impl App {
         self.photo_idx = (cur + delta).clamp(0, last as isize) as usize;
     }
 
+    /// The picture on screen full screen: a marked photo sent with `ev focus --file`, else the
+    /// selected node's current photo.
+    fn shown_picture(&self) -> Option<String> {
+        match &self.overlay {
+            Some((p, _)) => Some(p.clone()),
+            None => self.current_photo(),
+        }
+    }
+
+    fn close_fullscreen(&mut self) {
+        self.fullscreen = false;
+        self.overlay = None;
+    }
+
     fn open_external(&mut self) {
-        if let Some(p) = self.current_photo() {
+        if let Some(p) = self.shown_picture() {
             let _ = std::process::Command::new("open").arg(p).spawn();
         }
     }
 
-    /// Turns the current photo on screen by `quarters` clockwise quarter turns.
+    /// Turns the picture on screen by `quarters` clockwise quarter turns.
     fn rotate(&mut self, quarters: u8) {
-        if let Some(p) = self.current_photo() {
+        if let Some(p) = self.shown_picture() {
             let r = self.rotation.entry(p).or_default();
             *r = (*r + quarters) % 4;
         }
@@ -1849,13 +1877,18 @@ impl App {
 
     fn key(&mut self, k: KeyEvent) -> Result<()> {
         if self.fullscreen {
+            let photos = self.overlay.is_none();
             match k.code {
-                KeyCode::Esc | KeyCode::Char('q' | 'o') => self.fullscreen = false,
+                KeyCode::Esc | KeyCode::Char('q' | 'o') => self.close_fullscreen(),
                 KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {
                     self.quit = true
                 }
-                KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => self.step_photo(1),
-                KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => self.step_photo(-1),
+                KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') if photos => {
+                    self.step_photo(1)
+                }
+                KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') if photos => {
+                    self.step_photo(-1)
+                }
                 KeyCode::Char('O') => self.open_external(),
                 KeyCode::Char('r') => self.rotate(1),
                 KeyCode::Char('R') => self.rotate(3),
@@ -1984,9 +2017,9 @@ impl App {
         };
         if self.fullscreen {
             match m.kind {
-                MouseEventKind::ScrollDown => self.step_photo(1),
-                MouseEventKind::ScrollUp => self.step_photo(-1),
-                MouseEventKind::Down(MouseButton::Left) => self.fullscreen = false,
+                MouseEventKind::ScrollDown if self.overlay.is_none() => self.step_photo(1),
+                MouseEventKind::ScrollUp if self.overlay.is_none() => self.step_photo(-1),
+                MouseEventKind::Down(MouseButton::Left) => self.close_fullscreen(),
                 _ => {}
             }
             return Ok(());
@@ -2210,8 +2243,42 @@ impl App {
         );
     }
 
+    /// A picture sent with `ev focus --file` (a marked photo) over the whole screen, titled with
+    /// its note. It is not a record: closing it forgets it.
+    fn draw_overlay(&mut self, f: &mut Frame, path: &str, note: Option<String>) {
+        let [main, bottom] =
+            Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
+        let title = match note {
+            Some(n) => format!(" {n} "),
+            None => t(" Marked photo ").to_string(),
+        };
+        let block = Block::bordered()
+            .title(title)
+            .border_style(Style::new().fg(pal().lost).bold());
+        let inner = block.inner(main);
+        f.render_widget(block, main);
+        if self.picker.is_some() {
+            self.render_photo(f, path, inner);
+        } else {
+            f.render_widget(
+                Paragraph::new(t(
+                    "(this terminal cannot show pictures — press O to open it outside)",
+                ))
+                .fg(pal().muted),
+                inner,
+            );
+        }
+        f.render_widget(
+            Paragraph::new(t("r/R rotate · O open outside · Esc/o/click close")).fg(pal().muted),
+            bottom,
+        );
+    }
+
     fn draw(&mut self, f: &mut Frame) {
         if self.fullscreen {
+            if let Some((path, note)) = self.overlay.clone() {
+                return self.draw_overlay(f, &path, note);
+            }
             if let Some(path) = self.current_photo() {
                 return self.draw_fullscreen(f, &path);
             }
@@ -3799,6 +3866,36 @@ mod tests {
             app.snap.label[&app.selected_id().unwrap()],
             "Kırmızı LED 5 mm"
         );
+    }
+
+    #[test]
+    fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
+        let (dir, inv) = led_drawer();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        let marked = dir.path().join("marked.png");
+        image::RgbImage::from_pixel(8, 8, image::Rgb([230, 30, 30]))
+            .save(&marked)
+            .unwrap();
+        // Another process asks; the running UI picks it up without restarting.
+        app.inv.focus_file(&marked, Some("1 → A6")).unwrap();
+        app.apply_focus().unwrap();
+        let mut term = Terminal::new(TestBackend::new(100, 20)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(
+            s.contains("1 → A6") && s.contains("Esc/o/click close"),
+            "{s}"
+        );
+        // Esc closes it for good; the same request is not shown again.
+        press(&mut app, KeyCode::Esc);
+        app.apply_focus().unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(
+            !s.contains("Esc/o/click close") && s.contains("Summary"),
+            "{s}"
+        );
+        assert!(app.overlay.is_none());
     }
 
     #[test]

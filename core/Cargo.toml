@@ -1,7 +1,10 @@
 [package]
 name = "ev-core"
-version = "0.11.0"
+version = "0.12.0-rc.1"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/deligoez/ev"
+publish = false
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, features = ["now"] }

@@ -6,6 +6,7 @@ mod grid;
 mod marks;
 mod model;
 mod photo;
+mod placement;
 mod plan;
 mod store;
 

@@ -69,16 +69,16 @@ fn line(n: &Value) -> String {
 fn place_marks(n: &Value) -> String {
     let mut out = String::new();
     if n["unknown"] == true {
-        out.push_str("  (contents unknown)");
+        out.push_str(t("  (contents unknown)"));
     }
     if let Some(x) = n["to"].as_str() {
-        let _ = write!(out, "  (to: {x})");
+        out.push_str(&tf("  (to: {})", &[&x]));
     }
     if let Some(x) = n["owner"].as_str() {
-        let _ = write!(out, "  (owner: {x})");
+        out.push_str(&tf("  (owner: {})", &[&x]));
     }
     if let Some(x) = n["with"].as_str() {
-        let _ = write!(out, "  (with: {x})");
+        out.push_str(&tf("  (with: {})", &[&x]));
     }
     out
 }

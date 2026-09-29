@@ -845,6 +845,7 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
                     with: r.get(17)?,
                     to: r.get(18)?,
                     unknown: r.get(19)?,
+                    size: r.get(20)?,
                 })
             },
         )
@@ -1534,6 +1535,10 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),
                 params![text(value), n.id],
             )?;
+        }
+        "size" => {
+            let v = text(value).map(|s| normalize_size(&s)).transpose()?;
+            conn.execute("UPDATE nodes SET size = ?1 WHERE id = ?2", params![v, n.id])?;
         }
         "qty" | "fill" => {
             let v = parse_int(field, value)?;

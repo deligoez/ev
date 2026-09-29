@@ -839,6 +839,7 @@ impl Inventory {
         // Things that would fit better elsewhere, and how often a thing's best place is
         // where it already is.
         let mut elsewhere = Vec::new();
+        let mut alone = Vec::new();
         let mut checked = 0;
         let mut at_home = 0;
         let mut elsewhere_by_holder: BTreeMap<i64, Vec<String>> = BTreeMap::new();

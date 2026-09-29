@@ -224,17 +224,42 @@ pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
 
 fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     let mut out = Vec::new();
+    let stale_entry = |mut v: Value, (reason, photo_at, changed): Stale| {
+        v["photo_reason"] = json!(reason);
+        v["photo_at"] = json!(photo_at);
+        v["changed_at"] = json!(changed);
+        v
+    };
+    // A box in a grid is cut from its drawer's photo, so the drawer's photo counts too: a box
+    // added or changed after it leaves the drawer's photo out of date, though the drawer
+    // itself is no unit of its own.
+    let mut grids = Vec::new();
     for u in units {
         let id = u["id"].as_i64().unwrap_or_default();
+        let parent: Option<i64> = conn
+            .query_row("SELECT parent_id FROM nodes WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
+            .optional()?
+            .flatten();
+        if let Some(p) = parent
+            && !grids.contains(&p)
+            && crate::grid::grid_of(conn, p)?.is_some()
+        {
+            grids.push(p);
+        }
         if u["children"].as_u64().unwrap_or(0) == 0 && u["unknown"] != true {
             continue;
         }
-        if let Some((reason, photo_at, changed)) = photo_stale(conn, id)? {
-            let mut v = u.clone();
-            v["photo_reason"] = json!(reason);
-            v["photo_at"] = json!(photo_at);
-            v["changed_at"] = json!(changed);
-            out.push(v);
+        if let Some(s) = photo_stale(conn, id)? {
+            out.push(stale_entry(u.clone(), s));
+        }
+    }
+    for g in grids {
+        if let Some(s) = photo_stale(conn, g)? {
+            let mut v = brief_value(conn, g)?;
+            v["grid"] = json!(true);
+            out.push(stale_entry(v, s));
         }
     }
     Ok(out)

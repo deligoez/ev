@@ -247,3 +247,68 @@ fn a_thing_that_holds_things_is_never_its_own_better_place() {
         }
     }
 }
+
+#[test]
+fn a_place_without_a_theme_shows_what_its_contents_share() {
+    let (_d, mut inv) = setup();
+    // A themed antenna box, and an unthemed box of antennas next to it.
+    inv.add(boxed("D-B2", "Antenler")).unwrap();
+    inv.add(node("Wi-Fi anteni, RP-SMA", "item", "D-B2"))
+        .unwrap();
+    inv.add(NewNode {
+        code: Some("D-C2".into()),
+        ..node("Kutu", "container", "D")
+    })
+    .unwrap();
+    for name in [
+        "RP-SMA çubuk anten 2.4 GHz",
+        "Kırmızı anten, 5 dBi",
+        "U.FL anten kablosu",
+    ] {
+        inv.add(node(name, "item", "D-C2")).unwrap();
+    }
+    // A kit recorded as an item is not a place: it gets no theme hints.
+    inv.add(NewNode {
+        code: Some("KIT".into()),
+        ..node("Anten seti", "item", "D-C2")
+    })
+    .unwrap();
+    inv.add(node("Anten", "item", "KIT")).unwrap();
+
+    let v = inv.themes(None).unwrap();
+    let list = v["themes"].as_array().unwrap();
+    let codes: Vec<&str> = list
+        .iter()
+        .map(|e| e["holder"]["code"].as_str().unwrap_or_default())
+        .collect();
+    assert_eq!(codes, ["D-C2"], "themed boxes and kits are not listed: {v}");
+    let e = &list[0];
+    assert_eq!(e["things"], 4);
+    // The word every antenna shares comes first, written as the inventory writes it; colours
+    // and numbers are no theme.
+    assert_eq!(e["words"][0]["word"], "anten");
+    assert_eq!(e["words"][0]["things"], 4);
+    let words: Vec<&str> = e["words"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|w| w["word"].as_str().unwrap())
+        .collect();
+    assert!(!words.contains(&"Kırmızı"), "{words:?}");
+    assert!(
+        !words.iter().any(|w| w.chars().any(|c| c.is_ascii_digit())),
+        "{words:?}"
+    );
+    // It reads like the themed antenna box.
+    assert_eq!(e["like"]["code"], "D-B2");
+    assert_eq!(e["like"]["theme"], "Antenler");
+    // Once themed, it leaves the list.
+    inv.edit("D-C2", &["theme=Antenler (kablolu)".into()])
+        .unwrap();
+    assert!(
+        inv.themes(None).unwrap()["themes"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

@@ -109,3 +109,11 @@ fn turkish() -> &'static HashMap<&'static str, &'static str> {
     MAP.get_or_init(|| TR.iter().copied().collect())
 }
 
+/// The text in the current language.
+pub fn t(en: &'static str) -> &'static str {
+    match lang() {
+        Lang::En => en,
+        Lang::Tr => turkish().get(en).copied().unwrap_or(en),
+    }
+}
+

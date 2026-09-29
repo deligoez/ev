@@ -2628,6 +2628,50 @@ impl Inventory {
         Ok(json!({ "attached": attached }))
     }
 
+    /// What `photo_cut` would cut, drawn instead of cut: each placed box of the `place` grid
+    /// framed on its cells and labelled with its back-left cell, and each crop named by hand
+    /// framed and labelled with its reference. Nothing is stored or attached; the copy goes to
+    /// `out` or the scratch folder of `photo_mark`. For checking grid corners by eye before
+    /// cutting.
+    pub fn photo_cut_preview(
+        &self,
+        file: &Path,
+        place: Option<&str>,
+        crops: &[(String, crate::Crop)],
+        grid: Option<&crate::GridCorners>,
+        out: Option<&Path>,
+    ) -> Result<Value> {
+        use crate::photo::Shape;
+        if !file.is_file() {
+            return Err(Error::NotFound(format!("no file {}", file.display())));
+        }
+        let mut shapes = Vec::new();
+        for (r, c) in crops {
+            resolve(&self.conn, r, false)?;
+            shapes.push((r.clone(), Shape::Rect(*c)));
+        }
+        if let Some(corners) = grid {
+            let Some(p) = place else {
+                return Err(Error::Usage(
+                    "--grid reads the boxes of the --place grid; give --place too".into(),
+                ));
+            };
+            let pid = resolve(&self.conn, p, false)?;
+            for (_, cells) in crate::grid::placed(&self.conn, pid)? {
+                let quad = crate::grid::cells_quad(&self.conn, pid, corners, &cells)?;
+                shapes.push((cells.anchor(), Shape::Quad(quad)));
+            }
+        }
+        if shapes.is_empty() {
+            return Err(Error::Usage(
+                "nothing to preview: give <ref>=x,y,w,h, or --place with --grid".into(),
+            ));
+        }
+        let out = out.map_or_else(|| scratch_copy(file), Path::to_path_buf);
+        crate::photo::draw_marks(file, &shapes, &out)?;
+        Ok(json!({ "preview": out.to_string_lossy(), "framed": shapes.len() }))
+    }
+
     /// Draws marks on a copy of a photo, to show which thing is meant and where it goes. The
     /// copy is temporary: it is not stored, not attached and leaves no history; it goes to
     /// `out`, or to a scratch folder (`<temp>/ev-marks`) whose files older than a day are
@@ -2694,19 +2738,7 @@ impl Inventory {
             };
             shapes.push((text.clone(), shape));
         }
-        let out = match out {
-            Some(p) => p.to_path_buf(),
-            None => {
-                let dir = std::env::temp_dir().join("ev-marks");
-                prune_older(&dir, Duration::from_secs(24 * 3600));
-                let stem = file
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "photo".into());
-                let ms = chrono::Utc::now().timestamp_millis();
-                dir.join(format!("{stem}-marked-{ms}.jpg"))
-            }
-        };
+        let out = out.map_or_else(|| scratch_copy(&file), Path::to_path_buf);
         crate::photo::draw_marks(&file, &shapes, &out)?;
         Ok(json!({
             "marked": out.to_string_lossy(),

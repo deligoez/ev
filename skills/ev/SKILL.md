@@ -199,7 +199,9 @@ records. Then attach it in one step. **A drawer with a grid is cut by its corner
 `ev photo cut <photo> --place <drawer> --grid blx,bly,brx,bry,frx,fry,flx,fly` takes the grid's
 four corners as fractions of the upright photo — back-left, back-right, front-right, front-left
 — and cuts a crop for every placed box from the grid, with the photo's perspective, so no box is
-left on an older photo. Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
+left on an older photo. The corners are your estimate: run the same command with `--preview`
+first (nothing is cut; every box is drawn framed on its cells) and look before cutting.
+Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
 <item>=x,y,w,h …` puts the whole view on the holder and a crop on each box or item named
 (`ev photo add <node> <photo> --crop x,y,w,h` does one); a crop named by hand wins over the
 grid's for the same box. **Look at every crop you cut** (open the stored file) and redo it if

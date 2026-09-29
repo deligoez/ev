@@ -35,3 +35,11 @@ that fixes them.
 - **Measuring placement has no answer key.** `regroup`'s "best where they are" treats the
   current layout as correct, but the layout has known misplacements, so a better scorer can
   show no gain. A reviewed list of where each flagged thing belongs is needed to measure.
+  2026-09-29: the 70 things `regroup` flagged were reviewed (16 moves, 4 undecided, the rest
+  belong where they are). Against that key every variant tried (no change, colour weight,
+  all word pairs, compound list, possessive-compound rule) scores 264–267 of 403: the word
+  handling changes which few cases are right, not how many. The remaining ~137 misses are
+  holders without a theme or with a shared one (the four book shelves, K4x4-16-A, S5-06, the
+  maker desk) and things whose words say nothing about their kind. That is data (themes, a
+  genre or category tag), not matching; the key was built from the current scorer's own
+  flags, so it favours it slightly.

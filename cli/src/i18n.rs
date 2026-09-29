@@ -96,3 +96,7 @@ thread_local! {
     static LANG: Cell<Lang> = const { Cell::new(Lang::En) };
 }
 
+pub fn set_lang(l: Lang) {
+    LANG.with(|c| c.set(l));
+}
+

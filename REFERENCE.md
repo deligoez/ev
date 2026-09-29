@@ -84,6 +84,7 @@ settings file, from its Settings tab, and on exit the tree position it reopens o
 | drag a divider; < >, { } | resize: the list against the right side (20–80%), the photo against the details (15–85%); a double click on a divider resets it. Kept in `ui-state.json` with the details tab |
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
+| m | the marked photos sent last with `ev focus --file`, again |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
 | q / Esc | quit (Esc clears a search first) |
 

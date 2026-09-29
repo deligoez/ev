@@ -6,7 +6,11 @@ use clap::{Args, Parser, Subcommand};
 use ev_core::{Disposition, Error, Inventory, Kind, NewNode, Result};
 use serde_json::Value;
 
+mod i18n;
+mod input;
 mod render;
+mod settings;
+mod theme;
 mod ui;
 
 /// Agent-first home inventory.
@@ -207,6 +211,11 @@ enum Cmd {
     /// Things to buy or make.
     #[command(subcommand)]
     Need(NeedCmd),
+    /// Show or change display settings: `language en|tr|auto`, `theme dark|light|auto`.
+    Settings {
+        name: Option<String>,
+        value: Option<String>,
+    },
     /// Make a running `ev ui` show a node and one of its photos (the last by default).
     Focus {
         reference: Option<String>,

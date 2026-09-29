@@ -61,34 +61,10 @@ impl Lang {
 pub fn system_lang() -> Lang {
     static CACHE: OnceLock<Lang> = OnceLock::new();
     *CACHE.get_or_init(|| {
-        #[cfg(target_os = "macos")]
-        if let Some(tag) = std::process::Command::new("defaults")
-            .args(["read", "-g", "AppleLanguages"])
-            .output()
-            .ok()
-            .and_then(|o| first_apple_language(&String::from_utf8_lossy(&o.stdout)))
-        {
-            return Lang::from_tag(&tag);
-        }
-        for var in ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"] {
-            if let Ok(v) = std::env::var(var) {
-                let v = v.split(':').next().unwrap_or_default();
-                if !v.is_empty() && v != "C" && v != "POSIX" {
-                    return Lang::from_tag(v);
-                }
-            }
-        }
-        Lang::En
+        sys_locale::get_locale()
+            .map(|tag| Lang::from_tag(&tag))
+            .unwrap_or(Lang::En)
     })
-}
-
-/// The first entry of `defaults read -g AppleLanguages`, which prints `(\n "en-TR",\n tr\n)`.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-fn first_apple_language(out: &str) -> Option<String> {
-    out.split(['(', ',', ')', '\n'])
-        .map(|s| s.trim().trim_matches('"').trim())
-        .find(|s| !s.is_empty())
-        .map(str::to_string)
 }
 
 thread_local! {

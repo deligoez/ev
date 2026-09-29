@@ -117,3 +117,400 @@ pub fn t(en: &'static str) -> &'static str {
     }
 }
 
+/// The text in the current language with its `{}` placeholders filled in order.
+pub fn tf(en: &'static str, args: &[&dyn Display]) -> String {
+    let template = t(en);
+    let mut out = String::with_capacity(template.len() + 16);
+    let mut args = args.iter();
+    let mut rest = template;
+    while let Some(i) = rest.find("{}") {
+        out.push_str(&rest[..i]);
+        if let Some(a) = args.next() {
+            out.push_str(&a.to_string());
+        }
+        rest = &rest[i + 2..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.
+static TR: &[(&str, &str)] = &[
+    // Tabs
+    ("Tree", "Ağaç"),
+    ("Pending", "Bekleyen"),
+    ("Leaving", "Çıkış"),
+    ("Lost", "Kayıp"),
+    ("Errands", "Götür/İade"),
+    ("Search", "Ara"),
+    ("To do", "Yapılacak"),
+    ("Settings", "Ayarlar"),
+    // Words for stored values
+    ("trash", "çöp"),
+    ("give", "ver"),
+    ("sell", "sat"),
+    ("return", "iade"),
+    ("record error", "kayıt hatası"),
+    ("home", "ev"),
+    ("room", "oda"),
+    ("furniture", "mobilya"),
+    ("container", "kap"),
+    ("item", "eşya"),
+    ("take", "götür"),
+    ("collect", "geri al"),
+    ("listed", "ilanda"),
+    ("reserved", "ayrıldı"),
+    ("organize", "düzenleme"),
+    ("track", "yalnız kayıt"),
+    // Markers on a line
+    ("  [lost]", "  [kayıp]"),
+    ("  [contents unknown]", "  [içi sayılmadı]"),
+    ("  [owner: {}]", "  [sahibi: {}]"),
+    ("  [with {}]", "  [{}'de]"),
+    ("(place unknown) ", "(yeri bilinmiyor) "),
+    ("  (+{} parts)", "  (+{} parça)"),
+    ("never known", "hiç bilinmiyor"),
+    ("  (last seen: {})", "  (son görüldüğü: {})"),
+    ("  {} items", "  {} eşya"),
+    // To do tab
+    (
+        " To do · {}/{} toured · {} tasks · {} moves ",
+        " Yapılacak · {}/{} gezildi · {} iş · {} taşıma ",
+    ),
+    ("TASKS", "İŞLER"),
+    ("MOVES", "TAŞIMALAR"),
+    ("TAKE / RETURN", "GÖTÜR / İADE"),
+    ("LEAVING", "ÇIKIŞ"),
+    ("LABELS TO PRINT", "ETİKET BASILACAK"),
+    ("TO GET", "ALINACAK"),
+    ("  (print / make)", "  (bas / yap)"),
+    ("  last seen: {}", "  son görüldüğü: {}"),
+    ("  (never known)", "  (hiç bilinmiyor)"),
+    ("REPAIRS", "TAMİR"),
+    ("USE-BY", "SON KULLANMA"),
+    ("  {} · past", "  {} · geçti"),
+    ("  {} · {} days", "  {} · {} gün"),
+    ("LOST", "KAYIP"),
+    ("CONTENTS UNKNOWN", "İÇİ BİLİNMİYOR"),
+    ("CHANGED SINCE TOURED", "GEZİLDİKTEN SONRA DEĞİŞTİ"),
+    ("PHOTO NEEDED", "FOTOĞRAF GEREKLİ"),
+    ("  no photo at all", "  hiç fotoğrafı yok"),
+    (
+        "  changed after the photo ({})",
+        "  fotoğraftan sonra değişti ({})",
+    ),
+    (
+        "same whole photo on {} records  ",
+        "{} kayıtta aynı tam fotoğraf  ",
+    ),
+    ("UNCUT SHARED PHOTO", "KESİLMEMİŞ ORTAK FOTOĞRAF"),
+    ("UNCLEAR RECORDS", "BELİRSİZ KAYITLAR"),
+    // Settings tab
+    ("Language", "Dil"),
+    ("Appearance", "Görünüm"),
+    ("Automatic", "Otomatik"),
+    ("Automatic ({})", "Otomatik ({})"),
+    ("system: {}", "sistem: {}"),
+    ("terminal: {}", "terminal: {}"),
+    ("dark", "koyu"),
+    ("light", "açık"),
+    ("Dark", "Koyu"),
+    ("Light", "Açık"),
+    ("not reported yet", "henüz bildirmedi"),
+    (
+        "Automatic follows the computer's language, and English when that language is not available.",
+        "Otomatik, bilgisayarın dilini izler; o dil yoksa İngilizce gösterir.",
+    ),
+    (
+        "Automatic follows the terminal's light or dark background and switches with it while ev ui is open.",
+        "Otomatik, terminalin açık ya da koyu arka planını izler ve ev ui açıkken onunla birlikte değişir.",
+    ),
+    (
+        "This terminal does not announce appearance changes, so ev ui asks it every few seconds.",
+        "Bu terminal görünüm değişimini kendiliğinden bildirmiyor; ev ui birkaç saniyede bir soruyor.",
+    ),
+    (
+        "Enter or → picks the next option, ← the previous one.",
+        "Enter ya da → sonraki seçeneği, ← öncekini seçer.",
+    ),
+    ("Saved in {}", "Kaydedildiği yer: {}"),
+    (
+        "From the command line: ev settings language en|tr|auto, ev settings theme dark|light|auto",
+        "Komut satırından: ev settings language en|tr|auto, ev settings theme dark|light|auto",
+    ),
+    ("settings saved", "ayarlar kaydedildi"),
+    (
+        "could not save the settings: {}",
+        "ayarlar kaydedilemedi: {}",
+    ),
+    (
+        "shown in {}; the computer's language is {}",
+        "gösterilen: {}; bilgisayarın dili: {}",
+    ),
+    // Status line, titles, help
+    ("updated {}", "güncellendi {}"),
+    ("showing: {}", "gösteriliyor: {}"),
+    ("\"{}\": {} results", "\"{}\": {} sonuç"),
+    ("search cleared", "arama temizlendi"),
+    (" {} · Photo {}/{} ", " {} · Fotoğraf {}/{} "),
+    (
+        "(this terminal cannot show pictures — press O to open it outside)",
+        "(bu terminal resim gösteremiyor — O ile dışarıda aç)",
+    ),
+    (
+        "[ ] ← → step · r/R rotate · O open outside · Esc/o/click close",
+        "[ ] ← → teker gez · r/R döndür · O dışarıda aç · Esc/o/tık kapat",
+    ),
+    (
+        " Search: \"{}\" · ✕ clear (x) ",
+        " Ara: \"{}\" · ✕ temizle (x) ",
+    ),
+    (
+        " Photo {}/{}  ([ ] step · r rotate · o full screen · O open outside) ",
+        " Fotoğraf {}/{}  ([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",
+    ),
+    (" Details ", " Ayrıntı "),
+    (
+        "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
+        "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",
+    ),
+    (
+        "↑↓ move · Enter/→ next option · ← previous option · Tab/1-8 tabs · q quit    {}",
+        "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab/1-8 sekme · q çık    {}",
+    ),
+    (
+        "↑↓ move · → open · ← close · Enter/double-click go · Tab/1-8 tabs · / search · q quit    {}",
+        "↑↓ gez · → aç · ← kapat · Enter/çift tık git · Tab/1-8 sekme · / ara · q çık    {}",
+    ),
+    ("(the photo could not be opened)", "(fotoğraf açılamadı)"),
+    ("(empty)", "(boş)"),
+    // Details pane fields
+    ("kind", "tür"),
+    ("code", "kod"),
+    ("qty", "adet"),
+    ("state", "durum"),
+    ("candidate ({})", "aday ({})"),
+    ("gone ({})", "gitti ({})"),
+    ("lost", "kayıp"),
+    ("last seen: {}", "son görüldüğü: {}"),
+    ("moving to", "gidecek"),
+    ("to take to", "götürülecek"),
+    ("owner", "sahibi"),
+    ("lent to", "ödünçte"),
+    ("theme", "tema"),
+    ("note", "not"),
+    ("address", "adres"),
+    ("fill", "doluluk"),
+    ("{}%", "%{}"),
+    ("tags", "etiketler"),
+    ("photo", "foto"),
+    ("label", "etiket"),
+    ("to print", "basılacak"),
+    ("printed", "basıldı"),
+    ("broken", "bozuk"),
+    ("awaiting repair {}", "tamir bekliyor {}"),
+    ("use-by", "son kullanma"),
+    ("sale", "satış"),
+    ("to get", "alınacak"),
+    ("  (via {})", "  ({} üzerinden)"),
+    ("task", "görev"),
+    ("updated", "güncellendi"),
+    ("Contents ({})", "İçindekiler ({})"),
+    // Command-line text
+    ("  (candidate: {})", "  (aday: {})"),
+    ("  (gone: {})", "  (gitti: {})"),
+    ("  (lost)", "  (kayıp)"),
+    ("  (contents unknown)", "  (içi sayılmadı)"),
+    ("  (to: {})", "  (götürülecek: {})"),
+    ("  (owner: {})", "  (sahibi: {})"),
+    ("  (with: {})", "  (ödünçte: {})"),
+    ("return (theirs)", "iade (onların)"),
+    ("collect (lent)", "geri al (ödünç verilen)"),
+    ("  [{} items]", "  [{} eşya]"),
+    ("[toured, changed since]", "[gezildi, sonra değişti]"),
+    ("[toured]", "[gezildi]"),
+    ("[kept as is]", "[olduğu gibi kaldı]"),
+    ("[raw]", "[gezilmedi]"),
+    (" (in progress)", " (sürüyor)"),
+    (" (done)", " (bitti)"),
+    (" (dropped)", " (bırakıldı)"),
+    ("why: {}", "neden: {}"),
+    (
+        "{} places: {} toured, {} kept as is, {} raw; {} changed since their tour",
+        "{} yer: {} gezildi, {} olduğu gibi kaldı, {} gezilmedi; {} gezildikten sonra değişti",
+    ),
+    ("(not set)", "(belirlenmedi)"),
+    (" (make)", " (yapılacak)"),
+    ("  for {}", "  {} için"),
+    ("Goal: {}", "Hedef: {}"),
+    ("Tasks", "İşler"),
+    ("Moves", "Taşımalar"),
+    ("Labels to print", "Basılacak etiketler"),
+    ("Broken", "Bozuk"),
+    ("Use-by soon", "Son kullanma yaklaşan"),
+    ("Contents unknown", "İçi bilinmiyor"),
+    ("Changed since toured", "Gezildikten sonra değişti"),
+    ("Unclear records", "Belirsiz kayıtlar"),
+    (
+        "Photo of the current state needed",
+        "Son hâlinin fotoğrafı gerekli",
+    ),
+    ("  {} ({} days)", "  {} ({} gün)"),
+    ("  (no photo)", "  (fotoğraf yok)"),
+    ("  (changed {})", "  (değişti {})"),
+    (
+        "Whole photo shared by several records",
+        "Birden çok kayıtta aynı tam fotoğraf",
+    ),
+    ("To get", "Alınacaklar"),
+    ("(no labels to print)", "(basılacak etiket yok)"),
+    ("(nothing to get)", "(alınacak bir şey yok)"),
+    ("Next task ({} open):", "Sıradaki iş ({} açık):"),
+    ("observed: {}", "gözlem: {}"),
+    ("arriving: {}", "gelecek: {}"),
+    ("(no open task)", "(açık iş yok)"),
+    (
+        "Raw places no task covers ({}):",
+        "Hiçbir işin kapsamadığı gezilmemiş yerler ({}):",
+    ),
+    ("(no tasks)", "(iş yok)"),
+    ("pending move → {}", "bekleyen taşıma → {}"),
+    ("review: {} ({})", "gezme: {} ({})"),
+    ("observed #{}: {}", "gözlem #{}: {}"),
+    ("  (via #{})", "  (#{} üzerinden)"),
+    ("Rules:", "Kurallar:"),
+    ("Similar things are in:", "Benzerleri şurada:"),
+    (
+        "All {} places that can hold something:",
+        "Bir şey alabilecek {} yerin hepsi:",
+    ),
+    ("{} items", "{} eşya"),
+    (
+        "Alike things in several places:",
+        "Birden çok yere dağılmış benzer şeyler:",
+    ),
+    ("Holders without a theme:", "Teması olmayan kaplar:"),
+    (
+        "Items lying loose in a room or on furniture:",
+        "Odada ya da mobilya üstünde açıkta duran eşyalar:",
+    ),
+    (
+        "(nothing to take, return or collect)",
+        "(götürülecek, iade edilecek ya da geri alınacak bir şey yok)",
+    ),
+    (
+        "take {} · return {} · collect {}",
+        "götür {} · iade {} · geri al {}",
+    ),
+    ("(none)", "(yok)"),
+    ("(no pending moves)", "(bekleyen taşıma yok)"),
+    ("(nothing lost)", "(kayıp bir şey yok)"),
+    ("holds {}", "içinde: {}"),
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every string literal passed to `t(` or `tf(` in these sources.
+    fn keys_in(src: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        for start in ["t(\"", "tf(\"", "t(\n", "tf(\n"] {
+            let mut rest = src;
+            while let Some(i) = rest.find(start) {
+                let before = rest[..i].chars().last();
+                rest = &rest[i + start.len()..];
+                if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+                    continue;
+                }
+                let body = if start.ends_with('\n') {
+                    let trimmed = rest.trim_start();
+                    match trimmed.strip_prefix('"') {
+                        Some(b) => b,
+                        None => continue,
+                    }
+                } else {
+                    rest
+                };
+                let mut key = String::new();
+                let mut chars = body.chars();
+                while let Some(c) = chars.next() {
+                    match c {
+                        '\\' => match chars.next() {
+                            Some('n') => key.push('\n'),
+                            Some(other) => key.push(other),
+                            None => break,
+                        },
+                        '"' => break,
+                        c => key.push(c),
+                    }
+                }
+                out.push(key);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn every_text_in_the_code_has_a_turkish_translation() {
+        let sources = [
+            include_str!("ui.rs"),
+            include_str!("render.rs"),
+            include_str!("settings.rs"),
+        ];
+        let map = turkish();
+        let mut missing: Vec<String> = sources
+            .iter()
+            .flat_map(|s| keys_in(s))
+            .filter(|k| !map.contains_key(k.as_str()))
+            .collect();
+        missing.sort();
+        missing.dedup();
+        assert!(missing.is_empty(), "no Turkish for: {missing:#?}");
+    }
+
+    #[test]
+    fn translations_keep_their_placeholders_and_keys_are_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for (en, tr) in TR {
+            assert!(seen.insert(*en), "duplicate key {en:?}");
+            assert_eq!(
+                en.matches("{}").count(),
+                tr.matches("{}").count(),
+                "{en:?} → {tr:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn text_follows_the_language_and_falls_back_to_english() {
+        set_lang(Lang::Tr);
+        assert_eq!(t("Tree"), "Ağaç");
+        assert_eq!(tf("  [with {}]", &[&"Mahmutlar"]), "  [Mahmutlar'de]");
+        assert_eq!(t("no such text"), "no such text");
+        set_lang(Lang::En);
+        assert_eq!(tf("{}%", &[&40]), "40%");
+        set_lang(Lang::Tr);
+        assert_eq!(tf("{}%", &[&40]), "%40");
+        set_lang(Lang::En);
+    }
+
+    #[test]
+    fn the_first_preferred_macos_language_is_read_from_defaults() {
+        let out = "(\n    \"en-TR\",\n    \"tr-TR\",\n    \"de-DE\"\n)\n";
+        assert_eq!(first_apple_language(out).as_deref(), Some("en-TR"));
+        assert_eq!(
+            first_apple_language("(\n    tr,\n    en\n)").as_deref(),
+            Some("tr")
+        );
+        assert_eq!(first_apple_language(""), None);
+    }
+
+    #[test]
+    fn only_the_language_part_of_a_tag_counts() {
+        assert_eq!(Lang::from_tag("tr-TR"), Lang::Tr);
+        assert_eq!(Lang::from_tag("en-TR"), Lang::En);
+        assert_eq!(Lang::from_tag("tr_TR.UTF-8"), Lang::Tr);
+        assert_eq!(Lang::from_tag("de-DE"), Lang::En);
+    }
+}

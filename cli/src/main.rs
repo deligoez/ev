@@ -740,12 +740,18 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
         Cmd::Focus {
+            file: Some(file),
+            note,
+            ..
+        } => inv.focus_file(&file, note.as_deref()),
+        Cmd::Focus {
             reference,
             photo,
             clear,
+            ..
         } => {
             if reference.is_none() && !clear {
-                return Err(Error::Usage("name a node, or --clear".into()));
+                return Err(Error::Usage("name a node, --file, or --clear".into()));
             }
             inv.focus(reference.as_deref(), photo)
         }
@@ -820,6 +826,32 @@ fn run(cli: Cli) -> Result<Value> {
         }) => {
             let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
             inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
+        }
+        Cmd::Photo(PhotoCmd::Mark {
+            target,
+            marks,
+            grid,
+            out,
+            show,
+        }) => {
+            let grid = grid
+                .as_deref()
+                .map(str::parse::<ev_core::GridCorners>)
+                .transpose()?;
+            let marks = marks
+                .iter()
+                .map(|m| {
+                    let (label, at) = m.split_once('=').ok_or_else(|| {
+                        Error::Usage(format!("`{m}` is not <label>=x,y,w,h or <label>=<cell>"))
+                    })?;
+                    Ok((label.trim().to_string(), at.trim().to_string()))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let mut v = inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref())?;
+            if let (Some(note), Some(path)) = (show, v["marked"].as_str().map(PathBuf::from)) {
+                v["shown"] = inv.focus_file(&path, Some(&note))?["focus"].clone();
+            }
+            Ok(v)
         }
         Cmd::Photo(PhotoCmd::Cut {
             file,

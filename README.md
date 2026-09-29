@@ -117,12 +117,14 @@ flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blo
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
 at a node and shows its photo, so "which one do you mean?" is answered on screen. The details
-pane has tabs (`H`/`L` or a click): a summary with the node's `#id`; a grid, where a placed box
-is framed on its drawer's plate; the contents; what `ev regroup` suggests there (guesses marked
-as such); and the history, a place's including what came in, went out and was added. It
-scrolls (`J`/`K`, the wheel); holders show their fill as a bar (`▮▮▯▯`) with the room it
-leaves. Drag the divider between the list and the details, or under the photo, to resize
-(`<` `>` `{` `}` from the keyboard, a double click resets); the sizes and the tab are kept.
+pane has tabs (`H`/`L` or a click): a summary with the node's `#id`; its photos with their
+notes; a grid, where a placed box is framed on its drawer's plate; the contents; what
+`ev regroup` suggests there (guesses marked as such); and the history, a place's including
+what came in, went out and was added. A click on a photo, a thing or a box on a drawer's grid
+opens it. The pane scrolls (`J`/`K`, the wheel); holders show their fill as a bar (`▮▮▯▯`)
+with the room it leaves. Drag the divider between the list and the details, or under the
+photo, to resize (`<` `>` `{` `}` from the keyboard, a double click resets); the sizes and the
+tab are kept.
 
 **English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with

@@ -76,6 +76,8 @@ pub struct Node {
     pub note: Option<String>,
     pub theme: Option<String>,
     pub fill: Option<i64>,
+    /// Outer size `WxDxH` (spec §23), normalized; for boxes that may be swapped for bigger ones.
+    pub size: Option<String>,
     pub tags: Vec<String>,
     pub photos: Vec<String>,
     pub state: State,

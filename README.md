@@ -65,23 +65,28 @@ there and the places no task covers yet. `ev goal organize|track` says whether t
 wants a tidy-up at all — under `track` ev only keeps the records.
 
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
-leaving, labels to print, things to buy or make, broken things, use-by dates, lost things and
-uninventoried places. What is already state on a record is read where it lives and leaves the
+leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
+uninventoried places, and places whose photo of the current state is missing or older than their
+last change. What is already state on a record is read where it lives and leaves the
 list by its own verb, so nothing is kept twice. The kinds that had no state get small marks:
 `ev label` (a new or changed code needs its label printed), `ev need add|list|got|drop`,
-`ev broken` / `ev fixed`, `ev expires <x> 2026-07`, and `ev sale <x> --listed --price n`
-for a thing being sold.
+`ev broken` / `ev fixed`, `ev expires <x> 2026-07`, `ev sale <x> --listed --price n`
+for a thing being sold, and `ev photo current <x>` when the old photo still shows a place well
+enough after a small change.
 
 **Photos.** `ev photo add X photo.jpg` copies a photo into the store and attaches it;
 `--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the
-original. `ev photo list|remove|adopt`.
+original. A crop on a box is that box's current photo. A group photo goes whole on one place
+only: attaching it whole to a second node is refused (`--whole` when that is really meant), and
+`ev todo` lists older slips. `ev photo list|remove|adopt`.
 
 **Watching.** `ev ui` is a read-only browser with tabs for the tree, pending moves, disposals,
 lost items, errands (Götür/İade), search and everything waiting (Yapılacak, one collapsible
 section per kind). It refreshes the moment another process writes,
 flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
-full screen with `o`, and in the system viewer with `O`. Mouse works for tabs, rows, the wheel
-and photos.
+full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
+works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
+at a node and shows its photo, so "which one do you mean?" is answered on screen.
 
 ## Documents
 

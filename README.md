@@ -118,13 +118,15 @@ enough after a small change.
 original. A crop on a box is that box's current photo. `ev photo cut drawer.jpg --place 07-A
 A3=0.1,0.3,0.3,0.1 B4=…` does a whole drawer in one step: the whole view on the drawer, a crop
 on each box. A group photo goes whole on one place only: attaching it whole to a second node is
-refused (`--whole` when that is really meant), and `ev todo` lists older slips.
-`ev photo list|remove|adopt`.
+refused (`--whole` when that is really meant), and `ev todo` lists older slips. One cut can
+give the same record several crops (`ev photo cut sets.jpg 598=… 598=…`), one per set in the
+photo. `ev photo list|remove|adopt`; a removed photo stays in the history.
 
 **One drawer photo, every box cut from it.** For a drawer with a grid, `ev photo cut drawer.jpg
 --place 07-A --grid 0.07,0.09,0.95,0.09,0.93,0.83,0.07,0.83` takes the grid's four corners in the
 photo (back-left, back-right, front-right, front-left, as fractions) and cuts every placed box
-through the photo's perspective, so no box keeps an older photo than its drawer. `--preview`
+through the photo's perspective, so no box keeps an older photo than its drawer; a taller box
+(its `size`, `1x2x1.5`) gets a wider crop, as its rim leans out of its cells. `--preview`
 cuts nothing: it frames every box it would cut on a copy of the photo, to check the corners by
 eye first (and with a note, shows it in a running `ev ui`). The photo keeps its corners, so its
 cells can be found by name later. Photos stay current by construction: `ev review <drawer> --as

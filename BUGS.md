@@ -6,6 +6,10 @@ that fixes them.
 
 ## Open
 
+- **`ev sketch <ref> --text` prints centimetres unrounded.** The kitchen reads `1641.8004,
+  426.67783 cm'de · 297.2558999999999×502.85183000000006 cm`. Expected: whole centimetres (or
+  one decimal) in the readable output; JSON can keep the full value.
+
 - **`ev regroup` cannot be told "no".** It proposed moving the ULN2003 drivers into the motor
   box (a stepper beside its driver); the person declined because the motor box is already full.
   Nothing records that answer, so every later regroup of the drawer proposes the same move

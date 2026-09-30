@@ -70,6 +70,28 @@ fn stdout_is_json_when_piped() {
 }
 
 #[test]
+fn text_is_asked_for_through_a_pipe() {
+    let ev = seeded();
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .args(["--db"])
+        .arg(&ev.db)
+        .args(["--text", "show", "Salon"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    // Readable, not JSON: no braces, the name and its path in words.
+    assert!(!stdout.trim_start().starts_with('{'), "{stdout}");
+    assert!(stdout.contains("Salon"), "{stdout}");
+    // --text and --json together is a usage error.
+    let (code, _, _) = ev.run(&["--text", "--json", "show", "Salon"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
 fn errors_go_to_stderr_with_fixed_codes() {
     let ev = seeded();
 

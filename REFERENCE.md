@@ -321,7 +321,7 @@ drawn as its plate, each box a frame over the cells it covers.
 | `ev task list [--all]` | unfinished tasks in order (`position`), then closed ones with `--all` |
 | `ev task start\|done\|drop\|reopen <id> [--note t]` | one task is in progress at a time; `done` only when the person says so |
 | `ev task edit <id> [--title] [--why] [--on ref]… [--off ref]… [--at n]` | change a task |
-| `ev next` | `goal`, `task` (with `places`: each as `show`, plus `arriving`), `open_tasks`, `progress`, `unplanned` (raw units no task covers; empty under `track`), `rules` |
+| `ev next` | `goal`, `task` (with `places`: each as `show`, plus `arriving`), `open_tasks`, `progress` (the counts of `ev progress`: `units`, `toured`, `kept`, `counting`, `raw`, `changed_since_tour`), `unplanned` (raw units no task covers; empty under `track`), `rules` |
 
 A unit is the innermost labelled holder, or an unlabelled holder standing on its own in a room
 or on furniture: a holder none of whose children carries a code. `ev show` carries the node's
@@ -333,7 +333,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`) |
+| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

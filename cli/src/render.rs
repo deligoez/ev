@@ -66,10 +66,28 @@ fn line(n: &Value) -> String {
     out
 }
 
+/// Where a lost thing was last seen, or that it never was.
+pub fn last_seen(n: &Value) -> String {
+    match n["last_seen"].as_object() {
+        Some(_) => tf("  (last seen in {})", &[&label(&n["last_seen"])]),
+        None => t("  (never seen anywhere)").to_string(),
+    }
+}
+
+/// How far a place has been counted, in words: `raw`, `counting`, `toured`, `kept`.
+pub fn count_label(state: &str) -> &'static str {
+    match state {
+        "counting" => t("being counted"),
+        "toured" => t("counted"),
+        "kept" => t("left as is"),
+        _ => t("not counted"),
+    }
+}
+
 fn place_marks(n: &Value) -> String {
     let mut out = String::new();
-    if n["unknown"] == true {
-        out.push_str(t("  (contents unknown)"));
+    if let Some(c) = n["count"].as_str() {
+        out.push_str(&format!("  ({})", count_label(c)));
     }
     if n["temporary"] == true {
         out.push_str(t("  (temporary place)"));
@@ -151,10 +169,11 @@ fn tree(out: &mut String, n: &Value, indent: usize) {
 
 fn review_mark(r: &Value) -> &'static str {
     match r["status"].as_str() {
-        Some("toured") if r["changed_since"] == true => t("[toured, changed since]"),
-        Some("toured") => t("[toured]"),
-        Some("kept") => t("[kept as is]"),
-        _ => t("[raw]"),
+        Some("toured") if r["changed_since"] == true => t("[counted, changed since]"),
+        Some("toured") => t("[counted]"),
+        Some("kept") => t("[left as is]"),
+        Some("counting") => t("[being counted]"),
+        _ => t("[not counted]"),
     }
 }
 
@@ -178,11 +197,12 @@ fn task_line(out: &mut String, t_: &Value) {
 
 fn progress_line(p: &Value) -> String {
     tf(
-        "{} places: {} toured, {} kept as is, {} raw; {} changed since their tour",
+        "{} places: {} counted, {} left as is, {} being counted, {} not counted; {} changed since counted",
         &[
             &p["units"],
             &p["toured"],
             &p["kept"],
+            &p["counting"],
             &p["raw"],
             &p["changed_since_tour"],
         ],
@@ -284,9 +304,9 @@ fn todo(out: &mut String, v: &Value) {
         ("labels", t("Labels to print")),
         ("repairs", t("Broken")),
         ("expiring", t("Use-by soon")),
-        ("unknown", t("Contents unknown")),
+        ("uncounted", t("Not counted yet")),
         ("parked", t("Waiting for a final place")),
-        ("stale", t("Changed since toured")),
+        ("stale", t("Changed since counted")),
         ("unclear", t("Unclear records")),
         ("photos", t("Photo of the current state needed")),
     ] {
@@ -536,7 +556,7 @@ fn suggestion(out: &mut String, v: &Value) {
         let c = &x["container"];
         // A place not gone through yet is a guess to check before it is proposed.
         let untoured = if c["review"].is_null() || c["review"]["status"] == "raw" {
-            t("  (not toured)")
+            t("  (not counted)")
         } else {
             ""
         };
@@ -959,17 +979,7 @@ pub fn human(v: &Value) -> String {
     if v.get("units").is_some() && v.get("places").is_some() {
         let _ = writeln!(out, "{}", progress_line(v));
         for p in v["places"].as_array().into_iter().flatten() {
-            let unknown = if p["unknown"] == true {
-                t("  (contents unknown)")
-            } else {
-                ""
-            };
-            let _ = writeln!(
-                out,
-                "  {} {}{unknown}",
-                review_mark(&p["review"]),
-                s(p, "path_text")
-            );
+            let _ = writeln!(out, "  {} {}", review_mark(&p["review"]), s(p, "path_text"));
         }
         return out;
     }
@@ -1344,8 +1354,16 @@ pub fn human(v: &Value) -> String {
         for n in tr {
             tree(&mut out, n, 0);
         }
-        for n in v["unplaced"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "{}{}", t("(place unknown) "), line(n));
+        // What is lost is listed apart, with where it was last seen.
+        let lost = v["lost"].as_array().cloned().unwrap_or_default();
+        if !lost.is_empty() {
+            let _ = writeln!(out, "{}", t("Unknown place"));
+            for n in &lost {
+                let _ = writeln!(out, "  {}{}", thing(n), last_seen(n));
+                for c in n["children"].as_array().into_iter().flatten() {
+                    tree(&mut out, c, 2);
+                }
+            }
         }
         return out;
     }

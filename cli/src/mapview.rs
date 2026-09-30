@@ -131,9 +131,9 @@ fn summary(t: &Value) -> Line<'static> {
         tf("{} items", &[&t["items"]]),
         Style::new().fg(pal().qty),
     ));
-    if t["unknown"] == true {
+    if let Some(c) = t["count"].as_str() {
         spans.push(Span::styled(
-            format!("  {}", crate::i18n::t("contents unknown")),
+            format!("  {}", crate::render::count_label(c)),
             Style::new().fg(pal().mark),
         ));
     }
@@ -731,9 +731,9 @@ impl MapView {
                 Style::new().fg(pal().mark),
             ));
         }
-        if tile["unknown"] == true {
+        if let Some(c) = tile["count"].as_str() {
             body.push(Line::styled(
-                t("contents unknown"),
+                crate::render::count_label(c),
                 Style::new().fg(pal().mark),
             ));
         }

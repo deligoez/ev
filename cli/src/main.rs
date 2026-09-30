@@ -142,8 +142,12 @@ enum Cmd {
     },
     /// Mark a node lost, or list lost nodes when no reference is given.
     Lost { reference: Option<String> },
-    /// Clear a node's lost flag where it was last seen.
-    Found { reference: String },
+    /// A lost node is found: where it was last seen, or `--in <place>` where it turned up.
+    Found {
+        reference: String,
+        #[arg(long = "in")]
+        place: Option<String>,
+    },
     /// A node's events, oldest first; `--contents` adds what came in, went out or was added.
     History {
         reference: String,
@@ -222,7 +226,8 @@ enum Cmd {
     },
     /// Remove an observation by id.
     Unobserve { id: i64 },
-    /// Mark how far a place has been gone through: toured, kept (leave as is) or raw.
+    /// Mark how far a place has been counted: counting (its tour has begun), toured (counted),
+    /// kept (left as it is) or raw (not counted, the default).
     Review {
         reference: String,
         #[arg(long = "as")]
@@ -696,9 +701,6 @@ struct AddArgs {
     /// Place this node belongs to when it is not ours.
     #[arg(long)]
     owner: Option<String>,
-    /// Its contents have not been inventoried yet.
-    #[arg(long)]
-    unknown: bool,
     /// A parking place: what is put in it waits for its final place.
     #[arg(long)]
     temporary: bool,
@@ -1002,7 +1004,14 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Cmd::Lost { reference: Some(r) } => inv.mark_lost(&r),
         Cmd::Lost { reference: None } => inv.lost_list(),
-        Cmd::Found { reference } => inv.found(&reference),
+        Cmd::Found {
+            reference,
+            place: None,
+        } => inv.found(&reference),
+        Cmd::Found {
+            reference,
+            place: Some(p),
+        } => inv.found_in(&reference, &p),
         Cmd::History {
             reference,
             contents: false,
@@ -1283,7 +1292,6 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         photos: a.photos,
         to: a.to,
         owner: a.owner,
-        unknown: a.unknown,
         temporary: a.temporary,
     })
 }

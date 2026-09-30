@@ -55,6 +55,11 @@ fn tab_titles() -> [&'static str; 8] {
 
 /// The To do section that starts collapsed: unclear records are a long, low-priority list.
 const UNCLEAR_SECTION: i64 = -14;
+/// The To do section of places not counted yet, which also starts collapsed: every place in
+/// the home is on it until it is counted.
+const UNCOUNTED_SECTION: i64 = -10;
+/// The tree's heading over lost things, whose place is not known.
+const LOST_SECTION: i64 = -900;
 /// Rows of the Settings tab; their ids are negative like section headers, but far below them.
 const SETTING_LANGUAGE: i64 = -1001;
 const SETTING_THEME: i64 = -1002;
@@ -177,7 +182,8 @@ struct Row {
 #[derive(Default)]
 struct Snapshot {
     roots: Vec<Value>,
-    unplaced: Vec<Value>,
+    /// Lost things, apart from where they were last seen.
+    lost: Vec<Value>,
     parent: HashMap<i64, i64>,
     label: HashMap<i64, String>,
     signature: HashMap<i64, String>,
@@ -188,16 +194,15 @@ impl Snapshot {
         let v = inv.tree(None, None)?;
         let mut s = Snapshot {
             roots: v["tree"].as_array().cloned().unwrap_or_default(),
-            unplaced: v["unplaced"].as_array().cloned().unwrap_or_default(),
+            lost: v["lost"].as_array().cloned().unwrap_or_default(),
             ..Default::default()
         };
         for r in s.roots.clone() {
             s.index(&r, None);
         }
-        for u in s.unplaced.clone() {
-            let id = u["id"].as_i64().unwrap_or_default();
-            s.label.insert(id, label(&u));
-            s.signature.insert(id, signature(&u, None));
+        // A lost thing sits under the "Unknown place" heading, not under where it was seen.
+        for u in s.lost.clone() {
+            s.index(&u, Some(LOST_SECTION));
         }
         Ok(s)
     }
@@ -416,10 +421,16 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     if n["lost"] == true {
         out.push(Span::styled(t("  [lost]"), Style::new().fg(pal().lost)));
     }
-    if n["unknown"] == true {
+    // How far a place gone through on its own has been counted.
+    if let Some(c) = n["count"].as_str() {
+        let color = match c {
+            "toured" => pal().qty,
+            "counting" => pal().mark,
+            _ => pal().muted,
+        };
         out.push(Span::styled(
-            t("  [contents unknown]"),
-            Style::new().fg(pal().lost),
+            format!("  [{}]", crate::render::count_label(c)),
+            Style::new().fg(color),
         ));
     }
     if n["temporary"] == true {
@@ -714,7 +725,7 @@ impl App {
             fullscreen: false,
             photo_area: Rect::default(),
             plan_title: String::new(),
-            collapsed: HashSet::from([UNCLEAR_SECTION]),
+            collapsed: HashSet::from([UNCLEAR_SECTION, UNCOUNTED_SECTION]),
             focus_seen: None,
             prefs: Settings::default(),
             settings_path: None,
@@ -782,13 +793,29 @@ impl App {
                 for r in &self.snap.roots {
                     self.flatten(r, 0, &mut out);
                 }
-                for u in &self.snap.unplaced {
-                    let mut row = self.tree_row(u, 0);
-                    row.spans.insert(
-                        0,
-                        Span::styled(t("(place unknown) "), Style::new().fg(pal().lost)),
-                    );
-                    out.push(row);
+                // Lost things under their own heading, each with where it was last seen.
+                if !self.snap.lost.is_empty() {
+                    let open = !self.collapsed.contains(&LOST_SECTION);
+                    out.push(Row {
+                        id: LOST_SECTION,
+                        depth: 0,
+                        spans: vec![Span::styled(
+                            format!("{} ({})", t("Unknown place"), self.snap.lost.len()),
+                            Style::new().fg(pal().lost).bold(),
+                        )],
+                        expandable: true,
+                        expanded: open,
+                    });
+                    if open {
+                        for u in &self.snap.lost {
+                            let at = out.len();
+                            self.flatten(u, 1, &mut out);
+                            out[at].spans.push(Span::styled(
+                                crate::render::last_seen(u),
+                                Style::new().fg(pal().muted),
+                            ));
+                        }
+                    }
                 }
                 out
             }
@@ -901,7 +928,7 @@ impl App {
         let c = &v["counts"];
         let p = &v["progress"];
         self.plan_title = tf(
-            " To do · {}/{} toured · {} tasks · {} moves ",
+            " To do · {}/{} counted · {} tasks · {} moves ",
             &[&p["toured"], &p["units"], &c["tasks"], &c["moves"]],
         );
         let mut out = Vec::new();
@@ -1106,12 +1133,12 @@ impl App {
         ));
         sections.push((t("LOST"), pal().lost, plain("lost", &|_| None)));
         sections.push((
-            t("CONTENTS UNKNOWN"),
+            t("NOT COUNTED YET"),
             pal().furniture,
-            plain("unknown", &|_| None),
+            plain("uncounted", &|_| None),
         ));
         sections.push((
-            t("CHANGED SINCE TOURED"),
+            t("CHANGED SINCE COUNTED"),
             pal().furniture,
             plain("stale", &|_| None),
         ));
@@ -3146,10 +3173,8 @@ impl App {
                     "observe" => own("observed", str_of(d, "text")),
                     "unobserve" => own("observation removed", str_of(d, "text")),
                     "review" => own("reviewed", {
-                        let status = match d["as"].as_str() {
-                            Some("toured") => t("toured").to_string(),
-                            _ => str_of(d, "as"),
-                        };
+                        let status = crate::render::count_label(d["as"].as_str().unwrap_or("raw"))
+                            .to_string();
                         format!("{status}  {}", str_of(d, "note"))
                     }),
                     "dispose" => own(

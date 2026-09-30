@@ -37,6 +37,11 @@ it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you m
   (`size_drift`). The field is what crops and bigger-box offers read; 21 boxes of the author's
   drawer had their size only in their names.
 
+- **Serial codes for movable boxes: `code=GF1x1-*`.** A code ending in `*` takes the next free
+  number of its series in `ev add`, `ev edit` and `ev edit --stdin`, padded like the series and
+  never reusing a gone box's number. Movable boxes get serial codes that stay on their labels
+  wherever they go (`GF1x1-012`, `S5-01`); furniture slots keep positional ones (`K4x4-07-A`).
+
 ## Changed
 
 - **A taller box gets a wider crop.** A grid cut widens each box's crop with its height from

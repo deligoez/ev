@@ -38,6 +38,8 @@ ev edit --stdin < edits.ndjson   # many records at once, all or nothing: {"ref":
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
 ev grid 07-A --cols 6 --rows 7   # a gridfinity drawer: row 1 at the back, columns A…
 ev cell 07-A-A3=A3-B3 --recode   # a box covers cells; ev grid 07-A draws the map
+ev sketch K4x2 --on K4x4         # furniture standing on another, drawn with it
+ev map K4x4                      # a place as tiles: its grid, its sketch or a stack
 ev history 391                   # everything that happened to it
 ev history 07-A --contents       # and to a place: what came in, went out, was added
 ```
@@ -100,6 +102,13 @@ the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <dra
 map and lists the free cells, `ev ui` shows it in the drawer's details, and `ev suggest` names
 the free cells. Boxes trade places in one `ev cell` call, and `--recode` renames them after
 their cells.
+
+**A map to walk.** `ev map <place>` lays out what is in a place: on its grid, on a sketch in
+centimetres (`ev sketch <room> --size 400,300`, `ev sketch <desk> --at 0,0 --size 120,60`), or on
+their own; furniture standing on another (`ev sketch K4x2 --on K4x4`) is drawn with it, front on,
+top first. In `ev ui`, `M` opens it full screen on the selected node: the arrows walk the tiles,
+Enter goes in — home, room, Kallax, drawer, gridfinity box — Backspace comes back up, and `t`
+shows the chosen tile in the tree. Each tile names what is in it.
 
 **A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
 counts the places a person opens one at a time (the innermost labelled holders) as raw,

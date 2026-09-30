@@ -14,8 +14,13 @@ error channel.
 
 Everything is a node in one tree: `home` › `room` (rooms may nest) › `furniture` ›
 `container` › `item`. `kind` is only a label — any node can hold other nodes. Codes are
-what is printed on the physical labels (`K4x4-07-Ü`, `S5-01`): use them exactly as the
-person gives them, never invent one. A node leaves in two steps (`dispose --as` then
+what is printed on the physical labels, and there are two kinds. **A slot of furniture has a
+positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says where, so it is
+found by walking to it, and a slot that moves gets a new label. **A movable box has a serial
+code** (`S5-01`, a Samla box; `GF-001`, a gridfinity box): it says which box, and it stays
+when the box moves to another drawer or room — where it is lives in the record (its parent,
+its cell), never in its code. Use codes exactly as the person gives them; for a new box,
+propose the next free code of its series and record it once they agree. A node leaves in two steps (`dispose --as` then
 `gone`) or one (`gone --as`). A node whose place is unknown is `lost`.
 
 ## The conversation loop
@@ -120,8 +125,9 @@ Record the kinds that have their own verbs as you meet them:
   row 1 at the back) and place each box with `ev cell <box>=A3-B3`. Then `ev grid <drawer>`
   draws the map and lists free cells — propose places for new boxes from it, and name them by
   cell. When boxes trade places, give all of them their new cells in one
-  `ev cell A=A3-B3 B=A4 C=B4 --recode` once the person has moved them: overlaps are checked
-  against the final layout, and `--recode` renames each box after its back-left cell.
+  `ev cell A=A3-B3 B=A4 C=B4` once the person has moved them: overlaps are checked against
+  the final layout. Do not add `--recode`: it renames each box after its cell, and a box's
+  code is its serial label, which must not change when it moves.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 

@@ -6,8 +6,8 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 
 ## Upgrading
 
-The database moves from schema 11 to **schema 12** (kits) the first time this version opens
-it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+The database moves from schema 11 to **schema 13** (12: kits, 13: parking places) the first
+time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -41,6 +41,15 @@ it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you m
   number of its series in `ev add`, `ev edit` and `ev edit --stdin`, padded like the series and
   never reusing a gone box's number. Movable boxes get serial codes that stay on their labels
   wherever they go (`GF1x1-012`, `S5-01`); furniture slots keep positional ones (`K4x4-07-A`).
+
+- **Parking places: `temporary`.** Mark a place `temporary` (`ev add --temporary`, `ev edit X
+  temporary=true`) when things are put there only until their places are decided, or mark one
+  thing that waits among things that do belong where it is. `ev suggest` never offers a parking
+  place or anything inside it (they are listed apart under `parking`), `ev todo` lists what waits
+  (`parked`), and a move clears a thing's own mark. Schema 13.
+- **`ev suggest` says whether a place has been gone through.** Each offered place carries its
+  review, its own or the nearest reviewed ancestor's; the text marks an untoured one
+  `(not toured)`, a guess to check before it is proposed.
 
 ## Changed
 

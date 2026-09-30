@@ -7,6 +7,7 @@
 //! kept twice. This module adds the few kinds that had no state yet — a label to print, broken,
 //! a use-by date, a sale in progress — and needs, which are not in the tree at all.
 
+use std::collections::HashSet;
 use chrono::{Datelike, NaiveDate};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
@@ -613,6 +614,53 @@ impl Inventory {
             "photos": photos,
             "shared_photos": shared,
         }))
+    }
+
+    /// Every node something is still waiting on: whatever `todo` lists hangs on it (a task's
+    /// place, both ends of a planned move, an errand, a disposal, a label, a need's place, a
+    /// repair, a use-by date, an unclear name, a parked thing, a place not counted or changed
+    /// since, a photo to take), or an observation still waits on it. Only the node itself: the
+    /// things in it are the caller's to walk.
+    pub fn open_nodes(&self) -> Result<HashSet<i64>> {
+        let todo = self.todo()?;
+        let each = |v: &Value| v.as_array().cloned().unwrap_or_default();
+        let mut refs = Vec::new();
+        for t in each(&todo["tasks"]) {
+            refs.extend(each(&t["nodes"]));
+        }
+        for m in each(&todo["moves"]) {
+            refs.push(m["node"].clone());
+            refs.push(m["to"].clone());
+        }
+        for e in each(&todo["errands"]) {
+            for k in ["take", "return", "collect"] {
+                refs.extend(each(&e[k]));
+            }
+        }
+        for pile in todo["disposals"].as_object().into_iter().flat_map(|o| o.values()) {
+            refs.extend(each(pile));
+        }
+        for l in each(&todo["lost"]) {
+            refs.push(l["node"].clone());
+        }
+        for n in each(&todo["needs"]) {
+            refs.push(n["for"].clone());
+        }
+        for s in each(&todo["shared_photos"]) {
+            refs.extend(each(&s["nodes"]));
+        }
+        for k in [
+            "labels", "repairs", "expiring", "unclear", "uncounted", "parked", "stale", "photos",
+        ] {
+            refs.extend(each(&todo[k]));
+        }
+        let mut open: HashSet<i64> = refs.iter().filter_map(|v| v["id"].as_i64()).collect();
+        open.extend(ids(
+            &self.conn,
+            "SELECT DISTINCT node_id FROM observations",
+            [],
+        )?);
+        Ok(open)
     }
 }
 

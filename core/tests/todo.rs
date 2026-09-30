@@ -443,3 +443,35 @@ fn a_counted_box_with_nothing_waiting_is_not_open_and_any_work_on_it_opens_it() 
     inv.done("Kulaklık").unwrap();
     assert!(!inv.open_nodes().unwrap().contains(&id(&inv, "Kulaklık")));
 }
+
+#[test]
+fn a_record_closed_as_a_mistake_leaves_the_place_photo_current() {
+    let (d, mut inv) = setup();
+    // So the box is not empty at the end: an empty place needs no photo.
+    add(&mut inv, "Kablo", "item", Some("S5-01"), None);
+    let stale = |inv: &Inventory| {
+        inv.todo().unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["code"] == "S5-01")
+    };
+    let img = d.path().join("p.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&img)
+        .unwrap();
+    inv.photo_add("S5-01", &img, None, None).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    // A record that was never real goes; nothing in the box moved.
+    inv.gone_because(
+        "Kulaklık",
+        Some(Disposition::Mistake),
+        Some("counted twice"),
+    )
+    .unwrap();
+    assert!(!stale(&inv));
+    // A thing that really leaves the box does change it.
+    inv.gone_because("Silikon", Some(Disposition::Trash), None)
+        .unwrap();
+    assert!(stale(&inv));
+}

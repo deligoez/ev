@@ -165,7 +165,11 @@ what you see ("Antenler ve anten kabloları"), say it, and record it with
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the
 place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
 `ev next` brings it up when that place's turn comes. Do not edit the records of a place that
-has not been toured on the strength of the conversation alone; ask first.
+has not been toured on the strength of the conversation alone; ask first. **Close the plan with
+the work:** when you record what an observation asked for (the parts it said were waiting are
+placed, the theme is set), remove it in the same step with `ev unobserve <id>` — the history
+keeps both. Before you call a place done, read its `observations` in `ev show <place>`; one
+left behind keeps coming back in `ev next` as work still to do.
 
 ## Photos
 

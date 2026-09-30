@@ -4101,6 +4101,32 @@ mod tests {
     }
 
     #[test]
+    fn a_drawer_on_the_map_is_its_grid_plate_with_free_cells_and_cell_names() {
+        let (_dir, mut inv) = led_drawer();
+        // Two boxes in a 3×2 plate: four cells free.
+        inv.grid_set("D", 3, 2).unwrap();
+        let mut app = app_tr(inv);
+        app.reveal(app.inv.resolve("D-A1", false).unwrap()).unwrap();
+        press(&mut app, KeyCode::Char('M'));
+        press(&mut app, KeyCode::Enter);
+        press(&mut app, KeyCode::Enter);
+        let mut term = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("ızgara 3×2"), "{s}");
+        let letters = s
+            .lines()
+            .find(|l| l.split_whitespace().collect::<Vec<_>>() == ["A", "B", "C"]);
+        assert!(letters.is_some(), "{s}");
+        // The free cells are dots: C1 beside the boxes, and the whole of row 2.
+        let row = |n: char| s.lines().find(|l| l.starts_with(n)).unwrap_or_default();
+        assert_eq!(row('2').matches('·').count(), 3, "{s}");
+        let after_boxes = row('1').rsplit('│').next().unwrap_or_default();
+        assert_eq!(after_boxes.matches('·').count(), 1, "{s}");
+        assert!(s.contains("D-A1") && s.contains("D-B1"), "{s}");
+    }
+
+    #[test]
     fn an_empty_room_with_an_outline_opens_on_its_floor() {
         let (_dir, mut inv) = home();
         add(&mut inv, "Salon", "room", "Ev", None);

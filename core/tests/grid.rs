@@ -216,6 +216,34 @@ fn a_grid_photo_crops_every_placed_box_from_the_grid_corners() {
 }
 
 #[test]
+fn a_cut_and_its_preview_put_every_crop_on_one_labelled_sheet() {
+    let (_d, mut inv, photo) = photographed();
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    let red = |img: &image::RgbImage, x: u32, y: u32| {
+        let p = img.get_pixel(x, y);
+        p[0] > 200 && p[1] < 80 && p[2] < 80
+    };
+    // Two boxes: two tiles side by side (240 wide, 8 apart), one row, each with its label.
+    let sheet_of = |v: &Value| image::open(v["sheet"].as_str().unwrap()).unwrap().to_rgb8();
+    let v = inv
+        .photo_cut_preview(&photo, Some("D"), &[], Some(&corners), None)
+        .unwrap();
+    let preview = sheet_of(&v);
+    assert_eq!(preview.width(), 2 * 248 + 8);
+    assert!(red(&preview, 10, 10) && red(&preview, 8 + 248 + 2, 10));
+    // Nothing was attached by the preview; the cut draws the same sheet from what it stored.
+    assert!(last_crop(&inv, "D-A4").is_null());
+    let v = inv
+        .photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let cut = sheet_of(&v);
+    assert_eq!(cut.dimensions(), preview.dimensions());
+    // The tile's picture is the photo's grey, below the label strip.
+    let p = cut.get_pixel(8 + 120, 8 + 26 + 100);
+    assert!(p[0] > 150 && p[0] == p[1], "{p:?}");
+}
+
+#[test]
 fn a_taller_box_gets_a_wider_crop_so_its_overhanging_rim_is_not_cut_off() {
     let (_d, mut inv, photo) = photographed();
     // Two units high: its rim leans out twice as far, so twice the margin (0.30 of a cell).

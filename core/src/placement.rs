@@ -16,7 +16,8 @@ use crate::error::{Error, Result};
 use crate::fold;
 use crate::model::{Kind, Node};
 use crate::store::{
-    Inventory, brief_json, holder_json, is_holder, live_nodes, parse_size, resolve, rules_json,
+    Inventory, brief_json, holder_json, is_holder, live_nodes, parking_of, parse_size, resolve,
+    rules_json,
 };
 
 /// How much a match in each field counts.
@@ -785,6 +786,11 @@ impl Inventory {
             .score(&query, &exclude, &skip)
             .into_iter()
             .partition(|s| !Facets::clash(&want, &facets.of_holder(&by_id, s.id)));
+        // A parking place (or anything inside one) is where things wait, not where they belong:
+        // it is listed apart, never offered as the answer.
+        let (ranked, parking): (Vec<Scored>, Vec<Scored>) = ranked
+            .into_iter()
+            .partition(|s| parking_of(&by_id, s.id).is_none());
         let facet_names = |id: i64| facets.names(&facets.of_holder(&by_id, id));
         let similar = ranked
             .iter()
@@ -794,6 +800,8 @@ impl Inventory {
                 let mut c = holder_json(&self.conn, n, &all)?;
                 c["room"] = room(&self.conn, n)?;
                 c["facet"] = json!(facet_names(s.id));
+                // Whether the place has been gone through: an untoured one is a guess to check.
+                c["review"] = crate::plan::review_of(&self.conn, s.id)?;
                 Ok(json!({
                     "container": c,
                     "score": round(s.score),
@@ -811,6 +819,15 @@ impl Inventory {
             .map(|s| {
                 let mut c = brief_json(&self.conn, s.id)?;
                 c["facet"] = json!(facet_names(s.id));
+                Ok(json!({ "container": c, "score": round(s.score) }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let parking = parking
+            .iter()
+            .take(5)
+            .map(|s| {
+                let mut c = brief_json(&self.conn, s.id)?;
+                c["temporary_in"] = json!(parking_of(&by_id, s.id));
                 Ok(json!({ "container": c, "score": round(s.score) }))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -842,6 +859,7 @@ impl Inventory {
             "rules": rules_json(&self.conn)?,
             "similar": similar,
             "other_facet": other_facet,
+            "parking": parking,
             "containers": holders,
             "complete": { "containers": holders.len(), "note": "every place in the tree that can hold something is listed" },
         }))

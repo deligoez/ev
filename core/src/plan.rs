@@ -381,19 +381,29 @@ impl Inventory {
         show(&self.conn, id)
     }
 
-    /// Removes one observation that turned out wrong or no longer holds.
+    /// Removes one observation that turned out wrong or no longer holds — or whose work is
+    /// done. The place's history keeps both ends: the `observe` event and an `unobserve` event
+    /// with the same text.
     pub fn unobserve(&mut self, observation: i64) -> Result<Value> {
-        let node: Option<i64> = self
+        let row: Option<(i64, String)> = self
             .conn
             .query_row(
-                "SELECT node_id FROM observations WHERE id = ?1",
+                "SELECT node_id, text FROM observations WHERE id = ?1",
                 [observation],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()?;
-        let node = node.ok_or_else(|| Error::NotFound(format!("no observation {observation}")))?;
-        self.conn
-            .execute("DELETE FROM observations WHERE id = ?1", [observation])?;
+        let (node, text) =
+            row.ok_or_else(|| Error::NotFound(format!("no observation {observation}")))?;
+        let tx = self.conn.transaction()?;
+        tx.execute("DELETE FROM observations WHERE id = ?1", [observation])?;
+        event(
+            &tx,
+            node,
+            "unobserve",
+            json!({ "observation": observation, "text": text }),
+        )?;
+        tx.commit()?;
         show(&self.conn, node)
     }
 

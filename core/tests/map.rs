@@ -133,7 +133,8 @@ fn a_tile_names_its_contents_and_its_theme() {
 #[test]
 fn a_kallax_on_another_is_drawn_with_it_front_on_top_first() {
     let (_d, mut inv) = setup();
-    inv.sketch_set("K21", None, None, Some("K22")).unwrap();
+    inv.sketch_set("K21", None, None, Some("K22"), None)
+        .unwrap();
     let room = inv.map(Some("Çalışma odası")).unwrap();
     assert_eq!(names(&room, "tiles"), ["K22", "Masa"]);
     assert_eq!(room["tiles"][0]["stacked"][0]["code"], "K21");
@@ -191,11 +192,11 @@ fn a_kallax_on_another_is_drawn_with_it_front_on_top_first() {
 #[test]
 fn a_room_with_a_size_is_a_sketch_of_what_lies_in_it() {
     let (_d, mut inv) = setup();
-    inv.sketch_set("Çalışma odası", None, Some("400,300"), None)
+    inv.sketch_set("Çalışma odası", None, Some("400,300"), None, None)
         .unwrap();
-    inv.sketch_set("K22", Some("0,0"), Some("150,40"), None)
+    inv.sketch_set("K22", Some("0,0"), Some("150,40"), None, None)
         .unwrap();
-    inv.sketch_set("Masa", Some("200,150"), Some("120,60"), None)
+    inv.sketch_set("Masa", Some("200,150"), Some("120,60"), None, None)
         .unwrap();
     let v = inv.map(Some("Çalışma odası")).unwrap();
     assert_eq!(v["layout"], "sketch");
@@ -221,31 +222,34 @@ fn a_room_with_a_size_is_a_sketch_of_what_lies_in_it() {
 fn sketches_refuse_what_cannot_be() {
     let (_d, mut inv) = setup();
     assert_eq!(
-        inv.sketch_set("K22", None, None, None).unwrap_err().code(),
-        2
-    );
-    assert_eq!(
-        inv.sketch_set("K22", None, Some("0,40"), None)
+        inv.sketch_set("K22", None, None, None, None)
             .unwrap_err()
             .code(),
         2
     );
     assert_eq!(
-        inv.sketch_set("K22", Some("-1,0"), None, None)
+        inv.sketch_set("K22", None, Some("0,40"), None, None)
             .unwrap_err()
             .code(),
         2
     );
     assert_eq!(
-        inv.sketch_set("K22", None, None, Some("K22"))
+        inv.sketch_set("K22", Some("-1,0"), None, None, None)
+            .unwrap_err()
+            .code(),
+        2
+    );
+    assert_eq!(
+        inv.sketch_set("K22", None, None, Some("K22"), None)
             .unwrap_err()
             .code(),
         5
     );
-    inv.sketch_set("K21", None, None, Some("K22")).unwrap();
+    inv.sketch_set("K21", None, None, Some("K22"), None)
+        .unwrap();
     // No circle: the one below cannot stand on the one on it.
     assert_eq!(
-        inv.sketch_set("K22", None, None, Some("K21"))
+        inv.sketch_set("K22", None, None, Some("K21"), None)
             .unwrap_err()
             .code(),
         5

@@ -10,6 +10,7 @@ mod model;
 mod photo;
 mod placement;
 mod plan;
+mod sh3d;
 mod store;
 
 pub use error::{Error, Result};

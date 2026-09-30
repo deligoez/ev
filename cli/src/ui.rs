@@ -3924,7 +3924,7 @@ mod tests {
     fn m_opens_the_map_walks_it_goes_in_and_out_and_t_shows_the_tile_in_the_tree() {
         let (_dir, mut inv) = led_drawer();
         add(&mut inv, "Raf", "furniture", "Oda", None);
-        inv.sketch_set("Raf", None, None, Some("D")).unwrap();
+        inv.sketch_set("Raf", None, None, Some("D"), None).unwrap();
         let id = |app: &App, r: &str| app.inv.resolve(r, false).unwrap();
         let mut app = app_tr(inv);
         let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();

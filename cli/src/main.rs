@@ -287,17 +287,33 @@ enum Cmd {
     },
     /// A sketch in centimetres: `--size w,d` for a room (or the home), `--at x,y --size w,d` for
     /// what lies in it (its top-left corner seen from above), `--on <ref>` for furniture
-    /// standing on another; with no option, show it.
+    /// standing on another, `--points "x,y x,y …"` for a room that is not a rectangle; with no
+    /// option, show it. `--import plan.sh3d` sketches the home from a Sweet Home 3D plan.
     Sketch {
-        reference: String,
+        #[arg(required_unless_present = "import")]
+        reference: Option<String>,
         #[arg(long)]
         at: Option<String>,
         #[arg(long)]
         size: Option<String>,
         #[arg(long)]
         on: Option<String>,
-        #[arg(long, conflicts_with_all = ["at", "size", "on"])]
+        #[arg(long, conflicts_with_all = ["at", "size"])]
+        points: Option<String>,
+        #[arg(long, conflicts_with_all = ["at", "size", "on", "points"])]
         clear: bool,
+        /// A Sweet Home 3D plan (.sh3d) to sketch the home from.
+        #[arg(long, conflicts_with_all = ["reference", "at", "size", "on", "points", "clear"])]
+        import: Option<std::path::PathBuf>,
+        /// With --import: `<room in the plan>=<ref>` when the names differ.
+        #[arg(long, requires = "import")]
+        room: Vec<String>,
+        /// With --import: `<piece in the plan, like Table#2>=<ref>` to place a record there.
+        #[arg(long, requires = "import")]
+        piece: Vec<String>,
+        /// With --import: say what would change and change nothing.
+        #[arg(long, requires = "import")]
+        dry_run: bool,
     },
     /// The map of a place (the home without one): its contents as tiles laid out by its grid,
     /// its sketch, or on their own; a stack of furniture front on, top first.
@@ -807,16 +823,31 @@ fn run(cli: Cli) -> Result<Value> {
             at,
             size,
             on,
+            points,
             clear,
+            import,
+            room,
+            piece,
+            dry_run,
         } => {
+            if let Some(file) = import {
+                return inv.sketch_import(&file, &room, &piece, dry_run);
+            }
+            let reference = reference.unwrap_or_default();
             if clear {
                 inv.sketch_clear(&reference)
-            } else if at.is_none() && size.is_none() && on.is_none() {
+            } else if at.is_none() && size.is_none() && on.is_none() && points.is_none() {
                 Ok(
                     serde_json::json!({ "node": inv.show(&reference, false)?["node"], "sketch": inv.sketch(&reference)? }),
                 )
             } else {
-                inv.sketch_set(&reference, at.as_deref(), size.as_deref(), on.as_deref())
+                inv.sketch_set(
+                    &reference,
+                    at.as_deref(),
+                    size.as_deref(),
+                    on.as_deref(),
+                    points.as_deref(),
+                )
             }
         }
         Cmd::Map { reference } => inv.map(reference.as_deref()),

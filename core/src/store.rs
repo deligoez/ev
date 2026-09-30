@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 15;
+pub const SCHEMA_VERSION: i64 = 16;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -303,6 +303,26 @@ PRAGMA user_version = 15;
 COMMIT;
 ";
 
+/// Schema 16: a room's outline, and what a floor plan shows in a place that is no record here
+/// (a bed, a door, a window), for finding one's way on the map.
+const SCHEMA_V16: &str = "
+BEGIN;
+ALTER TABLE sketches ADD COLUMN points TEXT;
+CREATE TABLE sketch_marks (
+    id INTEGER PRIMARY KEY,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    x REAL NOT NULL,
+    y REAL NOT NULL,
+    w REAL NOT NULL,
+    d REAL NOT NULL
+);
+CREATE INDEX sketch_marks_node ON sketch_marks(node_id);
+PRAGMA user_version = 16;
+COMMIT;
+";
+
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
 fn prune_older(dir: &Path, age: Duration) {
@@ -424,6 +444,9 @@ impl Inventory {
         }
         if version < 15 {
             conn.execute_batch(SCHEMA_V15)?;
+        }
+        if version < 16 {
+            conn.execute_batch(SCHEMA_V16)?;
         }
         let photo_dir = path
             .parent()

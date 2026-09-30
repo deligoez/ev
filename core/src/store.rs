@@ -2780,7 +2780,8 @@ impl Inventory {
         Ok(json!({ "node": brief_json(&self.conn, id)?, "photos": photos }))
     }
 
-    /// Detaches the n-th photo (1-based); the stored file stays, other nodes may share it.
+    /// Detaches the n-th photo (1-based); the stored file stays, other nodes may share it. The
+    /// history keeps what was detached (`photo_remove`), as it keeps what was attached.
     pub fn photo_remove(&mut self, reference: &str, n: usize) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         let positions = ids(
@@ -2788,7 +2789,7 @@ impl Inventory {
             "SELECT position FROM photos WHERE node_id = ?1 ORDER BY position",
             [id],
         )?;
-        let pos = n
+        let pos = *n
             .checked_sub(1)
             .and_then(|i| positions.get(i))
             .ok_or_else(|| {
@@ -2797,10 +2798,23 @@ impl Inventory {
                     positions.len()
                 ))
             })?;
-        self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let (path, crop, note): (String, Option<String>, Option<String>) = tx.query_row(
+            "SELECT path, crop, note FROM photos WHERE node_id = ?1 AND position = ?2",
+            params![id, pos],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+        tx.execute(
             "DELETE FROM photos WHERE node_id = ?1 AND position = ?2",
             params![id, pos],
         )?;
+        event(
+            &tx,
+            id,
+            "photo_remove",
+            json!({ "path": path, "crop": crop, "note": note, "n": n }),
+        )?;
+        tx.commit()?;
         self.photo_list(&id.to_string())
     }
 

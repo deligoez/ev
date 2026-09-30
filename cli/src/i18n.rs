@@ -291,6 +291,11 @@ static TR: &[(&str, &str)] = &[
     ),
     ("move declined", "taşıma reddedildi"),
     ("decline taken back", "ret geri alındı"),
+    ("stays in {}", "{} içinde kalıyor"),
+    (
+        "regroup may propose moving it again",
+        "regroup onu yeniden taşımak için önerebilir",
+    ),
     (
         "{}×{} grid seen from the front, row 1 at the top",
         "{}×{} ızgara, önden, 1. satır üstte",

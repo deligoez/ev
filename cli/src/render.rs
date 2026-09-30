@@ -753,6 +753,24 @@ fn regroup(out: &mut String, v: &Value) {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    // A regroup decline set or taken back.
+    if v.get("item").is_some()
+        && v.get("declined").is_some()
+        && v.as_object().is_some_and(|o| o.len() == 2)
+    {
+        let d = &v["declined"];
+        let text = if d.is_null() {
+            t("regroup may propose moving it again").to_string()
+        } else {
+            let why = d["why"]
+                .as_str()
+                .map(|w| format!("  ({w})"))
+                .unwrap_or_default();
+            format!("{}{why}", tf("stays in {}", &[&label(&d["holder"])]))
+        };
+        let _ = writeln!(out, "{}  {text}", thing(&v["item"]));
+        return out;
+    }
     // A map: where it is, how it is laid out, then its tiles in reading order.
     if v.get("layout").is_some() && v.get("tiles").is_some() {
         let _ = writeln!(out, "{}", s(v, "path_text"));

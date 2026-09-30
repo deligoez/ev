@@ -208,6 +208,14 @@ sending — the coordinates are your estimate. The marked copies are temporary (
 attached, no history); nothing needs undoing after the move. The text still names each part by
 position, for a person reading without the screen.
 
+**Unpacking a bag: record in the bag, then plan.** When parts come out of a bag or box, record
+each one in that bag first (`"in": "<bag>"`), then plan its move to the place you propose
+(`ev move <x> --to <box> --plan`), and `ev done` it when the person says it is there. The bag's
+`ev history --contents` then lists everything that came out of it, and `ev pending` holds what
+was proposed and not yet put away — an unclear "I put them next to the others" stays a planned
+move until it is confirmed, instead of a guess recorded as a fact. A new box for them is added
+empty on its cell first, and the parts are planned into it like any other.
+
 **Don't ask for a drawer photo after every batch.** When parts go into a drawer batch by batch,
 record each move as the person confirms it and ask for one photo of the drawer when the batches
 are done; `ev todo` keeps the drawer on its photo list until then (a box added or changed after

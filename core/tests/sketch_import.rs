@@ -32,6 +32,13 @@ const PLAN: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
   <pieceOfFurniture name="Bed" catalogId="eTeks#bed" x="200" y="400" width="100" depth="200" height="70" angle="1.5707964"/>
   <pieceOfFurniture name="Lamp" catalogId="eTeks#lamp" x="900" y="900" width="30" depth="30" height="170" visible="false"/>
   <doorOrWindow name="Door" catalogId="eTeks#door" x="200" y="510" width="90" depth="20" height="210"/>
+  <pieceOfFurniture name="Cupboard" catalogId="eTeks#wardrobe" x="1500" y="1500" width="60" depth="60" height="200"/>
+  <pieceOfFurniture name="Chair" catalogId="eTeks#chair" x="800" y="200" width="40" depth="40" height="90"/>
+  <wall xStart="690" yStart="90" xEnd="910" yEnd="90" thickness="20"/>
+  <wall xStart="910" yStart="90" xEnd="910" yEnd="310" thickness="20"/>
+  <wall xStart="910" yStart="310" xEnd="690" yEnd="310" thickness="20"/>
+  <wall xStart="690" yStart="310" xEnd="690" yEnd="90" thickness="20"/>
+  <wall xStart="1000" yStart="90" xEnd="1200" yEnd="90" thickness="20"/>
 </home>"#;
 
 fn plan(dir: &std::path::Path) -> std::path::PathBuf {
@@ -131,6 +138,52 @@ fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
             .len(),
         h
     );
+}
+
+#[test]
+fn a_room_the_plan_did_not_draw_is_found_from_its_walls() {
+    let (_d, mut inv, p) = setup();
+    let v = inv
+        .sketch_import(&p, &[], &[], &["Mutfak@800,200".into()], false)
+        .unwrap();
+    // The space inside the four walls, to their inner faces.
+    let m = inv.sketch("Mutfak").unwrap();
+    assert_eq!(
+        (m["x"].clone(), m["y"].clone()),
+        (700.0.into(), 100.0.into())
+    );
+    assert_eq!(
+        (m["w"].clone(), m["d"].clone()),
+        (200.0.into(), 200.0.into())
+    );
+    assert_eq!(m["points"].as_array().unwrap().len(), 4);
+    // What stands in it is marked there now; a piece in no room at all is left out.
+    let chair = v["pieces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["ref"] == "Chair#1");
+    assert_eq!(chair.unwrap()["room"]["name"], "Mutfak");
+    let cupboard = v["pieces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["ref"] == "Cupboard#1");
+    assert!(cupboard.unwrap()["room"].is_null());
+    // Bed, table (not placed on a record this time), door and chair.
+    assert_eq!(v["marks"], 4);
+    // A space open to the outside, a point in a wall, a point off the plan: refused.
+    for bad in [
+        "Mutfak@1100,150",
+        "Mutfak@690,200",
+        "Mutfak@5000,5000",
+        "Mutfak",
+    ] {
+        let e = inv
+            .sketch_import(&p, &[], &[], &[bad.into()], false)
+            .unwrap_err();
+        assert_eq!(e.code(), 2, "{bad}");
+    }
 }
 
 #[test]

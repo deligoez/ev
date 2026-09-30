@@ -820,6 +820,38 @@ impl App {
         }
     }
 
+    /// Which tree nodes are open and which list headings closed, for `ui-state.json`.
+    fn tree_json(&self) -> Value {
+        let sorted = |s: &HashSet<i64>| {
+            let mut v: Vec<i64> = s.iter().copied().collect();
+            v.sort_unstable();
+            v
+        };
+        serde_json::json!({
+            "expanded": sorted(&self.expanded),
+            "collapsed": sorted(&self.collapsed),
+        })
+    }
+
+    /// Opens and closes the tree as a kept state says. A node gone since is dropped, so the
+    /// list does not grow with every tidy-up; a part never kept stays as `ev ui` opens.
+    fn apply_tree(&mut self, v: &Value) -> Result<()> {
+        let ids = |k: &str| {
+            v[k].as_array()
+                .map(|a| a.iter().filter_map(Value::as_i64).collect::<HashSet<i64>>())
+        };
+        if let Some(e) = ids("expanded") {
+            self.expanded = e
+                .into_iter()
+                .filter(|id| self.snap.label.contains_key(id))
+                .collect();
+        }
+        if let Some(c) = ids("collapsed") {
+            self.collapsed = c;
+        }
+        self.rebuild()
+    }
+
     /// Re-reads everything when another process has written, and marks what changed.
     fn refresh_if_changed(&mut self) -> Result<()> {
         let v = self.inv.data_version()?;
@@ -1191,6 +1223,11 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     if let Some(s) = &state {
         app.apply_layout(&s.layout());
     }
+    // Resuming reopens the tree as it was left: its open nodes and closed headings, then the
+    // node that was selected.
+    if let (true, Some(s)) = (app.prefs.resume, &state) {
+        app.apply_tree(&s.tree(&db))?;
+    }
     if let (true, Some(id)) = (app.prefs.resume, state.as_ref().and_then(|s| s.last(&db))) {
         app.resume_at(id)?;
     }
@@ -1210,6 +1247,7 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     // session; the layout always.
     if let Some(state) = &state {
         let _ = state.save(&db, app.tree_position(), app.layout_json());
+        let _ = state.save_tree(&db, app.tree_json());
     }
     send(input::STOP);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);

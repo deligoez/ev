@@ -219,10 +219,29 @@ impl UiState {
             v["last"][db.display().to_string()] = json!(id);
         }
         v["layout"] = layout;
+        self.write(&v)
+    }
+
+    /// Which tree nodes were open and which list headings closed on `db`; null when never kept.
+    pub fn tree(&self, db: &Path) -> Value {
+        self.read()["tree"][db.display().to_string()].clone()
+    }
+
+    /// Keeps which tree nodes are open and which list headings closed on `db`.
+    pub fn save_tree(&self, db: &Path, tree: Value) -> std::io::Result<()> {
+        let mut v = self.read();
+        if !v["tree"].is_object() {
+            v["tree"] = json!({});
+        }
+        v["tree"][db.display().to_string()] = tree;
+        self.write(&v)
+    }
+
+    fn write(&self, v: &Value) -> std::io::Result<()> {
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let text = serde_json::to_string_pretty(&v).unwrap_or_default();
+        let text = serde_json::to_string_pretty(v).unwrap_or_default();
         std::fs::write(&self.path, text + "\n")
     }
 }

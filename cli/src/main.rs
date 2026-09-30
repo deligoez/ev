@@ -21,6 +21,10 @@ struct Cli {
     #[arg(long, global = true)]
     json: bool,
 
+    /// Force the readable text output even through a pipe (to read a result, not parse it).
+    #[arg(long, global = true, conflicts_with = "json")]
+    text: bool,
+
     /// Database file; wins over EV_DB. Defaults to ~/.ev/ev.db.
     #[arg(long, global = true, env = "EV_DB")]
     db: Option<PathBuf>,
@@ -597,7 +601,7 @@ struct AddArgs {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let json = cli.json || !std::io::stdout().is_terminal();
+    let json = cli.json || (!cli.text && !std::io::stdout().is_terminal());
     // JSON has no words to translate; skip reading the settings (and the system language).
     if !json {
         ui::set_language_from_settings();

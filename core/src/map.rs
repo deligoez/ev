@@ -176,7 +176,7 @@ pub fn parse_pair(s: &str, what: &str) -> Result<[f64; 2]> {
 fn live_children(conn: &Connection, id: i64) -> Result<Vec<Node>> {
     crate::store::ids(
         conn,
-        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
+        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0 ORDER BY id",
         [id],
     )?
     .into_iter()
@@ -249,10 +249,12 @@ fn tile(conn: &Connection, n: &Node, rect: [f64; 4]) -> Result<Value> {
             .map(|(_, s)| s)
             .collect::<Vec<_>>()
     );
-    for (k, on) in [("temporary", n.temporary), ("unknown", n.unknown)] {
-        if on {
-            t[k] = json!(true);
-        }
+    if n.temporary {
+        t["temporary"] = json!(true);
+    }
+    // How far a place gone through on its own has been counted.
+    if let Some(s) = crate::plan::count_state(conn, n.id)? {
+        t["count"] = json!(s);
     }
     if let Some(f) = n.fill {
         t["fill"] = json!(f);

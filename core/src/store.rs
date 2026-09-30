@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 18;
+pub const SCHEMA_VERSION: i64 = 19;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -346,6 +346,17 @@ PRAGMA user_version = 18;
 COMMIT;
 ";
 
+/// Schema 19: one state for how far a place is counted, one for a place not known. The
+/// `unknown` mark ("contents never counted") is what a place not yet counted already is, so it
+/// goes; a thing with no place at all is lost, with no last-seen place.
+const SCHEMA_V19: &str = "
+BEGIN;
+ALTER TABLE nodes DROP COLUMN unknown;
+UPDATE nodes SET lost = 1 WHERE parent_id IS NULL AND kind != 'home' AND state != 'gone';
+PRAGMA user_version = 19;
+COMMIT;
+";
+
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
 fn prune_older(dir: &Path, age: Duration) {
@@ -397,7 +408,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), unknown, size, temporary";
+     (SELECT name FROM places WHERE id = to_place), size, temporary";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -476,6 +487,9 @@ impl Inventory {
         }
         if version < 18 {
             conn.execute_batch(SCHEMA_V18)?;
+        }
+        if version < 19 {
+            conn.execute_batch(SCHEMA_V19)?;
         }
         let photo_dir = path
             .parent()
@@ -572,16 +586,25 @@ impl Inventory {
                     .iter()
                     .map(|id| subtree(&self.conn, *id, depth))
                     .collect::<Result<Vec<_>>>()?;
-                let unplaced: Vec<i64> = ids(
+                // Whose place is not known: every lost thing, each with where it was last seen.
+                let lost: Vec<i64> = ids(
                     &self.conn,
-                    "SELECT id FROM nodes WHERE parent_id IS NULL AND kind != 'home' AND state != 'gone' ORDER BY id",
+                    "SELECT id FROM nodes WHERE lost = 1 AND state != 'gone' ORDER BY id",
                     [],
                 )?;
-                let unplaced = unplaced
+                let lost = lost
                     .iter()
-                    .map(|id| brief(&self.conn, *id))
+                    .map(|id| {
+                        let mut v = subtree(&self.conn, *id, depth)?;
+                        let seen = load(&self.conn, *id)?.parent_id;
+                        v["last_seen"] = match seen {
+                            Some(p) => json!(brief(&self.conn, p)?),
+                            None => Value::Null,
+                        };
+                        Ok(v)
+                    })
                     .collect::<Result<Vec<_>>>()?;
-                Ok(json!({ "tree": tree, "unplaced": unplaced }))
+                Ok(json!({ "tree": tree, "lost": lost }))
             }
         }
     }
@@ -1048,7 +1071,7 @@ impl Inventory {
         if node.parent_id.is_none() {
             return Err(refused(
                 format!(
-                    "{} has no known place; use `ev move` to put it somewhere",
+                    "{} was never seen anywhere; say where it turned up with `ev found <ref> --in <place>`",
                     label(&node)
                 ),
                 Value::Null,
@@ -1059,6 +1082,19 @@ impl Inventory {
         event(&tx, node.id, "found", json!({ "at": node.parent_id }))?;
         tx.commit()?;
         show(&self.conn, node.id)
+    }
+
+    /// A lost node turned up somewhere else than where it was last seen: it moves there, which
+    /// clears the lost mark.
+    pub fn found_in(&mut self, reference: &str, place: &str) -> Result<Value> {
+        let node = load(&self.conn, resolve(&self.conn, reference, false)?)?;
+        if !node.lost {
+            return Err(refused(
+                format!("{} is not lost", label(&node)),
+                Value::Null,
+            ));
+        }
+        self.move_to(&format!("#{}", node.id), place, false)
     }
 
     pub fn lost_list(&self) -> Result<Value> {
@@ -1177,9 +1213,8 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
                     owner: r.get(16)?,
                     with: r.get(17)?,
                     to: r.get(18)?,
-                    unknown: r.get(19)?,
-                    size: r.get(20)?,
-                    temporary: r.get(21)?,
+                    size: r.get(19)?,
+                    temporary: r.get(20)?,
                 })
             },
         )
@@ -1334,9 +1369,10 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
 pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
     Ok(conn.query_row(
         "WITH RECURSIVE d(id) AS (
-             SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone'
+             SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0
              UNION ALL
-             SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id WHERE n.state != 'gone'
+             SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
+              WHERE n.state != 'gone' AND n.lost = 0
          )
          SELECT COALESCE(SUM(COALESCE(qty, 1)), 0) FROM nodes WHERE kind = 'item' AND id IN d",
         [id],
@@ -1364,11 +1400,12 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
             v[k] = json!(x);
         }
     }
-    if n.unknown {
-        v["unknown"] = json!(true);
-    }
     if n.temporary {
         v["temporary"] = json!(true);
+    }
+    // How far a place gone through on its own has been counted.
+    if let Some(s) = crate::plan::count_state(conn, id)? {
+        v["count"] = json!(s);
     }
     // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
     for (k, val) in [("theme", &n.theme), ("size", &n.size)] {
@@ -1387,9 +1424,10 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     let children = if depth == 0 {
         Vec::new()
     } else {
+        // A lost thing is not where it was last seen: the tree lists it apart.
         let kids: Vec<i64> = ids(
             conn,
-            "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
+            "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0 ORDER BY id",
             [id],
         )?;
         kids.iter()
@@ -1740,9 +1778,6 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     if new.temporary {
         conn.execute("UPDATE nodes SET temporary = 1 WHERE id = ?1", [id])?;
     }
-    if new.unknown {
-        conn.execute("UPDATE nodes SET unknown = 1 WHERE id = ?1", [id])?;
-    }
     for (column, text) in [("to_place", &new.to), ("owner_place", &new.owner)] {
         if let Some(t) = non_empty(text) {
             let place = place_or_create(conn, &t)?;
@@ -1883,7 +1918,6 @@ fn field_value(n: &Node, field: &str) -> Value {
         "to" => json!(n.to),
         "owner" => json!(n.owner),
         "with" => json!(n.with),
-        "unknown" => json!(n.unknown),
         "temporary" => json!(n.temporary),
         _ => Value::Null,
     }
@@ -2096,7 +2130,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 )?;
             }
         }
-        "unknown" | "temporary" => {
+        "temporary" => {
             let v = match value.trim() {
                 "true" | "yes" | "1" => true,
                 "false" | "no" | "0" | "" => false,
@@ -2127,7 +2161,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, unknown, temporary"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary (how far a place is counted is `ev review`)"
             )));
         }
     }
@@ -2585,9 +2619,6 @@ pub(crate) fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<V
     if n.lost {
         v["lost"] = json!(true);
     }
-    if n.unknown {
-        v["unknown"] = json!(true);
-    }
     if n.temporary {
         v["temporary"] = json!(true);
     }
@@ -2720,11 +2751,6 @@ impl Inventory {
             })
             .map(|n| brief_json(&self.conn, n.id))
             .collect::<Result<Vec<_>>>()?;
-        let unknown = all
-            .iter()
-            .filter(|n| n.unknown)
-            .map(|n| brief_json(&self.conn, n.id))
-            .collect::<Result<Vec<_>>>()?;
         // A holder's name that says its size while the field does not (or says another): the
         // name is for people, the field is what crops and bigger-box offers read.
         let size_drift = all
@@ -2742,7 +2768,7 @@ impl Inventory {
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(json!({
-            "spread": spread, "no_theme": no_theme, "loose": loose, "unknown": unknown,
+            "spread": spread, "no_theme": no_theme, "loose": loose,
             "size_drift": size_drift,
         }))
     }

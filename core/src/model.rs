@@ -90,8 +90,6 @@ pub struct Node {
     pub with: Option<String>,
     /// Place the node should be taken to.
     pub to: Option<String>,
-    /// Contents were never inventoried; an empty count means nothing.
-    pub unknown: bool,
     /// A parking place: what is in it waits for its final place (spec §30).
     pub temporary: bool,
     pub created_at: String,
@@ -156,8 +154,6 @@ pub struct NewNode {
     pub to: Option<String>,
     #[serde(default)]
     pub owner: Option<String>,
-    #[serde(default)]
-    pub unknown: bool,
     #[serde(default)]
     pub temporary: bool,
 }

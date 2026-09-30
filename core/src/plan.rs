@@ -19,8 +19,9 @@ use crate::{Error, Result};
 /// the records right; no tidy-up proposals).
 const GOALS: [&str; 2] = ["organize", "track"];
 
-/// How far a place has been gone through. `raw` is the absence of a row.
-const REVIEWS: [&str; 2] = ["toured", "kept"];
+/// How far a place has been counted: `raw` (not counted, the absence of a row), `counting`
+/// (its tour has begun), `toured` (counted), `kept` (left as it is on purpose).
+const REVIEWS: [&str; 3] = ["counting", "toured", "kept"];
 
 const TASK_STATES: [&str; 4] = ["open", "doing", "done", "dropped"];
 
@@ -102,12 +103,10 @@ fn units(all: &[Node]) -> Vec<i64> {
     let mut stack: Vec<&Node> = kids.get(&None).cloned().unwrap_or_default();
     while let Some(n) = stack.pop() {
         let children = kids.get(&Some(n.id)).cloned().unwrap_or_default();
-        let structural = matches!(n.kind, Kind::Home | Kind::Room);
-        let is_unit = !structural
-            && n.kind != Kind::Item
-            && n.state == State::Active
-            && !children.iter().any(|c| c.code.is_some());
-        if is_unit {
+        if n.lost {
+            continue;
+        }
+        if unit_by_children(n, &children) {
             out.push(n.id);
         } else {
             stack.extend(children);
@@ -115,6 +114,75 @@ fn units(all: &[Node]) -> Vec<i64> {
     }
     out.sort_unstable();
     out
+}
+
+/// Whether a node is a unit, given its live children: a holder with no labelled child, or a
+/// room with nothing in it that holds things (an empty kitchen is counted as one place).
+fn unit_by_children(n: &Node, children: &[&Node]) -> bool {
+    if n.state != State::Active || n.lost {
+        return false;
+    }
+    match n.kind {
+        Kind::Home | Kind::Item => false,
+        Kind::Room => !children
+            .iter()
+            .any(|c| matches!(c.kind, Kind::Room | Kind::Furniture | Kind::Container)),
+        _ => !children.iter().any(|c| c.code.is_some()),
+    }
+}
+
+/// How far a place has been counted when it is one of the places gone through one at a time
+/// (a unit): `raw`, `counting`, `toured` or `kept`. None for what is inside a unit (a box in
+/// a counted drawer is counted with it) and for what is above the units (a room with
+/// furniture in it is counted through its furniture).
+pub(crate) fn count_state(conn: &Connection, id: i64) -> Result<Option<String>> {
+    let Some((unit, status)) = unit_state(conn, id)? else {
+        return Ok(None);
+    };
+    Ok((unit == id).then_some(status))
+}
+
+/// The unit a node is or is in, and how far it has been counted.
+fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
+    // The path from the top down; the unit is the first node on it that is one.
+    let mut chain = Vec::new();
+    let mut cur = Some(id);
+    while let Some(c) = cur {
+        let n = crate::store::load(conn, c)?;
+        cur = n.parent_id;
+        chain.push(n);
+    }
+    chain.reverse();
+    let mut unit = None;
+    for n in &chain {
+        if n.lost {
+            // What is lost is not a place anyone goes through.
+            return Ok(None);
+        }
+        if n.state != State::Active || matches!(n.kind, Kind::Home | Kind::Item) {
+            continue;
+        }
+        // The same test as `unit_by_children`, asked of the database.
+        let blocking = if n.kind == Kind::Room {
+            "kind IN ('room', 'furniture', 'container')"
+        } else {
+            "code IS NOT NULL"
+        };
+        let count: i64 = conn.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND {blocking}"
+            ),
+            [n.id],
+            |r| r.get(0),
+        )?;
+        if count == 0 {
+            unit = Some(n.id);
+            break;
+        }
+    }
+    let Some(u) = unit else { return Ok(None) };
+    let r = review_inherited(conn, u)?;
+    Ok(Some((u, r["status"].as_str().unwrap_or("raw").to_string())))
 }
 
 /// The review a unit inherits: its own, or the nearest reviewed ancestor's.
@@ -426,9 +494,10 @@ impl Inventory {
         show(&self.conn, node)
     }
 
-    /// Marks how far a place has been gone through: `toured` (every thing in it looked at and
-    /// the person said it is done), `kept` (the person wants it left as it is), or `raw` to
-    /// clear it. Everything below the place inherits the mark.
+    /// Marks how far a place has been counted: `counting` (its tour has begun), `toured` (every
+    /// thing in it looked at and the person said it is done), `kept` (the person wants it left
+    /// as it is), or `raw` (not counted, the default) to clear it. Everything below the place
+    /// inherits the mark.
     pub fn review(&mut self, reference: &str, status: &str, note: Option<&str>) -> Result<Value> {
         let status = status.trim().to_lowercase();
         let tx = self.conn.transaction()?;
@@ -486,7 +555,7 @@ impl Inventory {
             }
             _ => {
                 return Err(Error::Usage(
-                    "review must be toured, kept or raw".to_string(),
+                    "review must be counting, toured, kept or raw".to_string(),
                 ));
             }
         }
@@ -517,23 +586,21 @@ impl Inventory {
         .into_iter()
         .collect();
         let mut list = Vec::new();
-        let (mut toured, mut kept, mut raw, mut stale) = (0, 0, 0, 0);
+        let (mut toured, mut kept, mut raw, mut counting, mut stale) = (0, 0, 0, 0, 0);
         for u in units(&all) {
-            let n = by_id[&u];
             let mut v = serde_json::to_value(brief(&self.conn, u)?)
                 .map_err(|e| Error::Internal(e.to_string()))?;
             let direct = kids.get(&u).map_or(0, Vec::len);
             v["children"] = json!(direct);
-            v["unknown"] = json!(n.unknown);
             v["observations"] = json!(observations_of(&self.conn, u)?.len());
             v["planned"] = json!(planned.contains(&u));
             match effective_review(u, &parent, &reviews) {
                 Some((from, status, at)) => {
                     let changed = last_change(u, &kids, &by_id) > at;
-                    if status == "toured" {
-                        toured += 1;
-                    } else {
-                        kept += 1;
+                    match status.as_str() {
+                        "toured" => toured += 1,
+                        "counting" => counting += 1,
+                        _ => kept += 1,
                     }
                     if changed && status == "toured" {
                         stale += 1;
@@ -552,6 +619,7 @@ impl Inventory {
             "units": list.len(),
             "toured": toured,
             "kept": kept,
+            "counting": counting,
             "raw": raw,
             "changed_since_tour": stale,
             "places": list,
@@ -643,6 +711,27 @@ impl Inventory {
                 "UPDATE tasks SET status = 'open', updated_at = ?1 WHERE status = 'doing' AND id != ?2",
                 params![t, id],
             )?;
+            // Its places are being counted now, unless they already have a state.
+            for n in task_nodes(&tx, id)? {
+                if tx.execute(
+                    "INSERT OR IGNORE INTO reviews (node_id, status, at) VALUES (?1, 'counting', ?2)",
+                    params![n, t],
+                )? > 0
+                {
+                    event(&tx, n, "review", json!({ "as": "counting", "task": id }))?;
+                }
+            }
+        } else {
+            // Stopped or finished: what is still being counted was not finished, so not counted.
+            for n in task_nodes(&tx, id)? {
+                if tx.execute(
+                    "DELETE FROM reviews WHERE node_id = ?1 AND status = 'counting'",
+                    [n],
+                )? > 0
+                {
+                    event(&tx, n, "review", json!({ "as": "raw", "task": id }))?;
+                }
+            }
         }
         rerank(&tx, None, None)?;
         tx.commit()?;

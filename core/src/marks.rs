@@ -251,7 +251,8 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
         {
             grids.push(p);
         }
-        if u["children"].as_u64().unwrap_or(0) == 0 && u["unknown"] != true {
+        // An empty place needs no photo, and a room is not photographed as one.
+        if u["children"].as_u64().unwrap_or(0) == 0 || u["kind"] == "room" {
             continue;
         }
         if let Some(s) = photo_stale(conn, id)? {
@@ -542,18 +543,12 @@ impl Inventory {
 
         let progress = self.progress()?;
         let places = progress["places"].as_array().cloned().unwrap_or_default();
-        let mut unknown: Vec<Value> = places
+        // Places not counted yet, or being counted: their counts say nothing yet.
+        let uncounted: Vec<Value> = places
             .iter()
-            .filter(|p| p["unknown"] == true)
+            .filter(|p| matches!(p["review"]["status"].as_str(), Some("raw" | "counting")))
             .cloned()
             .collect();
-        // A place whose contents were never counted stays on the list even when it is no longer
-        // an innermost place (a desk that got a box put on it is still uncounted).
-        for n in all.iter().filter(|n| n.state != State::Gone) {
-            if n.unknown && !unknown.iter().any(|p| p["id"] == n.id) {
-                unknown.push(brief_value(&self.conn, n.id)?);
-            }
-        }
         // What waits for its final place: the things put straight into a place marked
         // `temporary`, and an item marked `temporary` itself (one thing parked among things
         // that do belong there), each with the place it waits in.
@@ -595,7 +590,7 @@ impl Inventory {
                 "repairs": repairs.len(),
                 "expiring": expiring.len(),
                 "lost": count(&lost),
-                "unknown": unknown.len(),
+                "uncounted": uncounted.len(),
                 "parked": parked.len(),
                 "stale": stale.len(),
                 "unclear": unclear.len(),
@@ -611,7 +606,7 @@ impl Inventory {
             "repairs": repairs,
             "expiring": expiring,
             "lost": lost,
-            "unknown": unknown,
+            "uncounted": uncounted,
             "parked": parked,
             "stale": stale,
             "unclear": unclear,

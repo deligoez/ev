@@ -263,7 +263,8 @@ finds `K4x4-07-Ü`.
 
 ## Useful reads
 
-- `ev find <text> [--tag t] [--kind k]` — where is it?
+- `ev find <text> [--tag t] [--kind k]` — where is it? `ev find --tag t` alone lists all tagged
+  t: tag things that belong together but are scattered (`3d yazıcı`) so they can be gathered.
 - `ev show <ref>` — one node, its path, children, pending move, disposition.
 - `ev tree [<ref>] [--depth n]` — the whole picture.
 - `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out

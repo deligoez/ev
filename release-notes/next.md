@@ -14,7 +14,7 @@ Draft for the next release.
   box gets a crop through the photo's perspective. A crop named by hand still wins for its box.
   `--preview` cuts nothing and draws every box it would cut, framed on its cells, to check the
   corners by eye first.
-- **A tour needs current photos.** `ev review <x> --status toured` is refused while the place or
+- **A tour needs current photos.** `ev review <x> --as toured` is refused while the place or
   a placed box in its grid shows an older state than it has (`details.stale`); attach a photo or
   run `ev photo current`.
 - **`#id` references.** `ev ui` shows each node's `#id` at the top of its details, and every

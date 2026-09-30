@@ -438,3 +438,44 @@ fn a_room_given_by_its_size_is_a_floor_and_a_cupboard_in_it_is_drawn_to_scale() 
         .unwrap();
     assert_eq!(room["shapes"][0].as_array().unwrap().len(), 4);
 }
+
+#[test]
+fn a_room_moved_out_of_its_room_stays_where_it_lies_on_the_plan() {
+    let (_d, mut inv) = setup();
+    // The kitchen's top-left corner is at 100,200 in the flat; its balcony, inside it, is
+    // written in the kitchen's frame, above its top edge.
+    sketch(
+        &mut inv,
+        "Mutfak",
+        None,
+        None,
+        None,
+        Some("100,200 400,200 400,500 100,500"),
+    )
+    .unwrap();
+    add(&mut inv, "Balkon", "room", Some("Mutfak"), None);
+    sketch(
+        &mut inv,
+        "Balkon",
+        None,
+        None,
+        None,
+        Some("0,-100 300,-100 300,0 0,0"),
+    )
+    .unwrap();
+    inv.move_to("Balkon", "Ev", false).unwrap();
+    let s = inv.sketch("Balkon").unwrap();
+    assert_eq!(
+        (s["x"].as_f64(), s["y"].as_f64()),
+        (Some(100.0), Some(100.0))
+    );
+    assert_eq!(
+        s["points"],
+        serde_json::json!([
+            [100.0, 100.0],
+            [400.0, 100.0],
+            [400.0, 200.0],
+            [100.0, 200.0]
+        ])
+    );
+}

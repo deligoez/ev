@@ -1,4 +1,3 @@
-
 use super::{App, DetailTab, Drag, Tab, tab_at};
 use crate::i18n::Lang;
 use crate::input::Input;

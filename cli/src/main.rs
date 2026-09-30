@@ -283,7 +283,7 @@ enum Cmd {
     /// A sketch in centimetres: `--size w,d` for a room (or the home), `--at x,y --size w,d` for
     /// what lies in it (its top-left corner seen from above), `--on <ref>` for furniture
     /// standing on another; with no option, show it.
-    Plan {
+    Sketch {
         reference: String,
         #[arg(long)]
         at: Option<String>,
@@ -783,7 +783,7 @@ fn run(cli: Cli) -> Result<Value> {
                     .into(),
             )),
         },
-        Cmd::Plan {
+        Cmd::Sketch {
             reference,
             at,
             size,
@@ -791,13 +791,13 @@ fn run(cli: Cli) -> Result<Value> {
             clear,
         } => {
             if clear {
-                inv.plan_clear(&reference)
+                inv.sketch_clear(&reference)
             } else if at.is_none() && size.is_none() && on.is_none() {
                 Ok(
-                    serde_json::json!({ "node": inv.show(&reference, false)?["node"], "plan": inv.plan(&reference)? }),
+                    serde_json::json!({ "node": inv.show(&reference, false)?["node"], "sketch": inv.sketch(&reference)? }),
                 )
             } else {
-                inv.plan_set(&reference, at.as_deref(), size.as_deref(), on.as_deref())
+                inv.sketch_set(&reference, at.as_deref(), size.as_deref(), on.as_deref())
             }
         }
         Cmd::Map { reference } => inv.map(reference.as_deref()),

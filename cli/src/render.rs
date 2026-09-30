@@ -783,11 +783,11 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
-    if v.get("plan").is_some()
+    if v.get("sketch").is_some()
         && v.get("node").is_some()
         && v.as_object().is_some_and(|o| o.len() == 2)
     {
-        let p = &v["plan"];
+        let p = &v["sketch"];
         let text = if p.is_null() {
             t("(no sketch)").to_string()
         } else {

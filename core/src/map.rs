@@ -22,7 +22,7 @@ use crate::store::{
 /// A node's sketch: where it lies in its parent (x, y), how big it is (w, d), and what it stands
 /// on, all optional.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-struct Plan {
+struct Sketch {
     x: Option<f64>,
     y: Option<f64>,
     w: Option<f64>,
@@ -30,13 +30,13 @@ struct Plan {
     on: Option<i64>,
 }
 
-fn plan_of(conn: &Connection, id: i64) -> Result<Plan> {
+fn sketch_of(conn: &Connection, id: i64) -> Result<Sketch> {
     Ok(conn
         .query_row(
-            "SELECT x, y, w, d, on_id FROM plans WHERE node_id = ?1",
+            "SELECT x, y, w, d, on_id FROM sketches WHERE node_id = ?1",
             [id],
             |r| {
-                Ok(Plan {
+                Ok(Sketch {
                     x: r.get(0)?,
                     y: r.get(1)?,
                     w: r.get(2)?,
@@ -49,8 +49,8 @@ fn plan_of(conn: &Connection, id: i64) -> Result<Plan> {
         .unwrap_or_default())
 }
 
-fn plan_json(p: &Plan) -> Value {
-    if *p == Plan::default() {
+fn sketch_json(p: &Sketch) -> Value {
+    if *p == Sketch::default() {
         return Value::Null;
     }
     json!({ "x": p.x, "y": p.y, "w": p.w, "d": p.d, "on": p.on })
@@ -91,7 +91,7 @@ fn standing_on(conn: &Connection, id: i64) -> Result<Vec<i64>> {
     for _ in 0..1000 {
         let next: Option<i64> = conn
             .query_row(
-                "SELECT p.node_id FROM plans p JOIN nodes n ON n.id = p.node_id
+                "SELECT p.node_id FROM sketches p JOIN nodes n ON n.id = p.node_id
                   WHERE p.on_id = ?1 AND n.state != 'gone' ORDER BY p.node_id LIMIT 1",
                 [cur],
                 |r| r.get(0),
@@ -112,7 +112,7 @@ fn standing_on(conn: &Connection, id: i64) -> Result<Vec<i64>> {
 fn stack_base(conn: &Connection, id: i64) -> Result<i64> {
     let mut cur = id;
     for _ in 0..1000 {
-        match plan_of(conn, cur)?.on {
+        match sketch_of(conn, cur)?.on {
             Some(b) if b != id => cur = b,
             _ => break,
         }
@@ -167,7 +167,7 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
     let children = live_children(conn, id)?;
     // A thing standing on a sibling is drawn with it, not beside it.
     let on_sibling = |n: &Node| -> Result<bool> {
-        Ok(plan_of(conn, n.id)?
+        Ok(sketch_of(conn, n.id)?
             .on
             .is_some_and(|b| children.iter().any(|c| c.id == b)))
     };
@@ -214,12 +214,12 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
         return Ok(("grid".into(), tiles, unplaced, size));
     }
     // A sketch: the place's size and the things in it that say where they lie.
-    let own = plan_of(conn, id)?;
+    let own = sketch_of(conn, id)?;
     if let (Some(w), Some(d)) = (own.w, own.d) {
         let mut tiles = Vec::new();
         let mut unplaced = Vec::new();
         for c in &shown {
-            let p = plan_of(conn, c.id)?;
+            let p = sketch_of(conn, c.id)?;
             match (p.x, p.y, p.w, p.d) {
                 (Some(x), Some(y), Some(cw), Some(cd)) => {
                     let rect = [x / w, y / d, cw / w, cd / d].map(|v| v.clamp(0.0, 1.0));
@@ -257,7 +257,7 @@ impl Inventory {
     /// in the home, a piece of furniture in a room (`--at` its top-left corner seen from above,
     /// `--size` width and depth), or a Kallax on another (`--on`). A place's `--size` alone makes
     /// it a sketch its contents can be placed in.
-    pub fn plan_set(
+    pub fn sketch_set(
         &mut self,
         reference: &str,
         at: Option<&str>,
@@ -271,7 +271,7 @@ impl Inventory {
         }
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
-        let before = plan_of(&tx, id)?;
+        let before = sketch_of(&tx, id)?;
         let mut p = before;
         if let Some(s) = size {
             let (w, d) = pair(s, "--size", false)?;
@@ -292,7 +292,7 @@ impl Inventory {
             p.on = Some(base);
         }
         tx.execute(
-            "INSERT INTO plans (node_id, x, y, w, d, on_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "INSERT INTO sketches (node_id, x, y, w, d, on_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(node_id) DO UPDATE SET x = excluded.x, y = excluded.y, w = excluded.w,
                d = excluded.d, on_id = excluded.on_id",
             params![id, p.x, p.y, p.w, p.d, p.on],
@@ -301,33 +301,33 @@ impl Inventory {
         event(
             &tx,
             id,
-            "plan",
-            json!({ "before": plan_json(&before), "after": plan_json(&p) }),
+            "sketch",
+            json!({ "before": sketch_json(&before), "after": sketch_json(&p) }),
         )?;
         tx.commit()?;
-        Ok(json!({ "node": brief_json(&self.conn, id)?, "plan": plan_json(&p) }))
+        Ok(json!({ "node": brief_json(&self.conn, id)?, "sketch": sketch_json(&p) }))
     }
 
     /// Removes a node's sketch: its place, size and what it stands on.
-    pub fn plan_clear(&mut self, reference: &str) -> Result<Value> {
+    pub fn sketch_clear(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
-        let before = plan_of(&tx, id)?;
-        tx.execute("DELETE FROM plans WHERE node_id = ?1", [id])?;
+        let before = sketch_of(&tx, id)?;
+        tx.execute("DELETE FROM sketches WHERE node_id = ?1", [id])?;
         event(
             &tx,
             id,
-            "plan",
-            json!({ "before": plan_json(&before), "after": Value::Null }),
+            "sketch",
+            json!({ "before": sketch_json(&before), "after": Value::Null }),
         )?;
         tx.commit()?;
-        Ok(json!({ "node": brief_json(&self.conn, id)?, "plan": Value::Null }))
+        Ok(json!({ "node": brief_json(&self.conn, id)?, "sketch": Value::Null }))
     }
 
     /// A node's sketch as `{x, y, w, d, on}`, or null.
-    pub fn plan(&self, reference: &str) -> Result<Value> {
+    pub fn sketch(&self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, true)?;
-        Ok(plan_json(&plan_of(&self.conn, id)?))
+        Ok(sketch_json(&sketch_of(&self.conn, id)?))
     }
 
     /// The map of a place (the first home without one): how its contents are laid out and the
@@ -358,7 +358,7 @@ impl Inventory {
             "path_text": path_text(&segs),
             "path": segs,
             "parent": node.parent_id,
-            "plan": plan_json(&plan_of(&self.conn, id)?),
+            "sketch": sketch_json(&sketch_of(&self.conn, id)?),
         });
         if !above.is_empty() {
             // Front on, top first: each member a band as tall as its rows, its tiles inside.

@@ -282,7 +282,7 @@ COMMIT;
 /// in centimetres, and what stands on what (a Kallax on another).
 const SCHEMA_V14: &str = "
 BEGIN;
-CREATE TABLE plans (
+CREATE TABLE sketches (
     node_id INTEGER PRIMARY KEY REFERENCES nodes(id),
     x REAL,
     y REAL,

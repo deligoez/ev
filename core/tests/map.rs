@@ -116,7 +116,7 @@ fn a_place_with_no_layout_is_still_a_map_of_tiles() {
 #[test]
 fn a_kallax_on_another_is_drawn_with_it_front_on_top_first() {
     let (_d, mut inv) = setup();
-    inv.plan_set("K21", None, None, Some("K22")).unwrap();
+    inv.sketch_set("K21", None, None, Some("K22")).unwrap();
     let room = inv.map(Some("Çalışma odası")).unwrap();
     assert_eq!(names(&room, "tiles"), ["K22", "Masa"]);
     assert_eq!(room["tiles"][0]["stacked"][0]["code"], "K21");
@@ -174,11 +174,11 @@ fn a_kallax_on_another_is_drawn_with_it_front_on_top_first() {
 #[test]
 fn a_room_with_a_size_is_a_sketch_of_what_lies_in_it() {
     let (_d, mut inv) = setup();
-    inv.plan_set("Çalışma odası", None, Some("400,300"), None)
+    inv.sketch_set("Çalışma odası", None, Some("400,300"), None)
         .unwrap();
-    inv.plan_set("K22", Some("0,0"), Some("150,40"), None)
+    inv.sketch_set("K22", Some("0,0"), Some("150,40"), None)
         .unwrap();
-    inv.plan_set("Masa", Some("200,150"), Some("120,60"), None)
+    inv.sketch_set("Masa", Some("200,150"), Some("120,60"), None)
         .unwrap();
     let v = inv.map(Some("Çalışma odası")).unwrap();
     assert_eq!(v["layout"], "sketch");
@@ -193,7 +193,7 @@ fn a_room_with_a_size_is_a_sketch_of_what_lies_in_it() {
     assert_eq!(rect(&masa), [0.5, 0.5, 0.3, 0.2]);
     // What does not say where it lies is listed apart.
     assert_eq!(names(&v, "unplaced"), ["K21"]);
-    assert_eq!(inv.plan("Masa").unwrap()["w"], 120.0);
+    assert_eq!(inv.sketch("Masa").unwrap()["w"], 120.0);
     // A grid is drawn as its cells, with counts.
     let g = inv.map(Some("K22-01")).unwrap();
     assert_eq!(g["layout"], "tiles");
@@ -201,37 +201,40 @@ fn a_room_with_a_size_is_a_sketch_of_what_lies_in_it() {
 }
 
 #[test]
-fn plans_refuse_what_cannot_be() {
+fn sketches_refuse_what_cannot_be() {
     let (_d, mut inv) = setup();
-    assert_eq!(inv.plan_set("K22", None, None, None).unwrap_err().code(), 2);
     assert_eq!(
-        inv.plan_set("K22", None, Some("0,40"), None)
+        inv.sketch_set("K22", None, None, None).unwrap_err().code(),
+        2
+    );
+    assert_eq!(
+        inv.sketch_set("K22", None, Some("0,40"), None)
             .unwrap_err()
             .code(),
         2
     );
     assert_eq!(
-        inv.plan_set("K22", Some("-1,0"), None, None)
+        inv.sketch_set("K22", Some("-1,0"), None, None)
             .unwrap_err()
             .code(),
         2
     );
     assert_eq!(
-        inv.plan_set("K22", None, None, Some("K22"))
+        inv.sketch_set("K22", None, None, Some("K22"))
             .unwrap_err()
             .code(),
         5
     );
-    inv.plan_set("K21", None, None, Some("K22")).unwrap();
+    inv.sketch_set("K21", None, None, Some("K22")).unwrap();
     // No circle: the one below cannot stand on the one on it.
     assert_eq!(
-        inv.plan_set("K22", None, None, Some("K21"))
+        inv.sketch_set("K22", None, None, Some("K21"))
             .unwrap_err()
             .code(),
         5
     );
-    inv.plan_clear("K21").unwrap();
-    assert!(inv.plan("K21").unwrap().is_null());
+    inv.sketch_clear("K21").unwrap();
+    assert!(inv.sketch("K21").unwrap().is_null());
     let h = inv.history("K21").unwrap()["events"].clone();
-    assert_eq!(h.as_array().unwrap().last().unwrap()["type"], "plan");
+    assert_eq!(h.as_array().unwrap().last().unwrap()["type"], "sketch");
 }

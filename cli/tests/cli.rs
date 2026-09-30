@@ -511,12 +511,12 @@ fn a_room_is_sketched_and_a_stack_is_mapped_from_the_command_line() {
     assert_eq!(v["grids"].as_array().unwrap().len(), 2);
     ev.ok(&["grid", "Dolap", "--cols", "2", "--rows", "1"]);
     ev.ok(&["cell", "D-1=A1", "D-2=B1"]);
-    ev.ok(&["plan", "Salon", "--size", "400,300"]);
-    ev.ok(&["plan", "Dolap", "--at", "0,0", "--size", "120,40"]);
-    let v = ev.ok(&["plan", "Raf", "--on", "Dolap"]);
-    assert_eq!(v["plan"]["on"], v["node"]["id"].as_i64().unwrap() - 1);
-    let v = ev.ok(&["plan", "Dolap"]);
-    assert_eq!(v["plan"]["w"], 120.0);
+    ev.ok(&["sketch", "Salon", "--size", "400,300"]);
+    ev.ok(&["sketch", "Dolap", "--at", "0,0", "--size", "120,40"]);
+    let v = ev.ok(&["sketch", "Raf", "--on", "Dolap"]);
+    assert_eq!(v["sketch"]["on"], v["node"]["id"].as_i64().unwrap() - 1);
+    let v = ev.ok(&["sketch", "Dolap"]);
+    assert_eq!(v["sketch"]["w"], 120.0);
     // The room: a sketch with the stack under the cupboard's tile.
     let v = ev.ok(&["map", "Salon"]);
     assert_eq!(v["layout"], "sketch");
@@ -525,9 +525,9 @@ fn a_room_is_sketched_and_a_stack_is_mapped_from_the_command_line() {
     let v = ev.ok(&["map", "Dolap"]);
     assert_eq!(v["layout"], "stack");
     assert_eq!(v["bands"][0]["name"], "Raf");
-    let (code, _, err) = ev.run(&["plan", "Dolap", "--on", "Raf"]);
+    let (code, _, err) = ev.run(&["sketch", "Dolap", "--on", "Raf"]);
     assert_eq!(code, 5, "{err}");
-    let (code, _, _) = ev.run(&["plan", "Dolap", "--size", "yüz"]);
+    let (code, _, _) = ev.run(&["sketch", "Dolap", "--size", "yüz"]);
     assert_eq!(code, 2);
 }
 

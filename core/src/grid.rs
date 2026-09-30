@@ -190,9 +190,23 @@ fn projection(corners: &GridCorners) -> impl Fn(f64, f64) -> (f64, f64) {
 /// the floor the corners are read at, and a little more is better than a cut-off label.
 const CROP_MARGIN: f64 = 0.15;
 
+/// A box's height from its `size` (`1x2x1.5` is 1.5 high), 1 when the size says none. A taller
+/// box's rim stands further above the floor and leans further out in a photo taken from above.
+fn box_height(conn: &Connection, id: i64) -> Result<f64> {
+    let size: Option<String> =
+        conn.query_row("SELECT size FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
+    Ok(size
+        .as_deref()
+        .and_then(|s| s.split(['x', '×']).nth(2))
+        .and_then(|h| h.trim().replace(',', ".").parse::<f64>().ok())
+        .filter(|h| *h > 0.0)
+        .unwrap_or(1.0))
+}
+
 /// The crop of every box placed in `holder`'s grid, read off one photo from where the grid's
 /// four corners are in it. Each box's cells are mapped through the corners (bilinear, so a
-/// photo taken at an angle still maps) and the crop is the rectangle around them.
+/// photo taken at an angle still maps) and the crop is the rectangle around them, widened in
+/// proportion to the box's height (a box higher than 1 gets more margin, never less).
 pub(crate) fn grid_crops(
     conn: &Connection,
     holder: i64,
@@ -206,10 +220,11 @@ pub(crate) fn grid_crops(
     };
     let map = projection(corners);
     let (cols, rows) = (cols as f64, rows as f64);
-    let (mu, mv) = (CROP_MARGIN / cols, CROP_MARGIN / rows);
-    Ok(placed(conn, holder)?
+    placed(conn, holder)?
         .into_iter()
         .map(|(id, c)| {
+            let margin = CROP_MARGIN * box_height(conn, id)?.max(1.0);
+            let (mu, mv) = (margin / cols, margin / rows);
             let u0 = c.col as f64 / cols - mu;
             let u1 = (c.col + c.width) as f64 / cols + mu;
             let v0 = c.row as f64 / rows - mv;
@@ -235,7 +250,7 @@ pub(crate) fn grid_crops(
                 .map(|p| p.1)
                 .fold(f64::MIN, f64::max)
                 .clamp(0.0, 1.0);
-            (
+            Ok((
                 id,
                 crate::Crop {
                     x: x0,
@@ -243,9 +258,9 @@ pub(crate) fn grid_crops(
                     w: x1 - x0,
                     h: y1 - y0,
                 },
-            )
+            ))
         })
-        .collect())
+        .collect()
 }
 
 pub(crate) fn grid_of(conn: &Connection, id: i64) -> Result<Option<(i64, i64)>> {

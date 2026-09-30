@@ -46,11 +46,20 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
 6. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.
    **A set of separate parts is one record per part kind, not one for the set.** A soil
-   moisture set (probe, comparator board, cable), a stepper with its driver: record each kind
-   as its own item in the same holder, with its count, and say in each note what it belongs
-   with. One record per bag of the set is too much (the sets are interchangeable); one record
-   for the whole set hides the parts — a cable cannot be moved to the jumper wires, nor a board
-   missed, without splitting it first. A boxed kit that stays in its case is one item.
+   moisture set (probe, comparator board, cable), a stepper with its driver, straight and
+   angled headers: record each kind as its own item in the same holder, with its count, and
+   say in each note what it belongs with. One record per bag of the set is too much (the sets
+   are interchangeable); one record for the whole set hides the parts — a cable cannot be
+   moved to the jumper wires, nor a board missed. A record that already holds several kinds is
+   split with `ev split <x> "<part>=<n>"… --rename "<what the original keeps>"`, never by
+   editing it and adding new records by hand: the split links them in the history. A boxed kit
+   that stays in its case is one item.
+   **A bought kit is a checklist in `ev kit`.** When the person says what set things came from
+   and its contents are known (a shop's list, an observation), record it once — `ev kit add
+   "<name>" --copies <n> --part "<part>[=<per copy>]"…` — and `ev kit link <kit> <n> <record>`
+   each part as it turns up. `ev kit show <kit>` then answers "what is still missing from the
+   set" from the records; a part missing from its bag is a record marked `ev lost` and linked,
+   so it is counted as lost, not forgotten.
 7. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 

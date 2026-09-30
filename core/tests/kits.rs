@@ -177,3 +177,17 @@ fn a_part_that_left_the_home_no_longer_counts_as_found() {
     assert_eq!(part(&v, 1)["lost"], 0);
     assert_eq!(part(&v, 1)["open"], 1);
 }
+
+#[test]
+fn a_database_error_is_not_reported_as_a_name_already_taken() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("ev.db");
+    let mut inv = Inventory::open(&db).unwrap();
+    // The kits table is gone from under it: an error of the database, not of the name.
+    rusqlite::Connection::open(&db)
+        .unwrap()
+        .execute_batch("ALTER TABLE kits RENAME TO kits_away")
+        .unwrap();
+    let err = inv.kit_add("Set", None, None, &[]).unwrap_err();
+    assert_eq!(err.code(), 1, "{err}");
+}

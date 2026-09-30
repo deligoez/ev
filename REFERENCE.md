@@ -45,7 +45,7 @@ one, its name otherwise.
 |---|---|
 | show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in) and `room` (with a fill: `room`, `fill`, `fill_at`, `stale`) |
 | add --batch | `created` |
-| find | `query`, `results` |
+| find | `query`, `results`; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
 | tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set), `unplaced` (without a reference) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |

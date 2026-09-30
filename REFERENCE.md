@@ -59,7 +59,7 @@ Errors print nothing on stdout; stderr carries
 ## Event types
 
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo, grid,
-cell, observe, review.
+cell, observe, unobserve, review.
 
 ## `ev ui`
 

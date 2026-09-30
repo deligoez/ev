@@ -325,7 +325,31 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::Crop;
+    use super::{Crop, glyph, label_spot};
+
+    #[test]
+    fn a_label_steps_aside_from_one_already_drawn_and_stays_in_the_photo() {
+        let size = (100.0, 40.0);
+        let photo = (1000.0, 800.0);
+        let tries = [(300.0, 100.0), (300.0, 400.0), (310.0, 150.0)];
+        // Nothing drawn yet: above the frame.
+        assert_eq!(label_spot(&tries, &[], size, photo), (300.0, 100.0));
+        // A label already there: below the frame instead.
+        let placed = [(350.0, 90.0, 100.0, 40.0)];
+        assert_eq!(label_spot(&tries, &placed, size, photo), (300.0, 400.0));
+        // Above the photo's top edge does not count as a place.
+        let tries = [(300.0, -20.0), (300.0, 400.0)];
+        assert_eq!(label_spot(&tries, &[], size, photo), (300.0, 400.0));
+    }
+
+    #[test]
+    fn label_letters_fold_turkish_and_lowercase_and_mark_the_unknown() {
+        assert_eq!(glyph('ü'), glyph('U'));
+        assert_eq!(glyph('ş'), glyph('S'));
+        assert_eq!(glyph('a'), glyph('A'));
+        assert_eq!(glyph('€'), glyph('?'));
+        assert_ne!(glyph('1'), glyph('?'));
+    }
 
     #[test]
     fn crops_parse_and_must_fit() {

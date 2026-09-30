@@ -1696,6 +1696,13 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
         "UPDATE nodes SET parent_id = ?1, pending_to = NULL, lost = 0 WHERE id = ?2",
         params![target, node.id],
     )?;
+    // A thing parked on its own (`temporary`) that moves has left its stop: like `lost`, the
+    // mark goes with the move. Moved into another parking place, that place's mark says it.
+    // A place keeps its own mark: a parking shelf moved is still a parking shelf.
+    let unparked = node.temporary && node.kind == Kind::Item;
+    if unparked {
+        conn.execute("UPDATE nodes SET temporary = 0 WHERE id = ?1", [node.id])?;
+    }
     // Cells are positions in the old holder's grid; they mean nothing anywhere else.
     if node.parent_id != Some(target) {
         conn.execute("DELETE FROM cells WHERE node_id = ?1", [node.id])?;
@@ -1710,7 +1717,10 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
         conn,
         node.id,
         kind,
-        json!({ "from": node.parent_id, "to": target, "dropped_pending": dropped, "was_lost": node.lost }),
+        json!({
+            "from": node.parent_id, "to": target, "dropped_pending": dropped,
+            "was_lost": node.lost, "was_temporary": unparked,
+        }),
     )?;
     Ok(())
 }

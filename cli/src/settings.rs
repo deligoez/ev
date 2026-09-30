@@ -289,6 +289,24 @@ mod tests {
     }
 
     #[test]
+    fn the_tree_state_is_kept_per_database_beside_the_position() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = UiState::beside(&dir.path().join("settings.json"));
+        let (a, b) = (Path::new("/x/ev.db"), Path::new("/y/ev.db"));
+        assert!(state.tree(a).is_null());
+        state.save(a, Some(534), json!({"split": 40})).unwrap();
+        state
+            .save_tree(a, json!({"expanded": [1, 2], "collapsed": [-10]}))
+            .unwrap();
+        state.save_tree(b, json!({"expanded": [7]})).unwrap();
+        assert_eq!(state.tree(a)["expanded"], json!([1, 2]));
+        assert_eq!(state.tree(b)["expanded"], json!([7]));
+        // Keeping the tree leaves the position and the layout alone.
+        assert_eq!(state.last(a), Some(534));
+        assert_eq!(state.layout()["split"], 40);
+    }
+
+    #[test]
     fn options_cycle_both_ways() {
         let all = LangPref::ALL;
         assert_eq!(cycle(&all, LangPref::Auto, true), LangPref::Fixed(Lang::En));

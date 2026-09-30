@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`).
 
 ## `ev ui`
 
@@ -145,6 +145,7 @@ A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from 
 |---|---|
 | `ev grid <ref>` | `node`, `grid`: `cols`, `rows`, `boxes` (NodeRef + `cells`), `free` (cell names), `unplaced` (children without cells), `map` (rows of box ids, null where free); `grid` is null without one |
 | `ev grid <ref>… --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside. Several references get the same grid, all or none, and return `grids` |
+| `ev grid <ref>… --face above\|front` | how the grid is seen: `above` (the default; a drawer, row 1 at the back) or `front` (furniture and its compartments, row 1 at the top); with or without `--cols`/`--rows`, all or none; refused (exit 5) for a holder without a grid. `grid.face` |
 | `ev grid <ref> --clear` | remove the grid; refused while boxes are placed in it |
 | `ev cell <ref>=<cells>… [--recode]` | place boxes in their holder's grid, several at once; `<ref>=` takes one out. Bounds and overlaps are checked against where every box ends up, so boxes can swap places in one step. `--recode` names each placed box `<holder code>-<back-left cell>`. `placed`, `grids` |
 

@@ -399,9 +399,24 @@ fn name_style(n: &Value) -> Style {
     }
 }
 
-/// Code, name and state markers of a node as coloured spans.
+/// A one-cell mark of a node's kind, put before it in the tree and the lists, so kinds read
+/// apart at a glance: a box from the things in it most of all, which differed only by a code.
+/// Plain geometric shapes, never emoji or font icons: one cell wide in every terminal, so the
+/// columns clicks and cut rows count stay right.
+fn kind_mark(n: &Value) -> Span<'static> {
+    let (mark, style) = match n["kind"].as_str() {
+        Some("home") => ("⌂", Style::new().bold()),
+        Some("room") => ("◫", Style::new().bold()),
+        Some("furniture") => ("▥", Style::new().fg(pal().furniture)),
+        Some("container") => ("□", Style::new().fg(pal().code)),
+        _ => ("·", Style::new().fg(pal().muted)),
+    };
+    Span::styled(format!("{mark} "), style)
+}
+
+/// Kind mark, code, name and state markers of a node as coloured spans.
 fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
-    let mut out = Vec::new();
+    let mut out = vec![kind_mark(n)];
     if let Some(c) = n["code"].as_str() {
         out.push(Span::styled(c.to_string(), Style::new().fg(pal().code)));
         out.push(Span::raw("  "));

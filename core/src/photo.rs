@@ -249,6 +249,25 @@ fn label(img: &mut image::RgbImage, text: &str, x: f64, y: f64, s: f64) {
     }
 }
 
+/// The first of `tries` where a label of `size` stays inside a photo of `photo` size and clear
+/// of the labels already `placed` (x, y, w, h); the first try when none is.
+fn label_spot(
+    tries: &[(f64, f64)],
+    placed: &[(f64, f64, f64, f64)],
+    size: (f64, f64),
+    photo: (f64, f64),
+) -> (f64, f64) {
+    let (lw, lh) = size;
+    let fits = |&(x, y): &(f64, f64)| {
+        let inside = y >= 0.0 && y + lh <= photo.1 && x + lw <= photo.0;
+        let clear = placed
+            .iter()
+            .all(|&(px, py, pw, ph)| x + lw <= px || px + pw <= x || y + lh <= py || py + ph <= y);
+        inside && clear
+    };
+    tries.iter().copied().find(fits).unwrap_or(tries[0])
+}
+
 /// Draws each `(label, shape)` on a copy of `file` and writes it to `out` as a JPEG: a red frame
 /// around the shape, and the label on a red plate — above a rectangle's top-left corner (inside
 /// it at the photo's top edge), in the middle of a grid's cells. The original is not touched.
@@ -284,16 +303,7 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
                     (px[0].0 - t / 2.0, bottom + t),
                     (px[0].0 + t, px[0].1 + t),
                 ];
-                let fits = |&(x, y): &(f64, f64)| {
-                    let inside = y >= 0.0 && y + lh <= h && x + lw <= w;
-                    let clear = placed
-                        .iter()
-                        .all(|&(px, py, pw, ph): &(f64, f64, f64, f64)| {
-                            x + lw <= px || px + pw <= x || y + lh <= py || py + ph <= y
-                        });
-                    inside && clear
-                };
-                tries.iter().copied().find(fits).unwrap_or(tries[0])
+                label_spot(&tries, &placed, (lw, lh), (w, h))
             }
             Shape::Quad(_) => {
                 let cx = px.iter().map(|p| p.0).sum::<f64>() / 4.0;

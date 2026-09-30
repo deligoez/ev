@@ -112,3 +112,15 @@ fn next_says_the_goal_how_far_the_home_is_and_the_task_with_its_places() {
     );
     assert!(s.contains("Raw places no task covers (2):"), "{s}");
 }
+
+#[test]
+fn todo_lists_each_kind_of_waiting_work_under_its_count() {
+    let h = Home::new();
+    let s = h.text(&["todo"]);
+    assert!(s.contains("0 being counted, 2 not counted"), "{s}");
+    assert!(s.contains("\nTasks (1)\n  1. #1 Çekmeceyi say\n"), "{s}");
+    // Codes set at add time wait for their labels.
+    assert!(s.contains("\nLabels to print (3)\n"), "{s}");
+    assert!(s.contains("\nNot counted yet (2)\n"), "{s}");
+    assert!(s.contains("\n  Ev › Oda › D  (no photo)\n"), "{s}");
+}

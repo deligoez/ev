@@ -71,8 +71,14 @@ fn a_parking_place_and_what_is_inside_it_are_not_offered_as_a_final_place() {
     assert_eq!(similar.first().map(String::as_str), Some("Dolap"));
     let parking = names(&v["parking"], "container");
     assert!(parking.contains(&"Çekmece".to_string()) && parking.contains(&"Kutu".to_string()));
-    // Each offered place says whether it has been gone through.
+    // Each offered place says whether it has been gone through, and a reviewed room covers
+    // the places in it.
     assert_eq!(v["similar"][0]["container"]["review"], Value::Null);
+    let oda = inv.show("Oda", false).unwrap()["node"]["id"].clone();
+    inv.review("Oda", "kept", None).unwrap();
+    let v = inv.suggest("anahtar", None).unwrap();
+    assert_eq!(v["similar"][0]["container"]["review"]["status"], "kept");
+    assert_eq!(v["similar"][0]["container"]["review"]["from"], oda);
     inv.review("Dolap", "kept", None).unwrap();
     let v = inv.suggest("anahtar", None).unwrap();
     assert_eq!(v["similar"][0]["container"]["review"]["status"], "kept");

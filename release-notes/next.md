@@ -7,7 +7,7 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 ## Upgrading
 
 The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
-sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 18: declined regroup moves) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 18: declined regroup moves, 19: one counting state and lost as "place unknown"; the `unknown` mark goes) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -86,6 +86,17 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 1
 
 ## Changed
 
+- **One state for how far a place is counted: not counted, being counted, counted, left as
+  is.** The `unknown` mark ("contents never counted") and the tour state (`raw`/`toured`/
+  `kept`) said the same thing in two places. Now there is one: `ev review <place> --as
+  counting|toured|kept|raw`, shown on each place in the tree, on the map and in `ev todo`
+  (`uncounted`). A task started on a place marks it being counted; closed unfinished, it goes
+  back to not counted. An empty room is a place of its own to count. `edit unknown=` and
+  `add --unknown` are gone. Schema 19 drops the column.
+- **Lost means "place unknown".** A lost thing is no longer shown where it was last seen (and
+  not counted there); `ev tree` and `ev ui` list it under **Unknown place** with where it was
+  last seen. A thing with no place at all is lost too (schema 19 marks them), and `ev found X
+  --in Y` puts one back where it turned up.
 - **A taller box gets a wider crop.** A grid cut widens each box's crop with its height from
   its `size` (`1x2x1.5` gets 1.5 times the margin), never below the plain margin: a tall box's
   rim leans out of its cells in a photo taken from above, and its crop was cut short.

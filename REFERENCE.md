@@ -19,14 +19,13 @@
 | owner | `--owner`, `edit owner=` | place the node belongs to when it is not ours |
 | with | `lend --to`, `back`, `edit with=` | place holding our lent node |
 | state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, give, sell, return |
-| lost | `--lost`, `lost`, `found`, any move | |
-| unknown | `--unknown`, `edit unknown=true/false` | contents never inventoried; `audit` lists them |
+| lost | `--lost`, `lost`, `found [--in]`, any move | its place is not known: out of where it was last seen (kept as the parent), listed under "Unknown place" in `ev tree` and `ev ui`, not counted in that place's `items`; a thing added with `--lost` and no place was never seen |
 | temporary | `--temporary`, `edit temporary=true/false` | a parking place: what is put straight into it waits for its final place (`ev todo` lists it as `parked`, `ev suggest` never offers the place or anything inside it, listing them under `parking`); on an item, that one thing waits where it is. A move clears an item's own mark (the event says `was_temporary`); a place keeps its mark until set back |
 
 ## Batch lines (`ev add --batch file` / `--stdin`)
 
 One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `code`,
-`address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`, `unknown`,
+`address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`,
 `temporary`) plus optional `key`.
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
@@ -62,7 +61,7 @@ one, its name otherwise.
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
-| tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set), `unplaced` (without a reference) |
+| tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set; `count` on a place gone through on its own: `raw`, `counting`, `toured` or `kept`; lost things are not among the children or in `items`), `lost` (without a reference: every lost thing, with `last_seen`, null when never seen) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
 | disposals | `disposals`: `{trash, give, sell}` |
@@ -181,7 +180,7 @@ Numbers are centimetres, `120,40`, `120x40` or `120×40`, decimals with a point.
 NodeRef with `rect` (`[x, y, w, h]` as fractions of the place, from its top-left: the back of a
 drawer, the top of a stack), `items` (things inside, counted all the way down), `children`,
 `contents` (up to 40: holders by code, then things by name, `×n` for a count), and when set
-`theme`, `fill`, `cells`, `temporary`, `unknown`, `stacked` (what stands on it, bottom up) and
+`theme`, `fill`, `cells`, `temporary`, `count` (how far a place is counted), `stacked` (what stands on it, bottom up) and
 `band` (the stack member it belongs to). A tile with an outline carries `shapes`: its outline
 and the outlines of rooms inside it, as corners in fractions of the view. A sketch's `size`
 holds `w`, `d` (the view in centimetres) and `floor` (the place's own outline, or the
@@ -228,7 +227,7 @@ creates the place.
 | `ev themes [<ref>]` | containers and furniture with things in them and no theme (kits recorded as items are left out): `themes`: `[{holder, things, words: [{word, things}], contents, like}]`, most things first. `words` are the stems the contents share, written as the inventory writes them, rarer ones first, colours and numbers left out; `like` is the themed holder those words read most like (NodeRef + `theme`, `score`), or null. `ev ui` shows the same under a place's details |
 | `ev facet add <name> [--words "a, b"]` / `ev facet list` / `ev facet remove <name>` | facets: kinds of things kept apart (modules and bare parts, novels and technical books). A holder is in a facet by carrying its name as a tag (`ev edit X tags=+modül`), or by being inside one that does; a thing by its own tag, else by a facet word in its name (any form: `modülü`, `modülleri` name `modül`), else by where it is. `suggest` never ranks a holder of another facet (it goes to `other_facet`) and `regroup` never proposes one. `facets`: `[{name, words, holders}]` |
 | `ev rule add <text>` / `ev rule list` / `ev rule remove <id>` | placement rules in plain words |
-| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried), `size_drift` (boxes whose name carries a size — `Gridfinity 1x2x0.5 — …` — that their `size` field lacks or contradicts: NodeRef + `name_size`, `size`; the field is what crops and bigger-box offers read) |
+| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `size_drift` (boxes whose name carries a size — `Gridfinity 1x2x0.5 — …` — that their `size` field lacks or contradicts: NodeRef + `name_size`, `size`; the field is what crops and bigger-box offers read) |
 
 ### How `suggest` and `regroup` score
 
@@ -316,8 +315,8 @@ drawn as its plate, each box a frame over the cells it covers.
 |---|---|
 | `ev goal [organize\|track]` | show or set what the household wants: a tidy-up plan, or records only |
 | `ev observe <ref> "<text>" [--photo n]` | a dated note on a place, optionally tied to its n-th photo; `ev unobserve <id>` removes one, leaving an `unobserve` event with its text in the place's history |
-| `ev review <ref> --as toured\|kept\|raw [--note t]` | how far a place has been gone through; covers everything below it |
-| `ev progress` | every unit with `review` (`status`, `at`, `from`, `changed_since`), `children`, `unknown`, `observations`, `planned`; counts `units`, `toured`, `kept`, `raw`, `changed_since_tour` |
+| `ev review <ref> --as counting\|toured\|kept\|raw [--note t]` | how far a place has been counted: `raw` not counted (the default), `counting` its tour has begun (set when a task on it starts, cleared back to `raw` when the task closes unfinished), `toured` counted, `kept` left as it is on purpose; covers everything below it |
+| `ev progress` | every place gone through on its own (a unit: a holder with no labelled child, or a room with no furniture, box or room in it) with `review` (`status`, `at`, `from`, `changed_since`), `children`, `observations`, `planned`; counts `units`, `toured`, `kept`, `counting`, `raw`, `changed_since_tour` |
 | `ev task add "<title>" --why "<why>" [--on ref]… [--at n]` | a task at position n (last by default) |
 | `ev task list [--all]` | unfinished tasks in order (`position`), then closed ones with `--all` |
 | `ev task start\|done\|drop\|reopen <id> [--note t]` | one task is in progress at a time; `done` only when the person says so |
@@ -334,7 +333,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `unknown` (every node marked unknown, not only innermost places), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`) |
+| `ev todo` | `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

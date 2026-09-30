@@ -53,7 +53,9 @@ mistaken gone comes back with `ev restore X --correction "…"`. A record that s
 existed (misread from a photo, entered twice) closes with `ev gone X --as mistake --why "…"`,
 keeping its history without counting as thrown away.
 
-**Lost and found.** `ev lost X` keeps where it was last seen; `ev lost` lists them; `ev found X`.
+**Lost and found.** A lost thing's place is unknown: `ev lost X` lists it under "Unknown
+place" with where it was last seen; `ev lost` lists them; `ev found X` puts it back there, `ev
+found X --in Y` where it turned up.
 
 **Parked for now.** A place where things only wait until their places are decided is marked
 `ev edit X temporary=true` (or one thing waiting among things that belong there). Placement
@@ -94,8 +96,7 @@ the technical shelf.
 from: the words their contents share and the themed place they read most like (a theme is the
 summary every placement answer leans on, so the agent writes one from this with the person).
 `ev audit` finds alike things split across places, holders without a theme, loose items,
-holders whose contents were never inventoried (`unknown=true`), and boxes whose name says a
-size their `size` field does not.
+and boxes whose name says a size their `size` field does not.
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the

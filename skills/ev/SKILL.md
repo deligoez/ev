@@ -68,8 +68,10 @@ whose place is unknown is `lost`.
    each part as it turns up. `ev kit show <kit>` then answers "what is still missing from the
    set" from the records; a part missing from its bag is a record marked `ev lost` and linked,
    so it is counted as lost, not forgotten.
-7. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
-   clears it in place; any move clears it too.
+7. **Lost = place unknown.** `ev lost <x>` takes it out of where it was (that place is kept
+   as "last seen") and lists it under "Unknown place" in the tree; `ev lost` lists them. `ev
+   found <x>` puts it back where it was last seen, `ev found <x> --in <place>` where it turned
+   up; any move clears it too. A thing whose place was never known is added `--lost`.
 
 ## The plan: start every session with `ev next`
 
@@ -146,12 +148,8 @@ Record the kinds that have their own verbs as you meet them:
   a room inside a room (a balcony) takes corners relative to its room's top-left corner. A
   room the plan did not draw is found from the plan's own walls around where the person says
   it is, never shaped by guess; and nothing of the plan but the rooms goes in unless the
-  person asks (their cabinets, doors and windows cluttered the map). A room nobody has gone
-  through is marked
-  `unknown=true` so its empty tile does not read as empty. When the person asks where something
-  is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
-  `unknown=true` so its empty tile does not read as empty. When the person asks where something
-  is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
+  person asks (their cabinets, doors and windows cluttered the map). When the person asks
+  where something is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 
@@ -182,7 +180,7 @@ in this order:
    `ev edit <box> fill=N` before you rely on it.
 5. **Read the place before you name it.** Run `ev show <place>` on the one you are about to
    propose: its observations and tasks may say it is only a stop on the way, and a place never
-   gone through (`review` null or `raw` — `(not toured)` in `ev suggest`) is a guess to say as
+   gone through (`review` null or `raw` — `(not counted)` in `ev suggest`) is a guess to say as
    one. A parking place (`temporary`) is never the answer: `ev suggest` lists it apart under
    `parking`; if it is still where the thing should go for now, say it is a stop, not its place.
 6. **Say what you weighed**: "best: F2 (ışık*, ldr*; 69% of the description), room yes; rule 6

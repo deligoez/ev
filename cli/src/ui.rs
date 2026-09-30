@@ -3975,6 +3975,48 @@ mod tests {
         assert!(!app.quit);
     }
 
+    #[test]
+    fn a_home_with_a_plan_draws_its_rooms_in_their_shapes_and_a_click_picks_one() {
+        let (_dir, mut inv) = home();
+        add(&mut inv, "Salon", "room", "Ev", None);
+        add(&mut inv, "Mutfak", "room", "Ev", None);
+        add(&mut inv, "Kupa", "item", "Mutfak", None);
+        inv.sketch_set("Salon", None, None, None, Some("0,0 600,0 600,400 0,400"))
+            .unwrap();
+        inv.sketch_set(
+            "Mutfak",
+            None,
+            None,
+            None,
+            Some("620,0 900,0 900,400 620,400"),
+        )
+        .unwrap();
+        let mut app = app_tr(inv);
+        let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        press(&mut app, KeyCode::Char('M'));
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        // Rooms are floors of their own shape, named inside, not frames.
+        assert!(s.contains("Salon") && s.contains("Mutfak"), "{s}");
+        assert!(!s.contains("┌ Salon"), "{s}");
+        // The chosen room's floor is lit, the other's is not.
+        let buf = term.backend().buffer().clone();
+        let bg_of = |name: &str| {
+            let (row, line) = s.lines().enumerate().find(|l| l.1.contains(name)).unwrap();
+            let col = line.split(name).next().unwrap().chars().count();
+            (col as u16, row as u16, buf[(col as u16, row as u16)].bg)
+        };
+        let (_, _, salon) = bg_of("Salon");
+        let (mx, my, mutfak) = bg_of("Mutfak");
+        assert_eq!(salon, theme::pal().room_chosen);
+        assert_ne!(mutfak, salon);
+        // A click on the kitchen's floor picks it; the line under the plan says what is in it.
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), mx, my);
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        assert!(s.contains("Mutfak 1 eşya  · Kupa"), "{s}");
+    }
+
     fn shown(app: &mut App, reference: &str, w: u16, h: u16) -> String {
         let id = app.inv.resolve(reference, false).unwrap();
         app.reveal(id).unwrap();

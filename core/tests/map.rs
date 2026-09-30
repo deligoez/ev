@@ -405,3 +405,39 @@ fn many_sketches_come_from_lines_in_order_all_or_none() {
     assert!(e.to_string().starts_with("line 2:"), "{e}");
     assert_eq!(inv.sketch("Mutfak").unwrap()["x"], 400.0);
 }
+
+#[test]
+fn a_room_given_by_its_size_is_a_floor_and_a_cupboard_in_it_is_drawn_to_scale() {
+    let (_d, mut inv) = setup();
+    // A 2 m × 2 m room, and a 1 m × 1 m cupboard in its back right corner.
+    sketch(&mut inv, "Mutfak", Some("0,0"), Some("200,200"), None, None).unwrap();
+    add(&mut inv, "Dolap", "furniture", Some("Mutfak"), None);
+    sketch(
+        &mut inv,
+        "Dolap",
+        Some("100,0"),
+        Some("100,100"),
+        None,
+        None,
+    )
+    .unwrap();
+    let m = inv.map(Some("Mutfak")).unwrap();
+    assert_eq!(m["layout"], "sketch");
+    // The room's own floor is its rectangle; the cupboard is a quarter of it, not a floor.
+    assert_eq!(
+        m["size"]["floor"],
+        serde_json::json!([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+    );
+    let dolap = &m["tiles"][0];
+    assert_eq!(dolap["rect"], serde_json::json!([0.5, 0.0, 0.5, 0.5]));
+    assert!(dolap["shapes"].is_null());
+    // On the home, the room given by its size is a floor like a room given by its corners.
+    let home = inv.map(None).unwrap();
+    let room = home["tiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "Mutfak")
+        .unwrap();
+    assert_eq!(room["shapes"][0].as_array().unwrap().len(), 4);
+}

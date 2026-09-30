@@ -7,7 +7,7 @@
 | name | `add <name>`, `edit name=` | required |
 | kind | `--kind`, `edit kind=` | home, room, furniture, container, item |
 | parent | `--in`, `move` | not editable; rooms only in homes/rooms |
-| code | `--code`, `edit code=`, `recode` | unique among non-gone nodes, folded; not digits only; `code=` clears; `ev recode A=X B=Y …` sets several at once, checking uniqueness against the codes they end up with (swap or rotate codes when boxes change places) |
+| code | `--code`, `edit code=`, `recode` | unique among non-gone nodes, folded; not digits only; `code=` clears; a code ending in `*` takes the next free number of its series (`GF1x1-*` after `GF1x1-007` is `GF1x1-008`, padded like the series, 3 digits for a new one, gone nodes' numbers never reused) in `add`, `edit` and `edit --stdin`; `ev recode A=X B=Y …` sets several at once, checking uniqueness against the codes they end up with (swap or rotate codes when boxes change places) |
 | address | `--address`, `edit address=` | homes only |
 | qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
 | note, theme | `--note`, `--theme`, `edit note=` | empty clears |

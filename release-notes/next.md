@@ -1,13 +1,19 @@
 Draft for the next release.
 
-Records that stay true while things are unpacked: one record splits into a record per part
-with its history linked both ways, a bought kit becomes a checklist counted from the records,
-a detached photo stays in the history, and a tall box gets a crop that reaches its rim.
+Records that stay true while things are unpacked, and a map to find them by. One record
+splits into a record per part with its history linked both ways, a bought kit becomes a
+checklist counted from the records, and a tall box gets a crop that reaches its rim. `M` in
+`ev ui` opens a map of the home: rooms as a floor plan, furniture front on, drawers as their
+grid plate, each level one Enter deeper. How far a place is counted is one state, and a lost
+thing is listed where its place is not known.
 
 ## Upgrading
 
-The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
-sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 18: declined regroup moves, 19: one counting state and lost as "place unknown"; the `unknown` mark goes) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+The database moves from schema 11 to **schema 19** the first time this version opens it (12:
+kits, 13: parking places, 14: sketches, 15: grid faces, 16: room outlines, 17: the plan marks
+of 16 dropped, 18: declined regroup moves, 19: one counting state, lost as "place unknown",
+the `unknown` mark gone); v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first
+if you might go back.
 
 ## New
 
@@ -48,8 +54,8 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 1
   place or anything inside it (they are listed apart under `parking`), `ev todo` lists what waits
   (`parked`), and a move clears a thing's own mark. Schema 13.
 - **`ev suggest` says whether a place has been gone through.** Each offered place carries its
-  review, its own or the nearest reviewed ancestor's; the text marks an untoured one
-  `(not toured)`, a guess to check before it is proposed.
+  count state, its own or the nearest reviewed ancestor's; the text marks one not counted
+  `(not counted)`, a guess to check before it is proposed.
 
 - **A map to walk: `ev map`, `ev sketch`, and `M` in `ev ui`.** Any place drawn as the tiles
   of what is in it: on its grid, on a sketch in centimetres (a room's size, a desk's place and
@@ -118,11 +124,6 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 1
   offered one, and no holder is offered a spare that stands inside it.
 - **A tall box's crop now reaches out where its rim leans**, up at the back and down at the
   front of a photo taken from above, instead of growing evenly on every side.
-
-- **An uncounted place dropped off `ev todo` once a box was put in it.** The list of places
-  whose contents were never counted came from the innermost places only, so a desk marked
-  `unknown` left the list the moment a labelled box stood on it, though its own contents were
-  still uncounted. Every node marked `unknown` is now listed until it is set back.
 
 - **`ev photo remove` left no trace in history.** Detaching a photo now records a
   `photo_remove` event with its path, crop, note and position, shown in the History tab.

@@ -18,7 +18,3 @@ that fixes them.
   timeout. The tests pass. Most likely the spawned process's teardown under a fully parallel
   run rather than anything a test leaves behind, but not shown. Expected: a known cause, or a
   `leak-timeout` in `.config/nextest.toml` chosen from a measurement.
-- **`ev photo add --text` prints JSON.** Measured 2026-10-01 attaching two photos to a new
-  item: `--text` is documented as forcing the readable output, yet both calls printed the full
-  JSON (node, path, every photo). Expected: a readable line or two — the node and the photo just
-  attached with its number and note.

@@ -815,6 +815,49 @@ fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
 }
 
 #[test]
+fn a_code_ending_in_a_star_takes_the_next_free_number_of_its_series() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let code = |inv: &Inventory, id: i64| -> String {
+        inv.show(&id.to_string(), true).unwrap()["node"]["code"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    let box_ = |inv: &mut Inventory, c: &str| {
+        let v = inv
+            .add(NewNode {
+                name: "Kutu".into(),
+                kind: "container".into(),
+                parent: Some("K4x4".into()),
+                code: Some(c.into()),
+                ..Default::default()
+            })
+            .unwrap();
+        v["node"]["id"].as_i64().unwrap()
+    };
+    // A new series starts at 001; the next one follows, case-insensitively.
+    let a = box_(&mut inv, "GF1x1-*");
+    let b = box_(&mut inv, "gf1x1-*");
+    assert_eq!(code(&inv, a), "GF1x1-001");
+    assert_eq!(code(&inv, b), "gf1x1-002");
+    // Another series counts on its own, and keeps its own width.
+    box_(&mut inv, "S5-07");
+    let s = box_(&mut inv, "S5-*");
+    assert_eq!(code(&inv, s), "S5-08");
+    let g = box_(&mut inv, "GF1x2-*");
+    assert_eq!(code(&inv, g), "GF1x2-001");
+    // A number is never reused, even when its box is gone.
+    inv.gone(&b.to_string(), Some(ev_core::Disposition::Trash))
+        .unwrap();
+    let c = box_(&mut inv, "placeholder");
+    inv.edit(&c.to_string(), &["code=GF1x1-*".into()]).unwrap();
+    assert_eq!(code(&inv, c), "GF1x1-003");
+    // Only a trailing star, after a prefix.
+    assert!(inv.edit(&c.to_string(), &["code=*".into()]).is_err());
+}
+
+#[test]
 fn audit_finds_a_box_whose_name_says_a_size_its_field_does_not() {
     let (_d, mut inv) = inv();
     home(&mut inv);

@@ -529,6 +529,100 @@ impl Inventory {
         show(&self.conn, id)
     }
 
+    /// Splits one record into several kinds of thing: each `(name, qty)` becomes a new record
+    /// beside it (same place, kind and tags), and the original keeps what is left — renamed
+    /// and recounted with `rename` / `qty` when given. A set recorded as one thing (a probe, a
+    /// board and a cable) becomes a record per part; one record of two kinds (straight and
+    /// angled headers) becomes two. The history links both ways: `split` on the original
+    /// names what came off it, `split_from` on each new record names where it came from.
+    /// Photos stay on the original; the result lists them, so each part can get its crop from
+    /// every photo it is in. A holder with things inside is not split. All or nothing.
+    pub fn split(
+        &mut self,
+        reference: &str,
+        parts: &[(String, Option<i64>)],
+        rename: Option<&str>,
+        qty: Option<i64>,
+    ) -> Result<Value> {
+        if parts.is_empty() {
+            return Err(Error::Usage(
+                "give at least one <name>=<qty> to split off".into(),
+            ));
+        }
+        let tx = self.conn.transaction()?;
+        let n = load(&tx, resolve(&tx, reference, false)?)?;
+        let inside: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone'",
+            [n.id],
+            |r| r.get(0),
+        )?;
+        if inside > 0 {
+            return Err(refused(
+                format!(
+                    "{} holds {inside} thing(s); split what is inside, or move it out first",
+                    label(&n)
+                ),
+                json!({ "node": brief_json(&tx, n.id)? }),
+            ));
+        }
+        let mut into = Vec::new();
+        for (name, q) in parts {
+            let name = name.trim();
+            if name.is_empty() {
+                return Err(Error::Usage("a split-off part needs a name".into()));
+            }
+            let new = NewNode {
+                name: name.to_string(),
+                kind: n.kind.to_string(),
+                qty: *q,
+                tags: n.tags.clone(),
+                note: Some(format!("Split from #{} ({}).", n.id, n.name)),
+                ..Default::default()
+            };
+            let id = add_one(&tx, &new, n.parent_id)?;
+            event(
+                &tx,
+                id,
+                "split_from",
+                json!({ "from": n.id, "name": n.name }),
+            )?;
+            into.push(id);
+        }
+        let mut changes = serde_json::Map::new();
+        let edits = [
+            rename.map(|r| ("name", r.to_string())),
+            qty.map(|q| ("qty", q.to_string())),
+        ];
+        for (field, value) in edits.into_iter().flatten() {
+            let before = load(&tx, n.id)?;
+            apply_edit(&tx, &before, field, &value)?;
+            let after = load(&tx, n.id)?;
+            let (b, a) = (field_value(&before, field), field_value(&after, field));
+            if b != a {
+                changes.insert(field.to_string(), json!({ "before": b, "after": a }));
+            }
+        }
+        if !changes.is_empty() {
+            event(&tx, n.id, "edit", Value::Object(changes))?;
+        }
+        let parts_json = into
+            .iter()
+            .map(|id| {
+                let b = brief(&tx, *id)?;
+                Ok(json!({ "id": b.id, "name": b.name, "qty": b.qty }))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        event(&tx, n.id, "split", json!({ "into": parts_json }))?;
+        touch(&tx, n.id)?;
+        tx.commit()?;
+        let into = into
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        let photos = self.photo_list(&n.id.to_string())?["photos"].clone();
+        Ok(json!({ "node": brief(&self.conn, n.id)?, "into": into, "photos": photos }))
+    }
+
     /// Gives several nodes new codes at once, so codes can be swapped or rotated when boxes
     /// change places in a grid: uniqueness is checked against the codes they end up with, not
     /// the ones they are leaving. An empty code clears it. All or nothing.

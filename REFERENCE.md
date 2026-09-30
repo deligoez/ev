@@ -26,7 +26,8 @@
 ## Batch lines (`ev add --batch file` / `--stdin`)
 
 One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `code`,
-`address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`) plus optional `key`.
+`address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`, `unknown`,
+`temporary`) plus optional `key`.
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
 ## Edit lines (`ev edit --stdin`)

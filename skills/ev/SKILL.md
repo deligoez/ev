@@ -136,15 +136,20 @@ Record the kinds that have their own verbs as you meet them:
   its compartments seen from the front, row 1 at the top (`ev grid K4x4 --cols 4 --rows 4 --face
   front`, then `ev cell` per compartment), and a compartment with two drawers a one-column grid
   (`ev grid <c1> <c2>… --cols 1 --rows 2 --face front`, several at once). A drawer's grid is
-  seen from above, the default. Sizes and positions come only from what the
-  person measured or a floor plan they gave (`ev sketch <room> --size w,d`, `ev sketch <x> --at
-  x,y --size w,d`, centimetres) — never estimate one. When the person has the home in Sweet
-  Home 3D, import it: `ev sketch --import <plan.sh3d> --dry-run` first, map every plan room
-  whose name differs (`--room "Oda #3=Çalışma odası"`) after asking which is which, and ask
-  which plan piece is which record before `--piece "Table#2=Maker masası"`; a room the plan
-  lacks is found from its walls with `--space "Antre@x,y"`, from a point inside it read off
-  the plan's own walls and rooms (`Home.xml`) where the person says the room is — never a
-  shape drawn by guess. A room nobody has gone through is marked
+  seen from above, the default. Sizes and positions come only from what the person measured,
+  said or drew — never estimate one. Ask for as much as they can give, no more: nothing (the
+  map lays rooms out as tiles), each room's width and depth and which room it is beside
+  (`ev sketch Mutfak --size 300,500 --right-of Salon`, `--offset` to slide it along that side),
+  or a plan. ev reads no plan file: when the person has one (Sweet Home 3D's `.sh3d` is a zip
+  whose `Home.xml` gives each room's corners in centimetres), read it yourself, ask which plan
+  room is which record, and write one `ev sketch --stdin` line per room with its `points`;
+  a room inside a room (a balcony) takes corners relative to its room's top-left corner. A
+  room the plan did not draw is found from the plan's own walls around where the person says
+  it is, never shaped by guess; and nothing of the plan but the rooms goes in unless the
+  person asks (their cabinets, doors and windows cluttered the map). A room nobody has gone
+  through is marked
+  `unknown=true` so its empty tile does not read as empty. When the person asks where something
+  is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
   `unknown=true` so its empty tile does not read as empty. When the person asks where something
   is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when

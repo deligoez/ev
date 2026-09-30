@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), sketch_import (on the home: `file`, `rooms`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`).
 
 ## `ev ui`
 
@@ -172,7 +172,8 @@ Any place drawn as the tiles of what is in it, laid out from what is recorded:
 | `ev sketch <ref> --at x,y` | its top-left corner in its holder, seen from above |
 | `ev sketch <ref> --on <ref>` | it stands on another; refused (exit 5) on itself or on what stands on it |
 | `ev sketch <ref> --points "x,y x,y …"` | an outline of three or more corners, for a room that is not a rectangle; its place and size become the rectangle around them. The place's own frame starts at that rectangle's corner |
-| `ev sketch --import <plan.sh3d> [--room "<plan name>=<ref>"]… [--piece "<Name#n>=<ref>"]… [--space "<ref>@x,y"]… [--dry-run]` | sketch the home from a Sweet Home 3D plan (its `Home.xml`, 5.3 and later). Each room of the plan gives its outline to the room of the same name, folded (`--room` when the names differ; a room inside a room, like a balcony, is placed in its room's frame). `--piece Table#2=<ref>` places a record where the plan's second Table stands; nothing else of the plan (its other furniture, doors, windows) is drawn. `--space Antre@1500,1000` gives a room the plan did not draw the space around that point (plan centimetres) that walls and the plan's rooms close in, to the walls' inner faces; refused (exit 2) when the space is open to the outside or the point is in a wall or a room. `rooms` (`plan`, `node`, `changed`), `unmatched` (plan rooms with no record), `not_in_plan` (rooms of the home without an outline), `pieces` (the plan's furniture to name from: `ref`, `room`, `linked`, `size`) |
+| `ev sketch <ref> --size w,d --right-of\|--left-of\|--above\|--below <ref> [--offset n]` | beside another thing in the same holder, touching it on that side (above and below are up and down on the map, not standing on), slid `--offset` centimetres along that side from the other's top or left edge. ev works out the corner once; moving the other later does not move this one. Refused (exit 5) beside something with no place yet or in another holder; an outline moves with its room |
+| `ev sketch --stdin` | NDJSON lines `{"ref": …, "at": [x, y], "size": [w, d], "points": [[x, y], …], "on": …, "right_of": …, "left_of": …, "above": …, "below": …, "offset": n, "clear": true}`, applied in order (a line may be placed beside one above it), all or none; a failing line is named. `sketched`. The way to put a plan from another program in: its rooms' corners, one line each |
 | `ev sketch <ref> --clear` | remove its sketch |
 | `ev map [<ref>]` | the home without a reference. `node`, `path_text`, `path`, `parent`, `sketch`, `layout` (`grid`, `sketch`, `tiles`, `stack`), `size` (`cols`, `rows` or `w`, `d`), `tiles`, `unplaced`; a stack adds `bands` (NodeRef + `rect`, `layout`, `size`) |
 

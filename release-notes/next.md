@@ -62,14 +62,14 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped) t
   label, theme, count and fill and names what is in it. Schema 14.
 - **`ev grid` takes several references** with `--cols`/`--rows` and gives each the same grid,
   all or none: the sixteen two-drawer compartments of a Kallax in one call.
-- **A floor plan from Sweet Home 3D: `ev sketch --import home.sh3d`.** The rooms of the plan
-  give their outlines to the rooms of the same name (`--room` maps the others; a balcony inside
-  its room is placed in that room's frame), `--piece Table#2=<ref>` places a record where the
-  plan shows it; nothing else of the plan is drawn. A room the plan did not draw, like a hall, is found
-  from the walls around a point in it: `--space "Antre@1500,1000"`. `M` in `ev ui` then draws the home as a floor plan: each room a floor of its own
-  shape and tone, meeting its neighbours without the gap of the wall between, its name where
-  it is widest, the chosen one lit; the line under the map says
-  what the chosen tile holds. `ev sketch <room> --points "x,y …"` gives an outline by hand.
+- **Rooms of any shape, placed beside each other: `ev sketch`.** A room's size and the room it
+  is beside is enough (`ev sketch Mutfak --size 300,500 --right-of Salon`, `--left-of`,
+  `--above`, `--below`, `--offset` to slide it along); `--points "x,y …"` gives a room that is
+  not a rectangle its corners, and `ev sketch --stdin` takes many at once, all or none — the
+  way a plan from another program comes in. `M` in `ev ui` then draws the home as a floor
+  plan: each room a floor of its own shape and tone, meeting its neighbours without the gap of
+  the wall between, its name where it is widest, the chosen one lit; the line under the map
+  says what the chosen tile holds. With nothing given, rooms are laid out as tiles.
   Schema 16.
 - **A grid knows which way it is seen: `ev grid <ref> --face front`.** A drawer is seen from
   above, its row 1 at the back; a Kallax and its compartments are seen from the front, row 1

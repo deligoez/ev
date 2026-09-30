@@ -87,7 +87,9 @@ places something already recorded by its own words.
 what would fit better in another box (and, apart, the guesses: things that share no word with
 anything in their box, where the other box is only a hint), boxes that are mixed, full boxes
 with a bigger spare box (tagged `boş kap`, with a `size`) and the cells it would fit in, nearly
-empty boxes that could merge, and boxes whose fill is unknown or out of date. Noun compounds
+empty boxes that could merge, and boxes whose fill is unknown or out of date. A move the
+person says no to is kept (`ev regroup --decline <thing> --why "…"`) and not proposed again
+until the thing is moved. Noun compounds
 (`hesap makinesi`, `kablo bağı`) and colour-noun pairs (`yeşil LED`) are matched as such.
 Facets keep kinds of things apart when placing (`ev facet add modül --words "modül, kart"`, then
 tag the holders): a buzzer module is never proposed for the bare-buzzer box, a novel never for
@@ -102,7 +104,10 @@ and boxes whose name says a size their `size` field does not.
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
 map and lists the free cells, `ev ui` shows it in the drawer's details, and `ev suggest` names
 the free cells. Boxes trade places in one `ev cell` call, and `--recode` renames them after
-their cells.
+their cells. Furniture is a grid too, seen from the front (`ev grid K4x4 --cols 4 --rows 4
+--face front`, row 1 at the top); several holders take the same grid in one call. Movable
+boxes get serial codes that stay on their labels wherever they go: `code=GF1x1-*` takes the
+next free number of the series.
 
 **A map to walk.** `ev map <place>` lays out what is in a place: on its grid, on a sketch in
 centimetres, or on their own. A sketch takes what a person can say: a room's size and the room
@@ -115,8 +120,10 @@ chosen on every level: the arrows walk the tiles, Enter goes in — home, room, 
 gridfinity box — Backspace comes back up, and `t` shows the chosen tile in the tree.
 
 **A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
-counts the places a person opens one at a time (the innermost labelled holders) as raw,
-toured or kept as is, and flags toured ones that changed since. `ev observe` keeps what was
+counts the places a person opens one at a time (the innermost labelled holders, and rooms
+with nothing in them that holds things) as not counted, being counted, counted or left as
+is (`ev review <place> --as counting|toured|kept`; starting a task on a place marks it
+being counted), and flags counted ones that changed since. `ev observe` keeps what was
 noticed about a place (`ev unobserve` closes a note once it is dealt with, and the place's
 history keeps what it said); `ev task` is an ordered work list where every entry says why it
 matters; `ev next` hands over the current task with its places, what is planned to arrive

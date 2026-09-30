@@ -3046,6 +3046,14 @@ impl App {
                             String::new()
                         },
                     ),
+                    "photo_remove" => own(
+                        "photo removed",
+                        [str_of(d, "note"), str_of(d, "crop")]
+                            .into_iter()
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<_>>()
+                            .join("  "),
+                    ),
                     "observe" => own("observed", str_of(d, "text")),
                     "unobserve" => own("observation removed", str_of(d, "text")),
                     "review" => own("reviewed", {

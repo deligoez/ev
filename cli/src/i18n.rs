@@ -265,6 +265,10 @@ static TR: &[(&str, &str)] = &[
     ("words: {}", "kelimeler: {}"),
     ("(no facets)", "(tür yok)"),
     ("(no kits)", "(set yok)"),
+    (
+        "Boxes whose name says a size their size field does not:",
+        "Adında yazan boyutu size alanında olmayan kutular:",
+    ),
     ("kit", "set"),
     (
         "{} of {} found · {} lost · {} still missing",

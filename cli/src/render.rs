@@ -1116,6 +1116,22 @@ pub fn human(v: &Value) -> String {
         for n in v["loose"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}", s(n, "path_text"));
         }
+        if let Some(list) = v["size_drift"].as_array().filter(|l| !l.is_empty()) {
+            let _ = writeln!(
+                out,
+                "{}",
+                t("Boxes whose name says a size their size field does not:")
+            );
+            for n in list {
+                let field = n["size"].as_str().unwrap_or("—");
+                let _ = writeln!(
+                    out,
+                    "  {}  ({} → {field})",
+                    s(n, "path_text"),
+                    s(n, "name_size")
+                );
+            }
+        }
         return out;
     }
     if v.get("take").is_some() && v.get("place").is_some() {

@@ -252,6 +252,46 @@ fn a_full_drawer_of_boxes_is_not_offered_a_spare_box_least_of_all_its_own() {
 }
 
 #[test]
+fn a_declined_move_is_not_proposed_again_until_the_thing_is_moved() {
+    let (_d, mut inv) = setup();
+    let proposed = |inv: &Inventory, id: &Value| {
+        let v = inv.regroup(Some("D")).unwrap();
+        let listed = ["elsewhere", "alone", "strays"].iter().any(|k| {
+            v[*k]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["item"]["id"] == *id)
+        });
+        (listed, v)
+    };
+    let v = inv.regroup(Some("D")).unwrap();
+    let id = v["alone"][0]["item"]["id"].clone();
+    let r = format!("#{id}");
+    // Said no: left where it is, the reason kept and shown.
+    inv.regroup_decline(&r, Some("the sensor box is full"))
+        .unwrap();
+    let (listed, v) = proposed(&inv, &id);
+    assert!(!listed, "{v}");
+    assert_eq!(v["declined"][0]["item"]["id"], id);
+    assert_eq!(v["declined"][0]["why"], "the sensor box is full");
+    // Moved to another box, the no was about where it was: it may be proposed again.
+    inv.move_to(&r, "D-A1", false).unwrap();
+    let (_, v) = proposed(&inv, &id);
+    assert!(v["declined"].as_array().unwrap().is_empty(), "{v}");
+    // Taken back where it stands: proposed as before.
+    inv.move_to(&r, "D-A2", false).unwrap();
+    inv.regroup_decline(&r, None).unwrap();
+    assert!(!proposed(&inv, &id).0);
+    inv.regroup_allow(&r).unwrap();
+    assert!(proposed(&inv, &id).0);
+    let h = inv.history(&r).unwrap()["events"].clone();
+    let kinds: Vec<&Value> = h.as_array().unwrap().iter().map(|e| &e["type"]).collect();
+    assert!(kinds.contains(&&Value::from("decline")), "{kinds:?}");
+    assert_eq!(*kinds.last().unwrap(), "decline_cleared");
+}
+
+#[test]
 fn a_thing_that_holds_things_is_never_its_own_better_place() {
     let (_d, mut inv) = setup();
     // A kit recorded as an item with its parts inside: it is a holder, and the part inside

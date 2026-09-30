@@ -542,11 +542,18 @@ impl Inventory {
 
         let progress = self.progress()?;
         let places = progress["places"].as_array().cloned().unwrap_or_default();
-        let unknown: Vec<Value> = places
+        let mut unknown: Vec<Value> = places
             .iter()
             .filter(|p| p["unknown"] == true)
             .cloned()
             .collect();
+        // A place whose contents were never counted stays on the list even when it is no longer
+        // an innermost place (a desk that got a box put on it is still uncounted).
+        for n in all.iter().filter(|n| n.state != State::Gone) {
+            if n.unknown && !unknown.iter().any(|p| p["id"] == n.id) {
+                unknown.push(brief_value(&self.conn, n.id)?);
+            }
+        }
         let stale: Vec<Value> = if organize {
             places
                 .iter()

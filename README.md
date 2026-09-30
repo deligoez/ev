@@ -15,8 +15,8 @@ npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx 
 ```
 
 The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it), photos next to it in
-`~/.ev/photos`. Output is JSON when piped and readable text on a terminal; errors go to stderr
-with a distinct exit code (see `REFERENCE.md`).
+`~/.ev/photos`. Output is JSON when piped and readable text on a terminal (`--json` / `--text`
+to choose either way); errors go to stderr with a distinct exit code (see `REFERENCE.md`).
 
 ## What it does
 
@@ -34,6 +34,7 @@ ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows
 ev tree Salon --depth 2          # the picture, with item totals
 ev edit 391 qty=11 note="…"      # change fields
+ev edit --stdin < edits.ndjson   # many records at once, all or nothing: {"ref":…,"set":{…}}
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
 ev grid 07-A --cols 6 --rows 7   # a gridfinity drawer: row 1 at the back, columns A…
 ev cell 07-A-A3=A3-B3 --recode   # a box covers cells; ev grid 07-A draws the map
@@ -85,8 +86,9 @@ the technical shelf.
 `ev themes` lists the places with things in them and no theme, with what a theme could be read
 from: the words their contents share and the themed place they read most like (a theme is the
 summary every placement answer leans on, so the agent writes one from this with the person).
-`ev audit` finds alike things split across places, holders without a theme, loose items and
-holders whose contents were never inventoried (`unknown=true`).
+`ev audit` finds alike things split across places, holders without a theme, loose items,
+holders whose contents were never inventoried (`unknown=true`), and boxes whose name says a
+size their `size` field does not.
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
@@ -128,7 +130,9 @@ photo (back-left, back-right, front-right, front-left, as fractions) and cuts ev
 through the photo's perspective, so no box keeps an older photo than its drawer; a taller box
 (its `size`, `1x2x1.5`) gets a wider crop, as its rim leans out of its cells. `--preview`
 cuts nothing: it frames every box it would cut on a copy of the photo, to check the corners by
-eye first (and with a note, shows it in a running `ev ui`). The photo keeps its corners, so its
+eye first (and with a note, shows it in a running `ev ui`). Both the preview and the cut
+return a contact sheet: every crop small, labelled with its cell, so a whole drawer's cut is
+checked at a glance. The photo keeps its corners, so its
 cells can be found by name later. Photos stay current by construction: `ev review <drawer> --as
 toured` is refused while the drawer or any box in it shows an older state than it has, and
 `ev todo` lists a drawer again when a box is added after its photo.

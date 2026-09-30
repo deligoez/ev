@@ -473,10 +473,11 @@ impl Inventory {
                 n.note.as_ref(),
                 n.theme.as_ref(),
             ];
-            let hit = haystacks
-                .iter()
-                .flatten()
-                .any(|h| fold(h).contains(&needle))
+            let hit = needle.is_empty()
+                || haystacks
+                    .iter()
+                    .flatten()
+                    .any(|h| fold(h).contains(&needle))
                 || n.tags.iter().any(|t| fold(t).contains(&needle));
             if hit {
                 results.push(brief(&self.conn, id)?);

@@ -3168,6 +3168,15 @@ impl App {
                         format!("{} → {}", place(&d["before"]), place(&d["after"])),
                     ),
                     "grid" => own("grid set", format!("{}×{}", d["after"][0], d["after"][1])),
+                    "grid_face" => own(
+                        "grid seen from",
+                        t(if d["after"] == "front" {
+                            "the front"
+                        } else {
+                            "above"
+                        })
+                        .to_string(),
+                    ),
                     "sketch" => {
                         let a = &d["after"];
                         let mut parts = Vec::new();

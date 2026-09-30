@@ -91,3 +91,42 @@ fn photos_are_removed_by_number_and_outside_paths_are_adopted() {
     assert_eq!(v["photos"].as_array().unwrap().len(), 1);
     assert!(inv.photo_remove("Çekmece", 5).is_err());
 }
+
+#[test]
+fn a_removed_photo_stays_in_the_history() {
+    let (_dir, mut inv, photo) = setup();
+    let crop = "0.5,0,0.5,1".parse().unwrap();
+    inv.photo_add("Çekmece", &photo, Some(crop), Some("mavi yarı"))
+        .unwrap();
+    inv.photo_remove("Çekmece", 1).unwrap();
+    let events = inv.history("Çekmece").unwrap()["events"].clone();
+    let last = events.as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["type"], "photo_remove");
+    assert_eq!(last["data"]["note"], "mavi yarı");
+    assert_eq!(last["data"]["crop"], "0.5000,0.0000,0.5000,1.0000");
+    assert_eq!(last["data"]["n"], 1);
+    assert!(last["data"]["path"].as_str().is_some());
+}
+
+#[test]
+fn one_photo_gives_the_same_record_several_crops_in_one_cut() {
+    let (_dir, mut inv, photo) = setup();
+    let crop = |s: &str| s.parse::<ev_core::Crop>().unwrap();
+    // Three probes of three sets in one photo are one record: each gets its own crop.
+    let v = inv
+        .photo_cut(
+            &photo,
+            None,
+            &[
+                ("Çekmece".into(), crop("0,0,0.5,1")),
+                ("Çekmece".into(), crop("0.5,0,0.5,1")),
+            ],
+            Some("iki set"),
+            None,
+        )
+        .unwrap();
+    assert_eq!(v["attached"].as_array().unwrap().len(), 2);
+    let photos = inv.photo_list("Çekmece").unwrap()["photos"].clone();
+    assert_eq!(photos[0]["crop"], "0.0000,0.0000,0.5000,1.0000");
+    assert_eq!(photos[1]["crop"], "0.5000,0.0000,0.5000,1.0000");
+}

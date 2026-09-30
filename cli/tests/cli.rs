@@ -161,6 +161,57 @@ fn batch_from_stdin_with_keys() {
 }
 
 #[test]
+fn several_records_are_edited_from_stdin_all_or_none() {
+    let ev = seeded();
+    ev.ok(&["edit", "Salon", "note=eski not"]);
+    let run = |lines: &str| {
+        Command::cargo_bin("ev")
+            .unwrap()
+            .env_remove("EV_DB")
+            .env("EV_CONFIG", &ev.config)
+            .args(["--db"])
+            .arg(&ev.db)
+            .args(["edit", "--stdin"])
+            .write_stdin(lines.to_string())
+            .output()
+            .unwrap()
+    };
+    let out = run(concat!(
+        "{\"ref\":\"Salon\",\"set\":{\"note\":null,\"tags\":[\"+oda\",\"+ana\"]}}\n",
+        "\n",
+        "{\"ref\":\"Ev\",\"set\":{\"address\":\"Ankara, Çankaya\"}}\n",
+    ));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["edited"].as_array().unwrap().len(), 2);
+    let salon = ev.ok(&["show", "Salon"]);
+    assert!(salon["node"]["note"].is_null());
+    assert_eq!(salon["node"]["tags"], serde_json::json!(["ana", "oda"]));
+    // Two tags set in one line read as one change in the history.
+    let h = ev.ok(&["history", "Salon"]);
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["data"]["tags"]["before"], serde_json::json!([]));
+    assert_eq!(
+        last["data"]["tags"]["after"],
+        serde_json::json!(["ana", "oda"])
+    );
+    // A bad second line changes nothing, and says which line.
+    let out = run(concat!(
+        "{\"ref\":\"Ev\",\"set\":{\"address\":\"İzmir\"}}\n",
+        "{\"ref\":\"Yok\",\"set\":{\"note\":\"x\"}}\n",
+    ));
+    assert_eq!(out.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("line 2:"));
+    assert_eq!(ev.ok(&["show", "Ev"])["node"]["address"], "Ankara, Çankaya");
+    // Without --stdin a reference and an assignment are needed.
+    assert_eq!(ev.run(&["edit", "Ev"]).0, 2);
+}
+
+#[test]
 fn db_flag_wins_over_env() {
     let ev = seeded();
     let other = tempfile::tempdir().unwrap();

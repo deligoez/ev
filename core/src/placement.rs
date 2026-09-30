@@ -1073,8 +1073,25 @@ impl Inventory {
             let fill = r["fill"].as_i64().unwrap_or(0);
             if fill >= FULL {
                 let own = h.size.as_deref().and_then(volume);
+                // A spare that stands inside this holder is not a bigger one for it, and a
+                // holder laid out in a grid (a drawer of boxes) is not swapped for a box at all.
+                let inside = |s: &Node| {
+                    let mut cur = s.parent_id;
+                    for _ in 0..10_000 {
+                        match cur {
+                            Some(p) if p == h.id => return true,
+                            Some(p) => {
+                                cur = all.iter().find(|n| n.id == p).and_then(|n| n.parent_id)
+                            }
+                            None => return false,
+                        }
+                    }
+                    false
+                };
+                let swappable = crate::grid::grid_of(&self.conn, h.id)?.is_none();
                 let bigger: Vec<Value> = spares
                     .iter()
+                    .filter(|s| swappable && s.id != h.id && !inside(s))
                     .filter(|s| {
                         let v = s.size.as_deref().and_then(volume);
                         matches!((own, v), (Some(o), Some(v)) if v > o) || own.is_none()

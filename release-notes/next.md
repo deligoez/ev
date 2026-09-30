@@ -25,3 +25,6 @@ Draft for the next release.
   two balconies moved out of their rooms to the home landed on the home's top-left corner. A
   move now translates them into the new holder's frame; when either frame is unknown (a holder
   on the way up has no place), the sketch is left as it was.
+- **`ev photo add` and `ev photo list` read as text.** With `--text` (or at a terminal) they
+  printed the whole JSON. They now print the node, then each photo by its number with its file,
+  its crop when only part of the photo shows the node, and its note.

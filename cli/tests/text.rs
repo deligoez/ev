@@ -145,3 +145,19 @@ fn suggest_ranks_the_best_holder_first_and_says_what_matched_and_why() {
     );
     assert!(s.contains("\nScoring: "), "{s}");
 }
+
+#[test]
+fn regroup_names_the_stray_with_where_it_fits_better_and_the_unknown_fills() {
+    let h = Home::new();
+    let s = h.text(&["regroup", "D"]);
+    assert!(s.starts_with("D  Çekmece\n"), "{s}");
+    assert!(
+        s.contains("2 of 3 things are already in their best place."),
+        "{s}"
+    );
+    assert!(
+        s.contains("\n  #8 Kırmızı LED 10 mm\n    D-B1 → D-A1 ("),
+        "{s}"
+    );
+    assert!(s.contains("\nFill unknown or out of date:\n"), "{s}");
+}

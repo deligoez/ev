@@ -66,8 +66,10 @@ sketches, 15: grid faces, 16: room outlines and plan marks) the first time this 
   give their outlines to the rooms of the same name (`--room` maps the others; a balcony inside
   its room is placed in that room's frame), `--piece Table#2=<ref>` places a record where the
   plan shows it, and the plan's other furniture, doors and windows are drawn as marks to find
-  one's way. `M` in `ev ui` then draws the home as a floor plan: each room a floor of its own
-  shape and tone, its name where it is widest, the chosen one lit; the line under the map says
+  one's way (one in no room is left out). A room the plan did not draw, like a hall, is found
+  from the walls around a point in it: `--space "Antre@1500,1000"`. `M` in `ev ui` then draws the home as a floor plan: each room a floor of its own
+  shape and tone, meeting its neighbours without the gap of the wall between, its name where
+  it is widest, the chosen one lit; the line under the map says
   what the chosen tile holds. `ev sketch <room> --points "x,y …"` gives an outline by hand.
   Schema 16.
 - **A grid knows which way it is seen: `ev grid <ref> --face front`.** A drawer is seen from

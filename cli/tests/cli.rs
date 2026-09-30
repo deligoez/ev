@@ -388,6 +388,35 @@ fn a_record_is_split_by_name_and_count_from_the_command_line() {
 }
 
 #[test]
+fn a_kit_is_recorded_linked_and_counted_from_the_command_line() {
+    let (ev, _) = drawer();
+    let v = ev.ok(&[
+        "kit",
+        "add",
+        "Proje seti",
+        "--copies",
+        "2",
+        "--part",
+        "Röle modülü",
+        "--part",
+        "Kablo=3",
+    ]);
+    assert_eq!(v["parts"][1]["expected"], 6);
+    ev.ok(&["kit", "part", "Proje seti", "HC-06"]);
+    let v = ev.ok(&["kit", "link", "Proje seti", "1", "Röle"]);
+    assert_eq!(v["parts"][0]["found"], 1);
+    assert_eq!(v["parts"][0]["open"], 1);
+    assert_eq!(v["parts"][2]["text"], "HC-06");
+    let v = ev.ok(&["kit", "list"]);
+    assert_eq!(v["kits"][0]["counts"]["expected"], 10);
+    assert_eq!(v["kits"][0]["counts"]["found"], 1);
+    let v = ev.ok(&["show", "Röle"]);
+    assert_eq!(v["kits"][0]["kit"], "Proje seti");
+    let (code, _, _) = ev.run(&["kit", "add", "Başka", "--part", "Kablo=iki"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
 fn settings_are_shown_changed_and_checked_without_a_database() {
     let ev = Ev::new();
     let (code, v, _) = ev.run(&["settings"]);

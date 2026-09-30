@@ -150,6 +150,17 @@ its cells.
 Place names match folded with apostrophes ignored; an unknown name in `to`/`owner`/`with`
 creates the place.
 
+## Splitting and kits
+
+| Command | Does |
+|---|---|
+| `ev split <ref> <name>=<qty>… [--rename <name>] [--qty n]` | one record becomes several kinds of thing: each `<name>=<qty>` (or `<name>` without a count) is a new record beside it, with its kind and tags and a note naming where it came from; the original keeps what is left, renamed and recounted with `--rename` / `--qty`. A set recorded as one thing becomes a record per part (`ev split 598 "LM393 kart=3" "Kablo=3" --rename "HW-080 prob"`); straight and angled headers in one record become two. Events: `split` on the original, `split_from` on each new one. Photos stay on the original and are listed, to crop each part from. A holder with things inside is refused (exit 5); all or nothing |
+| `ev kit add <name> [--copies n] [--note t] [--part "<name>[=<per copy>]"]…` | a kit: a bought set, how many of it were bought, and its parts numbered from 1, each with how many come in one copy (1 by default). Names are compared folded and are unique |
+| `ev kit part <kit> "<name>[=<per copy>]"…` | add parts to the end of the list |
+| `ev kit link <kit> <n> <ref>…` / `ev kit unlink <kit> <n> <ref>` | these records are part n (or are not); each record's history gets `kit_link` / `kit_unlink`, and `ev show` lists its `kits` |
+| `ev kit show <kit>` | `kit` (`id`, `name`, `copies`, `note`), `counts`, `parts`: `[{n, text, qty, expected, found, lost, open, nodes}]`. `expected` is `qty × copies`; `found` sums the counts of the linked records that are here (no count is 1), `lost` those marked lost, gone ones count for nothing; `open` is what is expected and not recorded at all. Computed from the records every time, so finding or moving a record updates the kit |
+| `ev kit list` / `ev kit remove <kit>` | every kit with its `counts`, most still open first; removing a kit keeps the records |
+
 ## Placement
 
 | Command | Does |

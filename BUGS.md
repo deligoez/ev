@@ -18,3 +18,9 @@ that fixes them.
   timeout. The tests pass. Most likely the spawned process's teardown under a fully parallel
   run rather than anything a test leaves behind, but not shown. Expected: a known cause, or a
   `leak-timeout` in `.config/nextest.toml` chosen from a measurement.
+- **Moving a sketched room leaves its outline in the old holder's frame.** A room's points are
+  relative to its holder's top-left corner, and `ev move` does not translate them: when the two
+  balconies moved out of their rooms to the home (2026-09-30), their outlines landed on the
+  home's top-left corner until they were translated by hand (the room's origin added to every
+  point, written back with `ev sketch --stdin`). Expected: a move keeps where a sketched node
+  lies on the map, translating its points (and `at`) into the new holder's frame.

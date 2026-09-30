@@ -191,3 +191,20 @@ fn a_database_error_is_not_reported_as_a_name_already_taken() {
     let err = inv.kit_add("Set", None, None, &[]).unwrap_err();
     assert_eq!(err.code(), 1, "{err}");
 }
+
+#[test]
+fn linking_a_part_again_writes_no_second_history_event() {
+    let (_d, mut inv) = setup();
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)])
+        .unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    let events = inv.history("RC522 okuyucu").unwrap()["events"].clone();
+    let links = events
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["type"] == "kit_link")
+        .count();
+    assert_eq!(links, 1);
+}

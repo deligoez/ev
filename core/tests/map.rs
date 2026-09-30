@@ -103,7 +103,8 @@ fn a_place_with_no_layout_is_still_a_map_of_tiles() {
     // Without a reference: the home.
     let v = inv.map(None).unwrap();
     assert_eq!(v["layout"], "tiles");
-    assert_eq!(names(&v, "tiles"), ["Mutfak", "Çalışma odası"]);
+    // By name as `ev find` folds it: Ç sorts with C, not after Z.
+    assert_eq!(names(&v, "tiles"), ["Çalışma odası", "Mutfak"]);
     // The tiles do not overlap and stay inside the place.
     for t in v["tiles"].as_array().unwrap() {
         let [x, y, w, h] = rect(t);

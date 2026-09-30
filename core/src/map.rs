@@ -351,14 +351,25 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
             None => loose.push(*c),
         }
     }
-    // A room with an outline is drawn as its floor plan even before anything in it has a place.
-    if !placed.is_empty() || own.points.is_some() {
-        let floor: Option<Vec<[f64; 2]>> = match (&own.points, own.x, own.y) {
-            (Some(pts), Some(x), Some(y)) => {
-                Some(pts.iter().map(|p| [p[0] - x, p[1] - y]).collect())
-            }
-            _ => None,
-        };
+    // A room is a floor: its outline, or the rectangle of its size. Furniture stays a frame.
+    let floor_of = |kind: Kind, p: &Sketch| -> Option<Vec<[f64; 2]>> {
+        if let Some(pts) = &p.points {
+            return Some(pts.clone());
+        }
+        if !matches!(kind, Kind::Room | Kind::Home) {
+            return None;
+        }
+        let (x, y, w, d) = (p.x.unwrap_or(0.0), p.y.unwrap_or(0.0), p.w?, p.d?);
+        Some(vec![[x, y], [x + w, y], [x + w, y + d], [x, y + d]])
+    };
+    let own_floor = floor_of(load(conn, id)?.kind, &own);
+    // A room with an outline or a size is drawn as its floor plan even before anything in it
+    // has a place.
+    if !placed.is_empty() || own_floor.is_some() {
+        let floor: Option<Vec<[f64; 2]>> = own_floor.map(|pts| {
+            let (x, y) = (own.x.unwrap_or(0.0), own.y.unwrap_or(0.0));
+            pts.iter().map(|p| [p[0] - x, p[1] - y]).collect()
+        });
         // The view: the place's own size and everything drawn in it.
         let mut view = own.w.zip(own.d).map(|(w, d)| [0.0, 0.0, w, d]);
         for (_, _, r) in &placed {
@@ -371,11 +382,14 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
         let mut tiles = Vec::new();
         for (c, p, r) in &placed {
             let mut t = with_stack(tile(conn, c, frac(*r))?, c.id)?;
-            if let Some(pts) = &p.points {
+            if let Some(pts) = floor_of(c.kind, p) {
                 let mut shapes = vec![pts.iter().map(|q| point(*q)).collect::<Vec<_>>()];
                 // A room inside it (a balcony) is drawn as part of it.
                 for g in live_children(conn, c.id)? {
-                    if let Some(gp) = sketch_of(conn, g.id)?.points {
+                    if g.kind != Kind::Room {
+                        continue;
+                    }
+                    if let Some(gp) = floor_of(g.kind, &sketch_of(conn, g.id)?) {
                         shapes.push(
                             gp.iter()
                                 .map(|q| point([q[0] + r[0], q[1] + r[1]]))

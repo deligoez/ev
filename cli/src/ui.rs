@@ -446,9 +446,14 @@ fn kind_mark(n: &Value) -> Span<'static> {
 
 /// Kind mark, code, name and state markers of a node as coloured spans.
 fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
-    let mut out = vec![kind_mark(n)];
+    // A settled row is green from its mark to its name, so a finished stretch of the tree
+    // reads as one at a glance; counts and fill keep their own colours.
+    let settled = snap.settled.contains(&n["id"].as_i64().unwrap_or_default());
+    let mark = kind_mark(n);
+    let mut out = vec![if settled { mark.fg(pal().done) } else { mark }];
     if let Some(c) = n["code"].as_str() {
-        out.push(Span::styled(c.to_string(), Style::new().fg(pal().code)));
+        let color = if settled { pal().done } else { pal().code };
+        out.push(Span::styled(c.to_string(), Style::new().fg(color)));
         out.push(Span::raw("  "));
     }
     out.push(Span::styled(str_of(n, "name"), name_style(n, snap)));

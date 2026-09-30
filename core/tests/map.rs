@@ -114,6 +114,22 @@ fn a_place_with_no_layout_is_still_a_map_of_tiles() {
 }
 
 #[test]
+fn a_tile_names_its_contents_and_its_theme() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Silgi", "item", Some("K22-01-Ü"), None);
+    inv.edit("K22-01-Ü", &["theme=Kırtasiye".into()]).unwrap();
+    inv.edit("Silgi", &["qty=3".into()]).unwrap();
+    let v = inv.map(Some("K22-01")).unwrap();
+    let t = &v["tiles"][0];
+    assert_eq!(t["theme"], "Kırtasiye");
+    assert_eq!(t["children"], 2);
+    // Holders by code first, then things by name, a count when there are several.
+    assert_eq!(t["contents"], serde_json::json!(["Kalem", "Silgi ×3"]));
+    let v = inv.map(Some("K22")).unwrap();
+    assert_eq!(v["tiles"][0]["contents"], serde_json::json!(["K22-01-Ü"]));
+}
+
+#[test]
 fn a_kallax_on_another_is_drawn_with_it_front_on_top_first() {
     let (_d, mut inv) = setup();
     inv.sketch_set("K21", None, None, Some("K22")).unwrap();

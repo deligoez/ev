@@ -177,7 +177,8 @@ things leaving, lost items, errands, search, everything waiting (one collapsible
 kind) and settings. It refreshes the moment another process writes, flashes what changed, shows
 photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first with their note,
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
-works for tabs, rows, the wheel and photos. Every node shows its `#id`, and every command takes
+works for tabs, rows, the wheel and photos. A mark before each row says its kind (⌂ home, ◫ room,
+▥ furniture, □ box, · thing). Every node shows its `#id`, and every command takes
 `#534` in place of a name or code. The key hints at the bottom show only the keys that do
 something on the screen at hand, and fit the width, dropping the least useful first.
 

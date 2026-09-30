@@ -14,6 +14,9 @@ dist = true
 # The Homebrew formula keeps the name it had: `brew install deligoez/tap/ev`.
 formula = "ev"
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "ev"
 path = "src/main.rs"

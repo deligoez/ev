@@ -6,6 +6,9 @@ license = "MIT"
 repository = "https://github.com/deligoez/ev"
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, features = ["now"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }

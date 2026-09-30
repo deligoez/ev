@@ -2,6 +2,12 @@
 members = ["core", "cli"]
 resolver = "3"
 
+# A function longer than clippy.toml's `too-many-lines-threshold` fails the gate (CI runs
+# clippy with -D warnings). The threshold only goes down; the flat dispatchers above it say
+# so with #[expect], which itself fails once they shrink below it.
+[workspace.lints.clippy]
+too_many_lines = "warn"
+
 # The profile that dist builds release binaries with.
 [profile.dist]
 inherits = "release"

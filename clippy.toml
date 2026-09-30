@@ -1,0 +1,4 @@
+# The longest a function may be (clippy::too_many_lines, enabled in Cargo.toml). Set on
+# 2026-09-30 just above the longest function left after splitting the big files (285 lines);
+# lower it as functions are split, never raise it.
+too-many-lines-threshold = 300

@@ -793,6 +793,10 @@ fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
     Ok(s.to_json(Some(&path)))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one match arm per subcommand; long, but flat"
+)]
 fn run(cli: Cli) -> Result<Value> {
     if let Cmd::Settings { name, value } = cli.cmd {
         return settings_cmd(name, value);

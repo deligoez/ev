@@ -771,6 +771,10 @@ fn regroup(out: &mut String, v: &Value) {
     let _ = writeln!(out, "\n{}", scored());
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one branch per output shape; the long shapes have their own functions"
+)]
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
     if v.get("item").is_some()

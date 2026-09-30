@@ -975,3 +975,101 @@ fn warn_missing_photos<'a>(paths: impl Iterator<Item = &'a str>) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    /// Every `ev …` the documentation shows, as written between backticks.
+    fn documented() -> Vec<(&'static str, String)> {
+        let docs = [
+            (
+                "skills/ev/SKILL.md",
+                include_str!("../../skills/ev/SKILL.md"),
+            ),
+            ("README.md", include_str!("../../README.md")),
+            ("REFERENCE.md", include_str!("../../REFERENCE.md")),
+            (
+                "release-notes/next.md",
+                include_str!("../../release-notes/next.md"),
+            ),
+        ];
+        let mut out = Vec::new();
+        for (name, text) in docs {
+            for (i, chunk) in text.split('`').enumerate() {
+                let snippet = chunk.split_whitespace().collect::<Vec<_>>().join(" ");
+                if i % 2 == 1 && snippet.starts_with("ev ") {
+                    out.push((name, snippet));
+                }
+            }
+        }
+        out
+    }
+
+    /// The documented commands name real subcommands and only flags those subcommands take:
+    /// a flag renamed in the code (`review --status` for `--as`) breaks this instead of the
+    /// person or agent following the docs.
+    #[test]
+    fn every_documented_command_uses_real_subcommands_and_flags() {
+        let root = super::Cli::command();
+        let mut problems = Vec::new();
+        let snippets = documented();
+        // A check that finds nothing to check passes for the wrong reason.
+        assert!(
+            snippets.len() > 100,
+            "only {} commands found",
+            snippets.len()
+        );
+        let flagged = snippets
+            .iter()
+            .filter(|(_, s)| s.starts_with("ev review ") && s.contains("--as"))
+            .count();
+        assert!(flagged > 0, "the tour-gate example is among them");
+        for (doc, snippet) in snippets {
+            let words: Vec<&str> = snippet.split(' ').skip(1).collect();
+            let mut cmd = &root;
+            let mut rest = &words[..];
+            while let Some((w, tail)) = rest.split_first() {
+                match cmd.find_subcommand(w) {
+                    Some(sub) => {
+                        cmd = sub;
+                        rest = tail;
+                    }
+                    None => break,
+                }
+            }
+            if std::ptr::eq(cmd, &root) {
+                // `ev ui`, `ev <x>` written as prose, or a subcommand that does not exist.
+                let first = words.first().copied().unwrap_or("");
+                let prose = first.is_empty()
+                    || first.starts_with(['<', '[', '-', '#', '"', '…'])
+                    || !first.chars().all(|c| c.is_ascii_lowercase());
+                if !prose {
+                    problems.push(format!("{doc}: `{snippet}`: no subcommand `{first}`"));
+                }
+                continue;
+            }
+            let flags: Vec<String> = cmd
+                .get_arguments()
+                .filter_map(|a| a.get_long().map(str::to_string))
+                .chain(["help".to_string(), "json".to_string(), "db".to_string()])
+                .collect();
+            for w in rest {
+                let Some(flag) = w.strip_prefix("--") else {
+                    continue;
+                };
+                let flag = flag
+                    .split(['=', '…', ']', ')', ',', '|', '\\'])
+                    .next()
+                    .unwrap_or("");
+                if !flag.is_empty() && !flags.iter().any(|f| f == flag) {
+                    problems.push(format!(
+                        "{doc}: `{snippet}`: `{}` takes no --{flag}",
+                        cmd.get_name()
+                    ));
+                }
+            }
+        }
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+    }
+}

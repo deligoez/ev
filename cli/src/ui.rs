@@ -3047,6 +3047,7 @@ impl App {
                         },
                     ),
                     "observe" => own("observed", str_of(d, "text")),
+                    "unobserve" => own("observation removed", str_of(d, "text")),
                     "review" => own("reviewed", {
                         let status = match d["as"].as_str() {
                             Some("toured") => t("toured").to_string(),

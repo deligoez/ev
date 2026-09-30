@@ -18,10 +18,3 @@ that fixes them.
   timeout. The tests pass. Most likely the spawned process's teardown under a fully parallel
   run rather than anything a test leaves behind, but not shown. Expected: a known cause, or a
   `leak-timeout` in `.config/nextest.toml` chosen from a measurement.
-- **Record-only changes make a place's photo stale.** Measured 2026-10-01 closing the K4x4-02-A
-  tour: two minutes after its current photo, the drawer's theme was edited and a placeholder
-  record in it was closed with `gone --as mistake`. `ev review --as toured` then refused the
-  photo as older than what it shows (`reason: changed`), though nothing in the drawer moved; the
-  way out was `ev photo current`. Expected: only changes a photo could show (a thing added,
-  moved in or out, gone for real, split, a cell set) date the photo; a theme, a note, a tag or a
-  record closed as a mistake do not.

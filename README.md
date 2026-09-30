@@ -219,7 +219,10 @@ live in `~/.ev/settings.json`, outside the database; JSON output stays English.
 Workspace: `core` (model, rules, SQLite, photos) and `cli` (the `ev` binary and its UI). A Tauri
 app is expected to reuse `core` later.
 
-Quality gate: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+Quality gate: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo shear &&
+cargo nextest run --workspace` ([cargo-shear](https://github.com/Boshen/cargo-shear) catches
+unused dependencies and `.rs` files no `mod` declares; [nextest](https://nexte.st) runs the same
+tests as `cargo test`, about 2.5 times faster here, and the workspace has no doc tests it would skip).
 The tests include one that reads every backticked `ev …` command in this README,
 `REFERENCE.md`, the skill and `release-notes/next.md`, and fails on a subcommand or flag the CLI
 does not have, so the documents cannot drift from the binary. `tools/measure/` scores stems and

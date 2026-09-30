@@ -353,6 +353,41 @@ fn a_box_added_after_the_drawer_photo_asks_for_a_new_one() {
 }
 
 #[test]
+fn a_record_is_split_by_name_and_count_from_the_command_line() {
+    let (ev, _) = drawer();
+    ev.ok(&["edit", "Röle", "qty=6"]);
+    let v = ev.ok(&[
+        "split",
+        "Röle",
+        "Açılı header=3",
+        "Yedek",
+        "--rename",
+        "Düz header",
+        "--qty",
+        "3",
+    ]);
+    assert_eq!(v["node"]["name"], "Düz header");
+    assert_eq!(v["node"]["qty"], 3);
+    assert_eq!(v["into"][0]["name"], "Açılı header");
+    assert_eq!(v["into"][0]["qty"], 3);
+    // A part without `=` has no count.
+    assert_eq!(v["into"][1]["name"], "Yedek");
+    assert!(v["into"][1]["qty"].is_null());
+    let id = v["into"][0]["id"].to_string();
+    let h = ev.ok(&["history", &id]);
+    assert!(
+        h["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["type"] == "split_from")
+    );
+    // A count that is not a number is a usage error.
+    let (code, _, _) = ev.run(&["split", "Düz header", "Kablo=üç"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
 fn settings_are_shown_changed_and_checked_without_a_database() {
     let ev = Ev::new();
     let (code, v, _) = ev.run(&["settings"]);

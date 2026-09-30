@@ -190,6 +190,11 @@ fn projection(corners: &GridCorners) -> impl Fn(f64, f64) -> (f64, f64) {
 /// the floor the corners are read at, and a little more is better than a cut-off label.
 const CROP_MARGIN: f64 = 0.15;
 
+/// How much further a box's crop reaches for each unit of height above 1, as a share of a cell,
+/// on the sides away from the photo's centre: a photo taken from above sees a tall box's rim
+/// leaning outwards (up at the back, down at the front, out at the sides), not all round.
+const LEAN_PER_HEIGHT: f64 = 0.3;
+
 /// A box's height from its `size` (`1x2x1.5` is 1.5 high), 1 when the size says none. A taller
 /// box's rim stands further above the floor and leans further out in a photo taken from above.
 fn box_height(conn: &Connection, id: i64) -> Result<f64> {
@@ -204,9 +209,9 @@ fn box_height(conn: &Connection, id: i64) -> Result<f64> {
 }
 
 /// The crop of every box placed in `holder`'s grid, read off one photo from where the grid's
-/// four corners are in it. Each box's cells are mapped through the corners (bilinear, so a
-/// photo taken at an angle still maps) and the crop is the rectangle around them, widened in
-/// proportion to the box's height (a box higher than 1 gets more margin, never less).
+/// four corners are in it. Each box's cells are mapped through the corners (projectively, so a
+/// photo taken at an angle still maps) and the crop is the rectangle around them, with a small
+/// margin all round and, for a box higher than 1, more on the sides it leans out to.
 pub(crate) fn grid_crops(
     conn: &Connection,
     holder: i64,
@@ -223,12 +228,25 @@ pub(crate) fn grid_crops(
     placed(conn, holder)?
         .into_iter()
         .map(|(id, c)| {
-            let margin = CROP_MARGIN * box_height(conn, id)?.max(1.0);
-            let (mu, mv) = (margin / cols, margin / rows);
-            let u0 = c.col as f64 / cols - mu;
-            let u1 = (c.col + c.width) as f64 / cols + mu;
-            let v0 = c.row as f64 / rows - mv;
-            let v1 = (c.row + c.depth) as f64 / rows + mv;
+            let lean = LEAN_PER_HEIGHT * (box_height(conn, id)? - 1.0).max(0.0);
+            let (mu, mv) = (CROP_MARGIN / cols, CROP_MARGIN / rows);
+            let (lu, lv) = (lean / cols, lean / rows);
+            let mut u0 = c.col as f64 / cols - mu;
+            let mut u1 = (c.col + c.width) as f64 / cols + mu;
+            let mut v0 = c.row as f64 / rows - mv;
+            let mut v1 = (c.row + c.depth) as f64 / rows + mv;
+            // Which way is out: from the photo's centre to the box's centre.
+            let (cx, cy) = map((u0 + u1) / 2.0, (v0 + v1) / 2.0);
+            if cx < 0.5 {
+                u0 -= lu;
+            } else {
+                u1 += lu;
+            }
+            if cy < 0.5 {
+                v0 -= lv;
+            } else {
+                v1 += lv;
+            }
             let pts = [map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)];
             let x0 = pts
                 .iter()

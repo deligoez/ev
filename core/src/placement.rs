@@ -800,8 +800,9 @@ impl Inventory {
                 let mut c = holder_json(&self.conn, n, &all)?;
                 c["room"] = room(&self.conn, n)?;
                 c["facet"] = json!(facet_names(s.id));
-                // Whether the place has been gone through: an untoured one is a guess to check.
-                c["review"] = crate::plan::review_of(&self.conn, s.id)?;
+                // Whether the place has been gone through (a toured drawer covers its boxes):
+                // an untoured one is a guess to check.
+                c["review"] = crate::plan::review_inherited(&self.conn, s.id)?;
                 Ok(json!({
                     "container": c,
                     "score": round(s.score),

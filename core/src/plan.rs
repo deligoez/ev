@@ -133,6 +133,25 @@ fn effective_review(
     None
 }
 
+/// The review a place stands under: its own, or its nearest reviewed ancestor's (a toured
+/// drawer covers the boxes in it), as `{status, at, from}`; null when none is.
+pub(crate) fn review_inherited(conn: &Connection, id: i64) -> Result<Value> {
+    let mut cur = Some(id);
+    for _ in 0..10_000 {
+        let Some(c) = cur else { break };
+        let own = review_of(conn, c)?;
+        if !own.is_null() {
+            let mut v = own;
+            v["from"] = json!(c);
+            return Ok(v);
+        }
+        cur = conn.query_row("SELECT parent_id FROM nodes WHERE id = ?1", [c], |r| {
+            r.get(0)
+        })?;
+    }
+    Ok(Value::Null)
+}
+
 fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
     let mut stmt = conn.prepare("SELECT node_id, status, at FROM reviews")?;
     let rows = stmt

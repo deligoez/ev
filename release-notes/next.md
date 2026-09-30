@@ -6,6 +6,10 @@ Draft for the next release.
   selected; now the nodes that were open stay open and the headings that were closed (the To
   do sections, Unknown place) stay closed, per database, in `ui-state.json`. A node gone since
   is dropped. `ev settings resume off` still starts at the top with the default tree.
+- **A mark before each row in `ev ui` says its kind:** ⌂ home, ◫ room, ▥ furniture, □ box,
+  · thing, in the tree, the Contents tab and the lists. A box and the things in it differed
+  only by a code; now they read apart at a glance. Plain one-cell shapes, so every terminal
+  draws them the same width.
 
 ## Fixed
 

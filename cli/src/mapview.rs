@@ -152,6 +152,15 @@ fn summary(t: &Value) -> Line<'static> {
     Line::from(spans)
 }
 
+/// The columns and rows of a map (or a stack's band) laid out on a grid.
+fn grid_size(v: &Value) -> Option<(usize, usize)> {
+    if v["layout"] != "grid" {
+        return None;
+    }
+    let n = |k: &str| v["size"][k].as_u64().filter(|n| *n > 0).map(|n| n as usize);
+    Some((n("cols")?, n("rows")?))
+}
+
 fn title_of(n: &Value) -> String {
     n["code"]
         .as_str()
@@ -441,14 +450,34 @@ impl MapView {
                     .border_style(Style::new().fg(pal().furniture));
                 let inner = block.inner(outer);
                 f.render_widget(block, outer);
-                for tile in tiles.iter().filter(|t| t["band"] == band["id"]) {
-                    let Some(r) = rect_of(tile) else { continue };
-                    let local = [r[0], (r[1] - br[1]) / br[3], r[2], r[3] / br[3]];
-                    self.draw_tile(f, frac_rect(inner, &local), tile, selected);
+                let local: Vec<(Value, [f64; 4])> = tiles
+                    .iter()
+                    .filter(|t| t["band"] == band["id"])
+                    .filter_map(|t| {
+                        let r = rect_of(t)?;
+                        Some((
+                            t.clone(),
+                            [r[0], (r[1] - br[1]) / br[3], r[2], r[3] / br[3]],
+                        ))
+                    })
+                    .collect();
+                match grid_size(&band) {
+                    Some((cols, rows)) => self.draw_grid(f, inner, cols, rows, &local, selected),
+                    None => {
+                        for (tile, r) in &local {
+                            self.draw_tile(f, frac_rect(inner, r), tile, selected);
+                        }
+                    }
                 }
             }
         } else if self.map["layout"] == "sketch" {
             self.draw_plan(f, area, &tiles, selected);
+        } else if let Some((cols, rows)) = grid_size(&self.map) {
+            let placed: Vec<(Value, [f64; 4])> = tiles
+                .iter()
+                .filter_map(|t| Some((t.clone(), rect_of(t)?)))
+                .collect();
+            self.draw_grid(f, area, cols, rows, &placed, selected);
         } else {
             for tile in &tiles {
                 let Some(r) = rect_of(tile) else { continue };
@@ -499,6 +528,66 @@ impl MapView {
             &self.status,
         );
         f.render_widget(Paragraph::new(hints).fg(pal().muted), bottom);
+    }
+
+    /// A grid as its plate: column letters above, row numbers beside, a dot on every free
+    /// cell, and each box a frame over the cells it covers.
+    fn draw_grid(
+        &mut self,
+        f: &mut Frame,
+        area: Rect,
+        cols: usize,
+        rows: usize,
+        tiles: &[(Value, [f64; 4])],
+        selected: Option<i64>,
+    ) {
+        let label_w = rows.to_string().len() as u16 + 1;
+        if area.width <= label_w + 2 || area.height < 3 {
+            for (tile, r) in tiles {
+                self.draw_tile(f, frac_rect(area, r), tile, selected);
+            }
+            return;
+        }
+        let plate = Rect::new(
+            area.x + label_w,
+            area.y + 1,
+            area.width - label_w,
+            area.height - 1,
+        );
+        let (cw, rh) = (1.0 / cols as f64, 1.0 / rows as f64);
+        let muted = Style::new().fg(pal().muted);
+        let buf = f.buffer_mut();
+        for c in 0..cols {
+            let r = frac_rect(plate, &[c as f64 * cw, 0.0, cw, 1.0]);
+            let letter = char::from(b'A' + c.min(25) as u8).to_string();
+            buf.set_string(r.x + r.width / 2, area.y, letter, muted);
+        }
+        for row in 0..rows {
+            let r = frac_rect(plate, &[0.0, row as f64 * rh, 1.0, rh]);
+            let number = format!("{:>w$}", row + 1, w = (label_w - 1) as usize);
+            buf.set_string(area.x, r.y + r.height / 2, number, muted);
+        }
+        // A free cell is a dot on the plate.
+        for row in 0..rows {
+            for c in 0..cols {
+                let (x, y) = ((c as f64 + 0.5) * cw, (row as f64 + 0.5) * rh);
+                let taken = tiles
+                    .iter()
+                    .any(|(_, r)| x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] + r[3]);
+                if !taken {
+                    let cell = frac_rect(plate, &[c as f64 * cw, row as f64 * rh, cw, rh]);
+                    buf.set_string(
+                        cell.x + cell.width / 2,
+                        cell.y + cell.height / 2,
+                        "·",
+                        muted,
+                    );
+                }
+            }
+        }
+        for (tile, r) in tiles {
+            self.draw_tile(f, frac_rect(plate, r), tile, selected);
+        }
     }
 
     /// A floor plan: rooms as floors of their own shape and tone, the place's own floor, and

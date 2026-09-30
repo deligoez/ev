@@ -490,6 +490,48 @@ fn a_kit_is_recorded_linked_and_counted_from_the_command_line() {
 }
 
 #[test]
+fn a_room_is_sketched_and_a_stack_is_mapped_from_the_command_line() {
+    let ev = seeded();
+    ev.ok(&["add", "Dolap", "--kind", "furniture", "--in", "Salon"]);
+    ev.ok(&["add", "Raf", "--kind", "furniture", "--in", "Salon"]);
+    for r in ["D-1", "D-2"] {
+        ev.ok(&[
+            "add",
+            "Bölme",
+            "--code",
+            r,
+            "--kind",
+            "container",
+            "--in",
+            "Dolap",
+        ]);
+    }
+    // One grid for several compartments at once.
+    let v = ev.ok(&["grid", "D-1", "D-2", "--cols", "1", "--rows", "2"]);
+    assert_eq!(v["grids"].as_array().unwrap().len(), 2);
+    ev.ok(&["grid", "Dolap", "--cols", "2", "--rows", "1"]);
+    ev.ok(&["cell", "D-1=A1", "D-2=B1"]);
+    ev.ok(&["plan", "Salon", "--size", "400,300"]);
+    ev.ok(&["plan", "Dolap", "--at", "0,0", "--size", "120,40"]);
+    let v = ev.ok(&["plan", "Raf", "--on", "Dolap"]);
+    assert_eq!(v["plan"]["on"], v["node"]["id"].as_i64().unwrap() - 1);
+    let v = ev.ok(&["plan", "Dolap"]);
+    assert_eq!(v["plan"]["w"], 120.0);
+    // The room: a sketch with the stack under the cupboard's tile.
+    let v = ev.ok(&["map", "Salon"]);
+    assert_eq!(v["layout"], "sketch");
+    assert_eq!(v["tiles"][0]["stacked"][0]["name"], "Raf");
+    // The cupboard: the stack front on, the shelf on top.
+    let v = ev.ok(&["map", "Dolap"]);
+    assert_eq!(v["layout"], "stack");
+    assert_eq!(v["bands"][0]["name"], "Raf");
+    let (code, _, err) = ev.run(&["plan", "Dolap", "--on", "Raf"]);
+    assert_eq!(code, 5, "{err}");
+    let (code, _, _) = ev.run(&["plan", "Dolap", "--size", "yüz"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
 fn settings_are_shown_changed_and_checked_without_a_database() {
     let ev = Ev::new();
     let (code, v, _) = ev.run(&["settings"]);

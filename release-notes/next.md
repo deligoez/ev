@@ -55,5 +55,10 @@ it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you m
 
 ## Fixed
 
+- **An uncounted place dropped off `ev todo` once a box was put in it.** The list of places
+  whose contents were never counted came from the innermost places only, so a desk marked
+  `unknown` left the list the moment a labelled box stood on it, though its own contents were
+  still uncounted. Every node marked `unknown` is now listed until it is set back.
+
 - **`ev photo remove` left no trace in history.** Detaching a photo now records a
   `photo_remove` event with its path, crop, note and position, shown in the History tab.

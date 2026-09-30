@@ -332,6 +332,17 @@ pub(crate) fn placed(conn: &Connection, holder: i64) -> Result<Vec<(i64, Cells)>
 
 /// A holder's grid: size, the boxes in it with their cells, the free cells, and a map with the
 /// id of the box in each cell (null where free), row by row from the back.
+/// How a holder's grid is seen: `above` (a drawer, row 1 at the back) or `front` (furniture
+/// and its compartments, row 1 at the top).
+fn face_of(conn: &Connection, holder: i64) -> Result<String> {
+    Ok(conn
+        .query_row("SELECT face FROM grids WHERE node_id = ?1", [holder], |r| {
+            r.get(0)
+        })
+        .optional()?
+        .unwrap_or_else(|| "above".into()))
+}
+
 pub(crate) fn grid_json(conn: &Connection, holder: i64) -> Result<Option<Value>> {
     let Some((cols, rows)) = grid_of(conn, holder)? else {
         return Ok(None);
@@ -361,6 +372,7 @@ pub(crate) fn grid_json(conn: &Connection, holder: i64) -> Result<Option<Value>>
     Ok(Some(json!({
         "cols": cols,
         "rows": rows,
+        "face": face_of(conn, holder)?,
         "boxes": boxes
             .iter()
             .map(|(id, c)| {
@@ -437,6 +449,48 @@ impl Inventory {
         for r in references {
             let id = resolve(&tx, r, false)?;
             grid_set_in(&tx, id, cols, rows)?;
+            ids.push(id);
+        }
+        tx.commit()?;
+        let grids = ids
+            .iter()
+            .map(|id| self.grid(&id.to_string()))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "grids": grids }))
+    }
+
+    /// Says how several holders' grids are seen, `above` or `front`, all or none; refused for
+    /// a holder without a grid.
+    pub fn grid_face(&mut self, references: &[String], face: &str) -> Result<Value> {
+        if !matches!(face, "above" | "front") {
+            return Err(Error::Usage(format!(
+                "a grid is seen from `above` or from the `front`; got `{face}`"
+            )));
+        }
+        let tx = self.conn.transaction()?;
+        let mut ids = Vec::new();
+        for r in references {
+            let id = resolve(&tx, r, false)?;
+            if grid_of(&tx, id)?.is_none() {
+                return Err(refused(
+                    "it has no grid; give it one with --cols and --rows",
+                    json!({ "node": brief_json(&tx, id)? }),
+                ));
+            }
+            let before = face_of(&tx, id)?;
+            if before != face {
+                tx.execute(
+                    "UPDATE grids SET face = ?2 WHERE node_id = ?1",
+                    params![id, face],
+                )?;
+                touch(&tx, id)?;
+                event(
+                    &tx,
+                    id,
+                    "grid_face",
+                    json!({ "before": before, "after": face }),
+                )?;
+            }
             ids.push(id);
         }
         tx.commit()?;

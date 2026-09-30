@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 14;
+pub const SCHEMA_VERSION: i64 = 15;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -294,6 +294,15 @@ PRAGMA user_version = 14;
 COMMIT;
 ";
 
+/// Schema 15: how a grid is seen, from above (a drawer: row 1 at the back) or from the front
+/// (furniture and its compartments: row 1 at the top).
+const SCHEMA_V15: &str = "
+BEGIN;
+ALTER TABLE grids ADD COLUMN face TEXT NOT NULL DEFAULT 'above';
+PRAGMA user_version = 15;
+COMMIT;
+";
+
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
 fn prune_older(dir: &Path, age: Duration) {
@@ -412,6 +421,9 @@ impl Inventory {
         }
         if version < 14 {
             conn.execute_batch(SCHEMA_V14)?;
+        }
+        if version < 15 {
+            conn.execute_batch(SCHEMA_V15)?;
         }
         let photo_dir = path
             .parent()

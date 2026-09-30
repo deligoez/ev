@@ -3554,6 +3554,18 @@ mod tests {
             Settings::load_from(&path).theme,
             ThemePref::Fixed(Mode::Dark)
         );
+
+        // The last row turns reopening where I left off off, and back on.
+        press(&mut app, KeyCode::Down);
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("Reopen where I left off: On"));
+        press(&mut app, KeyCode::Enter);
+        assert!(!app.prefs.resume);
+        assert!(!Settings::load_from(&path).resume);
+        term.draw(|f| app.draw(f)).unwrap();
+        assert!(screen(&term).contains("Reopen where I left off: Off"));
+        press(&mut app, KeyCode::Enter);
+        assert!(Settings::load_from(&path).resume);
     }
 
     #[test]

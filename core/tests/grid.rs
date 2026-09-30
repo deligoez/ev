@@ -244,36 +244,40 @@ fn a_cut_and_its_preview_put_every_crop_on_one_labelled_sheet() {
 }
 
 #[test]
-fn a_taller_box_gets_a_wider_crop_so_its_overhanging_rim_is_not_cut_off() {
+fn a_taller_box_gets_a_crop_reaching_out_where_its_rim_leans() {
     let (_d, mut inv, photo) = photographed();
-    // Two units high: its rim leans out twice as far, so twice the margin (0.30 of a cell).
+    // The grid in the photo's middle 40%, so no edge clamps the crop. A1 is back-left.
+    let corners: ev_core::GridCorners = "0.3,0.3,0.7,0.3,0.7,0.7,0.3,0.7".parse().unwrap();
+    let crop = |inv: &Inventory| -> Vec<f64> {
+        last_crop(inv, "D-A4")["crop"]
+            .as_str()
+            .unwrap()
+            .split(',')
+            .map(|x| x.parse().unwrap())
+            .collect()
+    };
+    let cut = |inv: &mut Inventory| {
+        inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+            .unwrap();
+    };
+    // One unit high: 0.15 of a cell all round (A1 is a third wide, half deep).
+    cut(&mut inv);
+    let plain = crop(&inv);
+    assert!(close(plain[0], 0.3 + 0.4 * (-0.05)), "{plain:?}");
+    assert!(close(plain[1], 0.3 + 0.4 * (-0.075)), "{plain:?}");
+    // Two units high at the back-left: 0.30 of a cell more to the left and to the back, where a
+    // photo from above sees its rim lean; the sides towards the centre stay as they were.
     inv.edit("D-A4", &["size=1x2x2".into()]).unwrap();
-    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
-    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
-        .unwrap();
-    let a: Vec<f64> = last_crop(&inv, "D-A4")["crop"]
-        .as_str()
-        .unwrap()
-        .split(',')
-        .map(|x| x.parse().unwrap())
-        .collect();
-    assert!(close(a[0], 0.1 + 0.8 * (-0.1)), "{a:?}");
-    // Its back edge would reach past the photo's top, so it stops there.
-    assert!(close(a[1], 0.0), "{a:?}");
-    assert!(close(a[1] + a[3], 0.1 + 0.8 * (0.5 + 0.15)), "{a:?}");
-    // A box lower than one unit still gets the plain margin, never less.
+    cut(&mut inv);
+    let tall = crop(&inv);
+    assert!(close(tall[0], 0.3 + 0.4 * (-0.15)), "{tall:?}");
+    assert!(close(tall[1], 0.3 + 0.4 * (-0.225)), "{tall:?}");
+    assert!(close(tall[0] + tall[2], plain[0] + plain[2]), "{tall:?}");
+    assert!(close(tall[1] + tall[3], plain[1] + plain[3]), "{tall:?}");
+    // Lower than one unit: the plain margin, never less.
     inv.edit("D-A4", &["size=1x2x0.5".into()]).unwrap();
-    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
-        .unwrap();
-    let low: f64 = last_crop(&inv, "D-A4")["crop"]
-        .as_str()
-        .unwrap()
-        .split(',')
-        .next()
-        .unwrap()
-        .parse()
-        .unwrap();
-    assert!(close(low, 0.1 + 0.8 * (-0.05)), "{low}");
+    cut(&mut inv);
+    assert_eq!(crop(&inv), plain);
 }
 
 #[test]

@@ -1840,6 +1840,8 @@ impl App {
         let mut p = self.snap.parent.get(&id).copied();
         while let Some(x) = p {
             self.expanded.insert(x);
+            // A heading on the way (Unknown place) opens too, or the node stays hidden.
+            self.collapsed.remove(&x);
             p = self.snap.parent.get(&x).copied();
         }
         self.tab = Tab::Tree;

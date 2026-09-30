@@ -1267,7 +1267,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
 }
 
 /// Items anywhere below `id` that are not gone, counting each item's quantity.
-fn item_total(conn: &Connection, id: i64) -> Result<i64> {
+pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
     Ok(conn.query_row(
         "WITH RECURSIVE d(id) AS (
              SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone'

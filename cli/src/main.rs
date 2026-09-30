@@ -267,9 +267,12 @@ enum Cmd {
     /// Things to buy or make.
     #[command(subcommand)]
     Need(NeedCmd),
-    /// A holder laid out in cells (a gridfinity drawer): show its map, or set its size.
+    /// A holder laid out in cells (a gridfinity drawer, a Kallax): show its map, or set its
+    /// size — for several holders at once when they are alike (`ev grid K4x4-01 K4x4-02 …
+    /// --cols 1 --rows 2`).
     Grid {
-        reference: String,
+        #[arg(required = true)]
+        references: Vec<String>,
         #[arg(long, requires = "rows")]
         cols: Option<i64>,
         #[arg(long, requires = "cols")]
@@ -277,6 +280,23 @@ enum Cmd {
         #[arg(long, conflicts_with_all = ["cols", "rows"])]
         clear: bool,
     },
+    /// A sketch in centimetres: `--size w,d` for a room (or the home), `--at x,y --size w,d` for
+    /// what lies in it (its top-left corner seen from above), `--on <ref>` for furniture
+    /// standing on another; with no option, show it.
+    Plan {
+        reference: String,
+        #[arg(long)]
+        at: Option<String>,
+        #[arg(long)]
+        size: Option<String>,
+        #[arg(long)]
+        on: Option<String>,
+        #[arg(long, conflicts_with_all = ["at", "size", "on"])]
+        clear: bool,
+    },
+    /// The map of a place (the home without one): its contents as tiles laid out by its grid,
+    /// its sketch, or on their own; a stack of furniture front on, top first.
+    Map { reference: Option<String> },
     /// Place boxes in their holder's grid: `<ref>=A3` or `<ref>=A3-B4`, several at once;
     /// `<ref>=` takes one out. --recode names each box `<holder code>-<back-left cell>`.
     Cell {
@@ -747,15 +767,40 @@ fn run(cli: Cli) -> Result<Value> {
     match cli.cmd {
         Cmd::Settings { .. } => unreachable!("settings are handled before the database opens"),
         Cmd::Grid {
-            reference,
+            references,
             cols,
             rows,
             clear,
-        } => match (cols, rows, clear) {
-            (Some(c), Some(r), _) => inv.grid_set(&reference, c, r),
-            (_, _, true) => inv.grid_clear(&reference),
-            _ => inv.grid(&reference),
+        } => match (cols, rows, clear, references.as_slice()) {
+            (_, _, _, [one]) => match (cols, rows, clear) {
+                (Some(c), Some(r), _) => inv.grid_set(one, c, r),
+                (_, _, true) => inv.grid_clear(one),
+                _ => inv.grid(one),
+            },
+            (Some(c), Some(r), _, many) => inv.grid_set_many(many, c, r),
+            _ => Err(Error::Usage(
+                "several holders take --cols and --rows together; show or clear one at a time"
+                    .into(),
+            )),
         },
+        Cmd::Plan {
+            reference,
+            at,
+            size,
+            on,
+            clear,
+        } => {
+            if clear {
+                inv.plan_clear(&reference)
+            } else if at.is_none() && size.is_none() && on.is_none() {
+                Ok(
+                    serde_json::json!({ "node": inv.show(&reference, false)?["node"], "plan": inv.plan(&reference)? }),
+                )
+            } else {
+                inv.plan_set(&reference, at.as_deref(), size.as_deref(), on.as_deref())
+            }
+        }
+        Cmd::Map { reference } => inv.map(reference.as_deref()),
         Cmd::Cell { pairs, recode } => {
             let pairs = pairs
                 .iter()

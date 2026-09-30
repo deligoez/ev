@@ -47,6 +47,8 @@ enum Cmd {
     },
     /// Folded search over name, code, note, theme and tags.
     Find {
+        /// What to look for; may be left out with --tag or --kind, to list all of them.
+        #[arg(default_value = "")]
         text: String,
         #[arg(long)]
         tag: Option<String>,

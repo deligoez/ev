@@ -3062,6 +3062,24 @@ impl App {
                         "split from",
                         format!("#{} {}", d["from"], str_of(d, "name")),
                     ),
+                    "kit_link" => own(
+                        "linked to kit",
+                        format!(
+                            "{} · {}. {}",
+                            str_of(d, "kit"),
+                            d["part"],
+                            str_of(d, "text")
+                        ),
+                    ),
+                    "kit_unlink" => own(
+                        "unlinked from kit",
+                        format!(
+                            "{} · {}. {}",
+                            str_of(d, "kit"),
+                            d["part"],
+                            str_of(d, "text")
+                        ),
+                    ),
                     "photo_remove" => own(
                         "photo removed",
                         [str_of(d, "note"), str_of(d, "crop")]

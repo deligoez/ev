@@ -923,6 +923,16 @@ pub fn human(v: &Value) -> String {
                 s(t_, "title")
             );
         }
+        for k in v["kits"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {}: {} · {}. {}",
+                t("kit"),
+                s(k, "kit"),
+                k["n"],
+                s(k, "text")
+            );
+        }
         if let Some(c) = v["cells"].as_str() {
             let _ = writeln!(out, "  {}: {c}", t("cells"));
         }
@@ -932,6 +942,73 @@ pub fn human(v: &Value) -> String {
         if v["grid"].is_object() {
             out.push('\n');
             grid_block(&mut out, node, &v["grid"]);
+        }
+        return out;
+    }
+    if let (Some(kit), Some(parts)) = (
+        v.get("kit").filter(|k| k.is_object()),
+        v.get("parts").and_then(Value::as_array),
+    ) {
+        let c = &v["counts"];
+        let _ = writeln!(
+            out,
+            "{} ×{}  {}",
+            s(kit, "name"),
+            kit["copies"],
+            tf(
+                "{} of {} found · {} lost · {} still missing",
+                &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
+            )
+        );
+        for p in parts {
+            let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
+                (Some(0), Some(0)) => "✓",
+                _ if p["found"] == 0 => "·",
+                _ => "~",
+            };
+            let mut counts = format!("{}/{}", p["found"], p["expected"]);
+            if p["lost"].as_i64().unwrap_or(0) > 0 {
+                counts.push_str(&format!("  {}", tf("{} lost", &[&p["lost"]])));
+            }
+            let _ = writeln!(
+                out,
+                "{:>3}. {mark} {}  {counts}",
+                p["n"].as_i64().unwrap_or_default(),
+                s(p, "text")
+            );
+            for n in p["nodes"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "       {}", line(n));
+            }
+        }
+        return out;
+    }
+    if let Some(list) = v.get("kits").and_then(Value::as_array) {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(no kits)"));
+        }
+        for k in list {
+            let c = &k["counts"];
+            let _ = writeln!(
+                out,
+                "#{} {} ×{}  {}",
+                k["id"],
+                s(k, "name"),
+                k["copies"],
+                tf(
+                    "{} of {} found · {} lost · {} still missing",
+                    &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
+                )
+            );
+        }
+        return out;
+    }
+    if let (Some(node), Some(into)) = (
+        v.get("node").filter(|n| n.is_object()),
+        v.get("into").and_then(Value::as_array),
+    ) {
+        let _ = writeln!(out, "{}", line(node));
+        for p in into {
+            let _ = writeln!(out, "  + {}", line(p));
         }
         return out;
     }

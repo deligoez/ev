@@ -264,6 +264,15 @@ static TR: &[(&str, &str)] = &[
     ),
     ("words: {}", "kelimeler: {}"),
     ("(no facets)", "(tür yok)"),
+    ("(no kits)", "(set yok)"),
+    ("kit", "set"),
+    (
+        "{} of {} found · {} lost · {} still missing",
+        "{} / {} bulundu · {} kayıp · {} eksik",
+    ),
+    ("{} lost", "{} kayıp"),
+    ("linked to kit", "sete bağlandı"),
+    ("unlinked from kit", "setten çıkarıldı"),
     ("(no holder tagged yet)", "(henüz etiketli kap yok)"),
     ("Facet: {}", "Tür: {}"),
     (

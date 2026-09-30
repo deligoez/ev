@@ -472,8 +472,10 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     if n["lost"] == true {
         out.push(Span::styled(t("  [lost]"), Style::new().fg(pal().lost)));
     }
-    // How far a place gone through on its own has been counted.
-    if let Some(c) = n["count"].as_str() {
+    // How far a place gone through on its own has been counted; a green name already says
+    // counted and done.
+    let settled = snap.settled.contains(&n["id"].as_i64().unwrap_or_default());
+    if let Some(c) = n["count"].as_str().filter(|_| !settled) {
         let color = match c {
             "toured" => pal().qty,
             "counting" => pal().mark,

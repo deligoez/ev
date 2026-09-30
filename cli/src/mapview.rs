@@ -529,6 +529,50 @@ impl MapView {
                     .or_else(|| (floor.len() >= 3 && inside(p, &floor)).then_some(FLOOR));
             }
         }
+        // Walls: a cell left between two rooms, a wall's width at most, goes to the nearer, so
+        // rooms meet; the home's outer edge stays where it is.
+        let s = &self.map["size"];
+        let per_col = s["w"].as_f64().unwrap_or(1.0) / w as f64;
+        let per_row = s["d"].as_f64().unwrap_or(1.0) / h as f64;
+        let (rx, ry) = (
+            (30.0 / per_col).ceil().max(1.0) as isize,
+            (30.0 / per_row).ceil().max(1.0) as isize,
+        );
+        for _ in 0..2 {
+            let before = owner.clone();
+            for y in 0..h {
+                for x in 0..w {
+                    if before[y * w + x].is_some() {
+                        continue;
+                    }
+                    let look = |dx: isize, dy: isize, n: isize| {
+                        (1..=n).find_map(|k| {
+                            let (nx, ny) = (x as isize + dx * k, y as isize + dy * k);
+                            if nx < 0 || ny < 0 || nx as usize >= w || ny as usize >= h {
+                                return Some(None);
+                            }
+                            before[ny as usize * w + nx as usize].map(|o| Some((o, k)))
+                        })?
+                    };
+                    let mut best: Option<(usize, f64)> = None;
+                    for (a, b, step) in [
+                        (look(-1, 0, rx), look(1, 0, rx), per_col),
+                        (look(0, -1, ry), look(0, 1, ry), per_row),
+                    ] {
+                        if let (Some(a), Some(b)) = (a, b) {
+                            let near = if a.1 <= b.1 { a } else { b };
+                            let cm = near.1 as f64 * step;
+                            if best.is_none_or(|x| cm < x.1) {
+                                best = Some((near.0, cm));
+                            }
+                        }
+                    }
+                    if let Some((o, _)) = best {
+                        owner[y * w + x] = Some(o);
+                    }
+                }
+            }
+        }
         // Tones: rooms that meet across a wall get different ones. A wall is a gap of up to
         // three cells across and two down (a cell is about twice as tall as it is wide).
         let mut tone: HashMap<usize, usize> = HashMap::new();

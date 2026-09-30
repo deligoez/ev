@@ -229,7 +229,7 @@ other exits 5).
 | `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 
-`ev review <ref> --status toured` is refused (exit 5) while the place, or a placed box in its grid,
+`ev review <ref> --as toured` is refused (exit 5) while the place, or a placed box in its grid,
 has no photo or only one older than its last change; `details.stale` lists them
 (`node`, `reason`: `none`|`changed`, `photo_at`, `changed_at`).
 

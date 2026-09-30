@@ -845,6 +845,7 @@ impl Inventory {
                 "units": progress["units"],
                 "toured": progress["toured"],
                 "kept": progress["kept"],
+                "counting": progress["counting"],
                 "raw": progress["raw"],
                 "changed_since_tour": progress["changed_since_tour"],
             },

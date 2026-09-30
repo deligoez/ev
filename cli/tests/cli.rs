@@ -154,6 +154,204 @@ fn db_flag_wins_over_env() {
     assert_eq!(v["results"].as_array().unwrap().len(), 2);
 }
 
+/// A drawer `D` with a 3×2 grid, two boxes (A1, B1–C1) and a photo of it on disk.
+fn drawer() -> (Ev, std::path::PathBuf) {
+    let ev = seeded();
+    ev.ok(&[
+        "add",
+        "Çekmece",
+        "--kind",
+        "container",
+        "--in",
+        "Salon",
+        "--code",
+        "D",
+    ]);
+    ev.ok(&[
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "D",
+        "--code",
+        "D-A1",
+    ]);
+    ev.ok(&[
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "D",
+        "--code",
+        "D-B1",
+    ]);
+    ev.ok(&["add", "Röle", "--kind", "item", "--in", "D-A1"]);
+    ev.ok(&["grid", "D", "--cols", "3", "--rows", "2"]);
+    ev.ok(&["cell", "D-A1=A1", "D-B1=B1-C1"]);
+    let photo = ev._dir.path().join("drawer.png");
+    image::RgbImage::from_pixel(300, 200, image::Rgb([200, 200, 200]))
+        .save(&photo)
+        .unwrap();
+    (ev, photo)
+}
+
+const CORNERS: &str = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9";
+
+#[test]
+fn a_grid_cut_previews_then_cuts_every_box_and_keeps_its_corners() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    // --preview with no note is a flag; with one it also asks ev ui to show it. Either way
+    // nothing is attached.
+    let v = ev.ok(&[
+        "photo",
+        "cut",
+        p,
+        "--place",
+        "D",
+        "--grid",
+        CORNERS,
+        "--preview",
+    ]);
+    assert_eq!(v["framed"], 2);
+    assert!(std::path::Path::new(v["preview"].as_str().unwrap()).is_file());
+    let v = ev.ok(&[
+        "photo",
+        "cut",
+        p,
+        "--place",
+        "D",
+        "--grid",
+        CORNERS,
+        "--preview",
+        "bak",
+    ]);
+    assert_eq!(v["shown"]["note"], "bak");
+    assert_eq!(
+        ev.ok(&["photo", "list", "D"])["photos"],
+        serde_json::json!([])
+    );
+    // The cut: the drawer whole, each box a crop.
+    let v = ev.ok(&[
+        "photo", "cut", p, "--place", "D", "--grid", CORNERS, "--note", "son",
+    ]);
+    assert_eq!(v["attached"].as_array().unwrap().len(), 3);
+    // The corners were kept, so cells are marked by name.
+    let v = ev.ok(&["photo", "mark", "D", "1=A1", "2 → B1=B1-C1"]);
+    assert_eq!(v["marks"][1]["label"], "2 → B1");
+    assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
+    // A cell on a plain file, or a cell outside the grid, is a usage error.
+    let (code, _, _) = ev.run(&["photo", "mark", p, "1=A1"]);
+    assert_eq!(code, 2);
+    let (code, _, _) = ev.run(&["photo", "mark", "D", "1=D9"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
+fn marked_pictures_go_to_ev_ui_together_with_a_note() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    let a = ev.ok(&["photo", "mark", p, "1 → A1=0.1,0.1,0.2,0.2"])["marked"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let v = ev.ok(&[
+        "focus",
+        "--file",
+        &a,
+        "--file",
+        p,
+        "--note",
+        "parçalar → A1",
+    ]);
+    assert_eq!(v["focus"]["files"].as_array().unwrap().len(), 2);
+    assert_eq!(v["focus"]["note"], "parçalar → A1");
+    // --show on mark does the same for one picture.
+    let v = ev.ok(&["photo", "mark", p, "1=0.1,0.1,0.2,0.2", "--show", "tek"]);
+    assert_eq!(v["shown"]["note"], "tek");
+    // A note needs a file; a missing file is not found.
+    let (code, _, _) = ev.run(&["focus", "--note", "x"]);
+    assert_eq!(code, 2);
+    let (code, _, _) = ev.run(&["focus", "--file", "/no/such.jpg"]);
+    assert_eq!(code, 3);
+}
+
+#[test]
+fn ids_tags_contents_history_facets_and_observations_from_the_command_line() {
+    let (ev, _) = drawer();
+    // #id resolves anywhere a reference goes.
+    let id = ev.ok(&["show", "D-A1"])["node"]["id"].as_i64().unwrap();
+    let v = ev.ok(&["show", &format!("#{id}")]);
+    assert_eq!(v["node"]["code"], "D-A1");
+    // A tag alone lists everything tagged with it.
+    ev.ok(&["edit", "Röle", "tags=+3d yazıcı"]);
+    let v = ev.ok(&["find", "--tag", "3d yazıcı"]);
+    assert_eq!(v["results"][0]["name"], "Röle");
+    let (code, _, _) = ev.run(&["find"]);
+    assert_eq!(code, 2);
+    // A place's history with what was added in it.
+    let v = ev.ok(&["history", "D-A1", "--contents"]);
+    let added = v["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|e| e["relation"] == "added" && e["item"]["name"] == "Röle");
+    assert!(added, "{v}");
+    // Facets.
+    ev.ok(&["facet", "add", "modül", "--words", "modül, kart"]);
+    let v = ev.ok(&["facet", "list"]);
+    assert_eq!(v["facets"][0]["name"], "modül");
+    ev.ok(&["facet", "remove", "modül"]);
+    assert_eq!(ev.ok(&["facet", "list"])["facets"], serde_json::json!([]));
+    // An observation, and taking it back, both stay in history.
+    let v = ev.ok(&["observe", "D", "röleler masada bekliyor"]);
+    let obs = v["observations"][0]["id"].as_i64().unwrap();
+    ev.ok(&["unobserve", &obs.to_string()]);
+    let types: Vec<String> = ev.ok(&["history", "D"])["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["type"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        types.ends_with(&["observe".to_string(), "unobserve".to_string()]),
+        "{types:?}"
+    );
+}
+
+#[test]
+fn a_box_added_after_the_drawer_photo_asks_for_a_new_one() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    ev.ok(&["photo", "cut", p, "--place", "D", "--grid", CORNERS]);
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    ev.ok(&[
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "D",
+        "--code",
+        "D-A2",
+    ]);
+    ev.ok(&["add", "Pil", "--kind", "item", "--in", "D-A2"]);
+    ev.ok(&["cell", "D-A2=A2"]);
+    let v = ev.ok(&["todo"]);
+    let codes: Vec<&str> = v["photos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|p| p["code"].as_str())
+        .collect();
+    assert!(codes.contains(&"D") && codes.contains(&"D-A2"), "{codes:?}");
+    // Touring it is refused until the photos are current.
+    let (code, _, _) = ev.run(&["review", "D", "--as", "toured"]);
+    assert_eq!(code, 5);
+}
+
 #[test]
 fn settings_are_shown_changed_and_checked_without_a_database() {
     let ev = Ev::new();

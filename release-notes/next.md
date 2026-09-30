@@ -55,7 +55,8 @@ sketches, 15: grid faces) the first time this version opens it; v0.14.0 then ref
   of what is in it: on its grid, on a sketch in centimetres (a room's size, a desk's place and
   size in it), or laid out on their own. Furniture standing on another (`ev sketch K4x2 --on
   K4x4`) is drawn with it, front on, top first, each piece by its own grid. In `ev ui`, `M`
-  opens the map full screen on the selected node: the arrows walk the tiles, Enter goes in
+  opens the map full screen on the home, the rooms first, with the way down to the node
+  selected in the tree chosen on every level: the arrows walk the tiles, Enter goes in
   (home, room, Kallax, drawer, gridfinity box), Backspace comes back up, `t` shows the chosen
   tile in the tree, and a click chooses a tile and a second one goes in. Each tile shows its
   label, theme, count and fill and names what is in it. Schema 14.

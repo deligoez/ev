@@ -376,4 +376,12 @@ fn settings_are_shown_changed_and_checked_without_a_database() {
     assert_eq!(code, 2, "{err}");
     let (code, _, _) = ev.run(&["settings", "colour", "red"]);
     assert_eq!(code, 2);
+
+    // Reopening where ev ui was left is on until turned off.
+    assert_eq!(ev.ok(&["settings"])["resume"], true);
+    assert_eq!(ev.ok(&["settings", "resume", "off"])["resume"], false);
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&ev.config).unwrap()).unwrap();
+    assert_eq!(saved["resume"], false);
+    let (code, _, _) = ev.run(&["settings", "resume", "maybe"]);
+    assert_eq!(code, 2);
 }

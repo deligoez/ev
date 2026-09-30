@@ -554,6 +554,18 @@ impl Inventory {
                 unknown.push(brief_value(&self.conn, n.id)?);
             }
         }
+        // What waits in a parking place for its final one: the things put straight into a
+        // place marked `temporary`, each with that place.
+        let mut parked = Vec::new();
+        for n in all.iter().filter(|n| n.state != State::Gone) {
+            if let Some(p) = n.parent_id.and_then(|p| all.iter().find(|h| h.id == p))
+                && p.temporary
+            {
+                let mut v = brief_value(&self.conn, n.id)?;
+                v["in"] = brief_value(&self.conn, p.id)?;
+                parked.push(v);
+            }
+        }
         let stale: Vec<Value> = if organize {
             places
                 .iter()
@@ -583,6 +595,7 @@ impl Inventory {
                 "expiring": expiring.len(),
                 "lost": count(&lost),
                 "unknown": unknown.len(),
+                "parked": parked.len(),
                 "stale": stale.len(),
                 "unclear": unclear.len(),
                 "photos": photos.len(),
@@ -598,6 +611,7 @@ impl Inventory {
             "expiring": expiring,
             "lost": lost,
             "unknown": unknown,
+            "parked": parked,
             "stale": stale,
             "unclear": unclear,
             "photos": photos,

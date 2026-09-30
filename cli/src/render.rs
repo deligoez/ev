@@ -773,108 +773,22 @@ fn regroup(out: &mut String, v: &Value) {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
-    // A regroup decline set or taken back.
     if v.get("item").is_some()
         && v.get("declined").is_some()
         && v.as_object().is_some_and(|o| o.len() == 2)
     {
-        let d = &v["declined"];
-        let text = if d.is_null() {
-            t("regroup may propose moving it again").to_string()
-        } else {
-            let why = d["why"]
-                .as_str()
-                .map(|w| format!("  ({w})"))
-                .unwrap_or_default();
-            format!("{}{why}", tf("stays in {}", &[&label(&d["holder"])]))
-        };
-        let _ = writeln!(out, "{}  {text}", thing(&v["item"]));
+        declined(&mut out, v);
         return out;
     }
-    // A map: where it is, how it is laid out, then its tiles in reading order.
     if v.get("layout").is_some() && v.get("tiles").is_some() {
-        let _ = writeln!(out, "{}", s(v, "path_text"));
-        let layout = match v["layout"].as_str().unwrap_or_default() {
-            "grid" => tf("grid {}×{}", &[&v["size"]["cols"], &v["size"]["rows"]]),
-            "sketch" => tf(
-                "sketch {}×{} cm",
-                &[&cm(&v["size"]["w"]), &cm(&v["size"]["d"])],
-            ),
-            "stack" => t("stack, front on, top first").to_string(),
-            _ => t("tiles (no layout yet)").to_string(),
-        };
-        let _ = writeln!(out, "  {layout}");
-        let by_id: std::collections::HashMap<i64, &Value> = v["tiles"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .chain(v["unplaced"].as_array().into_iter().flatten())
-            .filter_map(|t| Some((t["id"].as_i64()?, t)))
-            .collect();
-        let mut band = Value::Null;
-        for id in ev_core::reading_order(v) {
-            let Some(t) = by_id.get(&id) else { continue };
-            if t["band"] != Value::Null && t["band"] != band {
-                band = t["band"].clone();
-                if let Some(b) = v["bands"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|b| b["id"] == t["band"])
-                {
-                    let _ = writeln!(out, "  {}", line(b));
-                }
-            }
-            let at = t["cells"].as_str().map(str::to_string).unwrap_or_default();
-            let stacked: Vec<String> = t["stacked"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|x| s(x, "code"))
-                .collect();
-            let stacked = if stacked.is_empty() {
-                String::new()
-            } else {
-                tf("  (with {} on it)", &[&stacked.join(", ")])
-            };
-            let _ = writeln!(
-                out,
-                "    {:<6} #{:<4} {}  {}{stacked}",
-                at,
-                t["id"],
-                match t["code"].as_str() {
-                    Some(c) => format!("{c}  {}", s(t, "name")),
-                    None => s(t, "name"),
-                },
-                tf("{} items", &[&t["items"]])
-            );
-        }
-        if v["unplaced"].as_array().is_some_and(|u| !u.is_empty()) {
-            let _ = writeln!(out, "  {}", t("(the unplaced ones are listed last)"));
-        }
+        map(&mut out, v);
         return out;
     }
     if v.get("sketch").is_some()
         && v.get("node").is_some()
         && v.as_object().is_some_and(|o| o.len() == 2)
     {
-        let p = &v["sketch"];
-        let text = if p.is_null() {
-            t("(no sketch)").to_string()
-        } else {
-            let mut parts = Vec::new();
-            if !p["x"].is_null() {
-                parts.push(tf("at {},{} cm", &[&cm(&p["x"]), &cm(&p["y"])]));
-            }
-            if !p["w"].is_null() {
-                parts.push(tf("{}×{} cm", &[&cm(&p["w"]), &cm(&p["d"])]));
-            }
-            if !p["on"].is_null() {
-                parts.push(tf("on #{}", &[&p["on"]]));
-            }
-            parts.join(" · ")
-        };
-        let _ = writeln!(out, "{}  {text}", line(&v["node"]));
+        sketch(&mut out, v);
         return out;
     }
     if v.get("placed").is_none()
@@ -942,38 +856,7 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("open_tasks").is_some() {
-        let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
-        let _ = writeln!(out, "{}", progress_line(&v["progress"]));
-        if v["task"].is_object() {
-            let _ = writeln!(out, "\n{}", tf("Next task ({} open):", &[&v["open_tasks"]]));
-            task_line(&mut out, &v["task"]);
-            for p in v["task"]["places"].as_array().into_iter().flatten() {
-                let _ = writeln!(
-                    out,
-                    "\n  {} {}",
-                    s(&p["node"], "path_text"),
-                    review_mark(&p["review"])
-                );
-                for o in p["observations"].as_array().into_iter().flatten() {
-                    let _ = writeln!(out, "    {}", tf("observed: {}", &[&s(o, "text")]));
-                }
-                for c in p["children"].as_array().into_iter().flatten() {
-                    let _ = writeln!(out, "    └ {}", line(c));
-                }
-                for a in p["arriving"].as_array().into_iter().flatten() {
-                    let _ = writeln!(out, "    → {}", tf("arriving: {}", &[&s(a, "path_text")]));
-                }
-            }
-        } else {
-            let _ = writeln!(out, "\n{}", t("(no open task)"));
-        }
-        let un = v["unplanned"].as_array().map_or(0, Vec::len);
-        if un > 0 {
-            let _ = writeln!(out, "\n{}", tf("Raw places no task covers ({}):", &[&un]));
-            for p in v["unplanned"].as_array().into_iter().flatten() {
-                let _ = writeln!(out, "  {}", s(p, "path_text"));
-            }
-        }
+        next(&mut out, v);
         return out;
     }
     if v.get("units").is_some() && v.get("places").is_some() {
@@ -1004,167 +887,14 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
-        let _ = writeln!(out, "{}", line(node));
-        if let Some(k) = node["kind"].as_str() {
-            let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
-        }
-        for (key, label) in [
-            ("note", t("note")),
-            ("theme", t("theme")),
-            ("size", t("size")),
-            ("address", t("address")),
-            ("to", t("to take to")),
-            ("owner", t("owner")),
-            ("with", t("lent to")),
-        ] {
-            if let Some(x) = node[key].as_str() {
-                let _ = writeln!(out, "  {label}: {x}");
-            }
-        }
-        if let Some(f) = node["fill"].as_i64() {
-            let _ = writeln!(out, "  {}: {}", t("fill"), tf("{}%", &[&f]));
-        }
-        if let Some(tags) = node["tags"].as_array().filter(|t| !t.is_empty()) {
-            let tags: Vec<_> = tags.iter().filter_map(Value::as_str).collect();
-            let _ = writeln!(out, "  {}: {}", t("tags"), tags.join(", "));
-        }
-        for p in node["photos"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}: {}", t("photo"), p.as_str().unwrap_or_default());
-        }
-        if v["pending"].is_object() {
-            let _ = writeln!(
-                out,
-                "  {}",
-                tf("pending move → {}", &[&s(&v["pending"], "path_text")])
-            );
-        }
-        if v["last_seen"].is_object() {
-            let _ = writeln!(
-                out,
-                "  {}",
-                tf("last seen: {}", &[&s(&v["last_seen"], "path_text")])
-            );
-        }
-        if v["review"].is_object() {
-            let _ = writeln!(
-                out,
-                "  {}",
-                tf(
-                    "review: {} ({})",
-                    &[&s(&v["review"], "status"), &s(&v["review"], "at")]
-                )
-            );
-        }
-        for o in v["observations"].as_array().into_iter().flatten() {
-            let _ = writeln!(
-                out,
-                "  {}",
-                tf("observed #{}: {}", &[&o["id"], &s(o, "text")])
-            );
-        }
-        for (kind, m) in v["marks"].as_object().into_iter().flatten() {
-            let kind = match kind.as_str() {
-                "label" => t("label"),
-                "broken" => t("broken"),
-                "expires" => t("use-by"),
-                "sale" => t("sale"),
-                other => other,
-            };
-            let what = [
-                m["value"].as_str().map(|x| {
-                    match x {
-                        "needed" => t("to print"),
-                        "printed" => t("printed"),
-                        "listed" => t("listed"),
-                        "reserved" => t("reserved"),
-                        other => other,
-                    }
-                    .to_string()
-                }),
-                m["amount"].as_i64().map(|a| a.to_string()),
-                m["note"].as_str().map(str::to_string),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(" · ");
-            let _ = writeln!(out, "  {kind}: {what}");
-        }
-        for n in v["needs"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
-        }
-        for t_ in v["tasks"].as_array().into_iter().flatten() {
-            let via = if t_["via"] == node["id"] {
-                String::new()
-            } else {
-                tf("  (via #{})", &[&t_["via"]])
-            };
-            let _ = writeln!(
-                out,
-                "  {} {}. #{} {}{via}",
-                t("task"),
-                t_["position"],
-                t_["id"],
-                s(t_, "title")
-            );
-        }
-        for k in v["kits"].as_array().into_iter().flatten() {
-            let _ = writeln!(
-                out,
-                "  {}: {} · {}. {}",
-                t("kit"),
-                s(k, "kit"),
-                k["n"],
-                s(k, "text")
-            );
-        }
-        if let Some(c) = v["cells"].as_str() {
-            let _ = writeln!(out, "  {}: {c}", t("cells"));
-        }
-        for c in v["children"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  └ {}", line(c));
-        }
-        if v["grid"].is_object() {
-            out.push('\n');
-            grid_block(&mut out, node, &v["grid"]);
-        }
+        show(&mut out, v, node);
         return out;
     }
     if let (Some(kit), Some(parts)) = (
         v.get("kit").filter(|k| k.is_object()),
         v.get("parts").and_then(Value::as_array),
     ) {
-        let c = &v["counts"];
-        let _ = writeln!(
-            out,
-            "{} ×{}  {}",
-            s(kit, "name"),
-            kit["copies"],
-            tf(
-                "{} of {} found · {} lost · {} still missing",
-                &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
-            )
-        );
-        for p in parts {
-            let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
-                (Some(0), Some(0)) => "✓",
-                _ if p["found"] == 0 => "·",
-                _ => "~",
-            };
-            let mut counts = format!("{}/{}", p["found"], p["expected"]);
-            if p["lost"].as_i64().unwrap_or(0) > 0 {
-                counts.push_str(&format!("  {}", tf("{} lost", &[&p["lost"]])));
-            }
-            let _ = writeln!(
-                out,
-                "{:>3}. {mark} {}  {counts}",
-                p["n"].as_i64().unwrap_or_default(),
-                s(p, "text")
-            );
-            for n in p["nodes"].as_array().into_iter().flatten() {
-                let _ = writeln!(out, "       {}", line(n));
-            }
-        }
+        kit_parts(&mut out, v, kit, parts);
         return out;
     }
     if let Some(list) = v.get("kits").and_then(Value::as_array) {
@@ -1198,67 +928,11 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if let Some(list) = v.get("facets").and_then(Value::as_array) {
-        if list.is_empty() {
-            let _ = writeln!(out, "{}", t("(no facets)"));
-        }
-        for f in list {
-            let words = s(f, "words");
-            let words = if words.is_empty() {
-                String::new()
-            } else {
-                format!("  ({words})")
-            };
-            let _ = writeln!(out, "{}{words}", s(f, "name"));
-            let holders: Vec<String> = f["holders"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(label)
-                .collect();
-            if holders.is_empty() {
-                let _ = writeln!(out, "  {}", t("(no holder tagged yet)"));
-            } else {
-                let _ = writeln!(out, "  {}", holders.join(", "));
-            }
-        }
+        facet_list(&mut out, list);
         return out;
     }
     if let Some(list) = v.get("themes").and_then(Value::as_array) {
-        if list.is_empty() {
-            let _ = writeln!(out, "{}", t("(every place with things in it has a theme)"));
-        }
-        for e in list {
-            let _ = writeln!(
-                out,
-                "{}  ({})",
-                head(&e["holder"]),
-                tf("{} items", &[&e["things"]])
-            );
-            let _ = writeln!(out, "  {}", tf("words: {}", &[&theme_words(e)]));
-            if e["like"].is_object() {
-                let like = format!(
-                    "{} [{}]",
-                    label(&e["like"]),
-                    e["like"]["theme"].as_str().unwrap_or_default()
-                );
-                let _ = writeln!(out, "  {}", tf("reads like: {}", &[&like]));
-            }
-            let _ = writeln!(
-                out,
-                "  {}",
-                // Names carry commas of their own, so the list is joined with semicolons.
-                tf(
-                    "contents: {}",
-                    &[&e["contents"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(Value::as_str)
-                        .collect::<Vec<_>>()
-                        .join("; ")]
-                )
-            );
-        }
+        theme_list(&mut out, list);
         return out;
     }
     if let Some(list) = v.get("synonyms").and_then(Value::as_array) {
@@ -1286,37 +960,7 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("spread").is_some() && v.get("no_theme").is_some() {
-        let _ = writeln!(out, "{}", t("Alike things in several places:"));
-        for x in v["spread"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}", s(x, "word"));
-            for p in x["places"].as_array().into_iter().flatten() {
-                let _ = writeln!(out, "    {}", s(p, "path_text"));
-            }
-        }
-        let _ = writeln!(out, "{}", t("Holders without a theme:"));
-        for n in v["no_theme"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}", s(n, "path_text"));
-        }
-        let _ = writeln!(out, "{}", t("Items lying loose in a room or on furniture:"));
-        for n in v["loose"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}", s(n, "path_text"));
-        }
-        if let Some(list) = v["size_drift"].as_array().filter(|l| !l.is_empty()) {
-            let _ = writeln!(
-                out,
-                "{}",
-                t("Boxes whose name says a size their size field does not:")
-            );
-            for n in list {
-                let field = n["size"].as_str().unwrap_or("—");
-                let _ = writeln!(
-                    out,
-                    "  {}  ({} → {field})",
-                    s(n, "path_text"),
-                    s(n, "name_size")
-                );
-            }
-        }
+        audit(&mut out, v);
         return out;
     }
     if v.get("take").is_some() && v.get("place").is_some() {
@@ -1351,20 +995,7 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if let Some(tr) = v.get("tree").and_then(Value::as_array) {
-        for n in tr {
-            tree(&mut out, n, 0);
-        }
-        // What is lost is listed apart, with where it was last seen.
-        let lost = v["lost"].as_array().cloned().unwrap_or_default();
-        if !lost.is_empty() {
-            let _ = writeln!(out, "{}", t("Unknown place"));
-            for n in &lost {
-                let _ = writeln!(out, "  {}{}", thing(n), last_seen(n));
-                for c in n["children"].as_array().into_iter().flatten() {
-                    tree(&mut out, c, 2);
-                }
-            }
-        }
+        tree_and_lost(&mut out, v, tr);
         return out;
     }
     if let Some(events) = v.get("events").and_then(Value::as_array) {
@@ -1467,6 +1098,426 @@ pub fn human(v: &Value) -> String {
     }
     let _ = writeln!(out, "{v}");
     out
+}
+
+/// A regroup decline set or taken back.
+fn declined(out: &mut String, v: &Value) {
+    let d = &v["declined"];
+    let text = if d.is_null() {
+        t("regroup may propose moving it again").to_string()
+    } else {
+        let why = d["why"]
+            .as_str()
+            .map(|w| format!("  ({w})"))
+            .unwrap_or_default();
+        format!("{}{why}", tf("stays in {}", &[&label(&d["holder"])]))
+    };
+    let _ = writeln!(out, "{}  {text}", thing(&v["item"]));
+}
+
+/// A map: where it is, how it is laid out, then its tiles in reading order.
+fn map(out: &mut String, v: &Value) {
+    let _ = writeln!(out, "{}", s(v, "path_text"));
+    let layout = match v["layout"].as_str().unwrap_or_default() {
+        "grid" => tf("grid {}×{}", &[&v["size"]["cols"], &v["size"]["rows"]]),
+        "sketch" => tf(
+            "sketch {}×{} cm",
+            &[&cm(&v["size"]["w"]), &cm(&v["size"]["d"])],
+        ),
+        "stack" => t("stack, front on, top first").to_string(),
+        _ => t("tiles (no layout yet)").to_string(),
+    };
+    let _ = writeln!(out, "  {layout}");
+    let by_id: std::collections::HashMap<i64, &Value> = v["tiles"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .chain(v["unplaced"].as_array().into_iter().flatten())
+        .filter_map(|t| Some((t["id"].as_i64()?, t)))
+        .collect();
+    let mut band = Value::Null;
+    for id in ev_core::reading_order(v) {
+        let Some(t) = by_id.get(&id) else { continue };
+        if t["band"] != Value::Null && t["band"] != band {
+            band = t["band"].clone();
+            if let Some(b) = v["bands"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|b| b["id"] == t["band"])
+            {
+                let _ = writeln!(out, "  {}", line(b));
+            }
+        }
+        let at = t["cells"].as_str().map(str::to_string).unwrap_or_default();
+        let stacked: Vec<String> = t["stacked"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|x| s(x, "code"))
+            .collect();
+        let stacked = if stacked.is_empty() {
+            String::new()
+        } else {
+            tf("  (with {} on it)", &[&stacked.join(", ")])
+        };
+        let _ = writeln!(
+            out,
+            "    {:<6} #{:<4} {}  {}{stacked}",
+            at,
+            t["id"],
+            match t["code"].as_str() {
+                Some(c) => format!("{c}  {}", s(t, "name")),
+                None => s(t, "name"),
+            },
+            tf("{} items", &[&t["items"]])
+        );
+    }
+    if v["unplaced"].as_array().is_some_and(|u| !u.is_empty()) {
+        let _ = writeln!(out, "  {}", t("(the unplaced ones are listed last)"));
+    }
+}
+
+/// A node's sketch: where it lies, how big it is and what it stands on.
+fn sketch(out: &mut String, v: &Value) {
+    let p = &v["sketch"];
+    let text = if p.is_null() {
+        t("(no sketch)").to_string()
+    } else {
+        let mut parts = Vec::new();
+        if !p["x"].is_null() {
+            parts.push(tf("at {},{} cm", &[&cm(&p["x"]), &cm(&p["y"])]));
+        }
+        if !p["w"].is_null() {
+            parts.push(tf("{}×{} cm", &[&cm(&p["w"]), &cm(&p["d"])]));
+        }
+        if !p["on"].is_null() {
+            parts.push(tf("on #{}", &[&p["on"]]));
+        }
+        parts.join(" · ")
+    };
+    let _ = writeln!(out, "{}  {text}", line(&v["node"]));
+}
+
+/// `ev next`: the goal, how far the home is counted, the next task with its places, and the
+/// raw places no task covers.
+fn next(out: &mut String, v: &Value) {
+    let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
+    let _ = writeln!(out, "{}", progress_line(&v["progress"]));
+    if v["task"].is_object() {
+        let _ = writeln!(out, "\n{}", tf("Next task ({} open):", &[&v["open_tasks"]]));
+        task_line(out, &v["task"]);
+        for p in v["task"]["places"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "\n  {} {}",
+                s(&p["node"], "path_text"),
+                review_mark(&p["review"])
+            );
+            for o in p["observations"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "    {}", tf("observed: {}", &[&s(o, "text")]));
+            }
+            for c in p["children"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "    └ {}", line(c));
+            }
+            for a in p["arriving"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "    → {}", tf("arriving: {}", &[&s(a, "path_text")]));
+            }
+        }
+    } else {
+        let _ = writeln!(out, "\n{}", t("(no open task)"));
+    }
+    let un = v["unplanned"].as_array().map_or(0, Vec::len);
+    if un > 0 {
+        let _ = writeln!(out, "\n{}", tf("Raw places no task covers ({}):", &[&un]));
+        for p in v["unplanned"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", s(p, "path_text"));
+        }
+    }
+}
+
+/// `ev show`: a node's fields, marks, tasks, kits, contents and grid.
+fn show(out: &mut String, v: &Value, node: &Value) {
+    let _ = writeln!(out, "{}", line(node));
+    if let Some(k) = node["kind"].as_str() {
+        let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
+    }
+    for (key, label) in [
+        ("note", t("note")),
+        ("theme", t("theme")),
+        ("size", t("size")),
+        ("address", t("address")),
+        ("to", t("to take to")),
+        ("owner", t("owner")),
+        ("with", t("lent to")),
+    ] {
+        if let Some(x) = node[key].as_str() {
+            let _ = writeln!(out, "  {label}: {x}");
+        }
+    }
+    if let Some(f) = node["fill"].as_i64() {
+        let _ = writeln!(out, "  {}: {}", t("fill"), tf("{}%", &[&f]));
+    }
+    if let Some(tags) = node["tags"].as_array().filter(|t| !t.is_empty()) {
+        let tags: Vec<_> = tags.iter().filter_map(Value::as_str).collect();
+        let _ = writeln!(out, "  {}: {}", t("tags"), tags.join(", "));
+    }
+    for p in node["photos"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("photo"), p.as_str().unwrap_or_default());
+    }
+    if v["pending"].is_object() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("pending move → {}", &[&s(&v["pending"], "path_text")])
+        );
+    }
+    if v["last_seen"].is_object() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("last seen: {}", &[&s(&v["last_seen"], "path_text")])
+        );
+    }
+    if v["review"].is_object() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "review: {} ({})",
+                &[&s(&v["review"], "status"), &s(&v["review"], "at")]
+            )
+        );
+    }
+    for o in v["observations"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("observed #{}: {}", &[&o["id"], &s(o, "text")])
+        );
+    }
+    for (kind, m) in v["marks"].as_object().into_iter().flatten() {
+        let kind = match kind.as_str() {
+            "label" => t("label"),
+            "broken" => t("broken"),
+            "expires" => t("use-by"),
+            "sale" => t("sale"),
+            other => other,
+        };
+        let what = [
+            m["value"].as_str().map(|x| {
+                match x {
+                    "needed" => t("to print"),
+                    "printed" => t("printed"),
+                    "listed" => t("listed"),
+                    "reserved" => t("reserved"),
+                    other => other,
+                }
+                .to_string()
+            }),
+            m["amount"].as_i64().map(|a| a.to_string()),
+            m["note"].as_str().map(str::to_string),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" · ");
+        let _ = writeln!(out, "  {kind}: {what}");
+    }
+    for n in v["needs"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
+    }
+    for t_ in v["tasks"].as_array().into_iter().flatten() {
+        let via = if t_["via"] == node["id"] {
+            String::new()
+        } else {
+            tf("  (via #{})", &[&t_["via"]])
+        };
+        let _ = writeln!(
+            out,
+            "  {} {}. #{} {}{via}",
+            t("task"),
+            t_["position"],
+            t_["id"],
+            s(t_, "title")
+        );
+    }
+    for k in v["kits"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "  {}: {} · {}. {}",
+            t("kit"),
+            s(k, "kit"),
+            k["n"],
+            s(k, "text")
+        );
+    }
+    if let Some(c) = v["cells"].as_str() {
+        let _ = writeln!(out, "  {}: {c}", t("cells"));
+    }
+    for c in v["children"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  └ {}", line(c));
+    }
+    if v["grid"].is_object() {
+        out.push('\n');
+        grid_block(out, node, &v["grid"]);
+    }
+}
+
+/// `ev kit show`: the kit's counts, then each part with the records linked to it.
+fn kit_parts(out: &mut String, v: &Value, kit: &Value, parts: &[Value]) {
+    let c = &v["counts"];
+    let _ = writeln!(
+        out,
+        "{} ×{}  {}",
+        s(kit, "name"),
+        kit["copies"],
+        tf(
+            "{} of {} found · {} lost · {} still missing",
+            &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
+        )
+    );
+    for p in parts {
+        let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
+            (Some(0), Some(0)) => "✓",
+            _ if p["found"] == 0 => "·",
+            _ => "~",
+        };
+        let mut counts = format!("{}/{}", p["found"], p["expected"]);
+        if p["lost"].as_i64().unwrap_or(0) > 0 {
+            counts.push_str(&format!("  {}", tf("{} lost", &[&p["lost"]])));
+        }
+        let _ = writeln!(
+            out,
+            "{:>3}. {mark} {}  {counts}",
+            p["n"].as_i64().unwrap_or_default(),
+            s(p, "text")
+        );
+        for n in p["nodes"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "       {}", line(n));
+        }
+    }
+}
+
+/// `ev facet list`: each facet, its words and the holders tagged with it.
+fn facet_list(out: &mut String, list: &[Value]) {
+    if list.is_empty() {
+        let _ = writeln!(out, "{}", t("(no facets)"));
+    }
+    for f in list {
+        let words = s(f, "words");
+        let words = if words.is_empty() {
+            String::new()
+        } else {
+            format!("  ({words})")
+        };
+        let _ = writeln!(out, "{}{words}", s(f, "name"));
+        let holders: Vec<String> = f["holders"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(label)
+            .collect();
+        if holders.is_empty() {
+            let _ = writeln!(out, "  {}", t("(no holder tagged yet)"));
+        } else {
+            let _ = writeln!(out, "  {}", holders.join(", "));
+        }
+    }
+}
+
+/// `ev themes`: each place without a theme, the words its contents share, and what it reads
+/// like.
+fn theme_list(out: &mut String, list: &[Value]) {
+    if list.is_empty() {
+        let _ = writeln!(out, "{}", t("(every place with things in it has a theme)"));
+    }
+    for e in list {
+        let _ = writeln!(
+            out,
+            "{}  ({})",
+            head(&e["holder"]),
+            tf("{} items", &[&e["things"]])
+        );
+        let _ = writeln!(out, "  {}", tf("words: {}", &[&theme_words(e)]));
+        if e["like"].is_object() {
+            let like = format!(
+                "{} [{}]",
+                label(&e["like"]),
+                e["like"]["theme"].as_str().unwrap_or_default()
+            );
+            let _ = writeln!(out, "  {}", tf("reads like: {}", &[&like]));
+        }
+        let _ = writeln!(
+            out,
+            "  {}",
+            // Names carry commas of their own, so the list is joined with semicolons.
+            tf(
+                "contents: {}",
+                &[&e["contents"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join("; ")]
+            )
+        );
+    }
+}
+
+/// `ev audit`: alike things spread out, holders without a theme, loose items, and sizes a
+/// name says that the field does not.
+fn audit(out: &mut String, v: &Value) {
+    let _ = writeln!(out, "{}", t("Alike things in several places:"));
+    for x in v["spread"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", s(x, "word"));
+        for p in x["places"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "    {}", s(p, "path_text"));
+        }
+    }
+    let _ = writeln!(out, "{}", t("Holders without a theme:"));
+    for n in v["no_theme"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", s(n, "path_text"));
+    }
+    let _ = writeln!(out, "{}", t("Items lying loose in a room or on furniture:"));
+    for n in v["loose"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", s(n, "path_text"));
+    }
+    if let Some(list) = v["size_drift"].as_array().filter(|l| !l.is_empty()) {
+        let _ = writeln!(
+            out,
+            "{}",
+            t("Boxes whose name says a size their size field does not:")
+        );
+        for n in list {
+            let field = n["size"].as_str().unwrap_or("—");
+            let _ = writeln!(
+                out,
+                "  {}  ({} → {field})",
+                s(n, "path_text"),
+                s(n, "name_size")
+            );
+        }
+    }
+}
+
+/// `ev tree`: the tree, then what is lost listed apart, with where it was last seen.
+fn tree_and_lost(out: &mut String, v: &Value, tr: &[Value]) {
+    for n in tr {
+        tree(out, n, 0);
+    }
+    // What is lost is listed apart, with where it was last seen.
+    let lost = v["lost"].as_array().cloned().unwrap_or_default();
+    if !lost.is_empty() {
+        let _ = writeln!(out, "{}", t("Unknown place"));
+        for n in &lost {
+            let _ = writeln!(out, "  {}{}", thing(n), last_seen(n));
+            for c in n["children"].as_array().into_iter().flatten() {
+                tree(out, c, 2);
+            }
+        }
+    }
 }
 
 fn settings(out: &mut String, v: &Value) {

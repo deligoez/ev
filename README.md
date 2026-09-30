@@ -230,7 +230,9 @@ once they shrink below it.
 The tests include one that reads every backticked `ev …` command in this README,
 `REFERENCE.md`, the skill and `release-notes/next.md`, and fails on a subcommand or flag the CLI
 does not have, so the documents cannot drift from the binary. `tools/measure/` scores stems and
-placement against answer keys kept outside the repository.
+placement against answer keys kept outside the repository. `tools/deadcode.sh` lists code no
+one calls, or only tests call, across both crates (rustc's own lint cannot see a library's
+`pub` items); it is a scan to read, not part of the gate.
 
 ### Releasing
 

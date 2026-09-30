@@ -1825,20 +1825,21 @@ impl App {
         self.load_details()
     }
 
-    /// Opens the map on the place holding the selected node, with that node chosen; a node with
-    /// no holder (the home) shows its own map.
+    /// Opens the map on the home, its rooms first, with the room on the way to the selected node
+    /// chosen; Enter after Enter leads down to that node.
     fn open_map(&mut self) {
         let sel = self
             .selected_id()
             .filter(|&i| i > 0)
             .or(self.tree_position());
-        let parent = sel.and_then(|s| self.snap.parent.get(&s).copied());
-        let (place, select) = match parent {
-            Some(p) => (Some(p), sel),
-            None => (sel, None),
-        };
-        match MapView::open(&self.inv, place, select) {
-            Ok(v) => self.map_view = Some(v),
+        // The way from the home down to the selection, home first.
+        let mut trail: Vec<i64> = sel.into_iter().collect();
+        while let Some(p) = trail.last().and_then(|x| self.snap.parent.get(x)) {
+            trail.push(*p);
+        }
+        trail.reverse();
+        match MapView::open(&self.inv, trail.first().copied(), None) {
+            Ok(v) => self.map_view = Some(v.with_trail(trail, true)),
             Err(e) => self.status = e.to_string(),
         }
     }
@@ -3931,9 +3932,17 @@ mod tests {
             term.draw(|f| app.draw(f)).unwrap();
             screen(&term)
         };
-        // From a box in the tree: its drawer's map, the shelf on it as a band above.
+        let sel = |app: &App| app.map_view.as_ref().and_then(|m| m.selected());
+        // From a box in the tree the map opens on the home, the room on the way chosen.
         app.reveal(id(&app, "D-A1")).unwrap();
         press(&mut app, KeyCode::Char('M'));
+        let s = draw(&mut app);
+        assert!(s.contains(" Ev "), "{s}");
+        assert_eq!(sel(&app), Some(id(&app, "Oda")));
+        // Enter after Enter follows the way down: the drawer, then the box.
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(sel(&app), Some(id(&app, "D")));
+        press(&mut app, KeyCode::Enter);
         let s = draw(&mut app);
         assert!(s.contains("Ev › Oda › D"), "{s}");
         assert!(s.contains(" Raf "), "{s}");
@@ -3942,7 +3951,6 @@ mod tests {
         // A box's tile says what it is for and what is in it.
         assert!(s.contains("Buzzer"), "{s}");
         assert!(s.contains("Aktif buzzer · Kırmızı LED 10 mm"), "{s}");
-        let sel = |app: &App| app.map_view.as_ref().and_then(|m| m.selected());
         assert_eq!(sel(&app), Some(id(&app, "D-A1")));
         press(&mut app, KeyCode::Right);
         assert_eq!(sel(&app), Some(id(&app, "D-B1")));

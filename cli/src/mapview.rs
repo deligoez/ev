@@ -34,6 +34,9 @@ pub struct MapView {
     /// Where each tile was drawn, for the mouse.
     hits: Vec<(Rect, i64)>,
     status: String,
+    /// The way from the home down to the node selected in the tree when the map was opened:
+    /// on each level the tile on it is chosen, so Enter after Enter leads to that node.
+    trail: Vec<i64>,
 }
 
 /// A rectangle given in fractions of `area`, in whole cells. Neighbours share an edge exactly,
@@ -102,11 +105,21 @@ impl MapView {
             sel: 0,
             hits: Vec::new(),
             status: String::new(),
+            trail: Vec::new(),
         };
         if let Some(id) = select {
             v.select_id(id);
         }
         Ok(v)
+    }
+
+    /// Keeps `trail` (ancestors first) and, when nothing else was chosen, chooses the tile on it.
+    pub fn with_trail(mut self, trail: Vec<i64>, follow: bool) -> Self {
+        if follow && let Some(&id) = trail.iter().find(|&&id| self.index_of(id).is_some()) {
+            self.select_id(id);
+        }
+        self.trail = trail;
+        self
     }
 
     /// The place shown.
@@ -131,12 +144,18 @@ impl MapView {
     }
 
     fn select_id(&mut self, id: i64) {
-        if let Some(i) = self.order.iter().position(|&x| x == id) {
+        if let Some(i) = self.index_of(id) {
             self.sel = i;
-            return;
+        }
+    }
+
+    /// Where `id` is in the reading order: its own tile, or the one it stands on.
+    fn index_of(&self, id: i64) -> Option<usize> {
+        if let Some(i) = self.order.iter().position(|&x| x == id) {
+            return Some(i);
         }
         // Something standing on a tile is found under that tile.
-        let under = self.order.iter().position(|&o| {
+        self.order.iter().position(|&o| {
             self.tile(o).is_some_and(|t| {
                 t["stacked"]
                     .as_array()
@@ -144,19 +163,17 @@ impl MapView {
                     .flatten()
                     .any(|s| s["id"].as_i64() == Some(id))
             })
-        });
-        if let Some(i) = under {
-            self.sel = i;
-        }
+        })
     }
 
     /// The same place again after the data changed, keeping the selection; the home when the
     /// place is gone.
     pub fn reload(&mut self, inv: &Inventory) -> Result<()> {
         let keep = self.selected();
+        let trail = std::mem::take(&mut self.trail);
         *self = match Self::open(inv, self.place(), keep) {
-            Ok(v) => v,
-            Err(_) => Self::open(inv, None, None)?,
+            Ok(v) => v.with_trail(trail, false),
+            Err(_) => Self::open(inv, None, None)?.with_trail(trail, true),
         };
         Ok(())
     }
@@ -217,7 +234,8 @@ impl MapView {
             self.status = t("nothing inside").to_string();
             return Ok(());
         }
-        *self = Self::open(inv, Some(id), None)?;
+        let trail = std::mem::take(&mut self.trail);
+        *self = Self::open(inv, Some(id), None)?.with_trail(trail, true);
         Ok(())
     }
 
@@ -226,7 +244,8 @@ impl MapView {
             self.status = t("this is the top").to_string();
             return Ok(());
         };
-        *self = Self::open(inv, Some(up), Some(here))?;
+        let trail = std::mem::take(&mut self.trail);
+        *self = Self::open(inv, Some(up), Some(here))?.with_trail(trail, false);
         Ok(())
     }
 

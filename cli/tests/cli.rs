@@ -490,6 +490,52 @@ fn a_kit_is_recorded_linked_and_counted_from_the_command_line() {
 }
 
 #[test]
+fn rooms_are_placed_beside_each_other_and_from_lines_on_the_command_line() {
+    let ev = seeded();
+    ev.ok(&["add", "Mutfak", "--kind", "room", "--in", "Ev"]);
+    ev.ok(&["add", "Banyo", "--kind", "room", "--in", "Ev"]);
+    ev.ok(&["sketch", "Salon", "--at", "0,0", "--size", "400,300"]);
+    let v = ev.ok(&[
+        "sketch",
+        "Mutfak",
+        "--size",
+        "300,500",
+        "--right-of",
+        "Salon",
+        "--offset",
+        "-50",
+    ]);
+    assert_eq!(
+        (v["sketch"]["x"].clone(), v["sketch"]["y"].clone()),
+        (400.0.into(), (-50.0).into())
+    );
+    // One place at a time: beside and at together is a usage error.
+    let (code, _, _) = ev.run(&["sketch", "Banyo", "--at", "0,0", "--below", "Salon"]);
+    assert_eq!(code, 2);
+    // Many from lines, in order.
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["sketch", "--stdin"])
+        .write_stdin(
+            "{\"ref\": \"Banyo\", \"points\": [[0, 300], [200, 300], [200, 450], [0, 450]]}\n",
+        )
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v = ev.ok(&["sketch", "Banyo"]);
+    assert_eq!(v["sketch"]["y"], 300.0);
+    assert_eq!(ev.ok(&["map"])["tiles"].as_array().unwrap().len(), 3);
+}
+
+#[test]
 fn a_room_is_sketched_and_a_stack_is_mapped_from_the_command_line() {
     let ev = seeded();
     ev.ok(&["add", "Dolap", "--kind", "furniture", "--in", "Salon"]);

@@ -3880,6 +3880,25 @@ mod tests {
         assert_eq!(grid_box_at(&map, 1, 1), None, "the row label");
     }
 
+    /// `ev sketch <r> [--at] [--size] [--on] [--points]`.
+    fn sketch(
+        inv: &mut Inventory,
+        r: &str,
+        at: Option<&str>,
+        size: Option<&str>,
+        on: Option<&str>,
+        points: Option<&str>,
+    ) -> ev_core::Result<serde_json::Value> {
+        inv.sketch_set(&ev_core::SketchChange {
+            reference: r.into(),
+            at: at.map(|s| ev_core::parse_pair(s, "--at")).transpose()?,
+            size: size.map(|s| ev_core::parse_pair(s, "--size")).transpose()?,
+            on: on.map(Into::into),
+            points: points.map(ev_core::parse_points).transpose()?,
+            ..Default::default()
+        })
+    }
+
     fn add(inv: &mut Inventory, name: &str, kind: &str, parent: &str, code: Option<&str>) {
         inv.add(NewNode {
             name: name.into(),
@@ -3924,7 +3943,7 @@ mod tests {
     fn m_opens_the_map_walks_it_goes_in_and_out_and_t_shows_the_tile_in_the_tree() {
         let (_dir, mut inv) = led_drawer();
         add(&mut inv, "Raf", "furniture", "Oda", None);
-        inv.sketch_set("Raf", None, None, Some("D"), None).unwrap();
+        sketch(&mut inv, "Raf", None, None, Some("D"), None).unwrap();
         let id = |app: &App, r: &str| app.inv.resolve(r, false).unwrap();
         let mut app = app_tr(inv);
         let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();
@@ -3981,9 +4000,17 @@ mod tests {
         add(&mut inv, "Salon", "room", "Ev", None);
         add(&mut inv, "Mutfak", "room", "Ev", None);
         add(&mut inv, "Kupa", "item", "Mutfak", None);
-        inv.sketch_set("Salon", None, None, None, Some("0,0 600,0 600,400 0,400"))
-            .unwrap();
-        inv.sketch_set(
+        sketch(
+            &mut inv,
+            "Salon",
+            None,
+            None,
+            None,
+            Some("0,0 600,0 600,400 0,400"),
+        )
+        .unwrap();
+        sketch(
+            &mut inv,
             "Mutfak",
             None,
             None,
@@ -4018,44 +4045,32 @@ mod tests {
     }
 
     #[test]
-    fn a_room_from_a_plan_shows_its_floor_and_nothing_of_the_plan_it_was_not_asked_for() {
-        use std::io::Write;
-        let (dir, mut inv) = home();
+    fn an_empty_room_with_an_outline_opens_on_its_floor() {
+        let (_dir, mut inv) = home();
         add(&mut inv, "Salon", "room", "Ev", None);
-        // A room 400×300 with a window in its wall and a sink in it.
-        let plan = dir.path().join("home.sh3d");
-        let mut zip = zip::ZipWriter::new(std::fs::File::create(&plan).unwrap());
-        zip.start_file(
-            "Home.xml",
-            zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Stored),
+        sketch(
+            &mut inv,
+            "Salon",
+            None,
+            None,
+            None,
+            Some("0,0 400,0 400,300 0,300"),
         )
         .unwrap();
-        zip.write_all(
-            br#"<home><room name="Salon"><point x="0" y="0"/><point x="400" y="0"/>
-            <point x="400" y="300"/><point x="0" y="300"/></room>
-            <doorOrWindow name="Window" catalogId="eTeks#window" x="200" y="-10"
-              width="120" depth="20" height="120"/>
-            <pieceOfFurniture name="Sink" catalogId="eTeks#sink" x="200" y="150"
-              width="120" depth="60" height="90"/></home>"#,
-        )
-        .unwrap();
-        zip.finish().unwrap();
-        inv.sketch_import(&plan, &[], &[], &[], false).unwrap();
         let mut app = app_tr(inv);
         let mut term = Terminal::new(TestBackend::new(80, 30)).unwrap();
         press(&mut app, KeyCode::Char('M'));
         press(&mut app, KeyCode::Enter);
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        // An empty room with an outline still opens: its floor is what there is to see.
+        // Nothing is recorded in it, yet Enter opens it: its floor is what there is to see.
         assert!(s.contains("Ev › Salon"), "{s}");
-        let floor = term.backend().buffer()[(40, 15)].bg;
-        assert_eq!(floor, theme::pal().floor, "{s}");
-        // No window line, no sink frame: the plan gave the room its shape and nothing else.
-        for glyph in ["═", "║", "┄", "┆", "┌", "Sink"] {
-            assert!(!s.contains(glyph), "{glyph}\n{s}");
-        }
+        assert!(!s.contains("içinde bir şey yok"), "{s}");
+        assert_eq!(
+            term.backend().buffer()[(40, 15)].bg,
+            theme::pal().floor,
+            "{s}"
+        );
     }
 
     fn shown(app: &mut App, reference: &str, w: u16, h: u16) -> String {

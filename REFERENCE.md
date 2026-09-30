@@ -244,7 +244,7 @@ drawn as its plate, each box a frame over the cells it covers.
 | Command | Does |
 |---|---|
 | `ev goal [organize\|track]` | show or set what the household wants: a tidy-up plan, or records only |
-| `ev observe <ref> "<text>" [--photo n]` | a dated note on a place, optionally tied to its n-th photo; `ev unobserve <id>` removes one |
+| `ev observe <ref> "<text>" [--photo n]` | a dated note on a place, optionally tied to its n-th photo; `ev unobserve <id>` removes one, leaving an `unobserve` event with its text in the place's history |
 | `ev review <ref> --as toured\|kept\|raw [--note t]` | how far a place has been gone through; covers everything below it |
 | `ev progress` | every unit with `review` (`status`, `at`, `from`, `changed_since`), `children`, `unknown`, `observations`, `planned`; counts `units`, `toured`, `kept`, `raw`, `changed_since_tour` |
 | `ev task add "<title>" --why "<why>" [--on ref]… [--at n]` | a task at position n (last by default) |

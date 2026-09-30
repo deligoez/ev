@@ -1177,7 +1177,7 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
-    for key in ["results", "created"] {
+    for key in ["results", "created", "edited"] {
         if let Some(list) = v.get(key).and_then(Value::as_array) {
             if list.is_empty() {
                 let _ = writeln!(out, "{}", t("(none)"));

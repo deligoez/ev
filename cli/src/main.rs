@@ -63,9 +63,14 @@ enum Cmd {
     },
     /// Change fields: name, code, kind, address, qty, note, theme, fill, tags=+x/-x, photos=+p/-p.
     Edit {
-        reference: String,
-        #[arg(required = true)]
+        #[arg(required_unless_present = "stdin")]
+        reference: Option<String>,
         assignments: Vec<String>,
+        /// Edit several records at once, all or none: NDJSON lines
+        /// `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["+modül"], "note": null}}`
+        /// (an array sets the field once per item; null clears it).
+        #[arg(long, conflicts_with_all = ["reference", "assignments"])]
+        stdin: bool,
     },
     /// Split one record into several kinds of thing: each `<name>=<qty>` becomes a new record
     /// beside it (same place, kind, tags); the original keeps the rest (--rename, --qty). The
@@ -365,6 +370,49 @@ enum KitCmd {
     Show { kit: String },
     /// Drop a kit and its links; the records stay.
     Remove { kit: String },
+}
+
+/// The NDJSON of `ev edit --stdin`: `{"ref": …, "set": {field: value}}` per line, turned into
+/// `field=value` assignments. A string or number is one assignment, an array one per item,
+/// null an empty value (which clears the field). Blank lines are skipped.
+fn edit_lines(text: &str) -> Result<Vec<(String, Vec<String>)>> {
+    let mut lines = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        if raw.trim().is_empty() {
+            continue;
+        }
+        let at = |msg: String| Error::Usage(msg).at_line(i + 1);
+        let v: Value =
+            serde_json::from_str(raw).map_err(|e| at(format!("not a JSON object: {e}")))?;
+        let reference = match &v["ref"] {
+            Value::String(s) => s.clone(),
+            Value::Number(n) => n.to_string(),
+            _ => return Err(at("`ref` is missing (a name, code, id or #id)".into())),
+        };
+        let set = v["set"]
+            .as_object()
+            .ok_or_else(|| at("`set` is missing: an object of field: value".into()))?;
+        let scalar = |field: &str, v: &Value| match v {
+            Value::String(s) => Ok(format!("{field}={s}")),
+            Value::Number(n) => Ok(format!("{field}={n}")),
+            Value::Bool(b) => Ok(format!("{field}={b}")),
+            Value::Null => Ok(format!("{field}=")),
+            _ => Err(at(format!("`{field}`: a value is text, a number or null"))),
+        };
+        let mut assignments = Vec::new();
+        for (field, value) in set {
+            match value {
+                Value::Array(items) => {
+                    for item in items {
+                        assignments.push(scalar(field, item)?);
+                    }
+                }
+                other => assignments.push(scalar(field, other)?),
+            }
+        }
+        lines.push((reference, assignments));
+    }
+    Ok(lines)
 }
 
 /// `<name>` or `<name>=<count>`: a kit part and how many come in one copy (1 by default).
@@ -726,16 +774,27 @@ fn run(cli: Cli) -> Result<Value> {
             let kind = kind.map(|k| k.parse::<Kind>()).transpose()?;
             inv.find(&text, tag.as_deref(), kind, include_gone)
         }
+        Cmd::Edit { stdin: true, .. } => {
+            let mut text = String::new();
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .map_err(|e| Error::Internal(format!("cannot read stdin: {e}")))?;
+            inv.edit_batch(&edit_lines(&text)?)
+        }
         Cmd::Edit {
             reference,
             assignments,
+            ..
         } => {
+            if assignments.is_empty() {
+                return Err(Error::Usage("give at least one field=value".into()));
+            }
             warn_missing_photos(
                 assignments
                     .iter()
                     .filter_map(|a| a.strip_prefix("photos=+")),
             );
-            inv.edit(&reference, &assignments)
+            inv.edit(reference.as_deref().unwrap_or_default(), &assignments)
         }
         Cmd::Split {
             reference,

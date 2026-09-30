@@ -246,8 +246,10 @@ first (nothing is cut; every box is drawn framed on its cells) and look before c
 Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
 <item>=x,y,w,h …` puts the whole view on the holder and a crop on each box or item named
 (`ev photo add <node> <photo> --crop x,y,w,h` does one); a crop named by hand wins over the
-grid's for the same box. **Look at every crop you cut** (open the stored file) and redo it if
-it shows the wrong thing — the coordinates are your estimate, the check is what makes them right.
+grid's for the same box. **Look at every crop you cut:** the cut (and its `--preview`) returns
+a `sheet`, one image with every crop small and labelled with its cell — open it and redo any
+crop that shows the wrong thing (a hand crop wins for its box). The coordinates are your
+estimate, the check is what makes them right.
 **A group photo goes whole on one node only — the place — and every thing in it gets its own
 crop.** `ev photo add` refuses a whole photo that is already attached whole elsewhere; when it
 does, cut the crop — do not reach for `--whole` to get past it. `shared_photos` in `ev todo`

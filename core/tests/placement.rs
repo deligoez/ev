@@ -228,6 +228,30 @@ fn regroup_finds_the_stray_the_full_box_and_where_a_bigger_one_fits() {
 }
 
 #[test]
+fn a_full_drawer_of_boxes_is_not_offered_a_spare_box_least_of_all_its_own() {
+    let (_d, mut inv) = setup();
+    inv.grid_set("D", 3, 2).unwrap();
+    // A spare box standing in the drawer itself, and the drawer full.
+    inv.add(NewNode {
+        size: Some("1x1x1".into()),
+        tags: vec!["boş kap".into()],
+        ..node("Boş kutu", "container", "D")
+    })
+    .unwrap();
+    inv.edit("D", &["fill=100".into()]).unwrap();
+    let v = inv.regroup(Some("D")).unwrap();
+    let drawer = v["full"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["holder"]["code"] == "D")
+        .cloned()
+        .unwrap_or_else(|| panic!("{}", v["full"]));
+    // A drawer of boxes is not swapped for a box, and a box inside it is no bigger than it.
+    assert_eq!(drawer["bigger_spares"], serde_json::json!([]));
+}
+
+#[test]
 fn a_thing_that_holds_things_is_never_its_own_better_place() {
     let (_d, mut inv) = setup();
     // A kit recorded as an item with its parts inside: it is a holder, and the part inside

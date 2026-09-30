@@ -471,14 +471,9 @@ impl Inventory {
                 }
                 None => None,
             };
+            // A piece in no room (a cupboard in a wall's niche) is left out.
             if linked.is_none() {
-                // A piece in no room (a hall the plan did not draw) is marked on the home.
-                let holders = if near.is_empty() {
-                    vec![home]
-                } else {
-                    near.clone()
-                };
-                for h in holders {
+                for h in near.iter().copied() {
                     let o = origin(&tx, h)?;
                     tx.execute(
                         "INSERT INTO sketch_marks (node_id, kind, name, x, y, w, d)

@@ -285,12 +285,14 @@ enum Cmd {
         #[arg(long, conflicts_with_all = ["cols", "rows", "face"])]
         clear: bool,
     },
-    /// A sketch in centimetres: `--size w,d` for a room (or the home), `--at x,y --size w,d` for
-    /// what lies in it (its top-left corner seen from above), `--on <ref>` for furniture
-    /// standing on another, `--points "x,y x,y …"` for a room that is not a rectangle; with no
-    /// option, show it. `--import plan.sh3d` sketches the home from a Sweet Home 3D plan.
+    /// A sketch in centimetres, seen from above: `--size w,d` for a room (or the home), `--at
+    /// x,y` for where it lies in its holder (its top-left corner), or beside another thing in the
+    /// same holder (`--right-of`, `--left-of`, `--above`, `--below`, slid along that side by
+    /// `--offset`); `--points "x,y x,y …"` for a room that is not a rectangle; `--on <ref>` for
+    /// furniture standing on another. With no option, show it. `--stdin` takes NDJSON lines
+    /// `{"ref": …, "points": [[x, y], …]}` with the same fields, all or none.
     Sketch {
-        #[arg(required_unless_present = "import")]
+        #[arg(required_unless_present = "stdin")]
         reference: Option<String>,
         #[arg(long)]
         at: Option<String>,
@@ -300,24 +302,22 @@ enum Cmd {
         on: Option<String>,
         #[arg(long, conflicts_with_all = ["at", "size"])]
         points: Option<String>,
-        #[arg(long, conflicts_with_all = ["at", "size", "on", "points"])]
+        #[arg(long, conflicts_with_all = ["at", "points", "left_of", "above", "below"])]
+        right_of: Option<String>,
+        #[arg(long, conflicts_with_all = ["at", "points", "above", "below"])]
+        left_of: Option<String>,
+        #[arg(long, conflicts_with_all = ["at", "points", "below"])]
+        above: Option<String>,
+        #[arg(long, conflicts_with_all = ["at", "points"])]
+        below: Option<String>,
+        /// Centimetres along the side it is placed beside, from the other's top or left edge.
+        #[arg(long, allow_negative_numbers = true)]
+        offset: Option<f64>,
+        #[arg(long, conflicts_with_all = ["at", "size", "on", "points", "right_of", "left_of", "above", "below", "offset"])]
         clear: bool,
-        /// A Sweet Home 3D plan (.sh3d) to sketch the home from.
-        #[arg(long, conflicts_with_all = ["reference", "at", "size", "on", "points", "clear"])]
-        import: Option<std::path::PathBuf>,
-        /// With --import: `<room in the plan>=<ref>` when the names differ.
-        #[arg(long, requires = "import")]
-        room: Vec<String>,
-        /// With --import: `<piece in the plan, like Table#2>=<ref>` to place a record there.
-        #[arg(long, requires = "import")]
-        piece: Vec<String>,
-        /// With --import: `<ref>@x,y` for a room the plan did not draw: the space around that
-        /// point (plan centimetres) closed in by walls and the plan's rooms.
-        #[arg(long, requires = "import")]
-        space: Vec<String>,
-        /// With --import: say what would change and change nothing.
-        #[arg(long, requires = "import")]
-        dry_run: bool,
+        /// NDJSON lines from standard input, applied in order, all or none.
+        #[arg(long, conflicts_with_all = ["reference", "at", "size", "on", "points", "right_of", "left_of", "above", "below", "offset", "clear"])]
+        stdin: bool,
     },
     /// The map of a place (the home without one): its contents as tiles laid out by its grid,
     /// its sketch, or on their own; a stack of furniture front on, top first.
@@ -828,30 +828,52 @@ fn run(cli: Cli) -> Result<Value> {
             size,
             on,
             points,
+            right_of,
+            left_of,
+            above,
+            below,
+            offset,
             clear,
-            import,
-            room,
-            piece,
-            space,
-            dry_run,
+            stdin,
         } => {
-            if let Some(file) = import {
-                return inv.sketch_import(&file, &room, &piece, &space, dry_run);
+            if stdin {
+                let mut text = String::new();
+                std::io::stdin()
+                    .read_to_string(&mut text)
+                    .map_err(|e| Error::Internal(format!("cannot read stdin: {e}")))?;
+                return inv.sketch_many(&text);
             }
             let reference = reference.unwrap_or_default();
-            if clear {
-                inv.sketch_clear(&reference)
-            } else if at.is_none() && size.is_none() && on.is_none() && points.is_none() {
+            let change = ev_core::SketchChange {
+                reference: reference.clone(),
+                at: at.map(|s| ev_core::parse_pair(&s, "--at")).transpose()?,
+                size: size
+                    .map(|s| ev_core::parse_pair(&s, "--size"))
+                    .transpose()?,
+                points: points.map(|s| ev_core::parse_points(&s)).transpose()?,
+                on,
+                right_of,
+                left_of,
+                above,
+                below,
+                offset,
+                clear,
+            };
+            let asked = change.at.is_some()
+                || change.size.is_some()
+                || change.points.is_some()
+                || change.on.is_some()
+                || change.right_of.is_some()
+                || change.left_of.is_some()
+                || change.above.is_some()
+                || change.below.is_some()
+                || change.offset.is_some()
+                || clear;
+            if asked {
+                inv.sketch_set(&change)
+            } else {
                 Ok(
                     serde_json::json!({ "node": inv.show(&reference, false)?["node"], "sketch": inv.sketch(&reference)? }),
-                )
-            } else {
-                inv.sketch_set(
-                    &reference,
-                    at.as_deref(),
-                    size.as_deref(),
-                    on.as_deref(),
-                    points.as_deref(),
                 )
             }
         }

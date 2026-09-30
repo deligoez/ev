@@ -32,4 +32,3 @@ sys-locale = "0.3.2"
 assert_cmd = "2.2.2"
 ev-core = { path = "../core" }
 tempfile = "3.27.0"
-zip = { version = "8.6.0", default-features = false }

@@ -11,6 +11,7 @@
 //! Every tile carries a rectangle in fractions of the place (x, y from the top-left).
 
 use rusqlite::{Connection, OptionalExtension, params};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::error::{Error, Result, refused};
@@ -133,8 +134,8 @@ pub(crate) fn write_sketch(conn: &Connection, id: i64, after: &Sketch) -> Result
     Ok(true)
 }
 
-/// `x,y x,y …`: the corners of an outline, three or more.
-fn outline(s: &str) -> Result<Vec<[f64; 2]>> {
+/// `x,y x,y …` from the command line: the corners of an outline, three or more.
+pub fn parse_points(s: &str) -> Result<Vec<[f64; 2]>> {
     let bad = || {
         Error::Usage(format!(
             "--points is three or more corners in centimetres, like `0,0 400,0 400,300`; got `{s}`"
@@ -154,21 +155,22 @@ fn outline(s: &str) -> Result<Vec<[f64; 2]>> {
     Ok(pts)
 }
 
-/// `a,b` as two positive (or, for a position, non-negative) numbers of centimetres.
-fn pair(s: &str, what: &str, allow_zero: bool) -> Result<(f64, f64)> {
+/// `a,b` from the command line (`120,40`, `120x40`, `120×40`) as two numbers of centimetres.
+pub fn parse_pair(s: &str, what: &str) -> Result<[f64; 2]> {
     let bad = || {
         Error::Usage(format!(
             "{what} is two numbers of centimetres, like 120,40; got `{s}`"
         ))
     };
     let (a, b) = s.split_once([',', 'x', '×']).ok_or_else(bad)?;
-    let num = |t: &str| t.trim().replace(',', ".").parse::<f64>().map_err(|_| bad());
-    let (a, b) = (num(a)?, num(b)?);
-    let ok = |v: f64| v.is_finite() && if allow_zero { v >= 0.0 } else { v > 0.0 };
-    if !ok(a) || !ok(b) {
-        return Err(bad());
-    }
-    Ok((a, b))
+    let num = |t: &str| {
+        t.trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())
+            .ok_or_else(bad)
+    };
+    Ok([num(a)?, num(b)?])
 }
 
 fn live_children(conn: &Connection, id: i64) -> Result<Vec<Node>> {
@@ -415,65 +417,229 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
     Ok(("tiles".into(), tiles, Vec::new(), Value::Null))
 }
 
+/// Where a thing is placed, how big it is and what it stands on: the words of `ev sketch` or
+/// one line of `ev sketch --stdin`. Centimetres, seen from above, in the frame of its holder.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SketchChange {
+    #[serde(rename = "ref", default)]
+    pub reference: String,
+    /// Its top-left corner.
+    #[serde(default)]
+    pub at: Option<[f64; 2]>,
+    /// Its width and depth.
+    #[serde(default)]
+    pub size: Option<[f64; 2]>,
+    /// Its outline, when it is not a rectangle.
+    #[serde(default)]
+    pub points: Option<Vec<[f64; 2]>>,
+    /// What it stands on (a Kallax on another).
+    #[serde(default)]
+    pub on: Option<String>,
+    /// Beside another thing in the same holder, touching it on that side; `offset` slides it
+    /// along that side from the other's top or left edge.
+    #[serde(default)]
+    pub right_of: Option<String>,
+    #[serde(default)]
+    pub left_of: Option<String>,
+    #[serde(default)]
+    pub above: Option<String>,
+    #[serde(default)]
+    pub below: Option<String>,
+    #[serde(default)]
+    pub offset: Option<f64>,
+    #[serde(default)]
+    pub clear: bool,
+}
+
+impl SketchChange {
+    fn is_empty(&self) -> bool {
+        self.at.is_none()
+            && self.size.is_none()
+            && self.points.is_none()
+            && self.on.is_none()
+            && self.beside().is_none()
+            && !self.clear
+    }
+
+    fn beside(&self) -> Option<(&'static str, &str)> {
+        [
+            ("right", &self.right_of),
+            ("left", &self.left_of),
+            ("above", &self.above),
+            ("below", &self.below),
+        ]
+        .into_iter()
+        .find_map(|(side, r)| r.as_deref().map(|r| (side, r)))
+    }
+}
+
+/// Moves a sketch so its top-left corner is at `x, y`, its outline with it.
+fn move_to(p: &mut Sketch, x: f64, y: f64) {
+    if let (Some(pts), Some(ox), Some(oy)) = (&mut p.points, p.x, p.y) {
+        for q in pts.iter_mut() {
+            *q = [q[0] - ox + x, q[1] - oy + y];
+        }
+    }
+    (p.x, p.y) = (Some(x), Some(y));
+}
+
+fn clear_in(conn: &Connection, id: i64) -> Result<()> {
+    let before = sketch_of(conn, id)?;
+    conn.execute("DELETE FROM sketches WHERE node_id = ?1", [id])?;
+    event(
+        conn,
+        id,
+        "sketch",
+        json!({ "before": sketch_json(&before), "after": Value::Null }),
+    )?;
+    Ok(())
+}
+
+/// Applies one change inside a transaction: its node and its sketch after.
+fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
+    if c.is_empty() {
+        return Err(Error::Usage(
+            "give --size w,d, --at x,y, --points, --on <ref>, --right-of/--left-of/--above/--below <ref> or --clear".into(),
+        ));
+    }
+    let id = resolve(conn, &c.reference, false)?;
+    if c.clear {
+        let rest = SketchChange {
+            clear: false,
+            ..c.clone()
+        };
+        if !rest.is_empty() {
+            return Err(Error::Usage("--clear takes nothing else".into()));
+        }
+        clear_in(conn, id)?;
+        return Ok((id, Sketch::default()));
+    }
+    let places = [c.at.is_some(), c.points.is_some(), c.beside().is_some()];
+    if places.iter().filter(|x| **x).count() > 1
+        || [&c.right_of, &c.left_of, &c.above, &c.below]
+            .iter()
+            .filter(|r| r.is_some())
+            .count()
+            > 1
+    {
+        return Err(Error::Usage(
+            "a place is given once: --at, --points, or beside one other thing".into(),
+        ));
+    }
+    let finite = |v: &[f64]| v.iter().all(|x| x.is_finite());
+    let mut p = sketch_of(conn, id)?;
+    if let Some(pts) = &c.points {
+        if pts.len() < 3 || !pts.iter().all(|q| finite(q)) {
+            return Err(Error::Usage("an outline is three or more corners".into()));
+        }
+        if c.size.is_some() {
+            return Err(Error::Usage(
+                "an outline has its own size; give --points or --size".into(),
+            ));
+        }
+        p.set_outline(pts.clone());
+    }
+    if let Some([w, d]) = c.size {
+        if !(w > 0.0 && d > 0.0 && finite(&[w, d])) {
+            return Err(Error::Usage(
+                "a size is two positive numbers of centimetres".into(),
+            ));
+        }
+        if p.points.is_some() {
+            return Err(Error::Usage(
+                "it has an outline, which gives its size; give new --points instead".into(),
+            ));
+        }
+        (p.w, p.d) = (Some(w), Some(d));
+    }
+    if let Some([x, y]) = c.at {
+        if !finite(&[x, y]) {
+            return Err(Error::Usage("a place is two numbers of centimetres".into()));
+        }
+        move_to(&mut p, x, y);
+    }
+    if let Some((side, other)) = c.beside() {
+        let o = resolve(conn, other, false)?;
+        let (Some(w), Some(d)) = (p.w, p.d) else {
+            return Err(Error::Usage(
+                "give its --size first, to place it beside another".into(),
+            ));
+        };
+        if load(conn, o)?.parent_id != load(conn, id)?.parent_id || o == id {
+            return Err(refused(
+                "it can only be placed beside something in the same place",
+                json!({ "node": brief_json(conn, id)?, "beside": brief_json(conn, o)? }),
+            ));
+        }
+        let Some([ox, oy, ow, od]) = sketch_of(conn, o)?.rect() else {
+            return Err(refused(
+                "the other has no place yet; sketch it first",
+                json!({ "beside": brief_json(conn, o)? }),
+            ));
+        };
+        let k = c.offset.unwrap_or(0.0);
+        let (x, y) = match side {
+            "right" => (ox + ow, oy + k),
+            "left" => (ox - w, oy + k),
+            "above" => (ox + k, oy - d),
+            _ => (ox + k, oy + od),
+        };
+        move_to(&mut p, x, y);
+    } else if c.offset.is_some() {
+        return Err(Error::Usage(
+            "--offset goes with --right-of, --left-of, --above or --below".into(),
+        ));
+    }
+    if let Some(on) = &c.on {
+        let base = resolve(conn, on, false)?;
+        if base == id || stack_base(conn, base)? == id {
+            return Err(refused(
+                "a thing cannot stand on itself or on what stands on it",
+                json!({ "node": brief_json(conn, id)?, "on": brief_json(conn, base)? }),
+            ));
+        }
+        p.on = Some(base);
+    }
+    write_sketch(conn, id, &p)?;
+    Ok((id, p))
+}
+
 impl Inventory {
     /// Sets where a node lies and how big it is, in centimetres, and what it stands on: a room
     /// in the home, a piece of furniture in a room (`--at` its top-left corner seen from above,
-    /// `--size` width and depth), or a Kallax on another (`--on`). A place's `--size` alone makes
-    /// it a sketch its contents can be placed in.
-    pub fn sketch_set(
-        &mut self,
-        reference: &str,
-        at: Option<&str>,
-        size: Option<&str>,
-        on: Option<&str>,
-        points: Option<&str>,
-    ) -> Result<Value> {
-        if at.is_none() && size.is_none() && on.is_none() && points.is_none() {
-            return Err(Error::Usage(
-                "give --size w,d, --at x,y, --points or --on <ref>".into(),
-            ));
-        }
+    /// `--size` width and depth, or beside another, `--right-of`), or a Kallax on another
+    /// (`--on`). A place's `--size` alone makes it a sketch its contents can be placed in.
+    pub fn sketch_set(&mut self, change: &SketchChange) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let id = resolve(&tx, reference, false)?;
-        let mut p = sketch_of(&tx, id)?;
-        if let Some(s) = points {
-            p.set_outline(outline(s)?);
-        }
-        if let Some(s) = size {
-            let (w, d) = pair(s, "--size", false)?;
-            (p.w, p.d) = (Some(w), Some(d));
-        }
-        if let Some(a) = at {
-            let (x, y) = pair(a, "--at", true)?;
-            (p.x, p.y) = (Some(x), Some(y));
-        }
-        if let Some(o) = on {
-            let base = resolve(&tx, o, false)?;
-            if base == id || stack_base(&tx, base)? == id {
-                return Err(refused(
-                    "a thing cannot stand on itself or on what stands on it",
-                    json!({ "node": brief_json(&tx, id)?, "on": brief_json(&tx, base)? }),
-                ));
-            }
-            p.on = Some(base);
-        }
-        write_sketch(&tx, id, &p)?;
+        let (id, p) = apply(&tx, change)?;
         tx.commit()?;
         Ok(json!({ "node": brief_json(&self.conn, id)?, "sketch": sketch_json(&p) }))
+    }
+
+    /// Many sketches from NDJSON lines (`{"ref": "Mutfak", "points": [[0,0], …]}`), in order, so a
+    /// line may be placed beside one sketched above it; all or none.
+    pub fn sketch_many(&mut self, text: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut out = Vec::new();
+        for (n, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let c: SketchChange = serde_json::from_str(line)
+                .map_err(|e| Error::Usage(e.to_string()).at_line(n + 1))?;
+            let (id, p) = apply(&tx, &c).map_err(|e| e.at_line(n + 1))?;
+            out.push(json!({ "node": brief_json(&tx, id)?, "sketch": sketch_json(&p) }));
+        }
+        tx.commit()?;
+        Ok(json!({ "sketched": out }))
     }
 
     /// Removes a node's sketch: its place, size and what it stands on.
     pub fn sketch_clear(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
-        let before = sketch_of(&tx, id)?;
-        tx.execute("DELETE FROM sketches WHERE node_id = ?1", [id])?;
-        event(
-            &tx,
-            id,
-            "sketch",
-            json!({ "before": sketch_json(&before), "after": Value::Null }),
-        )?;
+        clear_in(&tx, id)?;
         tx.commit()?;
         Ok(json!({ "node": brief_json(&self.conn, id)?, "sketch": Value::Null }))
     }

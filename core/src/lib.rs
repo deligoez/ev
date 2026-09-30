@@ -10,13 +10,12 @@ mod model;
 mod photo;
 mod placement;
 mod plan;
-mod sh3d;
 mod store;
 
 pub use error::{Error, Result};
 pub use fold::fold;
 pub use grid::{Cells, GridCorners};
-pub use map::reading_order;
+pub use map::{SketchChange, parse_pair, parse_points, reading_order};
 pub use model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 pub use photo::{Crop, open_upright};
 pub use store::{Inventory, SCHEMA_VERSION};

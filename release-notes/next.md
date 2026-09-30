@@ -64,6 +64,12 @@ time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.
 
 ## Fixed
 
+- **`ev regroup` offered a full drawer of boxes a spare box, even one standing inside it.** A
+  holder without a size took every spare as bigger. A holder laid out in a grid is no longer
+  offered one, and no holder is offered a spare that stands inside it.
+- **A tall box's crop now reaches out where its rim leans**, up at the back and down at the
+  front of a photo taken from above, instead of growing evenly on every side.
+
 - **An uncounted place dropped off `ev todo` once a box was put in it.** The list of places
   whose contents were never counted came from the innermost places only, so a desk marked
   `unknown` left the list the moment a labelled box stood on it, though its own contents were

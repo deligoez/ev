@@ -173,6 +173,10 @@ enum Cmd {
     /// books): `ev facet add modül --words "modül, kart"`, then tag holders with it.
     #[command(subcommand)]
     Facet(FacetCmd),
+    /// What a bought set should contain, part by part, and which records are those parts:
+    /// `ev kit show <kit>` says what is found, lost and still missing.
+    #[command(subcommand)]
+    Kit(KitCmd),
     /// Where the inventory could be tidier: alike things split up, holders without a theme,
     /// items lying loose in a room or on furniture.
     Audit,
@@ -317,6 +321,61 @@ enum FacetCmd {
     List,
     /// Drop a facet; the tags stay on the holders.
     Remove { name: String },
+}
+
+#[derive(Subcommand)]
+enum KitCmd {
+    /// Record a kit: its name, how many were bought (--copies), and its parts, each
+    /// `--part "<name>"` or `--part "<name>=<how many in one copy>"`.
+    Add {
+        name: String,
+        #[arg(long)]
+        copies: Option<i64>,
+        #[arg(long)]
+        note: Option<String>,
+        #[arg(long = "part")]
+        parts: Vec<String>,
+    },
+    /// Add parts to the end of a kit's list: `<name>` or `<name>=<how many in one copy>`.
+    Part {
+        kit: String,
+        #[arg(required = true)]
+        parts: Vec<String>,
+    },
+    /// These records are part N of the kit (numbered as `ev kit show` lists them).
+    Link {
+        kit: String,
+        n: i64,
+        #[arg(required = true)]
+        references: Vec<String>,
+    },
+    /// This record is not part N after all.
+    Unlink {
+        kit: String,
+        n: i64,
+        reference: String,
+    },
+    /// Every kit with how many of its parts are found, lost and still open.
+    List,
+    /// One kit part by part: expected, the records that are it and where, found, lost, open.
+    Show { kit: String },
+    /// Drop a kit and its links; the records stay.
+    Remove { kit: String },
+}
+
+/// `<name>` or `<name>=<count>`: a kit part and how many come in one copy (1 by default).
+fn kit_parts(parts: &[String]) -> Result<Vec<(String, i64)>> {
+    parts
+        .iter()
+        .map(|p| match p.rsplit_once('=') {
+            Some((name, n)) => n
+                .trim()
+                .parse::<i64>()
+                .map(|n| (name.trim().to_string(), n))
+                .map_err(|_| Error::Usage(format!("`{p}`: the count after = is not a number"))),
+            None => Ok((p.trim().to_string(), 1)),
+        })
+        .collect()
 }
 #[derive(Subcommand)]
 enum NeedCmd {
@@ -768,6 +827,18 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Facet(FacetCmd::Add { name, words }) => inv.facet_add(&name, words.as_deref()),
         Cmd::Facet(FacetCmd::List) => inv.facet_list(),
         Cmd::Facet(FacetCmd::Remove { name }) => inv.facet_remove(&name),
+        Cmd::Kit(KitCmd::Add {
+            name,
+            copies,
+            note,
+            parts,
+        }) => inv.kit_add(&name, copies, note.as_deref(), &kit_parts(&parts)?),
+        Cmd::Kit(KitCmd::Part { kit, parts }) => inv.kit_parts_add(&kit, &kit_parts(&parts)?),
+        Cmd::Kit(KitCmd::Link { kit, n, references }) => inv.kit_link(&kit, n, &references),
+        Cmd::Kit(KitCmd::Unlink { kit, n, reference }) => inv.kit_unlink(&kit, n, &reference),
+        Cmd::Kit(KitCmd::List) => inv.kit_list(),
+        Cmd::Kit(KitCmd::Show { kit }) => inv.kit_show(&kit),
+        Cmd::Kit(KitCmd::Remove { kit }) => inv.kit_remove(&kit),
         Cmd::Goal { goal } => inv.goal(goal.as_deref()),
         Cmd::Observe {
             reference,

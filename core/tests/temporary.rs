@@ -116,3 +116,23 @@ fn what_waits_in_a_parking_place_is_on_the_todo_list_until_it_moves_or_the_place
     assert_eq!(inv.todo().unwrap()["counts"]["parked"], 0);
     assert!(inv.edit("Çekmece", &["temporary=maybe".into()]).is_err());
 }
+
+#[test]
+fn one_item_can_wait_among_things_that_do_belong_where_it_is() {
+    let (_d, mut inv) = setup();
+    // The cabinet is the keys' final place; one spare key only waits there.
+    inv.edit("Yedek anahtar", &["temporary=true".into()])
+        .unwrap();
+    let v = inv.todo().unwrap();
+    let parked: Vec<&str> = v["parked"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(parked, ["Yedek anahtar"]);
+    assert_eq!(v["parked"][0]["in"]["name"], "Dolap");
+    // The cabinet itself is still offered: only the one key is parked.
+    let s = inv.suggest("anahtar", None).unwrap();
+    assert_eq!(s["similar"][0]["container"]["name"], "Dolap");
+}

@@ -1,24 +1,21 @@
-//! Reading a Sweet Home 3D floor plan (spec §31): its rooms' outlines and what stands in them,
-//! so a home is sketched from the plan the person already drew instead of by hand.
+//! Reading a Sweet Home 3D floor plan (spec §31): its rooms' outlines, so a home is sketched
+//! from the plan the person already drew instead of by hand.
 //!
 //! A `.sh3d` file is a zip whose `Home.xml` (Sweet Home 3D 5.3 and later) lists every room as
-//! its corners and every piece of furniture, door and window by its centre, size and angle, in
-//! centimetres with y growing downwards — the frame the map uses.
+//! its corners, every wall by its ends and thickness, and every piece of furniture by its
+//! centre, size and angle, in centimetres with y growing downwards — the frame the map uses.
 
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension};
 use serde_json::{Value, json};
 
 use crate::error::{Error, Result};
 use crate::map::{Sketch, sketch_of, write_sketch};
 use crate::model::{Kind, State};
 use crate::store::{Inventory, brief_json, event, load, resolve};
-
-/// How near a door or window must be to a room's outline to be drawn in it: a wall's width.
-const WALL: f64 = 30.0;
 
 struct PlanRoom {
     name: String,
@@ -31,12 +28,10 @@ struct Wall {
     thickness: f64,
 }
 
+/// A piece of the plan's furniture: `Table#2` for the second one named Table, and its
+/// footprint, turned as it stands: x, y, w, d.
 struct PlanPiece {
-    /// `Table#2` for the second piece named Table; a door or window keeps its name.
     label: String,
-    name: String,
-    kind: &'static str,
-    /// Its footprint, turned as it stands: x, y, w, d.
     rect: [f64; 4],
 }
 
@@ -92,7 +87,7 @@ fn read_plan(file: &Path) -> Result<Plan> {
                     });
                 }
             }
-            tag @ ("pieceOfFurniture" | "doorOrWindow") => {
+            "pieceOfFurniture" => {
                 if n.attribute("visible") == Some("false") {
                     continue;
                 }
@@ -105,29 +100,10 @@ fn read_plan(file: &Path) -> Result<Plan> {
                 let (s, c) = (a.sin().abs(), a.cos().abs());
                 let (bw, bd) = (w * c + d * s, w * s + d * c);
                 let name = n.attribute("name").unwrap_or("?").trim().to_string();
-                let what = format!(
-                    "{} {}",
-                    name.to_lowercase(),
-                    n.attribute("catalogId").unwrap_or_default().to_lowercase()
-                );
-                let kind = if tag == "pieceOfFurniture" {
-                    "piece"
-                } else if what.contains("door") || what.contains("kapı") {
-                    "door"
-                } else {
-                    "window"
-                };
-                let label = if kind == "piece" {
-                    let k = seen.entry(name.clone()).or_default();
-                    *k += 1;
-                    format!("{name}#{k}")
-                } else {
-                    name.clone()
-                };
+                let k = seen.entry(name.clone()).or_default();
+                *k += 1;
                 pieces.push(PlanPiece {
-                    label,
-                    name,
-                    kind,
+                    label: format!("{name}#{k}"),
                     rect: [x - bw / 2.0, y - bd / 2.0, bw, bd],
                 });
             }
@@ -163,16 +139,6 @@ fn to_segment(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
     };
     let (cx, cy) = (a[0] + t * dx, a[1] + t * dy);
     ((p[0] - cx).powi(2) + (p[1] - cy).powi(2)).sqrt()
-}
-
-/// How far a point is from a polygon: 0 inside, else the distance to its nearest edge.
-fn distance(p: [f64; 2], poly: &[[f64; 2]]) -> f64 {
-    if inside(p, poly) {
-        return 0.0;
-    }
-    (0..poly.len())
-        .map(|i| to_segment(p, poly[i], poly[(i + 1) % poly.len()]))
-        .fold(f64::MAX, f64::min)
 }
 
 /// A room the plan did not draw, found from its walls: the space around `seed` that walls and
@@ -334,12 +300,11 @@ fn pairs(list: &[String], what: &str) -> Result<HashMap<String, String>> {
 
 impl Inventory {
     /// Sketches the home from a Sweet Home 3D plan: each room of the plan gives its outline to
-    /// the room of the same name (or the one `--room "<plan name>=<ref>"` names), a piece named
-    /// with `--piece "<Table#2>=<ref>"` gives its place and size to that record, and every other
-    /// piece, door and window becomes a mark in the room it stands in, drawn on the map to find
-    /// one's way; one in no room is left out. `--space "<ref>@x,y"` gives a room the plan did
-    /// not draw the space around that point closed in by walls and the plan's rooms. All marks
-    /// are replaced; rooms of the plan with no record are listed, not made.
+    /// the room of the same name (or the one `--room "<plan name>=<ref>"` names), and a piece
+    /// of the plan's furniture named with `--piece "<Table#2>=<ref>"` gives its place and size
+    /// to that record. Nothing else of the plan is drawn. `--space "<ref>@x,y"` gives a room
+    /// the plan did not draw the space around that point closed in by walls and the plan's
+    /// rooms. Rooms of the plan with no record are listed, not made.
     pub fn sketch_import(
         &mut self,
         file: &Path,
@@ -437,23 +402,15 @@ impl Inventory {
                 "changed": changed,
             }));
         }
-        tx.execute("DELETE FROM sketch_marks", [])?;
+        // The plan's furniture is listed to choose from, and placed only on the record it is
+        // named for: what the plan shows that is no record here is not drawn.
         let mut out_pieces = Vec::new();
-        let mut marks = 0;
         for p in &plan_pieces {
             let centre = [p.rect[0] + p.rect[2] / 2.0, p.rect[1] + p.rect[3] / 2.0];
-            let near: Vec<i64> = matched
+            let room = matched
                 .iter()
-                .filter(|(_, r, _)| {
-                    let d = distance(centre, &r.points);
-                    if p.kind == "piece" {
-                        d == 0.0
-                    } else {
-                        d <= WALL
-                    }
-                })
-                .map(|m| m.0)
-                .collect();
+                .find(|(_, r, _)| inside(centre, &r.points))
+                .map(|m| m.0);
             let linked = match piece_map.get(&crate::fold(&p.label)) {
                 Some(reference) => {
                     let id = resolve(&tx, reference, false)?;
@@ -471,34 +428,12 @@ impl Inventory {
                 }
                 None => None,
             };
-            // A piece in no room (a cupboard in a wall's niche) is left out.
-            if linked.is_none() {
-                for h in near.iter().copied() {
-                    let o = origin(&tx, h)?;
-                    tx.execute(
-                        "INSERT INTO sketch_marks (node_id, kind, name, x, y, w, d)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                        params![
-                            h,
-                            p.kind,
-                            p.name,
-                            p.rect[0] - o[0],
-                            p.rect[1] - o[1],
-                            p.rect[2],
-                            p.rect[3]
-                        ],
-                    )?;
-                    marks += 1;
-                }
-            }
-            if p.kind == "piece" {
-                out_pieces.push(json!({
-                    "ref": p.label,
-                    "room": match near.first() { Some(r) => brief_json(&tx, *r)?, None => Value::Null },
-                    "linked": match linked { Some(l) => brief_json(&tx, l)?, None => Value::Null },
-                    "size": [p.rect[2].round(), p.rect[3].round()],
-                }));
-            }
+            out_pieces.push(json!({
+                "ref": p.label,
+                "room": match room { Some(r) => brief_json(&tx, r)?, None => Value::Null },
+                "linked": match linked { Some(l) => brief_json(&tx, l)?, None => Value::Null },
+                "size": [p.rect[2].round(), p.rect[3].round()],
+            }));
         }
         // Rooms of the home the plan does not have.
         let mut missing = Vec::new();
@@ -520,7 +455,6 @@ impl Inventory {
             json!({
                 "file": file.file_name().map(|f| f.to_string_lossy().to_string()),
                 "rooms": out_rooms.len(),
-                "marks": marks,
             }),
         )?;
         let out = json!({
@@ -528,7 +462,6 @@ impl Inventory {
             "unmatched": unmatched,
             "not_in_plan": missing,
             "pieces": out_pieces,
-            "marks": marks,
             "dry_run": dry_run,
         });
         if !dry_run {
@@ -543,7 +476,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_point_is_inside_an_l_and_near_its_wall() {
+    fn a_point_is_inside_an_l_and_near_a_wall() {
         let l = [
             [0.0, 0.0],
             [10.0, 0.0],
@@ -554,6 +487,6 @@ mod tests {
         ];
         assert!(inside([2.0, 8.0], &l));
         assert!(!inside([8.0, 8.0], &l));
-        assert!((distance([8.0, 6.0], &l) - 2.0).abs() < 1e-9);
+        assert!((to_segment([8.0, 6.0], [4.0, 4.0], [10.0, 4.0]) - 2.0).abs() < 1e-9);
     }
 }

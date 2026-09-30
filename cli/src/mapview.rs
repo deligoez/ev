@@ -495,9 +495,8 @@ impl MapView {
         f.render_widget(Paragraph::new(hints).fg(pal().muted), bottom);
     }
 
-    /// A floor plan: rooms as floors of their own shape and tone, the place's own floor, what
-    /// the plan shows that is no record (doors, windows, a bed), and the things with a place
-    /// in it as frames.
+    /// A floor plan: rooms as floors of their own shape and tone, the place's own floor, and
+    /// the things with a place in it as frames.
     fn draw_plan(&mut self, f: &mut Frame, area: Rect, tiles: &[Value], selected: Option<i64>) {
         let (w, h) = (area.width as usize, area.height as usize);
         if w == 0 || h == 0 {
@@ -614,77 +613,6 @@ impl MapView {
                 buf[(area.x + x as u16, area.y + y as u16)]
                     .set_char(' ')
                     .set_bg(bg);
-            }
-        }
-        // What the plan shows that is no record here.
-        for m in self.map["size"]["marks"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-        {
-            let Some(fr) = rect_of(&m) else { continue };
-            let r = frac_rect(area, &fr);
-            match m["kind"].as_str().unwrap_or_default() {
-                "door" | "window" => {
-                    // A line along the wall it sits in, at the wall's middle: the wall runs
-                    // the long way of its footprint, in centimetres.
-                    let s = &self.map["size"];
-                    let across = fr[2] * s["w"].as_f64().unwrap_or(1.0)
-                        >= fr[3] * s["d"].as_f64().unwrap_or(1.0);
-                    let (c, fg) = match (m["kind"] == "door", across) {
-                        (true, true) => ('┄', pal().furniture),
-                        (true, false) => ('┆', pal().furniture),
-                        (false, true) => ('═', pal().blue),
-                        (false, false) => ('║', pal().blue),
-                    };
-                    // The line goes on the floor's edge next to it, not in the wall, which the
-                    // map does not draw: the nearest row (or column) with floor under most of
-                    // it, a few cells either way, and only over floor.
-                    let floor_at = |x: u16, y: u16| {
-                        x >= area.x
-                            && y >= area.y
-                            && x < area.x + area.width
-                            && y < area.y + area.height
-                            && owner[(y - area.y) as usize * w + (x - area.x) as usize].is_some()
-                    };
-                    let (from, len) = if across {
-                        (r.y + r.height / 2, r.width)
-                    } else {
-                        (r.x + r.width / 2, r.height)
-                    };
-                    let cells = |k: u16| -> Vec<(u16, u16)> {
-                        (0..len)
-                            .map(|i| if across { (r.x + i, k) } else { (k, r.y + i) })
-                            .filter(|&(x, y)| floor_at(x, y))
-                            .collect()
-                    };
-                    let reach = if across { r.height } else { r.width } + 3;
-                    let line = (0..=reach)
-                        .flat_map(|d| [from.saturating_sub(d), from + d])
-                        .map(cells)
-                        .find(|c| c.len() * 2 >= len as usize);
-                    let buf = f.buffer_mut();
-                    for (x, y) in line.unwrap_or_default() {
-                        buf[(x, y)].set_char(c).set_fg(fg);
-                    }
-                }
-                _ if r.width >= 4 && r.height >= 3 => {
-                    let name = m["name"].as_str().unwrap_or_default();
-                    f.render_widget(
-                        Block::bordered()
-                            .border_style(Style::new().fg(pal().muted))
-                            .title(Span::styled(name.to_string(), Style::new().fg(pal().muted))),
-                        r,
-                    );
-                }
-                _ => {
-                    let buf = f.buffer_mut();
-                    for y in r.y..r.y + r.height {
-                        for x in r.x..r.x + r.width {
-                            buf[(x, y)].set_char('░').set_fg(pal().muted);
-                        }
-                    }
-                }
             }
         }
         // Things with a place in it (furniture in a room) as frames on the floor.

@@ -133,22 +133,6 @@ pub(crate) fn write_sketch(conn: &Connection, id: i64, after: &Sketch) -> Result
     Ok(true)
 }
 
-/// What a plan shows in a place that is no record here (a bed, a door, a window), in the
-/// place's frame: kind, name and rectangle.
-fn marks_of(conn: &Connection, id: i64) -> Result<Vec<(String, String, [f64; 4])>> {
-    let mut stmt = conn.prepare(
-        "SELECT kind, name, x, y, w, d FROM sketch_marks WHERE node_id = ?1 ORDER BY id",
-    )?;
-    let rows = stmt.query_map([id], |r| {
-        Ok((
-            r.get(0)?,
-            r.get(1)?,
-            [r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?],
-        ))
-    })?;
-    Ok(rows.collect::<std::result::Result<_, _>>()?)
-}
-
 /// `x,y x,y …`: the corners of an outline, three or more.
 fn outline(s: &str) -> Result<Vec<[f64; 2]>> {
     let bad = || {
@@ -354,7 +338,7 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
         return Ok(("grid".into(), tiles, unplaced, size));
     }
     // A sketch: the things in it that say where they lie, seen from above, drawn with the
-    // place's own outline and what its plan shows that is no record (beds, doors, windows).
+    // place's own outline.
     let own = sketch_of(conn, id)?;
     let mut placed = Vec::new();
     let mut loose = Vec::new();
@@ -365,9 +349,8 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
             None => loose.push(*c),
         }
     }
-    let marks = marks_of(conn, id)?;
     // A room with an outline is drawn as its floor plan even before anything in it has a place.
-    if !placed.is_empty() || own.points.is_some() || !marks.is_empty() {
+    if !placed.is_empty() || own.points.is_some() {
         let floor: Option<Vec<[f64; 2]>> = match (&own.points, own.x, own.y) {
             (Some(pts), Some(x), Some(y)) => {
                 Some(pts.iter().map(|p| [p[0] - x, p[1] - y]).collect())
@@ -376,8 +359,8 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
         };
         // The view: the place's own size and everything drawn in it.
         let mut view = own.w.zip(own.d).map(|(w, d)| [0.0, 0.0, w, d]);
-        for r in placed.iter().map(|p| p.2).chain(marks.iter().map(|m| m.2)) {
-            view = Some(union(view, r));
+        for (_, _, r) in &placed {
+            view = Some(union(view, *r));
         }
         let [vx, vy, vw, vd] = view.unwrap_or([0.0, 0.0, 1.0, 1.0]);
         let (vw, vd) = (vw.max(1e-9), vd.max(1e-9));
@@ -409,14 +392,6 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
         let mut size = json!({ "w": vw.round(), "d": vd.round() });
         if let Some(f) = floor {
             size["floor"] = json!(f.iter().map(|q| point(*q)).collect::<Vec<_>>());
-        }
-        if !marks.is_empty() {
-            size["marks"] = json!(
-                marks
-                    .iter()
-                    .map(|(k, n, r)| json!({ "kind": k, "name": n, "rect": frac(*r).map(round4) }))
-                    .collect::<Vec<_>>()
-            );
         }
         return Ok(("sketch".into(), tiles, unplaced, size));
     }

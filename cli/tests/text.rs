@@ -179,3 +179,23 @@ fn tree_nests_the_home_and_lists_the_lost_apart_with_where_they_were_last_seen()
     );
     assert_eq!(s.matches("Aktif buzzer").count(), 1, "{s}");
 }
+
+#[test]
+fn photo_add_and_list_name_the_node_then_each_photo_by_number_with_its_note() {
+    let h = Home::new();
+    let file = h.dir.path().join("kutu.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([200, 30, 30]))
+        .save(&file)
+        .unwrap();
+    let file = file.to_str().unwrap();
+    h.run(&["photo", "add", "D-B1", file, "--note", "ön yüz"], None);
+    let s = h.text(&["photo", "add", "D-B1", file, "--crop", "0,0,0.5,1"]);
+    assert!(s.starts_with("#5 Ev › Oda › D › D-B1  [Kutu]\n"), "{s}");
+    assert!(s.contains(".png  — ön yüz\n"), "{s}");
+    assert!(
+        s.contains("\n  2. ") && s.contains("  crop 0.0000,0.0000,0.5000,1.0000\n"),
+        "{s}"
+    );
+    assert!(!s.contains('{'), "{s}");
+    assert_eq!(s, h.text(&["photo", "list", "D-B1"]));
+}

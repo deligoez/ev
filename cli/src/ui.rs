@@ -460,7 +460,7 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     let mut out = Vec::new();
     // One of a thing is the default; only a count says something.
     if let Some(q) = n["qty"].as_i64().filter(|q| *q != 1) {
-        out.push(Span::styled(format!("  ×{q}"), Style::new().fg(pal().qty)));
+        out.push(Span::raw(format!("  ×{q}")));
     }
     if n["state"] == "candidate" {
         let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());

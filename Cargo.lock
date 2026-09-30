@@ -610,6 +610,7 @@ dependencies = [
  "serde_json",
  "sys-locale",
  "tempfile",
+ "zip",
 ]
 
 [[package]]

@@ -4017,6 +4017,49 @@ mod tests {
         assert!(s.contains("Mutfak 1 eşya  · Kupa"), "{s}");
     }
 
+    #[test]
+    fn a_window_in_the_wall_is_drawn_on_the_floors_edge() {
+        use std::io::Write;
+        let (dir, mut inv) = home();
+        add(&mut inv, "Salon", "room", "Ev", None);
+        // A room 400×300 with a window in its top wall, outside the floor.
+        let plan = dir.path().join("home.sh3d");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&plan).unwrap());
+        zip.start_file(
+            "Home.xml",
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored),
+        )
+        .unwrap();
+        zip.write_all(
+            br#"<home><room name="Salon"><point x="0" y="0"/><point x="400" y="0"/>
+            <point x="400" y="300"/><point x="0" y="300"/></room>
+            <doorOrWindow name="Window" catalogId="eTeks#window" x="200" y="-10"
+              width="120" depth="20" height="120"/></home>"#,
+        )
+        .unwrap();
+        zip.finish().unwrap();
+        inv.sketch_import(&plan, &[], &[], &[], false).unwrap();
+        let mut app = app_tr(inv);
+        let mut term = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        press(&mut app, KeyCode::Char('M'));
+        press(&mut app, KeyCode::Enter);
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        // An empty room with an outline still opens: its plan is what there is to see.
+        assert!(s.contains("Ev › Salon"), "{s}");
+        let buf = term.backend().buffer().clone();
+        let windows: Vec<_> = (0..buf.area.height)
+            .flat_map(|y| (0..buf.area.width).map(move |x| (x, y)))
+            .filter(|&(x, y)| buf[(x, y)].symbol() == "═")
+            .collect();
+        assert!(!windows.is_empty(), "{s}");
+        // Every piece of the line lies on the floor, none out in the unpainted wall.
+        for (x, y) in windows {
+            assert_eq!(buf[(x, y)].bg, theme::pal().floor, "{s}");
+        }
+    }
+
     fn shown(app: &mut App, reference: &str, w: u16, h: u16) -> String {
         let id = app.inv.resolve(reference, false).unwrap();
         app.reveal(id).unwrap();

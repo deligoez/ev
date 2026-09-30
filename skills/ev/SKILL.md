@@ -6,8 +6,9 @@ description: Agent-first home inventory. Use when the user talks about where thi
 # ev — home inventory for an agent in conversation
 
 The person stands at the shelves and reports; you record through `ev`; either of you asks
-`ev` where something is. `ev` prints JSON when piped, so read its stdout as JSON and its
-stderr as the error channel.
+`ev` where something is. `ev` prints JSON when piped — parse it when you need ids or fields
+to act on, and add `--text` when you only need to read the result — and its stderr is the
+error channel.
 
 ## Model in one paragraph
 
@@ -233,8 +234,9 @@ not as a count on an unplaced record, so the grid shows it.
 **Every photo of a place is attached the moment it arrives** — including one the person sends
 only to confirm a state ("son hali bu mu?"). A photo that confirmed something and was not
 attached leaves the place's current photo older than the place, which is the exact slip this
-rule exists for. The newest photo is the current one; older photos stay as history, never
-replaced or removed.
+rule exists for. The newest photo is the current one; a place's older photos stay as history,
+never replaced or removed. (A thing's group photo is different: see below — it is cropped per
+record, and a record split in two loses the whole photo for its own crops.)
 
 When the person sends a photo of a drawer or box, first confirm its contents against the
 records. Then attach it in one step. **A drawer with a grid is cut by its corners**:

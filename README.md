@@ -106,8 +106,8 @@ their cells.
 **A map to walk.** `ev map <place>` lays out what is in a place: on its grid, on a sketch in
 centimetres (`ev sketch <room> --size 400,300`, `ev sketch <desk> --at 0,0 --size 120,60`), or on
 their own. A floor plan drawn in Sweet Home 3D sketches the whole home in one step
-(`ev sketch --import home.sh3d`): rooms keep their shapes, and beds, doors and windows are
-drawn to find one's way; furniture standing on another (`ev sketch K4x2 --on K4x4`) is drawn with it, front on,
+(`ev sketch --import home.sh3d`): rooms keep their shapes, and only what the person names
+from it is placed; furniture standing on another (`ev sketch K4x2 --on K4x4`) is drawn with it, front on,
 top first. In `ev ui`, `M` opens it full screen on the home, the rooms first, with the way to
 the selected node already chosen on every level: the arrows walk the tiles, Enter goes in — home, room, Kallax, drawer, gridfinity box — Backspace comes back up, and `t`
 shows the chosen tile in the tree. Each tile names what is in it.

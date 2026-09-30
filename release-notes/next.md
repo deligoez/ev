@@ -7,7 +7,7 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 ## Upgrading
 
 The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
-sketches, 15: grid faces, 16: room outlines and plan marks) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -65,8 +65,7 @@ sketches, 15: grid faces, 16: room outlines and plan marks) the first time this 
 - **A floor plan from Sweet Home 3D: `ev sketch --import home.sh3d`.** The rooms of the plan
   give their outlines to the rooms of the same name (`--room` maps the others; a balcony inside
   its room is placed in that room's frame), `--piece Table#2=<ref>` places a record where the
-  plan shows it, and the plan's other furniture, doors and windows are drawn as marks to find
-  one's way (one in no room is left out). A room the plan did not draw, like a hall, is found
+  plan shows it; nothing else of the plan is drawn. A room the plan did not draw, like a hall, is found
   from the walls around a point in it: `--space "Antre@1500,1000"`. `M` in `ev ui` then draws the home as a floor plan: each room a floor of its own
   shape and tone, meeting its neighbours without the gap of the wall between, its name where
   it is widest, the chosen one lit; the line under the map says

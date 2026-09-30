@@ -65,7 +65,7 @@ fn setup() -> (tempfile::TempDir, Inventory, std::path::PathBuf) {
 }
 
 #[test]
-fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
+fn a_plan_gives_rooms_their_outlines_and_places_only_the_named_pieces() {
     let (_d, mut inv, p) = setup();
     let v = inv
         .sketch_import(
@@ -96,14 +96,29 @@ fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
         (20.0.into(), 60.0.into())
     );
     assert_eq!(v["pieces"][0]["linked"]["name"], "Masa");
-    // The bed, turned a quarter, and the door in the wall are marks; the hidden lamp is not.
-    assert_eq!(v["marks"], 2);
+    // Nothing else of the plan is drawn: not the bed, the door, nor the hidden lamp. The map
+    // is the room's floor and the record placed in it.
     let m = inv.map(Some("Salon")).unwrap();
     assert_eq!(m["layout"], "sketch");
-    let marks: Vec<&Value> = m["size"]["marks"].as_array().unwrap().iter().collect();
-    assert_eq!(marks[0]["name"], "Bed");
-    assert_eq!(marks[1]["kind"], "door");
+    assert!(m["size"]["marks"].is_null());
+    let names: Vec<&Value> = m["tiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| &t["name"])
+        .collect();
+    assert_eq!(names, ["Salon balkonu", "Masa"]);
     assert!(m["size"]["floor"].as_array().unwrap().len() == 6);
+    let refs: Vec<&Value> = v["pieces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| &p["ref"])
+        .collect();
+    assert!(
+        !refs.iter().any(|r| *r == "Door" || *r == "Lamp#1"),
+        "{refs:?}"
+    );
     // The home: the hall a tile of its own shape, the balcony drawn as part of it.
     let home = inv.map(None).unwrap();
     let t = &home["tiles"][0];
@@ -157,7 +172,7 @@ fn a_room_the_plan_did_not_draw_is_found_from_its_walls() {
         (200.0.into(), 200.0.into())
     );
     assert_eq!(m["points"].as_array().unwrap().len(), 4);
-    // What stands in it is marked there now; a piece in no room at all is left out.
+    // The plan's furniture is listed with the room it stands in, to name one for a record.
     let chair = v["pieces"]
         .as_array()
         .unwrap()
@@ -170,8 +185,6 @@ fn a_room_the_plan_did_not_draw_is_found_from_its_walls() {
         .iter()
         .find(|p| p["ref"] == "Cupboard#1");
     assert!(cupboard.unwrap()["room"].is_null());
-    // Bed, table (not placed on a record this time), door and chair.
-    assert_eq!(v["marks"], 4);
     // A space open to the outside, a point in a wall, a point off the plan: refused.
     for bad in [
         "Mutfak@1100,150",

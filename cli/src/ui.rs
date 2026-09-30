@@ -4018,11 +4018,11 @@ mod tests {
     }
 
     #[test]
-    fn a_window_in_the_wall_is_drawn_on_the_floors_edge() {
+    fn a_room_from_a_plan_shows_its_floor_and_nothing_of_the_plan_it_was_not_asked_for() {
         use std::io::Write;
         let (dir, mut inv) = home();
         add(&mut inv, "Salon", "room", "Ev", None);
-        // A room 400×300 with a window in its top wall, outside the floor.
+        // A room 400×300 with a window in its wall and a sink in it.
         let plan = dir.path().join("home.sh3d");
         let mut zip = zip::ZipWriter::new(std::fs::File::create(&plan).unwrap());
         zip.start_file(
@@ -4035,7 +4035,9 @@ mod tests {
             br#"<home><room name="Salon"><point x="0" y="0"/><point x="400" y="0"/>
             <point x="400" y="300"/><point x="0" y="300"/></room>
             <doorOrWindow name="Window" catalogId="eTeks#window" x="200" y="-10"
-              width="120" depth="20" height="120"/></home>"#,
+              width="120" depth="20" height="120"/>
+            <pieceOfFurniture name="Sink" catalogId="eTeks#sink" x="200" y="150"
+              width="120" depth="60" height="90"/></home>"#,
         )
         .unwrap();
         zip.finish().unwrap();
@@ -4046,17 +4048,13 @@ mod tests {
         press(&mut app, KeyCode::Enter);
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        // An empty room with an outline still opens: its plan is what there is to see.
+        // An empty room with an outline still opens: its floor is what there is to see.
         assert!(s.contains("Ev › Salon"), "{s}");
-        let buf = term.backend().buffer().clone();
-        let windows: Vec<_> = (0..buf.area.height)
-            .flat_map(|y| (0..buf.area.width).map(move |x| (x, y)))
-            .filter(|&(x, y)| buf[(x, y)].symbol() == "═")
-            .collect();
-        assert!(!windows.is_empty(), "{s}");
-        // Every piece of the line lies on the floor, none out in the unpainted wall.
-        for (x, y) in windows {
-            assert_eq!(buf[(x, y)].bg, theme::pal().floor, "{s}");
+        let floor = term.backend().buffer()[(40, 15)].bg;
+        assert_eq!(floor, theme::pal().floor, "{s}");
+        // No window line, no sink frame: the plan gave the room its shape and nothing else.
+        for glyph in ["═", "║", "┄", "┆", "┌", "Sink"] {
+            assert!(!s.contains(glyph), "{glyph}\n{s}");
         }
     }
 

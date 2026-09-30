@@ -465,7 +465,8 @@ impl App {
     }
 
     pub(super) fn list_row(&self, n: &Value, extra: Vec<Span<'static>>) -> Row {
-        let mut spans = path_spans(n["path_text"].as_str().unwrap_or_default());
+        let mut spans = vec![kind_mark(n)];
+        spans.extend(path_spans(n["path_text"].as_str().unwrap_or_default()));
         spans.extend(extra);
         Row {
             id: n["id"].as_i64().unwrap_or_default(),

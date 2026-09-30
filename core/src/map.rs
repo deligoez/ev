@@ -140,7 +140,7 @@ fn tile(conn: &Connection, n: &Node, rect: [f64; 4]) -> Result<Value> {
         .collect();
     names.sort_by(|a, b| {
         a.0.cmp(&b.0)
-            .then(a.1.to_lowercase().cmp(&b.1.to_lowercase()))
+            .then(crate::fold(&a.1).cmp(&crate::fold(&b.1)))
     });
     t["contents"] = json!(
         names
@@ -266,7 +266,7 @@ fn layout(conn: &Connection, id: i64) -> Result<(String, Vec<Value>, Vec<Value>,
             n.kind == Kind::Item,
             n.code.is_none(),
             n.code.clone().unwrap_or_default(),
-            n.name.to_lowercase(),
+            crate::fold(&n.name),
         )
     });
     let rects = auto_rects(order.len());

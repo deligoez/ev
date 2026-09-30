@@ -171,16 +171,19 @@ const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','fo
 /// to the place itself counts: it was cut from a wider view to show that place (a box cut out of
 /// a drawer photo). Crops on the things inside do not. Things moved out count as a change.
 /// When what `id` physically holds last changed: something below it was added, moved, found,
-/// lost or left, or something was moved out of it.
+/// lost or left, or something was moved out of it. A record born of `ev split` is not a thing
+/// added: the same things lie there, only recorded apart.
 pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<String>> {
     Ok(conn.query_row(
         &format!(
             "WITH RECURSIVE d(id) AS (
                  SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
              )
-             SELECT MAX(at) FROM events
-              WHERE (node_id IN d AND node_id != ?1 AND type IN ({CONTENT_EVENTS}))
-                 OR (type IN ('move','done') AND json_extract(data, '$.from') IN d)"
+             SELECT MAX(e.at) FROM events e
+              WHERE (e.node_id IN d AND e.node_id != ?1 AND e.type IN ({CONTENT_EVENTS})
+                     AND NOT (e.type = 'create' AND EXISTS (
+                         SELECT 1 FROM events s WHERE s.node_id = e.node_id AND s.type = 'split_from')))
+                 OR (e.type IN ('move','done') AND json_extract(e.data, '$.from') IN d)"
         ),
         [id],
         |r| r.get(0),

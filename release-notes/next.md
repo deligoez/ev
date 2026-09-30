@@ -6,8 +6,8 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 
 ## Upgrading
 
-The database moves from schema 11 to **schema 14** (12: kits, 13: parking places, 14:
-sketches) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
+sketches, 15: grid faces) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -61,6 +61,10 @@ sketches) the first time this version opens it; v0.14.0 then refuses it with exi
   label, theme, count and fill and names what is in it. Schema 14.
 - **`ev grid` takes several references** with `--cols`/`--rows` and gives each the same grid,
   all or none: the sixteen two-drawer compartments of a Kallax in one call.
+- **A grid knows which way it is seen: `ev grid <ref> --face front`.** A drawer is seen from
+  above, its row 1 at the back; a Kallax and its compartments are seen from the front, row 1
+  at the top. Every grid used to say "row 1 at the back", which was wrong for furniture.
+  Schema 15.
 
 ## Changed
 

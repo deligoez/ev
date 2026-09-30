@@ -3,6 +3,8 @@
 //!
 //! Like the rest of `ev ui` it never writes: each level is `ev map` of the place shown.
 
+use std::collections::{HashMap, HashSet};
+
 use ev_core::{Inventory, Result};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -37,6 +39,8 @@ pub struct MapView {
     /// The way from the home down to the node selected in the tree when the map was opened:
     /// on each level the tile on it is chosen, so Enter after Enter leads to that node.
     trail: Vec<i64>,
+    /// A floor plan's cells and the room each belongs to, for the mouse.
+    raster: Option<(Rect, Vec<Option<i64>>)>,
 }
 
 /// A rectangle given in fractions of `area`, in whole cells. Neighbours share an edge exactly,
@@ -86,6 +90,68 @@ fn rect_of(t: &Value) -> Option<[f64; 4]> {
     ])
 }
 
+/// Corners given as `[[x, y], …]`.
+fn polygon(v: &Value) -> Vec<[f64; 2]> {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|p| Some([p[0].as_f64()?, p[1].as_f64()?]))
+        .collect()
+}
+
+fn inside(p: [f64; 2], poly: &[[f64; 2]]) -> bool {
+    let mut odd = false;
+    let mut j = poly.len() - 1;
+    for i in 0..poly.len() {
+        let (a, b) = (poly[i], poly[j]);
+        if (a[1] > p[1]) != (b[1] > p[1])
+            && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]
+        {
+            odd = !odd;
+        }
+        j = i;
+    }
+    odd
+}
+
+/// One line on the chosen tile: its label, what it is for, how much it holds and what is in it.
+fn summary(t: &Value) -> Line<'static> {
+    let mut spans = vec![Span::styled(
+        format!(" {} ", title_of(t)),
+        Style::new().bold(),
+    )];
+    if t["code"].is_string() {
+        let what = t["theme"]
+            .as_str()
+            .or(t["name"].as_str())
+            .unwrap_or_default();
+        spans.push(Span::raw(format!("{what}  ")));
+    }
+    spans.push(Span::styled(
+        tf("{} items", &[&t["items"]]),
+        Style::new().fg(pal().qty),
+    ));
+    if t["unknown"] == true {
+        spans.push(Span::styled(
+            format!("  {}", crate::i18n::t("contents unknown")),
+            Style::new().fg(pal().mark),
+        ));
+    }
+    let names: Vec<&str> = t["contents"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    if !names.is_empty() {
+        spans.push(Span::styled(
+            format!("  · {}", names.join(" · ")),
+            Style::new().fg(pal().muted),
+        ));
+    }
+    Line::from(spans)
+}
+
 fn title_of(n: &Value) -> String {
     n["code"]
         .as_str()
@@ -106,6 +172,7 @@ impl MapView {
             hits: Vec::new(),
             status: String::new(),
             trail: Vec::new(),
+            raster: None,
         };
         if let Some(id) = select {
             v.select_id(id);
@@ -283,7 +350,14 @@ impl MapView {
         let hit = self.hits.iter().find(|(r, _)| {
             column >= r.x && column < r.x + r.width && row >= r.y && row < r.y + r.height
         });
-        let Some(&(_, id)) = hit else {
+        let from_plan = || {
+            let (a, cells) = self.raster.as_ref()?;
+            if column < a.x || row < a.y || column >= a.x + a.width || row >= a.y + a.height {
+                return None;
+            }
+            cells[(row - a.y) as usize * a.width as usize + (column - a.x) as usize]
+        };
+        let Some(id) = hit.map(|h| h.1).or_else(from_plan) else {
             return Ok(());
         };
         if self.selected() == Some(id) {
@@ -306,9 +380,11 @@ impl MapView {
 
     pub fn draw(&mut self, f: &mut Frame) {
         self.hits.clear();
-        let [top, main, bottom] = Layout::vertical([
+        self.raster = None;
+        let [top, main, info, bottom] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(0),
+            Constraint::Length(1),
             Constraint::Length(1),
         ])
         .areas(f.area());
@@ -324,10 +400,13 @@ impl MapView {
             top,
         );
         let unplaced: Vec<Value> = self.map["unplaced"].as_array().cloned().unwrap_or_default();
+        // The things with no place yet, as many rows as they need, three at most.
+        let per_row = ((main.width.saturating_sub(2)) / 18).max(1) as usize;
+        let strip_rows = unplaced.len().div_ceil(per_row).min(3) as u16;
         let [area, strip] = if unplaced.is_empty() {
             [main, Rect::default()]
         } else {
-            Layout::vertical([Constraint::Min(0), Constraint::Length(3)]).areas(main)
+            Layout::vertical([Constraint::Min(0), Constraint::Length(strip_rows + 2)]).areas(main)
         };
         let area = if self.map["layout"] == "sketch" {
             let s = &self.map["size"];
@@ -341,7 +420,7 @@ impl MapView {
         };
         let selected = self.selected();
         let tiles: Vec<Value> = self.map["tiles"].as_array().cloned().unwrap_or_default();
-        if tiles.is_empty() && unplaced.is_empty() {
+        if tiles.is_empty() && unplaced.is_empty() && self.map["size"]["floor"].is_null() {
             f.render_widget(
                 Paragraph::new(t("(nothing here yet)")).fg(pal().muted),
                 area,
@@ -362,6 +441,8 @@ impl MapView {
                     self.draw_tile(f, frac_rect(inner, &local), tile, selected);
                 }
             }
+        } else if self.map["layout"] == "sketch" {
+            self.draw_plan(f, area, &tiles, selected);
         } else {
             for tile in &tiles {
                 let Some(r) = rect_of(tile) else { continue };
@@ -374,21 +455,30 @@ impl MapView {
                 .border_style(Style::new().fg(pal().muted));
             let inner = block.inner(strip);
             f.render_widget(block, strip);
-            let fits = (inner.width / 16).max(1) as usize;
-            let shown = unplaced.len().min(fits);
-            let cells =
-                Layout::horizontal(vec![Constraint::Ratio(1, shown as u32); shown]).split(inner);
-            for (tile, cell) in unplaced.iter().zip(cells.iter()) {
+            let cell_w = inner.width / per_row as u16;
+            for (k, tile) in unplaced.iter().enumerate().take(per_row * 3) {
+                let cell = Rect::new(
+                    inner.x + (k % per_row) as u16 * cell_w,
+                    inner.y + (k / per_row) as u16,
+                    cell_w.saturating_sub(1),
+                    1,
+                );
+                if cell.y >= inner.y + inner.height {
+                    break;
+                }
                 let mut style = Style::new();
                 if tile["id"].as_i64() == selected {
                     style = style.add_modifier(Modifier::REVERSED | Modifier::BOLD);
                 }
-                let text = format!("{}  {}", title_of(tile), tf("{} items", &[&tile["items"]]));
-                f.render_widget(Paragraph::new(Span::styled(text, style)), *cell);
+                f.render_widget(Paragraph::new(Span::styled(title_of(tile), style)), cell);
                 if let Some(id) = tile["id"].as_i64() {
-                    self.hits.push((*cell, id));
+                    self.hits.push((cell, id));
                 }
             }
+        }
+        // What the chosen tile holds, since a plan has no room to say it inside.
+        if let Some(t) = selected.and_then(|id| self.tile(id)) {
+            f.render_widget(Paragraph::new(summary(t)), info);
         }
         let hints = crate::ui::fit_hints(
             vec![
@@ -403,6 +493,216 @@ impl MapView {
             &self.status,
         );
         f.render_widget(Paragraph::new(hints).fg(pal().muted), bottom);
+    }
+
+    /// A floor plan: rooms as floors of their own shape and tone, the place's own floor, what
+    /// the plan shows that is no record (doors, windows, a bed), and the things with a place
+    /// in it as frames.
+    fn draw_plan(&mut self, f: &mut Frame, area: Rect, tiles: &[Value], selected: Option<i64>) {
+        let (w, h) = (area.width as usize, area.height as usize);
+        if w == 0 || h == 0 {
+            return;
+        }
+        const FLOOR: usize = usize::MAX;
+        let shaped: Vec<(usize, Vec<Vec<[f64; 2]>>)> = tiles
+            .iter()
+            .enumerate()
+            .filter_map(|(i, t)| {
+                let p: Vec<Vec<[f64; 2]>> = t["shapes"]
+                    .as_array()?
+                    .iter()
+                    .map(polygon)
+                    .filter(|p| p.len() >= 3)
+                    .collect();
+                (!p.is_empty()).then_some((i, p))
+            })
+            .collect();
+        let floor = polygon(&self.map["size"]["floor"]);
+        let mut owner: Vec<Option<usize>> = vec![None; w * h];
+        for y in 0..h {
+            for x in 0..w {
+                let p = [(x as f64 + 0.5) / w as f64, (y as f64 + 0.5) / h as f64];
+                owner[y * w + x] = shaped
+                    .iter()
+                    .find(|(_, ps)| ps.iter().any(|q| inside(p, q)))
+                    .map(|s| s.0)
+                    .or_else(|| (floor.len() >= 3 && inside(p, &floor)).then_some(FLOOR));
+            }
+        }
+        // Tones: rooms that meet across a wall get different ones. A wall is a gap of up to
+        // three cells across and two down (a cell is about twice as tall as it is wide).
+        let mut tone: HashMap<usize, usize> = HashMap::new();
+        for (i, _) in &shaped {
+            let mut used = HashSet::new();
+            for y in 0..h {
+                for x in 0..w {
+                    if owner[y * w + x] != Some(*i) {
+                        continue;
+                    }
+                    for (dx, dy) in [(3isize, 0isize), (0, 2), (-3, 0), (0, -2), (2, 0), (-2, 0)] {
+                        let (nx, ny) = (x as isize + dx, y as isize + dy);
+                        if nx >= 0
+                            && ny >= 0
+                            && (nx as usize) < w
+                            && (ny as usize) < h
+                            && let Some(j) = owner[ny as usize * w + nx as usize]
+                            && j != *i
+                            && let Some(k) = tone.get(&j)
+                        {
+                            used.insert(*k);
+                        }
+                    }
+                }
+            }
+            tone.insert(*i, (0..4).find(|k| !used.contains(k)).unwrap_or(0));
+        }
+        let buf = f.buffer_mut();
+        for y in 0..h {
+            for x in 0..w {
+                let bg = match owner[y * w + x] {
+                    None => continue,
+                    Some(FLOOR) => pal().floor,
+                    Some(i) if tiles[i]["id"].as_i64() == selected && selected.is_some() => {
+                        pal().room_chosen
+                    }
+                    Some(i) => pal().rooms[tone.get(&i).copied().unwrap_or(0)],
+                };
+                buf[(area.x + x as u16, area.y + y as u16)]
+                    .set_char(' ')
+                    .set_bg(bg);
+            }
+        }
+        // What the plan shows that is no record here.
+        for m in self.map["size"]["marks"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+        {
+            let Some(fr) = rect_of(&m) else { continue };
+            let r = frac_rect(area, &fr);
+            match m["kind"].as_str().unwrap_or_default() {
+                "door" | "window" => {
+                    // A line along the wall it sits in, at the wall's middle: the wall runs
+                    // the long way of its footprint, in centimetres.
+                    let s = &self.map["size"];
+                    let across = fr[2] * s["w"].as_f64().unwrap_or(1.0)
+                        >= fr[3] * s["d"].as_f64().unwrap_or(1.0);
+                    let (c, fg) = match (m["kind"] == "door", across) {
+                        (true, true) => ('┄', pal().furniture),
+                        (true, false) => ('┆', pal().furniture),
+                        (false, true) => ('═', pal().blue),
+                        (false, false) => ('║', pal().blue),
+                    };
+                    let buf = f.buffer_mut();
+                    if across {
+                        let y = r.y + r.height / 2;
+                        for x in r.x..r.x + r.width {
+                            buf[(x, y)].set_char(c).set_fg(fg);
+                        }
+                    } else {
+                        let x = r.x + r.width / 2;
+                        for y in r.y..r.y + r.height {
+                            buf[(x, y)].set_char(c).set_fg(fg);
+                        }
+                    }
+                }
+                _ if r.width >= 4 && r.height >= 3 => {
+                    let name = m["name"].as_str().unwrap_or_default();
+                    f.render_widget(
+                        Block::bordered()
+                            .border_style(Style::new().fg(pal().muted))
+                            .title(Span::styled(name.to_string(), Style::new().fg(pal().muted))),
+                        r,
+                    );
+                }
+                _ => {
+                    let buf = f.buffer_mut();
+                    for y in r.y..r.y + r.height {
+                        for x in r.x..r.x + r.width {
+                            buf[(x, y)].set_char('░').set_fg(pal().muted);
+                        }
+                    }
+                }
+            }
+        }
+        // Things with a place in it (furniture in a room) as frames on the floor.
+        for tile in tiles {
+            if tile["shapes"].is_array() {
+                continue;
+            }
+            let Some(r) = rect_of(tile) else { continue };
+            self.draw_tile(f, frac_rect(area, &r), tile, selected);
+        }
+        // Each room's name where it is widest.
+        let buf = f.buffer_mut();
+        for (i, _) in &shaped {
+            let owned = |x: usize, y: usize| owner[y * w + x] == Some(*i);
+            let mut best: Option<(usize, usize, usize)> = None;
+            for y in 0..h {
+                for x in 0..w {
+                    if !owned(x, y) {
+                        continue;
+                    }
+                    let run = |dx: isize, dy: isize| {
+                        let (mut n, mut cx, mut cy) = (0, x as isize, y as isize);
+                        while cx >= 0
+                            && cy >= 0
+                            && (cx as usize) < w
+                            && (cy as usize) < h
+                            && owned(cx as usize, cy as usize)
+                        {
+                            n += 1;
+                            cx += dx;
+                            cy += dy;
+                        }
+                        n
+                    };
+                    let score = run(-1, 0).min(run(1, 0)).min(2 * run(0, -1).min(run(0, 1)));
+                    if best.is_none_or(|b| score > b.2) {
+                        best = Some((x, y, score));
+                    }
+                }
+            }
+            let Some((bx, by, _)) = best else { continue };
+            let t = &tiles[*i];
+            let mut lines = vec![(title_of(t), Style::new().bold())];
+            if t["items"].as_i64().unwrap_or(0) > 0 {
+                lines.push((tf("{} items", &[&t["items"]]), Style::new().fg(pal().qty)));
+            }
+            for (k, (text, style)) in lines.iter().enumerate() {
+                let y = by + k;
+                if y >= h || !owned(bx, y) {
+                    break;
+                }
+                // The run of the room on this row, to centre the text in and cut it to.
+                let (mut x0, mut x1) = (bx, bx);
+                while x0 > 0 && owned(x0 - 1, y) {
+                    x0 -= 1;
+                }
+                while x1 + 1 < w && owned(x1 + 1, y) {
+                    x1 += 1;
+                }
+                let room = x1 - x0 + 1;
+                let len = text.chars().count().min(room);
+                let start = x0 + (room - len) / 2;
+                buf.set_stringn(area.x + start as u16, area.y + y as u16, text, len, *style);
+            }
+        }
+        self.raster = Some((
+            area,
+            owner
+                .iter()
+                .map(|o| {
+                    o.and_then(|i| {
+                        if i == FLOOR {
+                            None
+                        } else {
+                            tiles[i]["id"].as_i64()
+                        }
+                    })
+                })
+                .collect(),
+        ));
     }
 
     fn draw_tile(&mut self, f: &mut Frame, r: Rect, tile: &Value, selected: Option<i64>) {

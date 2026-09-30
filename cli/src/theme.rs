@@ -41,6 +41,10 @@ pub struct Palette {
     pub blue: Color,
     pub brand: Style,
     pub flash: Style,
+    /// Floors of the map's rooms, told apart by tone; the room chosen; a room's own floor.
+    pub rooms: [Color; 4],
+    pub room_chosen: Color,
+    pub floor: Color,
 }
 
 static DARK: Palette = Palette {
@@ -53,6 +57,14 @@ static DARK: Palette = Palette {
     blue: Color::Blue,
     brand: Style::new().fg(Color::Black).bg(Color::Cyan),
     flash: Style::new().fg(Color::Black).bg(Color::Yellow),
+    rooms: [
+        Color::Rgb(46, 52, 64),
+        Color::Rgb(58, 50, 44),
+        Color::Rgb(40, 56, 50),
+        Color::Rgb(56, 44, 60),
+    ],
+    room_chosen: Color::Rgb(30, 90, 120),
+    floor: Color::Rgb(44, 44, 48),
 };
 
 static LIGHT: Palette = Palette {
@@ -65,6 +77,14 @@ static LIGHT: Palette = Palette {
     blue: Color::Rgb(30, 80, 190),
     brand: Style::new().fg(Color::White).bg(Color::Rgb(0, 110, 140)),
     flash: Style::new().fg(Color::Black).bg(Color::Rgb(255, 225, 110)),
+    rooms: [
+        Color::Rgb(222, 228, 238),
+        Color::Rgb(238, 228, 214),
+        Color::Rgb(218, 236, 224),
+        Color::Rgb(234, 222, 238),
+    ],
+    room_chosen: Color::Rgb(160, 210, 235),
+    floor: Color::Rgb(236, 236, 232),
 };
 
 thread_local! {

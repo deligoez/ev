@@ -4,7 +4,8 @@ Agent-first home inventory. An AI agent records what a person reports at the she
 answers "where is it?". Homes, rooms, furniture, boxes and items live in one tree, with planned
 moves, a give/sell/trash pipeline, lost items, errands for other households, placement
 suggestions, photos with crops, and a full history. A read-only terminal UI follows every
-change live.
+change live, and shows the agent's marked-up photos of what goes where the moment it sends
+them.
 
 ## Install
 
@@ -28,13 +29,16 @@ ev add Ev --kind home
 ev add Salon --kind room --in Ev
 ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing batch
 ev find flipper                  # folded search over name, code, note, theme, tags
+ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
 ev show K4x4-07-Ü                # one node with its path, children and photos
+ev show #534                     # any command takes the #id ev ui shows
 ev tree Salon --depth 2          # the picture, with item totals
 ev edit 391 qty=11 note="…"      # change fields
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
 ev grid 07-A --cols 6 --rows 7   # a gridfinity drawer: row 1 at the back, columns A…
 ev cell 07-A-A3=A3-B3 --recode   # a box covers cells; ev grid 07-A draws the map
 ev history 391                   # everything that happened to it
+ev history 07-A --contents       # and to a place: what came in, went out, was added
 ```
 
 **Moves are planned, then confirmed.** `ev move X --to Y --plan` records the intention;
@@ -85,7 +89,8 @@ their cells.
 **A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
 counts the places a person opens one at a time (the innermost labelled holders) as raw,
 toured or kept as is, and flags toured ones that changed since. `ev observe` keeps what was
-noticed about a place; `ev task` is an ordered work list where every entry says why it
+noticed about a place (`ev unobserve` closes a note once it is dealt with, and the place's
+history keeps what it said); `ev task` is an ordered work list where every entry says why it
 matters; `ev next` hands over the current task with its places, what is planned to arrive
 there and the places no task covers yet. `ev goal organize|track` says whether the household
 wants a tidy-up at all — under `track` ev only keeps the records.
@@ -104,30 +109,55 @@ enough after a small change.
 `--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the
 original. A crop on a box is that box's current photo. `ev photo cut drawer.jpg --place 07-A
 A3=0.1,0.3,0.3,0.1 B4=…` does a whole drawer in one step: the whole view on the drawer, a crop
-on each box. For a drawer with a grid, `--grid` with the grid's four corners in the photo cuts
-every box at once, so no box keeps an older photo; and a drawer is not marked toured while any
-of its boxes shows an older state than it has. A group photo goes whole on one place only:
-attaching it whole to a second node is refused (`--whole` when that is really meant), and
-`ev todo` lists older slips. `ev photo list|remove|adopt`.
+on each box. A group photo goes whole on one place only: attaching it whole to a second node is
+refused (`--whole` when that is really meant), and `ev todo` lists older slips.
+`ev photo list|remove|adopt`.
 
-**Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves, things
-leaving, lost items, errands, search, everything waiting (one collapsible section per kind) and
-settings. It refreshes the moment another process writes,
-flashes what changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere),
+**One drawer photo, every box cut from it.** For a drawer with a grid, `ev photo cut drawer.jpg
+--place 07-A --grid 0.07,0.09,0.95,0.09,0.93,0.83,0.07,0.83` takes the grid's four corners in the
+photo (back-left, back-right, front-right, front-left, as fractions) and cuts every placed box
+through the photo's perspective, so no box keeps an older photo than its drawer. `--preview`
+cuts nothing: it frames every box it would cut on a copy of the photo, to check the corners by
+eye first (and with a note, shows it in a running `ev ui`). The photo keeps its corners, so its
+cells can be found by name later. Photos stay current by construction: `ev review <drawer> --as
+toured` is refused while the drawer or any box in it shows an older state than it has, and
+`ev todo` lists a drawer again when a box is added after its photo.
+
+**Showing what goes where.** When the agent proposes where the parts on the table go,
+`ev photo mark parts.jpg "1 → A6"=0.10,0.20,0.15,0.12 "2 → C1"=… --show "batch 3"` draws numbered
+red frames on the parts in a copy of the photo, and `ev photo mark 07-A 1=A6 2=C1 --show "where"`
+frames the target cells on the drawer's own photo, by cell name. `--show` puts them full screen
+in a running `ev ui` at once; `ev focus --file a.jpg --file b.jpg --note "…"` sends several
+together, stepped with `[` `]`. Esc closes them (a stray click does not), and `m` opens the last
+ones again, even after a restart. The marked copies are scratch: never stored, never attached,
+no history, cleared after a day. `ev focus X [--photo n]` does the same for a recorded node,
+so "which one do you mean?" is answered on screen too.
+
+**Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves,
+things leaving, lost items, errands, search, everything waiting (one collapsible section per
+kind) and settings. It refreshes the moment another process writes, flashes what changed, shows
+photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first with their note,
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
-works for tabs, rows, the wheel and photos. `ev focus X [--photo n]` points a running `ev ui`
-at a node and shows its photo, so "which one do you mean?" is answered on screen; `ev photo
-mark` draws numbered frames on a copy of a photo — on the parts, or on a drawer's cells by name
-(`1=A6`) — and `--show` puts it full screen in a running `ev ui`, so "what goes where" is
-answered on screen too, without anything recorded. The details
-pane has tabs (`H`/`L` or a click): a summary with the node's `#id`; its photos with their
-notes; a grid, where a placed box is framed on its drawer's plate; the contents; what
-`ev regroup` suggests there (guesses marked as such); and the history, a place's including
-what came in, went out and was added. A click on a photo, a thing or a box on a drawer's grid
-opens it. The pane scrolls (`J`/`K`, the wheel); holders show their fill as a bar (`▮▮▯▯`)
-with the room it leaves. Drag the divider between the list and the details, or under the
-photo, to resize (`<` `>` `{` `}` from the keyboard, a double click resets); the sizes and the
-tab are kept.
+works for tabs, rows, the wheel and photos. Every node shows its `#id`, and every command takes
+`#534` in place of a name or code. The key hints at the bottom show only the keys that do
+something on the screen at hand, and fit the width, dropping the least useful first.
+
+**The details pane.** Beside the tree, the selected node's details are split into tabs (`H`/`L`
+or a click; a tab with nothing for the node is dimmed):
+
+- **Summary** — the fields, labels aligned, with the fill as a bar (`▮▮▯▯`) and the room left.
+- **Photos** — every photo, newest first, with when it was added, crop or whole, and its note.
+- **Grid** — a drawer drawn as its plate, each box a frame over its cells; a box shows its place
+  on its drawer's plate.
+- **Contents**, and **Suggestions** — what `ev regroup` proposes there, guesses marked as such.
+- **History** — newest first by day; a place's includes what came in, went out and was added
+  (`ev history X --contents` prints the same).
+
+A click on a line opens what it names — a photo, a thing inside, a thing in the history — and a
+click on a box in any grid opens that box with the Grid tab still showing, so a drawer can be
+walked box by box. The pane scrolls (`J`/`K`, the wheel). Drag the divider between the list and
+the details, or under the photo, to resize (`<` `>` `{` `}` from the keyboard, a double click
+resets); the sizes and the tab are kept.
 
 **English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with
@@ -151,6 +181,10 @@ Workspace: `core` (model, rules, SQLite, photos) and `cli` (the `ev` binary and 
 app is expected to reuse `core` later.
 
 Quality gate: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+The tests include one that reads every backticked `ev …` command in this README,
+`REFERENCE.md`, the skill and `release-notes/next.md`, and fails on a subcommand or flag the CLI
+does not have, so the documents cannot drift from the binary. `tools/measure/` scores stems and
+placement against answer keys kept outside the repository.
 
 ### Releasing
 

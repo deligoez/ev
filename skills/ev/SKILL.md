@@ -158,9 +158,14 @@ in this order:
    `none` means the best box is full — say so and offer the next one or a bigger box; `unknown`
    or `stale` means estimate the fill from the photo (0/25/50/75/100) and record it with
    `ev edit <box> fill=N` before you rely on it.
-5. **Say what you weighed**: "best: F2 (ışık*, ldr*; 69% of the description), room yes; rule 6
+5. **Read the place before you name it.** Run `ev show <place>` on the one you are about to
+   propose: its observations and tasks may say it is only a stop on the way, and a place never
+   gone through (`review` null or `raw` — `(not toured)` in `ev suggest`) is a guess to say as
+   one. A parking place (`temporary`) is never the answer: `ev suggest` lists it apart under
+   `parking`; if it is still where the thing should go for now, say it is a stop, not its place.
+6. **Say what you weighed**: "best: F2 (ışık*, ldr*; 69% of the description), room yes; rule 6
    applies; next was C5". The person can then disagree with a reason, not a guess.
-6. **Turn corrections into data.** When the person picks another place, record why: a `theme`
+7. **Turn corrections into data.** When the person picks another place, record why: a `theme`
    on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
    miss was two words for one thing. Give boxes a `size` (`1x2x0.5`) and tag empty ones
    `boş kap`, so regrouping can offer them; a size written only in a box's name is not read —
@@ -187,6 +192,13 @@ details in `ev ui` show the same): for each place it lists the words its content
 themed place they read most like. Write a short theme in the person's words from that and from
 what you see ("Antenler ve anten kabloları"), say it, and record it with
 `ev edit <place> theme="…"` once they agree. Do not theme a place that has not been toured.
+**"For now" is data: `temporary`.** When the person puts something somewhere only until its
+place is decided ("şimdilik buraya", "nihai yeri burası değil"), mark it the moment they say
+it: `ev edit <place> temporary=true` when the whole place is a parking place, or `ev edit <thing>
+temporary=true` for one thing waiting among things that do belong there. `ev todo` then lists
+what waits (`parked`) and `ev suggest` stops offering the parking place. A thing's own mark
+goes when it moves (like `lost`); a place's stays until you set it back — when the person says
+the place is now final. What is not recorded is lost at the end of the conversation.
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the
 place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
 `ev next` brings it up when that place's turn comes. Do not edit the records of a place that
@@ -224,7 +236,10 @@ each one in that bag first (`"in": "<bag>"`), then plan its move to the place yo
 `ev history --contents` then lists everything that came out of it, and `ev pending` holds what
 was proposed and not yet put away — an unclear "I put them next to the others" stays a planned
 move until it is confirmed, instead of a guess recorded as a fact. A new box for them is added
-empty on its cell first, and the parts are planned into it like any other.
+empty on its cell first, and the parts are planned into it like any other. Ask `ev suggest
+--for <part>` (a text query ranks the bag itself first, since the part is in it). Do not write
+"came out of bag #131" into notes: the bag's history already says it, and note words take part
+in matching — bookkeeping there sends later suggestions to unrelated boxes.
 
 **Don't ask for a drawer photo after every batch.** When parts go into a drawer batch by batch,
 record each move as the person confirms it and ask for one photo of the drawer when the batches

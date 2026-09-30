@@ -1228,3 +1228,65 @@ fn each_kind_has_its_own_mark_before_it_in_the_tree_and_the_search() {
         screen(&term)
     );
 }
+
+/// The colour the screen shows `text` in, at its first cell.
+fn fg_of(term: &Terminal<TestBackend>, text: &str) -> Option<Color> {
+    let buf = term.backend().buffer();
+    for y in 0..buf.area.height {
+        let row: Vec<String> = (0..buf.area.width)
+            .map(|x| buf[(x, y)].symbol().to_string())
+            .collect();
+        if let Some(at) = row.concat().find(text) {
+            let x = row.concat()[..at].chars().count() as u16;
+            return Some(buf[(x, y)].fg);
+        }
+    }
+    None
+}
+
+#[test]
+fn a_counted_box_with_nothing_waiting_turns_green_and_its_holders_wait_for_all_of_it() {
+    let (_dir, mut inv) = led_drawer();
+    inv.label(&["D".into(), "D-A1".into(), "D-B1".into()], true)
+        .unwrap();
+    let tour = |inv: &mut Inventory| {
+        for b in ["D", "D-A1", "D-B1"] {
+            inv.photo_current(b).unwrap();
+        }
+        for b in ["D-A1", "D-B1"] {
+            inv.review(b, "toured", None).unwrap();
+        }
+    };
+    tour(&mut inv);
+    inv.move_to("Aktif buzzer", "D-A1", true).unwrap();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let settled = |app: &App, r: &str| {
+        app.snap
+            .settled
+            .contains(&app.inv.resolve(r, false).unwrap())
+    };
+    // What stays put in a counted box is done; the thing on its way is not, nor either box
+    // it moves between, nor anything holding them.
+    assert!(settled(&app, "Pasif buzzer") && settled(&app, "Kırmızı LED 5 mm"));
+    for r in ["Aktif buzzer", "D-A1", "D-B1", "D", "Oda", "Ev"] {
+        assert!(!settled(&app, r), "{r}");
+    }
+    let pasif = app.inv.resolve("Pasif buzzer", false).unwrap();
+    app.reveal(pasif).unwrap();
+    // The selected row is drawn in the selection's colours; select the box they are in.
+    let bx = app.inv.resolve("D-B1", false).unwrap();
+    app.reveal(bx).unwrap();
+    let mut term = Terminal::new(TestBackend::new(120, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let done = theme::pal().done;
+    assert_eq!(fg_of(&term, "Pasif buzzer"), Some(done));
+    assert_ne!(fg_of(&term, "Aktif buzzer"), Some(done));
+    // Moved, and both boxes counted again: everything up to the home is done.
+    app.inv.done("Aktif buzzer").unwrap();
+    tour(&mut app.inv);
+    // Its own writes do not move the database's data version, so read it again here.
+    app.snap = super::Snapshot::load(&app.inv).unwrap();
+    for r in ["Aktif buzzer", "D-A1", "D-B1", "D", "Oda", "Ev"] {
+        assert!(settled(&app, r), "{r}");
+    }
+}

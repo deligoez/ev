@@ -815,6 +815,58 @@ fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
 }
 
 #[test]
+fn audit_finds_a_box_whose_name_says_a_size_its_field_does_not() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let missing = add(
+        &mut inv,
+        "Gridfinity 1x2x1.5 — RFID setleri",
+        "container",
+        Some("K4x4"),
+        None,
+    );
+    let other = add(
+        &mut inv,
+        "Gridfinity 1×1×1 — LED",
+        "container",
+        Some("K4x4"),
+        None,
+    );
+    inv.edit(&other.to_string(), &["size=1x2x0.5".into()])
+        .unwrap();
+    let same = add(
+        &mut inv,
+        "Gridfinity 1x1x1 — boş",
+        "container",
+        Some("K4x4"),
+        None,
+    );
+    inv.edit(&same.to_string(), &["size=1x1x1".into()]).unwrap();
+    // An item's name may carry a size of its own: not a box, not reported.
+    add(&mut inv, "Vida 3x10", "item", Some("K4x4"), None);
+    let v = inv.audit().unwrap();
+    let drift: Vec<(i64, String, Value)> = v["size_drift"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| {
+            (
+                n["id"].as_i64().unwrap(),
+                n["name_size"].as_str().unwrap().to_string(),
+                n["size"].clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        drift,
+        vec![
+            (missing, "1x2x1.5".to_string(), Value::Null),
+            (other, "1x1x1".to_string(), Value::from("1x2x0.5")),
+        ]
+    );
+}
+
+#[test]
 fn audit_groups_turkish_word_forms_under_one_stem() {
     let (_d, mut inv) = inv();
     home(&mut inv);

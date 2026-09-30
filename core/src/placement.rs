@@ -1521,6 +1521,24 @@ mod tests {
         lex.key(&terms(w)[0].surface)
     }
 
+    /// A stem some word carries a plural on is a noun: it wins over a hardened reading (`bağı`
+    /// is `bağ`, not `bak`) and reaches through stacked endings (`bacaklarında`), but only when
+    /// something besides that one word attests it (`controller` makes no `control`).
+    #[test]
+    fn a_stem_written_with_a_plural_is_the_noun() {
+        let words = "bak bağı bağları bağlarla bacaklarında bacağı blok bloğu controller";
+        let surfaces: Vec<String> = terms(words).into_iter().map(|t| t.surface).collect();
+        let lex = Lexicon::new(surfaces.iter().map(String::as_str));
+        let k = |w: &str| key(&lex, w);
+        assert_eq!(k("bağı"), "bag");
+        assert_eq!(k("bağları"), "bag");
+        assert_eq!(k("bağlarla"), "bag");
+        assert_eq!(k("bacaklarında"), "bacak");
+        // No plural of `blok` is written, so the written hardened form still wins.
+        assert_eq!(k("bloğu"), "blok");
+        assert_eq!(k("controller"), "controller");
+    }
+
     /// Writes `word<TAB>key` for every word of `EV_WORDS` (first column), stemmed against those
     /// same words, to `EV_OUT`; `tools/measure/stems.py` scores it.
     #[test]

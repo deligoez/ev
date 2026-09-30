@@ -162,9 +162,9 @@ pub(crate) fn terms(text: &str) -> Vec<Term> {
 const ENDINGS: &[&[&str]] = &[
     &["daki", "deki", "taki", "teki"],
     &[
-        "ndan", "nden", "dan", "den", "tan", "ten", "nin", "nun", "yla", "yle", "nda", "nde", "da",
-        "de", "ta", "te", "in", "un", "ya", "ye", "yi", "yu", "na", "ne", "ni", "nu", "a", "e",
-        "i", "u",
+        "ndan", "nden", "dan", "den", "tan", "ten", "nin", "nun", "yla", "yle", "la", "le", "nda",
+        "nde", "da", "de", "ta", "te", "in", "un", "ya", "ye", "yi", "yu", "na", "ne", "ni", "nu",
+        "a", "e", "i", "u",
     ],
     &["lari", "leri", "si", "su", "i", "u"],
     &["lar", "ler"],

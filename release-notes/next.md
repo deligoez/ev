@@ -7,7 +7,7 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 ## Upgrading
 
 The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
-sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 18: declined regroup moves) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -75,6 +75,14 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped) t
   above, its row 1 at the back; a Kallax and its compartments are seen from the front, row 1
   at the top. Every grid used to say "row 1 at the back", which was wrong for furniture.
   Schema 15.
+- **`ev regroup` can be told no: `ev regroup --decline <thing> --why "…"`.** A move the
+  person turned down (the drivers into the motor box, which is full) used to come back on every
+  run of the drawer. The answer is now kept: the thing is left out of the proposals, listed
+  under `declined` with the reason, until it is moved somewhere else; `--allow` takes it back.
+  Schema 18.
+- **A room given only by its size is drawn as a floor**, like one given by its corners, and
+  furniture in it is a frame to scale: a 2 m × 2 m room with a 1 m × 1 m cupboard in its corner
+  shows the cupboard as a quarter of the floor.
 
 ## Changed
 

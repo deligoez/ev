@@ -198,7 +198,9 @@ proposals: things better off elsewhere, mixed boxes, full boxes and the bigger s
 the cells it fits, nearly empty boxes to merge, unknown fills. `alone` lists things that share
 no word with anything in their box: the other box there is only a guess (often wrong for
 keepsakes and one-off tools, sometimes right, like a 9V battery among wires) — judge each one
-yourself before proposing it. It only reports; nothing moves until the person says so. The same
+yourself before proposing it. It only reports; nothing moves until the person says so. When
+they say no to a move, record it: `ev regroup --decline <thing> --why "<their reason>"` —
+later runs leave it out (listed under `declined`) until it is moved; `--allow` takes it back. The same
 suggestions show in `ev ui` when the person selects the drawer or a box. Run `ev audit` now and
 then for alike things split across the house.
 

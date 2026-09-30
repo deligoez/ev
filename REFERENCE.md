@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared.
 
 ## `ev ui`
 
@@ -184,7 +184,10 @@ drawer, the top of a stack), `items` (things inside, counted all the way down), 
 `theme`, `fill`, `cells`, `temporary`, `unknown`, `stacked` (what stands on it, bottom up) and
 `band` (the stack member it belongs to). A tile with an outline carries `shapes`: its outline
 and the outlines of rooms inside it, as corners in fractions of the view. A sketch's `size`
-holds `w`, `d` (the view in centimetres) and `floor` (the place's own outline). `ev ui` shows the map with `M`; a sketch with
+holds `w`, `d` (the view in centimetres) and `floor` (the place's own outline, or the
+rectangle of a room's size). A room is drawn as a floor whether it was given corners or only a
+size; furniture in it is a frame to scale (a 100×100 cupboard in a 200×200 room covers a
+quarter of it). `ev ui` shows the map with `M`; a sketch with
 outlines is drawn as a floor plan, each room a floor of its own shape and tone; the width of
 a wall between two rooms goes to the nearer, so rooms meet, while the home's outer edge stays.
 
@@ -218,7 +221,9 @@ creates the place.
 | Command | Does |
 |---|---|
 | `ev suggest <text> [--tag t] [--for <ref>]` | `words` (the query as searched), `synonyms_added`, `facet` (the facets the query names), `other_facet` (up to 5 holders kept out because they are of another facet, with their `facet` and `score`), `parking` (up to 5 holders kept out because they are, or stand in, a `temporary` place: `container` with `temporary_in`, and `score`), `new_group_likely`, `considered` (how scores are made, in words), `rules`, `similar` (up to 12 holders, best first: `container` with `room`, `review` (its own or its nearest reviewed ancestor's: `status`, `at`, `from`; null when never gone through — `(not toured)` in text), `score`, `coverage`, `specific`, `matched` `[{term, points, from, specific}]`, `count`, `matches`), `containers` (every holder, with `path_text`, `theme`, `fill`, `room`, `items`, `sample`, `cells`/`grid`), `complete.containers`. `--for` places an existing node by its own name, tags and note, never into itself or anything inside it |
-| `ev regroup [<ref>]` | for the holders under `<ref>` (or everywhere): `checked` (`items`, `best_where_they_are`), `elsewhere` (`item`, `now`, `better` with score and `matched`), `alone` (the same shape, for things that share no word with anything else in their holder: its score there is 0, so the other holder is a guess), `strays` (things named for another holder's theme), `full` (fill ≥ 90, with `bigger_spares` and the cells each `fits_at`), `sparse` (fill ≤ 25, with a `merge_into` sibling that has room), `mixed` (half or more of three or more things fit better elsewhere), `unknown_fill` (fill unknown or `stale`) |
+| `ev regroup [<ref>]` | for the holders under `<ref>` (or everywhere): `checked` (`items`, `best_where_they_are`), `elsewhere` (`item`, `now`, `better` with score and `matched`), `alone` (the same shape, for things that share no word with anything else in their holder: its score there is 0, so the other holder is a guess), `strays` (things named for another holder's theme), `full` (fill ≥ 90, with `bigger_spares` and the cells each `fits_at`), `sparse` (fill ≤ 25, with a `merge_into` sibling that has room), `mixed` (half or more of three or more things fit better elsewhere), `unknown_fill` (fill unknown or `stale`), `declined` (`item`, `holder`, `why`: moves the person said no to, left out of the lists above) |
+| `ev regroup --decline <ref> [--why "…"]` | the person said no to moving it: it stays in the holder it is in and regroup no longer proposes moving it, until it is moved somewhere else. A `decline` event |
+| `ev regroup --allow <ref>` | takes a decline back; a `decline_cleared` event |
 | `ev synonym add <a, b, …>` / `ev synonym list` / `ev synonym remove <id>` | groups of words that mean the same thing for placing (`fotosel, ldr, ışık sensörü`); a query that has one also searches the others at 0.8 weight. `synonyms`: `[{id, words}]` |
 | `ev themes [<ref>]` | containers and furniture with things in them and no theme (kits recorded as items are left out): `themes`: `[{holder, things, words: [{word, things}], contents, like}]`, most things first. `words` are the stems the contents share, written as the inventory writes them, rarer ones first, colours and numbers left out; `like` is the themed holder those words read most like (NodeRef + `theme`, `score`), or null. `ev ui` shows the same under a place's details |
 | `ev facet add <name> [--words "a, b"]` / `ev facet list` / `ev facet remove <name>` | facets: kinds of things kept apart (modules and bare parts, novels and technical books). A holder is in a facet by carrying its name as a tag (`ev edit X tags=+modül`), or by being inside one that does; a thing by its own tag, else by a facet word in its name (any form: `modülü`, `modülleri` name `modül`), else by where it is. `suggest` never ranks a holder of another facet (it goes to `other_facet`) and `regroup` never proposes one. `facets`: `[{name, words, holders}]` |

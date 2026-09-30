@@ -1748,6 +1748,17 @@ fn normalize_size(s: &str) -> Result<String> {
         .join("x"))
 }
 
+/// The size a name carries (`Gridfinity 1x2x0.5 — …` carries `1x2x0.5`), normalized: the first
+/// word made only of digits, separators and `x`/`×` that reads as a size.
+fn size_in_name(name: &str) -> Option<String> {
+    name.split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !(c.is_ascii_digit() || c == '.' || c == ',')))
+        .filter(|w| {
+            w.contains(['x', '×']) && w.chars().all(|c| c.is_ascii_digit() || ".,x×".contains(c))
+        })
+        .find_map(|w| normalize_size(w).ok())
+}
+
 fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
     let v = value.trim();
     if v.is_empty() {
@@ -2531,7 +2542,26 @@ impl Inventory {
             .filter(|n| n.unknown)
             .map(|n| brief_json(&self.conn, n.id))
             .collect::<Result<Vec<_>>>()?;
-        Ok(json!({ "spread": spread, "no_theme": no_theme, "loose": loose, "unknown": unknown }))
+        // A holder's name that says its size while the field does not (or says another): the
+        // name is for people, the field is what crops and bigger-box offers read.
+        let size_drift = all
+            .iter()
+            .filter(|n| n.kind == Kind::Container)
+            .filter_map(|n| {
+                let named = size_in_name(&n.name)?;
+                (n.size.as_deref() != Some(named.as_str())).then_some((n, named))
+            })
+            .map(|(n, named)| {
+                let mut b = brief_json(&self.conn, n.id)?;
+                b["name_size"] = json!(named);
+                b["size"] = json!(n.size);
+                Ok(b)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({
+            "spread": spread, "no_theme": no_theme, "loose": loose, "unknown": unknown,
+            "size_drift": size_drift,
+        }))
     }
 }
 

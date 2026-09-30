@@ -134,6 +134,47 @@ pub(crate) fn write_sketch(conn: &Connection, id: i64, after: &Sketch) -> Result
     Ok(true)
 }
 
+/// Where a holder's frame (its own top-left corner) lies in the home's, adding up the places
+/// of the holders on the way up; None when one of them has no place, so its frame is unknown.
+fn frame_origin(conn: &Connection, id: i64) -> Result<Option<[f64; 2]>> {
+    let mut at = [0.0, 0.0];
+    let mut cur = id;
+    for _ in 0..10_000 {
+        let n = load(conn, cur)?;
+        let Some(parent) = n.parent_id.filter(|_| n.kind != Kind::Home) else {
+            return Ok(Some(at));
+        };
+        let s = sketch_of(conn, cur)?;
+        let (Some(x), Some(y)) = (s.x, s.y) else {
+            return Ok(None);
+        };
+        at = [at[0] + x, at[1] + y];
+        cur = parent;
+    }
+    Ok(None)
+}
+
+/// Keeps a sketched node where it lies on the map when it moves to another holder: its place
+/// and outline, written in the old holder's frame, are translated into the new holder's. A node
+/// with no place, or one whose old or new frame is unknown, is left as it was.
+pub(crate) fn carry_sketch(conn: &Connection, id: i64, from: i64, to: i64) -> Result<()> {
+    let mut s = sketch_of(conn, id)?;
+    let (Some(x), Some(y)) = (s.x, s.y) else {
+        return Ok(());
+    };
+    let (Some(a), Some(b)) = (frame_origin(conn, from)?, frame_origin(conn, to)?) else {
+        return Ok(());
+    };
+    move_to(&mut s, round4(x + a[0] - b[0]), round4(y + a[1] - b[1]));
+    if let Some(pts) = &mut s.points {
+        for q in pts.iter_mut() {
+            *q = [round4(q[0]), round4(q[1])];
+        }
+    }
+    write_sketch(conn, id, &s)?;
+    Ok(())
+}
+
 /// `x,y x,y …` from the command line: the corners of an outline, three or more.
 pub fn parse_points(s: &str) -> Result<Vec<[f64; 2]>> {
     let bad = || {

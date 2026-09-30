@@ -1445,9 +1445,14 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
     if unparked {
         conn.execute("UPDATE nodes SET temporary = 0 WHERE id = ?1", [node.id])?;
     }
-    // Cells are positions in the old holder's grid; they mean nothing anywhere else.
+    // Cells are positions in the old holder's grid; they mean nothing anywhere else. A sketch
+    // is in the old holder's frame too, but it can be carried: it is translated so the node
+    // stays where it lies on the map.
     if node.parent_id != Some(target) {
         conn.execute("DELETE FROM cells WHERE node_id = ?1", [node.id])?;
+        if let Some(from) = node.parent_id {
+            crate::map::carry_sketch(conn, node.id, from, target)?;
+        }
     }
     touch(conn, node.id)?;
     let dropped = if kind == "move" {

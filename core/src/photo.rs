@@ -323,6 +323,57 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
     std::fs::write(out, buf.get_ref()).map_err(io(out))
 }
 
+/// One small picture of every crop of `file`, side by side and each labelled, written to `out`
+/// as a JPEG: the way to check a whole drawer's cut at a glance instead of opening each crop.
+/// Tiles keep their proportions inside a fixed box, six to a row, in the order given.
+pub(crate) fn contact_sheet(file: &Path, tiles: &[(String, Crop)], out: &Path) -> Result<()> {
+    const COLS: u32 = 6;
+    const TILE: (u32, u32) = (240, 200);
+    const GAP: u32 = 8;
+    const S: f64 = 2.0;
+    let img = open_upright(file)?.to_rgb8();
+    let (w, h) = (f64::from(img.width()), f64::from(img.height()));
+    let strip = label_size("X", S).1 as u32 + 4;
+    let (cell_w, cell_h) = (TILE.0 + GAP, TILE.1 + strip + GAP);
+    let n = tiles.len().max(1) as u32;
+    let (cols, rows) = (n.min(COLS), n.div_ceil(COLS));
+    let mut sheet = image::RgbImage::from_pixel(
+        cols * cell_w + GAP,
+        rows * cell_h + GAP,
+        image::Rgb([40, 40, 40]),
+    );
+    for (i, (text, c)) in tiles.iter().enumerate() {
+        let (col, row) = (i as u32 % COLS, i as u32 / COLS);
+        let (x0, y0) = (GAP + col * cell_w, GAP + row * cell_h);
+        let px = |v: f64, max: f64| (v * max).round().clamp(0.0, max) as u32;
+        let (x, y) = (px(c.x, w), px(c.y, h));
+        let cw = px(c.w, w).min(img.width().saturating_sub(x)).max(1);
+        let ch = px(c.h, h).min(img.height().saturating_sub(y)).max(1);
+        let cut = image::imageops::crop_imm(&img, x, y, cw, ch).to_image();
+        let scale = (f64::from(TILE.0) / f64::from(cw)).min(f64::from(TILE.1) / f64::from(ch));
+        let (tw, th) = (
+            ((f64::from(cw) * scale).round() as u32).max(1),
+            ((f64::from(ch) * scale).round() as u32).max(1),
+        );
+        let thumb = image::imageops::resize(&cut, tw, th, image::imageops::FilterType::Triangle);
+        image::imageops::replace(
+            &mut sheet,
+            &thumb,
+            i64::from(x0 + (TILE.0 - tw) / 2),
+            i64::from(y0 + strip + (TILE.1 - th) / 2),
+        );
+        label(&mut sheet, text, f64::from(x0), f64::from(y0), S);
+    }
+    if let Some(dir) = out.parent() {
+        std::fs::create_dir_all(dir).map_err(io(dir))?;
+    }
+    let mut buf = Cursor::new(Vec::new());
+    sheet
+        .write_with_encoder(JpegEncoder::new_with_quality(&mut buf, 85))
+        .map_err(|e| Error::Internal(format!("encoding contact sheet: {e}")))?;
+    std::fs::write(out, buf.get_ref()).map_err(io(out))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Crop, glyph, label_spot};

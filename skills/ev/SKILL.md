@@ -130,8 +130,7 @@ Record the kinds that have their own verbs as you meet them:
   draws the map and lists free cells — propose places for new boxes from it, and name them by
   cell. When boxes trade places, give all of them their new cells in one
   `ev cell A=A3-B3 B=A4 C=B4` once the person has moved them: overlaps are checked against
-  the final layout. Do not add `--recode`: it renames each box after its cell, and a box's
-  code is its serial label, which must not change when it moves.
+  the final layout. Each box keeps its code: it is the box's serial label, not its place.
 - **The map:** `ev map <place>`, and `M` in `ev ui`, show a place as tiles: its grid, its
   sketch, or furniture stacked front on. Record how furniture stands as the person says it
   (`ev sketch <top> --on <bottom>` for a Kallax on another), give a piece of furniture a grid of

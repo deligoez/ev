@@ -83,7 +83,7 @@ kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}
 A read-only terminal browser. It never writes the database; it polls SQLite's `data_version`
 every half second and re-reads when another process has written, highlighting the nodes that
 changed and expanding their parents so they are in view. The files it writes are the display
-settings file, from its Settings tab, and on exit the tree position it reopens on.
+settings file, from its Settings tab, and on exit the tree state it reopens with.
 
 | Key | Action |
 |---|---|
@@ -127,7 +127,7 @@ without one.
 | `ev settings` | `language` (`setting`, `effective`, `system`), `theme` (`setting`), `resume`, `file` |
 | `ev settings language en\|tr\|auto` | the language of `ev ui` and of the readable terminal output |
 | `ev settings theme dark\|light\|auto` | the appearance of `ev ui`; `auto` follows the terminal |
-| `ev settings resume on\|off` | `on` (the default): `ev ui` opens on the node that was selected in the tree when it last closed. The position is kept per database in `ui-state.json` beside the settings file, written on every exit; a node gone since opens at the top |
+| `ev settings resume on\|off` | `on` (the default): `ev ui` opens the tree as it was left — the nodes that were open, the list headings that were closed, and the node that was selected. The state is kept per database in `ui-state.json` beside the settings file, written on every exit; a node gone since is dropped, and a selected one gone opens at the top |
 
 `auto` language is the computer's, as the system reports it (`sys-locale`): on macOS the first
 of the preferred languages in System Settings, elsewhere the locale variables.

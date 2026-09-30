@@ -202,8 +202,9 @@ resets); the sizes and the tab are kept.
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with
 `ev settings language en|tr|auto`. The appearance follows the terminal's light or dark
 background live — switch the system or terminal theme and `ev ui` changes palette without a
-restart — or is fixed with `ev settings theme dark|light`. `ev ui` reopens on the node that was
-selected in the tree when it last closed (`ev settings resume off` starts at the top). Settings
+restart — or is fixed with `ev settings theme dark|light`. `ev ui` reopens the tree as it was
+left — the same nodes open, the same headings closed, the same node selected — and
+`ev settings resume off` starts it fresh at the top. Settings
 live in `~/.ev/settings.json`, outside the database; JSON output stays English.
 
 ## Documents

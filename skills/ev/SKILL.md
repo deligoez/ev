@@ -142,7 +142,9 @@ Record the kinds that have their own verbs as you meet them:
   Home 3D, import it: `ev sketch --import <plan.sh3d> --dry-run` first, map every plan room
   whose name differs (`--room "Oda #3=Çalışma odası"`) after asking which is which, and ask
   which plan piece is which record before `--piece "Table#2=Maker masası"`; a room the plan
-  lacks is drawn there by the person, not guessed from its walls. A room nobody has gone through is marked
+  lacks is found from its walls with `--space "Antre@x,y"`, from a point inside it read off
+  the plan's own walls and rooms (`Home.xml`) where the person says the room is — never a
+  shape drawn by guess. A room nobody has gone through is marked
   `unknown=true` so its empty tile does not read as empty. When the person asks where something
   is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when

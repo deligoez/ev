@@ -173,7 +173,7 @@ Any place drawn as the tiles of what is in it, laid out from what is recorded:
 | `ev sketch <ref> --at x,y` | its top-left corner in its holder, seen from above |
 | `ev sketch <ref> --on <ref>` | it stands on another; refused (exit 5) on itself or on what stands on it |
 | `ev sketch <ref> --points "x,y x,y …"` | an outline of three or more corners, for a room that is not a rectangle; its place and size become the rectangle around them. The place's own frame starts at that rectangle's corner |
-| `ev sketch --import <plan.sh3d> [--room "<plan name>=<ref>"]… [--piece "<Name#n>=<ref>"]… [--dry-run]` | sketch the home from a Sweet Home 3D plan (its `Home.xml`, 5.3 and later). Each room of the plan gives its outline to the room of the same name, folded (`--room` when the names differ; a room inside a room, like a balcony, is placed in its room's frame). `--piece Table#2=<ref>` places a record where the plan's second Table stands. Every other piece, door and window becomes a mark in the room it stands in (a door or window in each room within a wall's width), or on the home when it is in no room; marks are replaced on every import. `rooms` (`plan`, `node`, `changed`), `unmatched` (plan rooms with no record), `not_in_plan` (rooms of the home without an outline), `pieces` (`ref`, `room`, `linked`, `size`), `marks` |
+| `ev sketch --import <plan.sh3d> [--room "<plan name>=<ref>"]… [--piece "<Name#n>=<ref>"]… [--space "<ref>@x,y"]… [--dry-run]` | sketch the home from a Sweet Home 3D plan (its `Home.xml`, 5.3 and later). Each room of the plan gives its outline to the room of the same name, folded (`--room` when the names differ; a room inside a room, like a balcony, is placed in its room's frame). `--piece Table#2=<ref>` places a record where the plan's second Table stands. Every other piece, door and window becomes a mark in the room it stands in (a door or window in each room within a wall's width); one in no room is left out. `--space Antre@1500,1000` gives a room the plan did not draw the space around that point (plan centimetres) that walls and the plan's rooms close in, to the walls' inner faces; refused (exit 2) when the space is open to the outside or the point is in a wall or a room. Marks are replaced on every import. `rooms` (`plan`, `node`, `changed`), `unmatched` (plan rooms with no record), `not_in_plan` (rooms of the home without an outline), `pieces` (`ref`, `room`, `linked`, `size`), `marks` |
 | `ev sketch <ref> --clear` | remove its sketch |
 | `ev map [<ref>]` | the home without a reference. `node`, `path_text`, `path`, `parent`, `sketch`, `layout` (`grid`, `sketch`, `tiles`, `stack`), `size` (`cols`, `rows` or `w`, `d`), `tiles`, `unplaced`; a stack adds `bands` (NodeRef + `rect`, `layout`, `size`) |
 
@@ -186,7 +186,8 @@ drawer, the top of a stack), `items` (things inside, counted all the way down), 
 and the outlines of rooms inside it, as corners in fractions of the view. A sketch's `size`
 holds `w`, `d` (the view in centimetres), `floor` (the place's own outline) and `marks`
 (`kind` piece, door or window, `name`, `rect`). `ev ui` shows the map with `M`; a sketch with
-outlines is drawn as a floor plan, each room a floor of its own shape and tone.
+outlines is drawn as a floor plan, each room a floor of its own shape and tone; the width of
+a wall between two rooms goes to the nearer, so rooms meet, while the home's outer edge stays.
 
 ## Places
 

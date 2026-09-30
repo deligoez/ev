@@ -178,9 +178,10 @@ kind) and settings. It refreshes the moment another process writes, flashes what
 photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first with their note,
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. A mark before each row says its kind (⌂ home, ◫ room,
-▥ furniture, □ box, · thing). Every node shows its `#id`, and every command takes
-`#534` in place of a name or code. The key hints at the bottom show only the keys that do
-something on the screen at hand, and fit the width, dropping the least useful first.
+▥ furniture, □ box, · thing), and a name turns green once the node is settled: counted, with
+nothing in `ev todo` hanging on it or on anything in it. Every node shows its `#id`, and every
+command takes `#534` in place of a name or code. The key hints at the bottom show only the keys
+that do something on the screen at hand, and fit the width, dropping the least useful first.
 
 **The details pane.** Beside the tree, the selected node's details are split into tabs (`H`/`L`
 or a click; a tab with nothing for the node is dimmed):

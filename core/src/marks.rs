@@ -7,10 +7,10 @@
 //! kept twice. This module adds the few kinds that had no state yet — a label to print, broken,
 //! a use-by date, a sale in progress — and needs, which are not in the tree at all.
 
-use std::collections::HashSet;
 use chrono::{Datelike, NaiveDate};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
+use std::collections::HashSet;
 
 use crate::error::refused;
 use crate::model::{Disposition, Kind, Node, State};
@@ -637,7 +637,11 @@ impl Inventory {
                 refs.extend(each(&e[k]));
             }
         }
-        for pile in todo["disposals"].as_object().into_iter().flat_map(|o| o.values()) {
+        for pile in todo["disposals"]
+            .as_object()
+            .into_iter()
+            .flat_map(|o| o.values())
+        {
             refs.extend(each(pile));
         }
         for l in each(&todo["lost"]) {
@@ -650,7 +654,14 @@ impl Inventory {
             refs.extend(each(&s["nodes"]));
         }
         for k in [
-            "labels", "repairs", "expiring", "unclear", "uncounted", "parked", "stale", "photos",
+            "labels",
+            "repairs",
+            "expiring",
+            "unclear",
+            "uncounted",
+            "parked",
+            "stale",
+            "photos",
         ] {
             refs.extend(each(&todo[k]));
         }

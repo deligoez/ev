@@ -426,7 +426,9 @@ fn a_counted_box_with_nothing_waiting_is_not_open_and_any_work_on_it_opens_it() 
         assert!(!open.contains(&id(&inv, r)), "{r}: {open:?}");
     }
     // A task, an observation, and both ends of a planned move each leave work on a node.
-    let task = inv.task_add("Ayıkla", "karışık", &["S5-01".into()], None).unwrap()["id"]
+    let task = inv
+        .task_add("Ayıkla", "karışık", &["S5-01".into()], None)
+        .unwrap()["id"]
         .as_i64()
         .unwrap();
     add(&mut inv, "Kutu", "container", Some("Oda"), None);

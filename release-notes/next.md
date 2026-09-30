@@ -7,7 +7,7 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 ## Upgrading
 
 The database moves from schema 11 to **schema 15** (12: kits, 13: parking places, 14:
-sketches, 15: grid faces) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+sketches, 15: grid faces, 16: room outlines and plan marks) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -62,6 +62,14 @@ sketches, 15: grid faces) the first time this version opens it; v0.14.0 then ref
   label, theme, count and fill and names what is in it. Schema 14.
 - **`ev grid` takes several references** with `--cols`/`--rows` and gives each the same grid,
   all or none: the sixteen two-drawer compartments of a Kallax in one call.
+- **A floor plan from Sweet Home 3D: `ev sketch --import home.sh3d`.** The rooms of the plan
+  give their outlines to the rooms of the same name (`--room` maps the others; a balcony inside
+  its room is placed in that room's frame), `--piece Table#2=<ref>` places a record where the
+  plan shows it, and the plan's other furniture, doors and windows are drawn as marks to find
+  one's way. `M` in `ev ui` then draws the home as a floor plan: each room a floor of its own
+  shape and tone, its name where it is widest, the chosen one lit; the line under the map says
+  what the chosen tile holds. `ev sketch <room> --points "x,y …"` gives an outline by hand.
+  Schema 16.
 - **A grid knows which way it is seen: `ev grid <ref> --face front`.** A drawer is seen from
   above, its row 1 at the back; a Kallax and its compartments are seen from the front, row 1
   at the top. Every grid used to say "row 1 at the back", which was wrong for furniture.

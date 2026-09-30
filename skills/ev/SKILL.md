@@ -45,6 +45,12 @@ person gives them, never invent one. A node leaves in two steps (`dispose --as` 
    they say it, in their words, with the date.
 6. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.
+   **A set of separate parts is one record per part kind, not one for the set.** A soil
+   moisture set (probe, comparator board, cable), a stepper with its driver: record each kind
+   as its own item in the same holder, with its count, and say in each note what it belongs
+   with. One record per bag of the set is too much (the sets are interchangeable); one record
+   for the whole set hides the parts — a cable cannot be moved to the jumper wires, nor a board
+   missed, without splitting it first. A boxed kit that stays in its case is one item.
 7. **Lost:** `ev lost <x>` keeps the last seen place; `ev lost` lists them; `ev found <x>`
    clears it in place; any move clears it too.
 
@@ -230,7 +236,9 @@ does, cut the crop — do not reach for `--whole` to get past it. `shared_photos
 lists any slip of this kind. A photo of what is inside a bag or box goes on the things in it once
 they are recorded, not on the bag. Close-ups the person sends later (screw heads, labels) go to
 the item, cropped to the thing itself, and a photo of an empty holder goes to the holder. Photos
-are copied into `~/.ev/photos`; the original may then be deleted.
+are copied into `~/.ev/photos`; the original may then be deleted. **A photo that shows several
+records is cropped per record — also when one record is later split into several:** remove the
+whole photo from it and give each new record its own crop from every photo it appears in.
 
 **A tour is not finished on an old photo.** `ev review <place> --as toured` is refused while
 the place or any placed box in its grid has no photo or one older than its last change

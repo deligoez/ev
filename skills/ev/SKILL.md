@@ -138,7 +138,11 @@ Record the kinds that have their own verbs as you meet them:
   (`ev grid <c1> <c2>… --cols 1 --rows 2 --face front`, several at once). A drawer's grid is
   seen from above, the default. Sizes and positions come only from what the
   person measured or a floor plan they gave (`ev sketch <room> --size w,d`, `ev sketch <x> --at
-  x,y --size w,d`, centimetres) — never estimate one. A room nobody has gone through is marked
+  x,y --size w,d`, centimetres) — never estimate one. When the person has the home in Sweet
+  Home 3D, import it: `ev sketch --import <plan.sh3d> --dry-run` first, map every plan room
+  whose name differs (`--room "Oda #3=Çalışma odası"`) after asking which is which, and ask
+  which plan piece is which record before `--piece "Table#2=Maker masası"`; a room the plan
+  lacks is drawn there by the person, not guessed from its walls. A room nobody has gone through is marked
   `unknown=true` so its empty tile does not read as empty. When the person asks where something
   is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when

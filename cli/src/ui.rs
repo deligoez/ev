@@ -3916,6 +3916,54 @@ mod tests {
         (dir, inv)
     }
 
+    #[test]
+    fn m_opens_the_map_walks_it_goes_in_and_out_and_t_shows_the_tile_in_the_tree() {
+        let (_dir, mut inv) = led_drawer();
+        add(&mut inv, "Raf", "furniture", "Oda", None);
+        inv.sketch_set("Raf", None, None, Some("D")).unwrap();
+        let id = |app: &App, r: &str| app.inv.resolve(r, false).unwrap();
+        let mut app = app_tr(inv);
+        let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut draw = |app: &mut App| {
+            term.draw(|f| app.draw(f)).unwrap();
+            screen(&term)
+        };
+        // From a box in the tree: its drawer's map, the shelf on it as a band above.
+        app.reveal(id(&app, "D-A1")).unwrap();
+        press(&mut app, KeyCode::Char('M'));
+        let s = draw(&mut app);
+        assert!(s.contains("Ev › Oda › D"), "{s}");
+        assert!(s.contains(" Raf "), "{s}");
+        assert!(s.contains("D-B1"), "{s}");
+        assert!(s.contains("Enter içine gir"), "{s}");
+        // A box's tile says what it is for and what is in it.
+        assert!(s.contains("Buzzer"), "{s}");
+        assert!(s.contains("Aktif buzzer · Kırmızı LED 10 mm"), "{s}");
+        let sel = |app: &App| app.map_view.as_ref().and_then(|m| m.selected());
+        assert_eq!(sel(&app), Some(id(&app, "D-A1")));
+        press(&mut app, KeyCode::Right);
+        assert_eq!(sel(&app), Some(id(&app, "D-B1")));
+        // Into the box, and back out onto it.
+        press(&mut app, KeyCode::Enter);
+        let s = draw(&mut app);
+        assert!(s.contains("Ev › Oda › D › D-B1"), "{s}");
+        assert!(s.contains("Pasif buzzer"), "{s}");
+        press(&mut app, KeyCode::Enter);
+        assert!(draw(&mut app).contains("içinde bir şey yok"));
+        press(&mut app, KeyCode::Backspace);
+        assert_eq!(sel(&app), Some(id(&app, "D-B1")));
+        // The room: the drawer's tile says what stands on it.
+        press(&mut app, KeyCode::Backspace);
+        let s = draw(&mut app);
+        assert!(s.contains("üstünde Raf"), "{s}");
+        assert_eq!(sel(&app), Some(id(&app, "D")));
+        // t closes the map on that tile in the tree.
+        press(&mut app, KeyCode::Char('t'));
+        assert!(app.map_view.is_none());
+        assert_eq!(app.selected_id(), Some(id(&app, "D")));
+        assert!(!app.quit);
+    }
+
     fn shown(app: &mut App, reference: &str, w: u16, h: u16) -> String {
         let id = app.inv.resolve(reference, false).unwrap();
         app.reveal(id).unwrap();

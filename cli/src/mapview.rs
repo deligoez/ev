@@ -293,11 +293,11 @@ impl MapView {
         let Some(id) = self.selected() else {
             return Ok(());
         };
+        // A room with an outline has a floor plan to show even when nothing is recorded in it.
         let inside = self
             .tile(id)
-            .and_then(|t| t["children"].as_u64())
-            .unwrap_or(0);
-        if inside == 0 {
+            .is_some_and(|t| t["children"].as_u64().unwrap_or(0) > 0 || t["shapes"].is_array());
+        if !inside {
             self.status = t("nothing inside").to_string();
             return Ok(());
         }

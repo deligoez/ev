@@ -3965,6 +3965,28 @@ mod tests {
     }
 
     #[test]
+    fn a_history_line_naming_something_gone_says_so_instead_of_opening_it() {
+        let (_dir, mut inv) = led_drawer();
+        let led = inv.resolve("Kırmızı LED 5 mm", false).unwrap();
+        inv.gone(&led.to_string(), Some(ev_core::Disposition::Trash))
+            .unwrap();
+        let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+        app.detail_tab = DetailTab::History;
+        let s = shown(&mut app, "D-A1", 150, 40);
+        let line = s
+            .lines()
+            .position(|l| l.contains("added here  Kırmızı LED 5 mm"))
+            .unwrap_or_else(|| panic!("{s}")) as u16;
+        let (before, x) = (app.selected_id(), app.details_area.x + 5);
+        click(&mut app, MouseEventKind::Down(MouseButton::Left), x, line);
+        assert_eq!(app.selected_id(), before);
+        assert_eq!(
+            app.status,
+            format!("#{led} is no longer in the tree (gone)")
+        );
+    }
+
+    #[test]
     fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
         let (dir, inv) = led_drawer();
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);

@@ -28,3 +28,7 @@ Draft for the next release.
 - **`ev photo add` and `ev photo list` read as text.** With `--text` (or at a terminal) they
   printed the whole JSON. They now print the node, then each photo by its number with its file,
   its crop when only part of the photo shows the node, and its note.
+- **A record closed as a mistake no longer dates its place's photo.** Closing a placeholder
+  with `gone --as mistake` counted as a thing leaving, so the drawer's photo taken minutes before
+  was refused as out of date when its tour was closed. A mistaken record was never there; only a
+  thing that really goes (trash, give, sell, return) still dates the photo.

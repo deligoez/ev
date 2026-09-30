@@ -1100,8 +1100,38 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    // `ev photo add`, `list` and `remove`: the node, then its photos by number.
+    if let (Some(node), Some(list)) = (
+        v.get("node").filter(|n| n.is_object()),
+        v.get("photos").and_then(Value::as_array),
+    ) {
+        photo_list(&mut out, node, list);
+        return out;
+    }
     let _ = writeln!(out, "{v}");
     out
+}
+
+/// A node's photos, one per line by the number other commands take: the file, the crop when
+/// only part of the photo shows the node, and the note.
+fn photo_list(out: &mut String, node: &Value, list: &[Value]) {
+    let _ = writeln!(out, "{}", line(node));
+    if list.is_empty() {
+        let _ = writeln!(out, "{}", t("  (no photos)"));
+    }
+    for p in list {
+        let mut extra = String::new();
+        if let Some(c) = p["crop"].as_str() {
+            extra.push_str(&tf("  crop {}", &[&c]));
+        }
+        if p["exists"] == false {
+            extra.push_str(t("  (file missing)"));
+        }
+        if let Some(n) = p["note"].as_str().filter(|n| !n.is_empty()) {
+            extra.push_str(&format!("  — {n}"));
+        }
+        let _ = writeln!(out, "  {}. {}{extra}", p["n"], s(p, "path"));
+    }
 }
 
 /// A regroup decline set or taken back.

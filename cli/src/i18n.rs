@@ -614,6 +614,9 @@ static TR: &[(&str, &str)] = &[
     ("holds {}", "içinde: {}"),
     ("photo {}, crop {}", "fotoğraf {}, kesit {}"),
     ("photo {}, whole", "fotoğraf {}, tam"),
+    ("  (no photos)", "  (fotoğraf yok)"),
+    ("  crop {}", "  kesit {}"),
+    ("  (file missing)", "  (dosya yok)"),
     // Grids
     (
         "{}×{} grid, row 1 at the back",

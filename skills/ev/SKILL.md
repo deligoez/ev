@@ -133,9 +133,10 @@ Record the kinds that have their own verbs as you meet them:
 - **The map:** `ev map <place>`, and `M` in `ev ui`, show a place as tiles: its grid, its
   sketch, or furniture stacked front on. Record how furniture stands as the person says it
   (`ev sketch <top> --on <bottom>` for a Kallax on another), give a piece of furniture a grid of
-  its compartments seen from the front, row 1 at the top (`ev grid K4x4 --cols 4 --rows 4`, then
-  `ev cell` per compartment), and a compartment with two drawers a one-column grid (`ev grid
-  <c1> <c2>… --cols 1 --rows 2`, several at once). Sizes and positions come only from what the
+  its compartments seen from the front, row 1 at the top (`ev grid K4x4 --cols 4 --rows 4 --face
+  front`, then `ev cell` per compartment), and a compartment with two drawers a one-column grid
+  (`ev grid <c1> <c2>… --cols 1 --rows 2 --face front`, several at once). A drawer's grid is
+  seen from above, the default. Sizes and positions come only from what the
   person measured or a floor plan they gave (`ev sketch <room> --size w,d`, `ev sketch <x> --at
   x,y --size w,d`, centimetres) — never estimate one. A room nobody has gone through is marked
   `unknown=true` so its empty tile does not read as empty. When the person asks where something

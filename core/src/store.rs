@@ -1404,6 +1404,43 @@ pub(crate) fn brief_json(conn: &Connection, id: i64) -> Result<Value> {
     serde_json::to_value(brief(conn, id)?).map_err(|e| Error::Internal(e.to_string()))
 }
 
+/// A code ending in `*` is the next free number of its series: `GF1x1-*` after `GF1x1-007`
+/// is `GF1x1-008`, padded like the series (3 digits for a new one). Numbers are never reused:
+/// gone nodes count too, since a printed label may still be around. Any other code is
+/// returned as it is.
+fn expand_code(conn: &Connection, code: &str) -> Result<String> {
+    let c = code.trim();
+    let Some(prefix) = c.strip_suffix('*') else {
+        return Ok(c.to_string());
+    };
+    if prefix.is_empty() || prefix.contains('*') {
+        return Err(Error::Usage(format!(
+            "`{c}`: a series is a prefix followed by one `*`, like GF1x1-*"
+        )));
+    }
+    let folded_prefix = fold(prefix);
+    let mut stmt = conn.prepare("SELECT code FROM nodes WHERE code IS NOT NULL")?;
+    let codes = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let (mut last, mut width) = (0u64, None::<usize>);
+    for code in codes {
+        let folded = fold(&code);
+        let Some(rest) = folded.strip_prefix(&folded_prefix) else {
+            continue;
+        };
+        if rest.is_empty() || !rest.chars().all(|ch| ch.is_ascii_digit()) {
+            continue;
+        }
+        if let Ok(n) = rest.parse::<u64>() {
+            last = last.max(n);
+            width = Some(width.unwrap_or(0).max(rest.len()));
+        }
+    }
+    let width = width.unwrap_or(3);
+    Ok(format!("{prefix}{:0width$}", last + 1))
+}
+
 /// Validates a code and returns its folded form (spec §3.2 rule 5, §11.3).
 fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<String> {
     let c = code.trim();
@@ -1557,7 +1594,9 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         return Err(refused("only a home has an address", Value::Null));
     }
     check_placement(conn, kind, parent, new.lost, None)?;
-    let code = non_empty(&new.code);
+    let code = non_empty(&new.code)
+        .map(|c| expand_code(conn, &c))
+        .transpose()?;
     let code_folded = code
         .as_deref()
         .map(|c| check_code(conn, c, None))
@@ -1840,7 +1879,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             conn.execute("UPDATE nodes SET name = ?1 WHERE id = ?2", params![v, n.id])?;
         }
         "code" => {
-            let v = text(value);
+            let v = text(value).map(|c| expand_code(conn, &c)).transpose()?;
             let folded = v
                 .as_deref()
                 .map(|c| check_code(conn, c, Some(n.id)))

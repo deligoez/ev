@@ -177,7 +177,17 @@ enum Cmd {
     },
     /// Regrouping hints under a place: things that fit better elsewhere, strays with a themed
     /// home, full boxes and bigger spares, sparse boxes to merge, mixed boxes, unknown fill.
-    Regroup { reference: Option<String> },
+    /// `--decline <thing> [--why]` records a "no" to moving it: it stays where it is and is
+    /// left out of later runs until it is moved; `--allow <thing>` takes that back.
+    Regroup {
+        reference: Option<String>,
+        #[arg(long, conflicts_with_all = ["reference", "allow"])]
+        decline: Option<String>,
+        #[arg(long, requires = "decline")]
+        why: Option<String>,
+        #[arg(long, conflicts_with_all = ["reference", "decline"])]
+        allow: Option<String>,
+    },
     /// Holders with things in them and no theme, with what a theme could be read from: their
     /// contents, the words those share, and the themed holder they read most like.
     Themes { reference: Option<String> },
@@ -1012,7 +1022,16 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Suggest { text, tag, for_ref } => {
             inv.suggest_with(&text.join(" "), tag.as_deref(), for_ref.as_deref())
         }
-        Cmd::Regroup { reference } => inv.regroup(reference.as_deref()),
+        Cmd::Regroup {
+            reference,
+            decline,
+            why,
+            allow,
+        } => match (decline, allow) {
+            (Some(d), _) => inv.regroup_decline(&d, why.as_deref()),
+            (_, Some(a)) => inv.regroup_allow(&a),
+            _ => inv.regroup(reference.as_deref()),
+        },
         Cmd::Themes { reference } => inv.themes(reference.as_deref()),
         Cmd::Synonym(SynonymCmd::Add { words }) => inv.synonym_add(&words.join(", ")),
         Cmd::Synonym(SynonymCmd::List) => inv.synonym_list(),

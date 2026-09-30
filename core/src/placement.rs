@@ -928,6 +928,9 @@ impl Inventory {
         let mut elsewhere_by_holder: BTreeMap<i64, Vec<String>> = BTreeMap::new();
         let mut best_of: HashMap<i64, i64> = HashMap::new();
         let mut flagged: HashSet<i64> = HashSet::new();
+        // Moves the person said no to, while the thing is still where it was then.
+        let declines = declines_of(&self.conn)?;
+        let mut declined = Vec::new();
         for item in all.iter().filter(|n| n.kind == Kind::Item) {
             let Some(parent) = item.parent_id else {
                 continue;
@@ -968,6 +971,15 @@ impl Inventory {
             };
             if same_group(best.id) {
                 at_home += 1;
+                continue;
+            }
+            if let Some((_, why)) = declines.get(&item.id).filter(|d| d.0 == parent) {
+                flagged.insert(item.id);
+                declined.push(json!({
+                    "item": brief_json(&self.conn, item.id)?,
+                    "holder": brief_json(&self.conn, parent)?,
+                    "why": why,
+                }));
                 continue;
             }
             let here = ranked
@@ -1173,8 +1185,49 @@ impl Inventory {
             "sparse": sparse,
             "mixed": mixed,
             "unknown_fill": unknown_fill,
+            "declined": declined,
         }))
     }
+
+    /// The person said no to moving `reference` out of where it is: regroup leaves it there,
+    /// with the reason, until it is moved.
+    pub fn regroup_decline(&mut self, reference: &str, why: Option<&str>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        let Some(holder) = crate::store::load(&tx, id)?.parent_id else {
+            return Err(Error::Usage("it is in no holder to stay in".into()));
+        };
+        tx.execute(
+            "INSERT INTO declines (node_id, holder_id, why, at) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(node_id) DO UPDATE SET holder_id = excluded.holder_id,
+               why = excluded.why, at = excluded.at",
+            rusqlite::params![id, holder, why, crate::store::now()],
+        )?;
+        crate::store::event(&tx, id, "decline", json!({ "holder": holder, "why": why }))?;
+        tx.commit()?;
+        Ok(json!({
+            "item": brief_json(&self.conn, id)?,
+            "declined": { "holder": brief_json(&self.conn, holder)?, "why": why },
+        }))
+    }
+
+    /// Takes a decline back: regroup may propose moving it again.
+    pub fn regroup_allow(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, false)?;
+        if tx.execute("DELETE FROM declines WHERE node_id = ?1", [id])? > 0 {
+            crate::store::event(&tx, id, "decline_cleared", json!({}))?;
+        }
+        tx.commit()?;
+        Ok(json!({ "item": brief_json(&self.conn, id)?, "declined": null }))
+    }
+}
+
+/// Declined moves: the thing, the holder it was to stay in, and why.
+fn declines_of(conn: &Connection) -> Result<HashMap<i64, (i64, Option<String>)>> {
+    let mut stmt = conn.prepare("SELECT node_id, holder_id, why FROM declines")?;
+    let rows = stmt.query_map([], |r| Ok((r.get(0)?, (r.get(1)?, r.get(2)?))))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
 /// Facets (spec §26): kinds of things kept apart, such as modules and bare parts or novels and

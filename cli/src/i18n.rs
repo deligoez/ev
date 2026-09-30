@@ -286,6 +286,12 @@ static TR: &[(&str, &str)] = &[
     ("M map", "M harita"),
     ("sketched", "krokiye işlendi"),
     (
+        "Declined, left where they are:",
+        "Reddedildi, yerinde kalıyor:",
+    ),
+    ("move declined", "taşıma reddedildi"),
+    ("decline taken back", "ret geri alındı"),
+    (
         "{}×{} grid seen from the front, row 1 at the top",
         "{}×{} ızgara, önden, 1. satır üstte",
     ),

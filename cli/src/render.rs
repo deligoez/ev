@@ -677,6 +677,18 @@ fn regroup(out: &mut String, v: &Value) {
         let _ = writeln!(out, "  {}", thing(&e["item"]));
         let _ = writeln!(out, "    \"{}\" → {}", s(&e, "term"), label(&e["home"]));
     }
+    for e in section(out, "declined", t("Declined, left where they are:")) {
+        let why = e["why"]
+            .as_str()
+            .map(|w| format!("  ({w})"))
+            .unwrap_or_default();
+        let _ = writeln!(
+            out,
+            "  {}  · {}{why}",
+            thing(&e["item"]),
+            label(&e["holder"])
+        );
+    }
     for e in section(out, "full", t("Full:")) {
         let _ = writeln!(
             out,

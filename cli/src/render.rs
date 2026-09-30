@@ -723,6 +723,98 @@ fn regroup(out: &mut String, v: &Value) {
 
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    // A map: where it is, how it is laid out, then its tiles in reading order.
+    if v.get("layout").is_some() && v.get("tiles").is_some() {
+        let _ = writeln!(out, "{}", s(v, "path_text"));
+        let layout = match v["layout"].as_str().unwrap_or_default() {
+            "grid" => tf("grid {}×{}", &[&v["size"]["cols"], &v["size"]["rows"]]),
+            "sketch" => tf("sketch {}×{} cm", &[&v["size"]["w"], &v["size"]["d"]]),
+            "stack" => t("stack, front on, top first").to_string(),
+            _ => t("tiles (no layout yet)").to_string(),
+        };
+        let _ = writeln!(out, "  {layout}");
+        let by_id: std::collections::HashMap<i64, &Value> = v["tiles"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .chain(v["unplaced"].as_array().into_iter().flatten())
+            .filter_map(|t| Some((t["id"].as_i64()?, t)))
+            .collect();
+        let mut band = Value::Null;
+        for id in ev_core::reading_order(v) {
+            let Some(t) = by_id.get(&id) else { continue };
+            if t["band"] != Value::Null && t["band"] != band {
+                band = t["band"].clone();
+                if let Some(b) = v["bands"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|b| b["id"] == t["band"])
+                {
+                    let _ = writeln!(out, "  {}", line(b));
+                }
+            }
+            let at = t["cells"].as_str().map(str::to_string).unwrap_or_default();
+            let stacked: Vec<String> = t["stacked"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|x| s(x, "code"))
+                .collect();
+            let stacked = if stacked.is_empty() {
+                String::new()
+            } else {
+                tf("  (with {} on it)", &[&stacked.join(", ")])
+            };
+            let _ = writeln!(
+                out,
+                "    {:<6} #{:<4} {}  {}{stacked}",
+                at,
+                t["id"],
+                match t["code"].as_str() {
+                    Some(c) => format!("{c}  {}", s(t, "name")),
+                    None => s(t, "name"),
+                },
+                tf("{} items", &[&t["items"]])
+            );
+        }
+        if v["unplaced"].as_array().is_some_and(|u| !u.is_empty()) {
+            let _ = writeln!(out, "  {}", t("(the unplaced ones are listed last)"));
+        }
+        return out;
+    }
+    if v.get("plan").is_some()
+        && v.get("node").is_some()
+        && v.as_object().is_some_and(|o| o.len() == 2)
+    {
+        let p = &v["plan"];
+        let text = if p.is_null() {
+            t("(no sketch)").to_string()
+        } else {
+            let mut parts = Vec::new();
+            if !p["x"].is_null() {
+                parts.push(tf("at {},{} cm", &[&p["x"], &p["y"]]));
+            }
+            if !p["w"].is_null() {
+                parts.push(tf("{}×{} cm", &[&p["w"], &p["d"]]));
+            }
+            if !p["on"].is_null() {
+                parts.push(tf("on #{}", &[&p["on"]]));
+            }
+            parts.join(" · ")
+        };
+        let _ = writeln!(out, "{}  {text}", line(&v["node"]));
+        return out;
+    }
+    if v.get("placed").is_none()
+        && let Some(list) = v.get("grids").and_then(Value::as_array)
+    {
+        for g in list {
+            grid_block(&mut out, &g["node"], &g["grid"]);
+            out.push('\n');
+        }
+        return out;
+    }
     if let Some(list) = v.get("placed").and_then(Value::as_array) {
         for b in list {
             let cells = b["cells"].as_str().unwrap_or("—");

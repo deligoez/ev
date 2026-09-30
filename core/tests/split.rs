@@ -1,0 +1,146 @@
+//! Splitting one record into a record per kind of thing (`ev split`).
+
+use ev_core::{Inventory, NewNode};
+use serde_json::Value;
+
+fn add(inv: &mut Inventory, new: NewNode) {
+    inv.add(new).unwrap();
+}
+
+/// A box holding one record for three soil-moisture sets, and a photo of the box.
+fn setup() -> (tempfile::TempDir, Inventory) {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    let node = |name: &str, kind: &str, parent: Option<&str>, code: Option<&str>| NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        parent: parent.map(Into::into),
+        code: code.map(Into::into),
+        ..Default::default()
+    };
+    add(&mut inv, node("Ev", "home", None, None));
+    add(&mut inv, node("Oda", "room", Some("Ev"), None));
+    add(&mut inv, node("Kutu", "container", Some("Oda"), Some("B7")));
+    add(
+        &mut inv,
+        NewNode {
+            qty: Some(3),
+            tags: vec!["modül".into()],
+            ..node("Toprak nemi seti", "item", Some("B7"), None)
+        },
+    );
+    (dir, inv)
+}
+
+fn events(inv: &Inventory, r: &str) -> Vec<Value> {
+    inv.history(r).unwrap()["events"]
+        .as_array()
+        .unwrap()
+        .clone()
+}
+
+#[test]
+fn a_set_becomes_a_record_per_part_linked_both_ways() {
+    let (_d, mut inv) = setup();
+    let v = inv
+        .split(
+            "Toprak nemi seti",
+            &[("LM393 kart".into(), Some(3)), ("Kablo".into(), Some(3))],
+            Some("HW-080 prob"),
+            None,
+        )
+        .unwrap();
+    assert_eq!(v["node"]["name"], "HW-080 prob");
+    assert_eq!(v["node"]["qty"], 3);
+    let into = v["into"].as_array().unwrap();
+    assert_eq!(into.len(), 2);
+    // Each part lies where the set lay, with its count and the set's tags.
+    for (name, part) in [("LM393 kart", &into[0]), ("Kablo", &into[1])] {
+        assert_eq!(part["name"], name);
+        assert_eq!(part["qty"], 3);
+        let shown = inv.show(&part["id"].to_string(), false).unwrap();
+        assert_eq!(
+            shown["node"]["path_text"],
+            format!("Ev › Oda › B7 › {name}")
+        );
+        assert_eq!(shown["node"]["tags"], serde_json::json!(["modül"]));
+        let from = events(&inv, &part["id"].to_string());
+        assert!(
+            from.iter()
+                .any(|e| e["type"] == "split_from" && e["data"]["name"] == "Toprak nemi seti"),
+            "{from:?}"
+        );
+    }
+    // The original's history names what came off it and its rename.
+    let own = events(&inv, "HW-080 prob");
+    let split = own.iter().find(|e| e["type"] == "split").unwrap();
+    assert_eq!(split["data"]["into"].as_array().unwrap().len(), 2);
+    assert!(
+        own.iter()
+            .any(|e| e["type"] == "edit" && e["data"]["name"]["before"] == "Toprak nemi seti")
+    );
+}
+
+#[test]
+fn splitting_leaves_the_box_photo_current() {
+    let (d, mut inv) = setup();
+    let img = d.path().join("box.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([9, 9, 9]))
+        .save(&img)
+        .unwrap();
+    inv.photo_add("B7", &img, None, None).unwrap();
+    let on_list = |inv: &Inventory| {
+        inv.todo().unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["code"] == "B7")
+    };
+    assert!(!on_list(&inv));
+    // The same things lie in the box, only recorded apart: its photo still shows it. (Times
+    // are to the second, so each step waits past the one before.)
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.split("Toprak nemi seti", &[("Kablo".into(), Some(3))], None, None)
+        .unwrap();
+    assert!(!on_list(&inv));
+    // A thing really added is a change.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.add(NewNode {
+        name: "Yeni".into(),
+        kind: "item".into(),
+        parent: Some("B7".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(on_list(&inv));
+}
+
+#[test]
+fn a_holder_with_things_inside_is_not_split_and_nothing_is_half_done() {
+    let (_d, mut inv) = setup();
+    let e = inv
+        .split("B7", &[("Başka kutu".into(), None)], None, None)
+        .unwrap_err();
+    assert_eq!(e.code(), 5);
+    // An empty part name refuses the whole split: no part is left behind.
+    let e = inv
+        .split(
+            "Toprak nemi seti",
+            &[("Kablo".into(), Some(3)), (" ".into(), Some(1))],
+            Some("Prob"),
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(e.code(), 2);
+    assert!(
+        inv.find("Kablo", None, None, false).unwrap()["results"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        inv.show("Toprak nemi seti", false).unwrap()["node"]["name"],
+        "Toprak nemi seti"
+    );
+    assert!(inv.split("Toprak nemi seti", &[], None, None).is_err());
+}

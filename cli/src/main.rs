@@ -338,12 +338,10 @@ enum Cmd {
     /// its sketch, or on their own; a stack of furniture front on, top first.
     Map { reference: Option<String> },
     /// Place boxes in their holder's grid: `<ref>=A3` or `<ref>=A3-B4`, several at once;
-    /// `<ref>=` takes one out. --recode names each box `<holder code>-<back-left cell>`.
+    /// `<ref>=` takes one out. A box keeps its code: it is the box's serial label.
     Cell {
         #[arg(required = true)]
         pairs: Vec<String>,
-        #[arg(long)]
-        recode: bool,
     },
     /// Show or change display settings: `language en|tr|auto`, `theme dark|light|auto`,
     /// `resume on|off` (`ev ui` reopens on the node it was on).
@@ -890,7 +888,7 @@ fn run(cli: Cli) -> Result<Value> {
             }
         }
         Cmd::Map { reference } => inv.map(reference.as_deref()),
-        Cmd::Cell { pairs, recode } => {
+        Cmd::Cell { pairs } => {
             let pairs = pairs
                 .iter()
                 .map(|p| {
@@ -899,7 +897,7 @@ fn run(cli: Cli) -> Result<Value> {
                         .ok_or_else(|| Error::Usage(format!("`{p}` is not <ref>=<cells>")))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            inv.cells_set(&pairs, recode)
+            inv.cells_set(&pairs)
         }
         Cmd::Add(a) => add(&mut inv, *a),
         Cmd::Show {

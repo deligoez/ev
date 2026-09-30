@@ -78,17 +78,14 @@ fn setup() -> (tempfile::TempDir, Inventory) {
             .map(|(a, b)| (a.to_string(), b.to_string()))
             .collect()
     };
-    inv.cells_set(
-        &cells(&[
-            ("K22-01", "A1"),
-            ("K22-02", "B1"),
-            ("K22-03", "A2"),
-            ("K22-04", "B2"),
-            ("K21-01", "A1"),
-            ("K21-02", "B1"),
-        ]),
-        false,
-    )
+    inv.cells_set(&cells(&[
+        ("K22-01", "A1"),
+        ("K22-02", "B1"),
+        ("K22-03", "A2"),
+        ("K22-04", "B2"),
+        ("K21-01", "A1"),
+        ("K21-02", "B1"),
+    ]))
     .unwrap();
     (dir, inv)
 }

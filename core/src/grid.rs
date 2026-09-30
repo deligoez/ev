@@ -5,7 +5,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use crate::error::{Error, Result, refused};
-use crate::store::{Inventory, apply_edit, brief_json, event, load, resolve, touch};
+use crate::store::{Inventory, brief_json, event, load, resolve, touch};
 
 const MAX_COLS: i64 = 26;
 const MAX_ROWS: i64 = 99;
@@ -542,9 +542,8 @@ impl Inventory {
     /// Places boxes in the cells of their holder's grid, all at once: each pair is a reference
     /// and a cell range (`A3`, `A3-B4`), or an empty range to take a box out of the grid.
     /// Bounds and overlaps are checked against where every box ends up, so boxes can swap
-    /// places in one step. With `recode`, each placed box gets the code `<holder code>-<cell>`,
-    /// named after its back-left cell.
-    pub fn cells_set(&mut self, pairs: &[(String, String)], recode: bool) -> Result<Value> {
+    /// places in one step. A box keeps its code: it is the box's serial label, not its place.
+    pub fn cells_set(&mut self, pairs: &[(String, String)]) -> Result<Value> {
         if pairs.is_empty() {
             return Err(Error::Usage("give at least one <ref>=<cells>".into()));
         }
@@ -610,27 +609,8 @@ impl Inventory {
                 }
             }
         }
-        if recode {
-            for (n, h, c) in &moves {
-                if c.is_some() && load(&tx, *h)?.code.is_none() {
-                    return Err(refused(
-                        format!("--recode needs a code on the holder of {}", n.name),
-                        Value::Null,
-                    ));
-                }
-            }
-            // Codes may rotate between the boxes, as with `ev recode`.
-            for (n, _, c) in &moves {
-                if c.is_some() {
-                    tx.execute(
-                        "UPDATE nodes SET code = NULL, code_folded = NULL WHERE id = ?1",
-                        [n.id],
-                    )?;
-                }
-            }
-        }
         let mut out = Vec::new();
-        for (n, h, c) in &moves {
+        for (n, _, c) in &moves {
             let before = cells_of(&tx, n.id)?;
             match c {
                 Some(c) => tx.execute(
@@ -641,16 +621,10 @@ impl Inventory {
                 )?,
                 None => tx.execute("DELETE FROM cells WHERE node_id = ?1", [n.id])?,
             };
-            let mut change = json!({
+            let change = json!({
                 "before": before.map(|b| b.name()),
                 "after": c.map(|c| c.name()),
             });
-            if recode && let Some(c) = c {
-                let holder_code = load(&tx, *h)?.code.unwrap_or_default();
-                let code = format!("{holder_code}-{}", c.anchor());
-                apply_edit(&tx, n, "code", &code)?;
-                change["code"] = json!({ "before": n.code, "after": code });
-            }
             touch(&tx, n.id)?;
             event(&tx, n.id, "cell", change)?;
             let mut b = brief_json(&tx, n.id)?;

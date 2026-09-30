@@ -191,7 +191,7 @@ fn regroup_finds_the_stray_the_full_box_and_where_a_bigger_one_fits() {
     .iter()
     .map(|(a, b)| (a.to_string(), b.to_string()))
     .collect();
-    inv.cells_set(&pairs, false).unwrap();
+    inv.cells_set(&pairs).unwrap();
     inv.edit("D-B1", &["fill=95".into()]).unwrap();
 
     let v = inv.regroup(Some("D")).unwrap();

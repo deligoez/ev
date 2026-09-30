@@ -48,17 +48,12 @@ fn boxes_are_placed_checked_and_mapped() {
     let (_d, mut inv) = setup();
     // No grid yet: placing is refused and says how to set one.
     assert_eq!(
-        inv.cells_set(&pairs(&[("D-A3", "A3")]), false)
-            .unwrap_err()
-            .code(),
+        inv.cells_set(&pairs(&[("D-A3", "A3")])).unwrap_err().code(),
         5
     );
     inv.grid_set("D", 3, 4).unwrap();
-    inv.cells_set(
-        &pairs(&[("D-A4", "A4-B4"), ("D-A3", "A3"), ("D-B3", "B3")]),
-        false,
-    )
-    .unwrap();
+    inv.cells_set(&pairs(&[("D-A4", "A4-B4"), ("D-A3", "A3"), ("D-B3", "B3")]))
+        .unwrap();
     assert_eq!(free(&inv).len(), 12 - 4);
     let g = &inv.grid("D").unwrap()["grid"];
     let a4: Value = g["map"][3][1].clone();
@@ -67,15 +62,11 @@ fn boxes_are_placed_checked_and_mapped() {
 
     // Outside the grid, and on top of another box, are refused and change nothing.
     assert_eq!(
-        inv.cells_set(&pairs(&[("D-A3", "D3")]), false)
-            .unwrap_err()
-            .code(),
+        inv.cells_set(&pairs(&[("D-A3", "D3")])).unwrap_err().code(),
         5
     );
     assert_eq!(
-        inv.cells_set(&pairs(&[("D-A3", "B4")]), false)
-            .unwrap_err()
-            .code(),
+        inv.cells_set(&pairs(&[("D-A3", "B4")])).unwrap_err().code(),
         5
     );
     assert_eq!(inv.show("D-A3", false).unwrap()["cells"], "A3");
@@ -86,49 +77,42 @@ fn boxes_are_placed_checked_and_mapped() {
 }
 
 #[test]
-fn boxes_trade_places_and_codes_in_one_step() {
+fn boxes_trade_places_in_one_step_and_keep_their_codes() {
     let (_d, mut inv) = setup();
     inv.grid_set("D", 3, 4).unwrap();
-    inv.cells_set(
-        &pairs(&[("D-A4", "A4-B4"), ("D-A3", "A3"), ("D-B3", "B3")]),
-        false,
-    )
-    .unwrap();
+    inv.cells_set(&pairs(&[("D-A4", "A4-B4"), ("D-A3", "A3"), ("D-B3", "B3")]))
+        .unwrap();
     // The tall box goes back a row and the two small ones come forward: one at a time each
-    // move would overlap, together they fit, and the codes follow the cells.
+    // move would overlap, together they fit. A box's code is its serial label: it stays.
     let v = inv
-        .cells_set(
-            &pairs(&[("Uzun kutu", "A3-B3"), ("Sıcaklık", "A4"), ("Giriş", "B4")]),
-            true,
-        )
+        .cells_set(&pairs(&[
+            ("Uzun kutu", "A3-B3"),
+            ("Sıcaklık", "A4"),
+            ("Giriş", "B4"),
+        ]))
         .unwrap();
     assert_eq!(v["placed"].as_array().unwrap().len(), 3);
     assert_eq!(
         inv.show("Uzun kutu", false).unwrap()["node"]["code"],
-        "D-A3"
+        "D-A4"
     );
-    assert_eq!(inv.show("Sıcaklık", false).unwrap()["node"]["code"], "D-A4");
-    assert_eq!(inv.show("Giriş", false).unwrap()["node"]["code"], "D-B4");
-    assert_eq!(inv.show("D-A3", false).unwrap()["cells"], "A3-B3");
-    // New codes need their labels printed.
-    assert_eq!(
-        inv.show("D-B4", false).unwrap()["marks"]["label"]["value"],
-        "needed"
-    );
+    assert_eq!(inv.show("D-A4", false).unwrap()["cells"], "A3-B3");
+    assert_eq!(inv.show("D-A3", false).unwrap()["cells"], "A4");
+    assert_eq!(inv.show("D-B3", false).unwrap()["cells"], "B4");
 }
 
 #[test]
 fn a_box_moved_out_leaves_its_cells_free() {
     let (_d, mut inv) = setup();
     inv.grid_set("D", 2, 2).unwrap();
-    inv.cells_set(&pairs(&[("D-A3", "A1")]), false).unwrap();
+    inv.cells_set(&pairs(&[("D-A3", "A1")])).unwrap();
     assert_eq!(free(&inv), ["B1", "A2", "B2"]);
     inv.move_to("D-A3", "Oda", false).unwrap();
     assert_eq!(free(&inv).len(), 4);
     assert!(inv.show("D-A3", false).unwrap()["cells"].is_null());
     // Taking a box out of the grid by hand works too.
-    inv.cells_set(&pairs(&[("D-B3", "B2")]), false).unwrap();
-    inv.cells_set(&pairs(&[("D-B3", "")]), false).unwrap();
+    inv.cells_set(&pairs(&[("D-B3", "B2")])).unwrap();
+    inv.cells_set(&pairs(&[("D-B3", "")])).unwrap();
     assert_eq!(free(&inv).len(), 4);
     // The holder's suggest entry reports its free cells.
     let s = inv.suggest("sensör modülü", None).unwrap();
@@ -174,7 +158,7 @@ fn close(a: f64, b: f64) -> bool {
 fn photographed() -> (TempDir, Inventory, std::path::PathBuf) {
     let (dir, mut inv) = setup();
     inv.grid_set("D", 3, 2).unwrap();
-    inv.cells_set(&pairs(&[("D-A4", "A1"), ("D-A3", "B1-C1")]), false)
+    inv.cells_set(&pairs(&[("D-A4", "A1"), ("D-A3", "B1-C1")]))
         .unwrap();
     add(&mut inv, "Vida", "item", Some("D-A4"), None);
     add(&mut inv, "Somun", "item", Some("D-A3"), None);
@@ -400,7 +384,7 @@ fn a_box_added_after_the_drawer_photo_puts_the_drawer_back_on_the_photo_list() {
     // longer shows the drawer as it is.
     add(&mut inv, "Kutu", "container", Some("D"), Some("D-A2"));
     add(&mut inv, "Röle", "item", Some("D-A2"), None);
-    inv.cells_set(&pairs(&[("D-A2", "A2")]), false).unwrap();
+    inv.cells_set(&pairs(&[("D-A2", "A2")])).unwrap();
     let got = needing(&inv);
     assert!(got.contains(&"D-A2".to_string()), "{got:?}");
     assert!(got.contains(&"D".to_string()), "{got:?}");

@@ -3849,8 +3849,7 @@ mod tests {
                 .unwrap();
         }
         inv.grid_set("D", 3, 2).unwrap();
-        inv.cells_set(&[("D-B1".into(), "B1-C1".into())], false)
-            .unwrap();
+        inv.cells_set(&[("D-B1".into(), "B1-C1".into())]).unwrap();
         let drawer = inv.resolve("D", false).unwrap();
         let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
         app.picker = Some(Picker::halfblocks());
@@ -3966,11 +3965,8 @@ mod tests {
             add(&mut inv, name, "item", parent, None);
         }
         inv.grid_set("D", 2, 1).unwrap();
-        inv.cells_set(
-            &[("D-A1".into(), "A1".into()), ("D-B1".into(), "B1".into())],
-            false,
-        )
-        .unwrap();
+        inv.cells_set(&[("D-A1".into(), "A1".into()), ("D-B1".into(), "B1".into())])
+            .unwrap();
         (dir, inv)
     }
 

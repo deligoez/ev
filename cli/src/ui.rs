@@ -3046,6 +3046,22 @@ impl App {
                             String::new()
                         },
                     ),
+                    "split" => own(
+                        "split into",
+                        d["into"]
+                            .as_array()
+                            .map(|a| {
+                                a.iter()
+                                    .map(|p| format!("#{} {}", p["id"], str_of(p, "name")))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            })
+                            .unwrap_or_default(),
+                    ),
+                    "split_from" => own(
+                        "split from",
+                        format!("#{} {}", d["from"], str_of(d, "name")),
+                    ),
                     "photo_remove" => own(
                         "photo removed",
                         [str_of(d, "note"), str_of(d, "crop")]

@@ -342,6 +342,8 @@ static TR: &[(&str, &str)] = &[
     ("changed", "değişti"),
     ("photo added", "fotoğraf eklendi"),
     ("photo removed", "fotoğraf çıkarıldı"),
+    ("split into", "bölündü"),
+    ("split from", "şuradan bölündü"),
     ("(a crop)", "(kesit)"),
     ("observed", "gözlem"),
     ("observation removed", "gözlem kaldırıldı"),

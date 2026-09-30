@@ -19,10 +19,11 @@ positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says w
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial
 code** (`S5-01`, a Samla box; `GF-001`, a gridfinity box): it says which box, and it stays
 when the box moves to another drawer or room — where it is lives in the record (its parent,
-its cell), never in its code. Use codes exactly as the person gives them; for a new box,
-propose the next free code of its series and record it once they agree. A node leaves in two
-steps (`dispose --as` then `gone`) or one (`gone --as`). A node whose place is unknown is
-`lost`.
+its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` (`GF1x1-012`,
+`GF1x2-003`), one series per footprint. Use codes exactly as the person gives them; for a new
+box, `code=GF1x1-*` takes the next free number of its series — say it, since it goes on the
+label. A node leaves in two steps (`dispose --as` then `gone`) or one (`gone --as`). A node
+whose place is unknown is `lost`.
 
 ## The conversation loop
 

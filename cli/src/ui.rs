@@ -4074,7 +4074,30 @@ mod tests {
         click(&mut app, MouseEventKind::Down(MouseButton::Left), mx, my);
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        assert!(s.contains("Mutfak 1 eşya  · Kupa"), "{s}");
+        // A room gone through on its own says how far it is counted.
+        assert!(s.contains("Mutfak 1 eşya  sayılmadı  · Kupa"), "{s}");
+    }
+
+    #[test]
+    fn the_tree_lists_lost_things_under_unknown_place_and_says_how_far_places_are_counted() {
+        let (_dir, mut inv) = home();
+        add(&mut inv, "Oda", "room", "Ev", None);
+        add(&mut inv, "Kutu", "container", "Oda", Some("K-1"));
+        add(&mut inv, "Kalem", "item", "K-1", None);
+        add(&mut inv, "Silgi", "item", "K-1", None);
+        inv.mark_lost("Kalem").unwrap();
+        let mut app = app_tr(inv);
+        app.reveal(app.inv.resolve("K-1", false).unwrap()).unwrap();
+        press(&mut app, KeyCode::Right);
+        let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        let s = screen(&term);
+        // The box says it is not counted; the lost pen is under its own heading, with where
+        // it was last seen, and only once.
+        assert!(s.contains("K-1") && s.contains("[sayılmadı]"), "{s}");
+        assert!(s.contains("Yeri bilinmiyor (1)"), "{s}");
+        assert!(s.contains("son görüldüğü yer: K-1"), "{s}");
+        assert_eq!(s.matches("Kalem").count(), 1, "{s}");
     }
 
     #[test]
@@ -4634,7 +4657,9 @@ mod tests {
         let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         let s = screen(&term);
-        assert!(s.contains("0/1 gezildi"), "{s}");
+        assert!(s.contains("0/1 sayıldı"), "{s}");
+        // Every place is on the not-counted list until counted, so it starts collapsed.
+        assert!(s.contains("▸ HENÜZ SAYILMADI"), "{s}");
         assert!(s.contains("İŞLER"), "{s}");
         assert!(s.contains("1. Kutuyu aç"), "{s}");
         // The task's place is shown on the right.

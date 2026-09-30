@@ -69,7 +69,8 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped, 1
   way a plan from another program comes in. `M` in `ev ui` then draws the home as a floor
   plan: each room a floor of its own shape and tone, meeting its neighbours without the gap of
   the wall between, its name where it is widest, the chosen one lit; the line under the map
-  says what the chosen tile holds. With nothing given, rooms are laid out as tiles.
+  says what the chosen tile holds. With nothing given, rooms are laid out as tiles. A drawer
+  or a Kallax on a grid is drawn as its plate: A… above, 1… beside, a dot on every free cell.
   Schema 16.
 - **A grid knows which way it is seen: `ev grid <ref> --face front`.** A drawer is seen from
   above, its row 1 at the back; a Kallax and its compartments are seen from the front, row 1

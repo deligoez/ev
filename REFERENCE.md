@@ -76,7 +76,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null).
 
 ## `ev ui`
 
@@ -102,6 +102,7 @@ settings file, from its Settings tab, and on exit the tree position it reopens o
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
 | m | the marked photos sent last with `ev focus --file`, again |
+| M | the map (see **Maps**) full screen: the place holding the selected node, that node chosen. ← ↑ ↓ → move to the nearest tile that way (Tab steps in reading order), Enter goes into the tile, Backspace / u goes up a level with the place left chosen, t closes the map on the chosen tile in the tree; a click chooses a tile and a second click goes in; Esc / q / M close. A tile shows its label, its theme (or name), how many things it holds, its fill, and what is in it as far as it has room; it follows the data as it changes |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
 | q / Esc | quit (Esc clears a search first) |
 
@@ -142,13 +143,42 @@ A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from 
 | Command | Does |
 |---|---|
 | `ev grid <ref>` | `node`, `grid`: `cols`, `rows`, `boxes` (NodeRef + `cells`), `free` (cell names), `unplaced` (children without cells), `map` (rows of box ids, null where free); `grid` is null without one |
-| `ev grid <ref> --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside |
+| `ev grid <ref>… --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside. Several references get the same grid, all or none, and return `grids` |
 | `ev grid <ref> --clear` | remove the grid; refused while boxes are placed in it |
 | `ev cell <ref>=<cells>… [--recode]` | place boxes in their holder's grid, several at once; `<ref>=` takes one out. Bounds and overlaps are checked against where every box ends up, so boxes can swap places in one step. `--recode` names each placed box `<holder code>-<back-left cell>`. `placed`, `grids` |
 
 `ev show` carries `cells` for a placed box and `grid` for a holder that has one; `ev suggest`
 entries carry `cells`, and `grid` with its `free` cells. Moving a box out of its holder frees
 its cells.
+
+## Maps
+
+Any place drawn as the tiles of what is in it, laid out from what is recorded:
+
+- **grid**: the place has a grid; each placed box is a tile on its cells.
+- **sketch**: the place has a size and at least one thing in it has a place and a size, in
+  centimetres seen from above (a room in the home, a piece of furniture in a room). The others
+  are `unplaced`.
+- **tiles**: neither; what is in it is laid out on its own, holders first, labelled ones first.
+- **stack**: furniture standing on another (`--on`) is drawn with it, front on, top first: one
+  band per member, as tall as its grid has rows, each laid out by its own grid. In the room it
+  is left out of the tiles and listed under `stacked` of the one it stands on.
+
+| Command | Does |
+|---|---|
+| `ev sketch <ref>` | `node`, `sketch`: `{x, y, w, d, on}` or null |
+| `ev sketch <ref> --size w,d` | its width and depth; a place with a size can be sketched in |
+| `ev sketch <ref> --at x,y` | its top-left corner in its holder, seen from above |
+| `ev sketch <ref> --on <ref>` | it stands on another; refused (exit 5) on itself or on what stands on it |
+| `ev sketch <ref> --clear` | remove its sketch |
+| `ev map [<ref>]` | the home without a reference. `node`, `path_text`, `path`, `parent`, `sketch`, `layout` (`grid`, `sketch`, `tiles`, `stack`), `size` (`cols`, `rows` or `w`, `d`), `tiles`, `unplaced`; a stack adds `bands` (NodeRef + `rect`, `layout`, `size`) |
+
+Numbers are centimetres, `120,40`, `120x40` or `120×40`, decimals with a point. Each tile is a
+NodeRef with `rect` (`[x, y, w, h]` as fractions of the place, from its top-left: the back of a
+drawer, the top of a stack), `items` (things inside, counted all the way down), `children`,
+`contents` (up to 40: holders by code, then things by name, `×n` for a count), and when set
+`theme`, `fill`, `cells`, `temporary`, `unknown`, `stacked` (what stands on it, bottom up) and
+`band` (the stack member it belongs to). `ev ui` shows the map with `M`.
 
 ## Places
 

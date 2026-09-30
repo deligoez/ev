@@ -292,6 +292,11 @@ fn prune_older(dir: &Path, age: Duration) {
 /// Where a marked copy of `file` goes when no place is given: `<temp>/ev-marks`, a scratch folder
 /// whose files older than a day are removed first.
 fn scratch_copy(file: &Path) -> PathBuf {
+    scratch_path(file, "marked")
+}
+
+/// `<temp>/ev-marks/<stem>-<what>-<ms>.jpg`, pruning the folder's day-old files first.
+fn scratch_path(file: &Path, what: &str) -> PathBuf {
     let dir = std::env::temp_dir().join("ev-marks");
     prune_older(&dir, Duration::from_secs(24 * 3600));
     let stem = file
@@ -299,7 +304,16 @@ fn scratch_copy(file: &Path) -> PathBuf {
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "photo".into());
     let ms = chrono::Utc::now().timestamp_millis();
-    dir.join(format!("{stem}-marked-{ms}.jpg"))
+    dir.join(format!("{stem}-{what}-{ms}.jpg"))
+}
+
+/// What a crop is called on a contact sheet: its cell when it stands in a grid (`B3`), else its
+/// code, else its `#id`.
+fn tile_label(conn: &Connection, id: i64) -> Result<String> {
+    if let Some(cells) = crate::grid::cells_of(conn, id)? {
+        return Ok(cells.anchor());
+    }
+    Ok(load(conn, id)?.code.unwrap_or_else(|| format!("#{id}")))
 }
 
 const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note, theme, fill, \
@@ -2824,7 +2838,22 @@ impl Inventory {
             attached.push(b);
         }
         tx.commit()?;
-        Ok(json!({ "attached": attached }))
+        // Every crop small on one sheet, to check the cut at a glance. The cut is recorded
+        // already: a sheet that cannot be drawn is reported as missing, not as a failed cut.
+        let tiles = rows
+            .iter()
+            .filter_map(|(id, _, _, crop, _)| crop.map(|c| (*id, c)))
+            .map(|(id, c)| Ok((tile_label(&self.conn, id)?, c)))
+            .collect::<Result<Vec<_>>>()?;
+        let sheet = (!tiles.is_empty())
+            .then(|| {
+                let out = scratch_path(file, "sheet");
+                crate::photo::contact_sheet(&original, &tiles, &out)
+                    .ok()
+                    .map(|()| out.to_string_lossy().into_owned())
+            })
+            .flatten();
+        Ok(json!({ "attached": attached, "sheet": sheet }))
     }
 
     /// What `photo_cut` would cut, drawn instead of cut: each placed box of the `place` grid
@@ -2845,9 +2874,11 @@ impl Inventory {
             return Err(Error::NotFound(format!("no file {}", file.display())));
         }
         let mut shapes = Vec::new();
+        let mut tiles: Vec<(i64, String, crate::Crop)> = Vec::new();
         for (r, c) in crops {
-            resolve(&self.conn, r, false)?;
+            let id = resolve(&self.conn, r, false)?;
             shapes.push((r.clone(), Shape::Rect(*c)));
+            tiles.push((id, r.clone(), *c));
         }
         if let Some(corners) = grid {
             let Some(p) = place else {
@@ -2860,6 +2891,12 @@ impl Inventory {
                 let quad = crate::grid::cells_quad(&self.conn, pid, corners, &cells)?;
                 shapes.push((cells.anchor(), Shape::Quad(quad)));
             }
+            // The crops the cut would make, as the cut makes them: a crop named by hand wins.
+            for (id, c) in crate::grid::grid_crops(&self.conn, pid, corners)? {
+                if !tiles.iter().any(|(t, _, _)| *t == id) {
+                    tiles.push((id, tile_label(&self.conn, id)?, c));
+                }
+            }
         }
         if shapes.is_empty() {
             return Err(Error::Usage(
@@ -2868,7 +2905,15 @@ impl Inventory {
         }
         let out = out.map_or_else(|| scratch_copy(file), Path::to_path_buf);
         crate::photo::draw_marks(file, &shapes, &out)?;
-        Ok(json!({ "preview": out.to_string_lossy(), "framed": shapes.len() }))
+        let tiles: Vec<(String, crate::Crop)> =
+            tiles.into_iter().map(|(_, label, c)| (label, c)).collect();
+        let sheet = scratch_path(file, "sheet");
+        crate::photo::contact_sheet(file, &tiles, &sheet)?;
+        Ok(json!({
+            "preview": out.to_string_lossy(),
+            "framed": shapes.len(),
+            "sheet": sheet.to_string_lossy(),
+        }))
     }
 
     /// Draws marks on a copy of a photo, to show which thing is meant and where it goes. The

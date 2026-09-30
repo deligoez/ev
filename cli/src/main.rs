@@ -644,6 +644,9 @@ struct AddArgs {
     /// Its contents have not been inventoried yet.
     #[arg(long)]
     unknown: bool,
+    /// A parking place: what is put in it waits for its final place.
+    #[arg(long)]
+    temporary: bool,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,
@@ -1140,6 +1143,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         to: a.to,
         owner: a.owner,
         unknown: a.unknown,
+        temporary: a.temporary,
     })
 }
 

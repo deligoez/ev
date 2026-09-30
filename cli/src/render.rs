@@ -71,6 +71,9 @@ fn place_marks(n: &Value) -> String {
     if n["unknown"] == true {
         out.push_str(t("  (contents unknown)"));
     }
+    if n["temporary"] == true {
+        out.push_str(t("  (temporary place)"));
+    }
     if let Some(x) = n["to"].as_str() {
         out.push_str(&tf("  (to: {})", &[&x]));
     }
@@ -282,6 +285,7 @@ fn todo(out: &mut String, v: &Value) {
         ("repairs", t("Broken")),
         ("expiring", t("Use-by soon")),
         ("unknown", t("Contents unknown")),
+        ("parked", t("Waiting for a final place")),
         ("stale", t("Changed since toured")),
         ("unclear", t("Unclear records")),
         ("photos", t("Photo of the current state needed")),
@@ -293,6 +297,12 @@ fn todo(out: &mut String, v: &Value) {
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
                     "photos" if n["photo_reason"] == "none" => Some(t("  (no photo)").into()),
                     "photos" => Some(tf("  (changed {})", &[&s(n, "changed_at")])),
+                    "parked" => Some(tf(
+                        "  (parked in {})",
+                        &[&n["in"]["code"]
+                            .as_str()
+                            .map_or_else(|| s(&n["in"], "path_text"), str::to_string)],
+                    )),
                     _ => None,
                 }
                 .unwrap_or_default();
@@ -506,9 +516,15 @@ fn suggestion(out: &mut String, v: &Value) {
     }
     for (i, x) in similar.iter().enumerate() {
         let c = &x["container"];
+        // A place not gone through yet is a guess to check before it is proposed.
+        let untoured = if c["review"].is_null() || c["review"]["status"] == "raw" {
+            t("  (not toured)")
+        } else {
+            ""
+        };
         let _ = writeln!(
             out,
-            "  {}. {}  {}",
+            "  {}. {}{untoured}  {}",
             i + 1,
             head(c),
             tf(
@@ -540,6 +556,22 @@ fn suggestion(out: &mut String, v: &Value) {
                 "  {}  [{}]  {}",
                 head(&x["container"]),
                 list_str(&x["container"]["facet"]),
+                tf("score {}", &[&x["score"]])
+            );
+        }
+    }
+    let parking = v["parking"].as_array().cloned().unwrap_or_default();
+    if !parking.is_empty() {
+        let _ = writeln!(
+            out,
+            "\n{}",
+            t("Parking places, not offered as a final place:")
+        );
+        for x in &parking {
+            let _ = writeln!(
+                out,
+                "  {}  {}",
+                head(&x["container"]),
                 tf("score {}", &[&x["score"]])
             );
         }

@@ -265,6 +265,15 @@ static TR: &[(&str, &str)] = &[
     ("words: {}", "kelimeler: {}"),
     ("(no facets)", "(tür yok)"),
     ("(no kits)", "(set yok)"),
+    ("  [temporary place]", "  [geçici yer]"),
+    ("  (temporary place)", "  (geçici yer)"),
+    ("Waiting for a final place", "Nihai yerini bekleyenler"),
+    ("  (parked in {})", "  ({} içinde bekliyor)"),
+    ("  (not toured)", "  (gezilmedi)"),
+    (
+        "Parking places, not offered as a final place:",
+        "Geçici yerler, nihai yer olarak önerilmez:",
+    ),
     (
         "Boxes whose name says a size their size field does not:",
         "Adında yazan boyutu size alanında olmayan kutular:",

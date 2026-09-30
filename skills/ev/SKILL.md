@@ -130,6 +130,16 @@ Record the kinds that have their own verbs as you meet them:
   `ev cell A=A3-B3 B=A4 C=B4` once the person has moved them: overlaps are checked against
   the final layout. Do not add `--recode`: it renames each box after its cell, and a box's
   code is its serial label, which must not change when it moves.
+- **The map:** `ev map <place>`, and `M` in `ev ui`, show a place as tiles: its grid, its
+  sketch, or furniture stacked front on. Record how furniture stands as the person says it
+  (`ev sketch <top> --on <bottom>` for a Kallax on another), give a piece of furniture a grid of
+  its compartments seen from the front, row 1 at the top (`ev grid K4x4 --cols 4 --rows 4`, then
+  `ev cell` per compartment), and a compartment with two drawers a one-column grid (`ev grid
+  <c1> <c2>… --cols 1 --rows 2`, several at once). Sizes and positions come only from what the
+  person measured or a floor plan they gave (`ev sketch <room> --size w,d`, `ev sketch <x> --at
+  x,y --size w,d`, centimetres) — never estimate one. A room nobody has gone through is marked
+  `unknown=true` so its empty tile does not read as empty. When the person asks where something
+  is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 

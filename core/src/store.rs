@@ -523,44 +523,31 @@ impl Inventory {
     /// Applies `field=value` assignments (spec §6, §11.6).
     pub fn edit(&mut self, reference: &str, assignments: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        // A gone node is found by id only, and only its note may change: the record of why it
-        // left belongs on it, while every other field describes a thing no longer here.
-        let id = match resolve(&tx, reference, false) {
-            Err(Error::NotFound(_)) if reference.trim().chars().all(|c| c.is_ascii_digit()) => {
-                let id = resolve(&tx, reference, true)?;
-                if let Some(a) = assignments
-                    .iter()
-                    .find(|a| a.split_once('=').is_none_or(|(f, _)| f.trim() != "note"))
-                {
-                    return Err(refused(
-                        format!("node {id} is gone; only its note can change, not `{a}`"),
-                        Value::Null,
-                    ));
-                }
-                id
-            }
-            other => other?,
-        };
-        let mut changes = serde_json::Map::new();
-        for a in assignments {
-            let (field, value) = a
-                .split_once('=')
-                .ok_or_else(|| Error::Usage(format!("`{a}` is not field=value")))?;
-            let field = field.trim();
-            let before = load(&tx, id)?;
-            apply_edit(&tx, &before, field, value)?;
-            let after = load(&tx, id)?;
-            let (b, a2) = (field_value(&before, field), field_value(&after, field));
-            if b != a2 {
-                changes.insert(field.to_string(), json!({ "before": b, "after": a2 }));
-            }
-        }
-        if !changes.is_empty() {
-            touch(&tx, id)?;
-            event(&tx, id, "edit", Value::Object(changes))?;
-        }
+        let id = edit_in(&tx, reference, assignments)?;
         tx.commit()?;
         show(&self.conn, id)
+    }
+
+    /// Applies the assignments of several records at once, all or none: a line that fails
+    /// (by its number) leaves every record as it was. Each record gets its own `edit` event.
+    pub fn edit_batch(&mut self, lines: &[(String, Vec<String>)]) -> Result<Value> {
+        if lines.is_empty() {
+            return Err(Error::Usage("no lines to edit".into()));
+        }
+        let tx = self.conn.transaction()?;
+        let mut edited = Vec::with_capacity(lines.len());
+        for (i, (reference, assignments)) in lines.iter().enumerate() {
+            if assignments.is_empty() {
+                return Err(Error::Usage("nothing to set".into()).at_line(i + 1));
+            }
+            edited.push(edit_in(&tx, reference, assignments).map_err(|e| e.at_line(i + 1))?);
+        }
+        tx.commit()?;
+        let nodes = edited
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "edited": nodes }))
     }
 
     /// Splits one record into several kinds of thing: each `(name, qty)` becomes a new record
@@ -1769,6 +1756,55 @@ fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
     v.parse::<i64>()
         .map(Some)
         .map_err(|_| Error::Usage(format!("{field} must be an integer, got `{v}`")))
+}
+
+/// One record's `field=value` assignments inside the caller's transaction, recorded as one
+/// `edit` event with each field's value before the first and after the last assignment (so
+/// `tags=+a` then `tags=+b` reads as one change).
+fn edit_in(conn: &Connection, reference: &str, assignments: &[String]) -> Result<i64> {
+    // A gone node is found by id only, and only its note may change: the record of why it
+    // left belongs on it, while every other field describes a thing no longer here.
+    let id = match resolve(conn, reference, false) {
+        Err(Error::NotFound(_)) if reference.trim().chars().all(|c| c.is_ascii_digit()) => {
+            let id = resolve(conn, reference, true)?;
+            if let Some(a) = assignments
+                .iter()
+                .find(|a| a.split_once('=').is_none_or(|(f, _)| f.trim() != "note"))
+            {
+                return Err(refused(
+                    format!("node {id} is gone; only its note can change, not `{a}`"),
+                    Value::Null,
+                ));
+            }
+            id
+        }
+        other => other?,
+    };
+    let mut changes = serde_json::Map::new();
+    for a in assignments {
+        let (field, value) = a
+            .split_once('=')
+            .ok_or_else(|| Error::Usage(format!("`{a}` is not field=value")))?;
+        let field = field.trim();
+        let before = load(conn, id)?;
+        apply_edit(conn, &before, field, value)?;
+        let after = load(conn, id)?;
+        let first = changes
+            .get(field)
+            .map(|c| c["before"].clone())
+            .unwrap_or_else(|| field_value(&before, field));
+        let last = field_value(&after, field);
+        if first == last {
+            changes.remove(field);
+        } else {
+            changes.insert(field.to_string(), json!({ "before": first, "after": last }));
+        }
+    }
+    if !changes.is_empty() {
+        touch(conn, id)?;
+        event(conn, id, "edit", Value::Object(changes))?;
+    }
+    Ok(id)
 }
 
 pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<()> {

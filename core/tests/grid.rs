@@ -216,6 +216,39 @@ fn a_grid_photo_crops_every_placed_box_from_the_grid_corners() {
 }
 
 #[test]
+fn a_taller_box_gets_a_wider_crop_so_its_overhanging_rim_is_not_cut_off() {
+    let (_d, mut inv, photo) = photographed();
+    // Two units high: its rim leans out twice as far, so twice the margin (0.30 of a cell).
+    inv.edit("D-A4", &["size=1x2x2".into()]).unwrap();
+    let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let a: Vec<f64> = last_crop(&inv, "D-A4")["crop"]
+        .as_str()
+        .unwrap()
+        .split(',')
+        .map(|x| x.parse().unwrap())
+        .collect();
+    assert!(close(a[0], 0.1 + 0.8 * (-0.1)), "{a:?}");
+    // Its back edge would reach past the photo's top, so it stops there.
+    assert!(close(a[1], 0.0), "{a:?}");
+    assert!(close(a[1] + a[3], 0.1 + 0.8 * (0.5 + 0.15)), "{a:?}");
+    // A box lower than one unit still gets the plain margin, never less.
+    inv.edit("D-A4", &["size=1x2x0.5".into()]).unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let low: f64 = last_crop(&inv, "D-A4")["crop"]
+        .as_str()
+        .unwrap()
+        .split(',')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(close(low, 0.1 + 0.8 * (-0.05)), "{low}");
+}
+
+#[test]
 fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
     let (d, mut inv, photo) = photographed();
     let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();

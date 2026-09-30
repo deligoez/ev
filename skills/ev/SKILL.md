@@ -198,6 +198,14 @@ record each move as the person confirms it and ask for one photo of the drawer w
 are done; `ev todo` keeps the drawer on its photo list until then (a box added or changed after
 the drawer's photo puts it back there, with `grid: true`).
 
+**"It won't fit" is a guess until the person tries it.** Do not propose a bigger box because a
+part looks too long for the one it belongs in: ask them to try it on edge or diagonally first
+(the part is in their hand; a 1x1 gridfinity box is about 5 cm across its diagonal), and name
+the bigger box only as the fallback. And a cell `ev grid` lists as `free` is only free in the
+records — look at the drawer's photo before proposing a box there: a spare empty box may stand
+in it. Record such a spare as its own empty box on its cell (`tags=+"boş kap"`, `ev cell`),
+not as a count on an unplaced record, so the grid shows it.
+
 **Every photo of a place is attached the moment it arrives** — including one the person sends
 only to confirm a state ("son hali bu mu?"). A photo that confirmed something and was not
 attached leaves the place's current photo older than the place, which is the exact slip this

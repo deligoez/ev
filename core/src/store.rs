@@ -451,8 +451,11 @@ impl Inventory {
         include_gone: bool,
     ) -> Result<Value> {
         let needle = fold(text);
-        if needle.is_empty() {
-            return Err(Error::Usage("search text is empty".into()));
+        // Without text a filter must narrow it: `--tag x` alone lists everything tagged x.
+        if needle.is_empty() && tag.is_none() && kind.is_none() {
+            return Err(Error::Usage(
+                "search text is empty; give text, or --tag / --kind to list".into(),
+            ));
         }
         let tag = tag.map(|t| t.trim().to_lowercase());
         let mut results = Vec::new();

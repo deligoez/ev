@@ -161,3 +161,21 @@ fn regroup_names_the_stray_with_where_it_fits_better_and_the_unknown_fills() {
     );
     assert!(s.contains("\nFill unknown or out of date:\n"), "{s}");
 }
+
+#[test]
+fn tree_nests_the_home_and_lists_the_lost_apart_with_where_they_were_last_seen() {
+    let h = Home::new();
+    h.run(&["lost", "Aktif buzzer"], None);
+    let s = h.text(&["tree"]);
+    assert!(s.starts_with("Ev  #1 (home)  [2 items]\n"), "{s}");
+    assert!(
+        s.contains("\n      D-A1  Kutu  #4 (container)  (not counted)  [1 items]\n"),
+        "{s}"
+    );
+    // The lost buzzer is under its own heading, not in its box.
+    assert!(
+        s.contains("\nUnknown place\n  #7 Aktif buzzer  (last seen in D-B1)\n"),
+        "{s}"
+    );
+    assert_eq!(s.matches("Aktif buzzer").count(), 1, "{s}");
+}

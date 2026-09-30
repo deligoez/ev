@@ -637,17 +637,35 @@ impl MapView {
                         (false, true) => ('═', pal().blue),
                         (false, false) => ('║', pal().blue),
                     };
-                    let buf = f.buffer_mut();
-                    if across {
-                        let y = r.y + r.height / 2;
-                        for x in r.x..r.x + r.width {
-                            buf[(x, y)].set_char(c).set_fg(fg);
-                        }
+                    // The line goes on the floor's edge next to it, not in the wall, which the
+                    // map does not draw: the nearest row (or column) with floor under most of
+                    // it, a few cells either way, and only over floor.
+                    let floor_at = |x: u16, y: u16| {
+                        x >= area.x
+                            && y >= area.y
+                            && x < area.x + area.width
+                            && y < area.y + area.height
+                            && owner[(y - area.y) as usize * w + (x - area.x) as usize].is_some()
+                    };
+                    let (from, len) = if across {
+                        (r.y + r.height / 2, r.width)
                     } else {
-                        let x = r.x + r.width / 2;
-                        for y in r.y..r.y + r.height {
-                            buf[(x, y)].set_char(c).set_fg(fg);
-                        }
+                        (r.x + r.width / 2, r.height)
+                    };
+                    let cells = |k: u16| -> Vec<(u16, u16)> {
+                        (0..len)
+                            .map(|i| if across { (r.x + i, k) } else { (k, r.y + i) })
+                            .filter(|&(x, y)| floor_at(x, y))
+                            .collect()
+                    };
+                    let reach = if across { r.height } else { r.width } + 3;
+                    let line = (0..=reach)
+                        .flat_map(|d| [from.saturating_sub(d), from + d])
+                        .map(cells)
+                        .find(|c| c.len() * 2 >= len as usize);
+                    let buf = f.buffer_mut();
+                    for (x, y) in line.unwrap_or_default() {
+                        buf[(x, y)].set_char(c).set_fg(fg);
                     }
                 }
                 _ if r.width >= 4 && r.height >= 3 => {

@@ -56,6 +56,26 @@ fn home(inv: &mut Inventory) {
 }
 
 #[test]
+fn a_tag_alone_lists_everything_tagged_with_it() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "PTFE rakor", "item", Some("Kiler"), None);
+    inv.edit("PTFE rakor", &["tags=+3d yazıcı".into()]).unwrap();
+    inv.edit("Flipper Zero", &["tags=+3d yazıcı".into()])
+        .unwrap();
+    let v = inv.find("", Some("3d yazıcı"), None, false).unwrap();
+    let names: Vec<&str> = v["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, vec!["Flipper Zero", "PTFE rakor"]);
+    // No text and no filter is still a usage error.
+    assert_eq!(code_of(&inv.find("", None, None, false).unwrap_err()), 2);
+}
+
+#[test]
 fn a1_find_returns_full_path() {
     let (_d, mut inv) = inv();
     home(&mut inv);

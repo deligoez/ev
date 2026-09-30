@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 12;
+pub const SCHEMA_VERSION: i64 = 13;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -269,6 +269,15 @@ PRAGMA user_version = 12;
 COMMIT;
 ";
 
+/// A parking place (spec §30): things put in it wait for their final place, so placement does
+/// not offer it as one and `ev todo` lists what waits there.
+const SCHEMA_V13: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN temporary INTEGER NOT NULL DEFAULT 0;
+PRAGMA user_version = 13;
+COMMIT;
+";
+
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
 fn prune_older(dir: &Path, age: Duration) {
@@ -320,7 +329,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), unknown, size";
+     (SELECT name FROM places WHERE id = to_place), unknown, size, temporary";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -381,6 +390,9 @@ impl Inventory {
         }
         if version < 12 {
             conn.execute_batch(SCHEMA_V12)?;
+        }
+        if version < 13 {
+            conn.execute_batch(SCHEMA_V13)?;
         }
         let photo_dir = path
             .parent()
@@ -1084,6 +1096,7 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
                     to: r.get(18)?,
                     unknown: r.get(19)?,
                     size: r.get(20)?,
+                    temporary: r.get(21)?,
                 })
             },
         )
@@ -1270,6 +1283,9 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     }
     if n.unknown {
         v["unknown"] = json!(true);
+    }
+    if n.temporary {
+        v["temporary"] = json!(true);
     }
     // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
     for (k, val) in [("theme", &n.theme), ("size", &n.size)] {
@@ -1638,6 +1654,9 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             params![normalize_size(&s)?, id],
         )?;
     }
+    if new.temporary {
+        conn.execute("UPDATE nodes SET temporary = 1 WHERE id = ?1", [id])?;
+    }
     if new.unknown {
         conn.execute("UPDATE nodes SET unknown = 1 WHERE id = ?1", [id])?;
     }
@@ -1772,6 +1791,7 @@ fn field_value(n: &Node, field: &str) -> Value {
         "owner" => json!(n.owner),
         "with" => json!(n.with),
         "unknown" => json!(n.unknown),
+        "temporary" => json!(n.temporary),
         _ => Value::Null,
     }
 }
@@ -1983,18 +2003,18 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 )?;
             }
         }
-        "unknown" => {
+        "unknown" | "temporary" => {
             let v = match value.trim() {
                 "true" | "yes" | "1" => true,
                 "false" | "no" | "0" | "" => false,
                 other => {
                     return Err(Error::Usage(format!(
-                        "unknown takes true or false, got `{other}`"
+                        "{field} takes true or false, got `{other}`"
                     )));
                 }
             };
             conn.execute(
-                "UPDATE nodes SET unknown = ?1 WHERE id = ?2",
+                &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),
                 params![v, n.id],
             )?;
         }
@@ -2014,7 +2034,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, unknown"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, unknown, temporary"
             )));
         }
     }
@@ -2425,6 +2445,20 @@ pub(crate) fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
     .collect()
 }
 
+/// The parking place (`temporary`) that `id` is, or stands inside, if any: the nearest one up
+/// its chain of holders.
+pub(crate) fn parking_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {
+    let mut cur = Some(id);
+    for _ in 0..MAX_DEPTH {
+        let n = by_id.get(&cur?)?;
+        if n.temporary {
+            return Some(n.id);
+        }
+        cur = n.parent_id;
+    }
+    None
+}
+
 /// Anything something can be put into: every node that is not a home and is either not an
 /// item or already holds something.
 pub(crate) fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>) -> bool {
@@ -2460,6 +2494,9 @@ pub(crate) fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<V
     }
     if n.unknown {
         v["unknown"] = json!(true);
+    }
+    if n.temporary {
+        v["temporary"] = json!(true);
     }
     // A grid holder says how many cells are still free, and which: room for a new box.
     if let Some(g) = crate::grid::grid_json(conn, n.id)? {

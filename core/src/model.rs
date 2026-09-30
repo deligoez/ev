@@ -92,6 +92,8 @@ pub struct Node {
     pub to: Option<String>,
     /// Contents were never inventoried; an empty count means nothing.
     pub unknown: bool,
+    /// A parking place: what is in it waits for its final place (spec §30).
+    pub temporary: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -156,4 +158,6 @@ pub struct NewNode {
     pub owner: Option<String>,
     #[serde(default)]
     pub unknown: bool,
+    #[serde(default)]
+    pub temporary: bool,
 }

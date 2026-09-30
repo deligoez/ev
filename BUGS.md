@@ -6,6 +6,19 @@ that fixes them.
 
 ## Open
 
+- **`ev sketch --import` forgets how it was told to read the plan.** The author's plan needed
+  five `--room` pairs (`Oda #3=Çalışma odası`, …) and one `--space Antre@1500,1000`; none of it
+  is stored, so importing the edited plan again means typing them all again, and a run without
+  them leaves those rooms as they were without saying why. Expected: each room keeps the plan
+  name (or space point) it was sketched from, and the file it came from, so `ev sketch
+  --import` alone repeats the last import; a flag given again replaces what was kept.
+
+- **`--space` asks for a point in the plan's own centimetres.** Nobody drawing in Sweet Home 3D
+  knows where x=1500, y=1000 is; the author's point was read off the plan's `Home.xml` by the
+  agent. Expected: a way a person can give — a point next to a room they name (`--space
+  "Antre@right of Kiler"`), or the dry run listing the closed spaces no plan room covers, each
+  with its size and neighbours, to pick one by number.
+
 - **`ev regroup` cannot be told "no".** It proposed moving the ULN2003 drivers into the motor
   box (a stepper beside its driver); the person declined because the motor box is already full.
   Nothing records that answer, so every later regroup of the drawer proposes the same move

@@ -91,3 +91,24 @@ fn show_names_a_box_by_id_and_path_with_its_theme_cells_task_and_contents() {
         "{s}"
     );
 }
+
+#[test]
+fn next_says_the_goal_how_far_the_home_is_and_the_task_with_its_places() {
+    let h = Home::new();
+    let s = h.text(&["next"]);
+    assert!(s.starts_with("Goal: (not set)\n"), "{s}");
+    assert!(
+        s.contains("2 places: 0 counted, 0 left as is, 0 being counted, 2 not counted"),
+        "{s}"
+    );
+    assert!(
+        s.contains("Next task (1 open):\n1. #1 Çekmeceyi say\n"),
+        "{s}"
+    );
+    assert!(s.contains("\n  Ev › Oda › D [not counted]\n"), "{s}");
+    assert!(
+        s.contains("\n    └ #5 Ev › Oda › D › D-B1  [Kutu]\n"),
+        "{s}"
+    );
+    assert!(s.contains("Raw places no task covers (2):"), "{s}");
+}

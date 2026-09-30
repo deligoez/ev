@@ -6,8 +6,8 @@ a detached photo stays in the history, and a tall box gets a crop that reaches i
 
 ## Upgrading
 
-The database moves from schema 11 to **schema 13** (12: kits, 13: parking places) the first
-time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
+The database moves from schema 11 to **schema 14** (12: kits, 13: parking places, 14:
+sketches) the first time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you might go back.
 
 ## New
 
@@ -50,6 +50,17 @@ time this version opens it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.
 - **`ev suggest` says whether a place has been gone through.** Each offered place carries its
   review, its own or the nearest reviewed ancestor's; the text marks an untoured one
   `(not toured)`, a guess to check before it is proposed.
+
+- **A map to walk: `ev map`, `ev sketch`, and `M` in `ev ui`.** Any place drawn as the tiles
+  of what is in it: on its grid, on a sketch in centimetres (a room's size, a desk's place and
+  size in it), or laid out on their own. Furniture standing on another (`ev sketch K4x2 --on
+  K4x4`) is drawn with it, front on, top first, each piece by its own grid. In `ev ui`, `M`
+  opens the map full screen on the selected node: the arrows walk the tiles, Enter goes in
+  (home, room, Kallax, drawer, gridfinity box), Backspace comes back up, `t` shows the chosen
+  tile in the tree, and a click chooses a tile and a second one goes in. Each tile shows its
+  label, theme, count and fill and names what is in it. Schema 14.
+- **`ev grid` takes several references** with `--cols`/`--rows` and gives each the same grid,
+  all or none: the sixteen two-drawer compartments of a Kallax in one call.
 
 ## Changed
 

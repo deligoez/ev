@@ -3168,6 +3168,24 @@ impl App {
                         format!("{} → {}", place(&d["before"]), place(&d["after"])),
                     ),
                     "grid" => own("grid set", format!("{}×{}", d["after"][0], d["after"][1])),
+                    "sketch" => {
+                        let a = &d["after"];
+                        let mut parts = Vec::new();
+                        if !a["x"].is_null() {
+                            parts.push(tf("at {},{} cm", &[&a["x"], &a["y"]]));
+                        }
+                        if !a["w"].is_null() {
+                            parts.push(tf("{}×{} cm", &[&a["w"], &a["d"]]));
+                        }
+                        if !a["on"].is_null() {
+                            parts.push(tf("on #{}", &[&a["on"]]));
+                        }
+                        if a.is_null() {
+                            own("sketch removed", String::new())
+                        } else {
+                            own("sketched", parts.join(" · "))
+                        }
+                    }
                     "lost" => own("lost", String::new()),
                     "found" => own("found", place(&d["at"])),
                     "back" => own("returned", place(&d["from"])),

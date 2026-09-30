@@ -14,6 +14,11 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-shear
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      # Unused or misplaced dependencies, and .rs files no module declares.
+      - run: cargo shear
+      - run: cargo nextest run --workspace --locked

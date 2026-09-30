@@ -562,7 +562,44 @@ impl Inventory {
 
 #[cfg(test)]
 mod tests {
-    use super::Cells;
+    use super::{Cells, GridCorners, projection};
+
+    fn close(a: (f64, f64), b: (f64, f64)) -> bool {
+        (a.0 - b.0).abs() < 1e-9 && (a.1 - b.1).abs() < 1e-9
+    }
+
+    #[test]
+    fn grid_corners_read_eight_fractions_and_write_them_back() {
+        let g: GridCorners = "0.1,0.2,0.9,0.2,0.95,0.9,0.05,0.9".parse().unwrap();
+        assert_eq!(
+            g.to_string(),
+            "0.1000,0.2000,0.9000,0.2000,0.9500,0.9000,0.0500,0.9000"
+        );
+        assert_eq!(g.to_string().parse::<GridCorners>().unwrap(), g);
+        assert!("0.1,0.2".parse::<GridCorners>().is_err());
+        assert!(
+            "0.1,0.2,0.9,0.2,1.5,0.9,0.05,0.9"
+                .parse::<GridCorners>()
+                .is_err()
+        );
+        assert!("a,b,c,d,e,f,g,h".parse::<GridCorners>().is_err());
+    }
+
+    #[test]
+    fn the_projection_lands_on_the_corners_and_keeps_perspective() {
+        let trap: GridCorners = "0.3,0.1,0.7,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+        let m = projection(&trap);
+        assert!(close(m(0.0, 0.0), (0.3, 0.1)));
+        assert!(close(m(1.0, 0.0), (0.7, 0.1)));
+        assert!(close(m(1.0, 1.0), (0.9, 0.9)));
+        assert!(close(m(0.0, 1.0), (0.1, 0.9)));
+        // Seen from the front, the back half of the drawer looks shorter: the middle row line
+        // sits above the middle of the photo span, where an even split would put it.
+        assert!(m(0.5, 0.5).1 < 0.5, "{:?}", m(0.5, 0.5));
+        // A square view has no perspective: the middle is the middle.
+        let square: GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();
+        assert!(close(projection(&square)(0.5, 0.5), (0.5, 0.5)));
+    }
 
     #[test]
     fn cells_read_as_a_corner_or_a_range_in_any_order() {

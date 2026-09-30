@@ -1498,4 +1498,13 @@ mod tests {
         );
         set_lang(Lang::En);
     }
+
+    #[test]
+    fn centimetres_read_whole_or_to_a_tenth() {
+        use serde_json::json;
+        assert_eq!(super::cm(&json!(297.2558999999999)), "297.3");
+        assert_eq!(super::cm(&json!(1842.0)), "1842");
+        assert_eq!(super::cm(&json!(-300.04)), "-300");
+        assert_eq!(super::cm(&json!(null)), "null");
+    }
 }

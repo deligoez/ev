@@ -51,10 +51,6 @@ fn tile_label(conn: &Connection, id: i64) -> Result<String> {
 }
 
 impl Inventory {
-    pub fn photo_dir(&self) -> &Path {
-        &self.photo_dir
-    }
-
     /// Copies a photo into the store and attaches it to a node; with `crop`, attaches only
     /// the cut-out and remembers the stored original it came from.
     pub fn photo_add(

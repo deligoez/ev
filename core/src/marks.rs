@@ -173,7 +173,8 @@ const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','fo
 /// a drawer photo). Crops on the things inside do not. Things moved out count as a change.
 /// When what `id` physically holds last changed: something below it was added, moved, found,
 /// lost or left, or something was moved out of it. A record born of `ev split` is not a thing
-/// added: the same things lie there, only recorded apart.
+/// added: the same things lie there, only recorded apart. Nor is a record closed as a mistake a
+/// thing that left: it was never there.
 pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<String>> {
     Ok(conn.query_row(
         &format!(
@@ -183,7 +184,8 @@ pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<S
              SELECT MAX(e.at) FROM events e
               WHERE (e.node_id IN d AND e.node_id != ?1 AND e.type IN ({CONTENT_EVENTS})
                      AND NOT (e.type = 'create' AND EXISTS (
-                         SELECT 1 FROM events s WHERE s.node_id = e.node_id AND s.type = 'split_from')))
+                         SELECT 1 FROM events s WHERE s.node_id = e.node_id AND s.type = 'split_from'))
+                     AND NOT (e.type = 'gone' AND json_extract(e.data, '$.as') = 'mistake'))
                  OR (e.type IN ('move','done') AND json_extract(e.data, '$.from') IN d)"
         ),
         [id],

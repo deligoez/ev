@@ -52,6 +52,14 @@ keeping its history without counting as thrown away.
 
 **Lost and found.** `ev lost X` keeps where it was last seen; `ev lost` lists them; `ev found X`.
 
+**One record per kind of thing, and what a kit still misses.** A set of parts recorded as one
+thing becomes a record per part with `ev split X "LM393 kart=3" "Kablo=3" --rename "Prob"`;
+the history links the pieces both ways, and the place's photo stays current (the same things
+lie there, only recorded apart). A bought kit is a checklist: `ev kit add "Proje seti" --copies 2
+--part "RC522 okuyucu" --part "Kablo=3"`, `ev kit link "Proje seti" 1 <record>…` as its parts
+turn up, and `ev kit show "Proje seti"` counts each part found, lost and still missing, from
+the records themselves: find or move one and the kit follows.
+
 **Other households.** Places have aliases (`ev place add|alias|list|merge`). A node can be
 meant for a place (`to=`), belong to one (`owner=`) or be lent out (`ev lend X --to P`,
 `ev back X`). `ev for Mahmutlar` answers "what do I take, return and collect when I go there?".

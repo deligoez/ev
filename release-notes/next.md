@@ -89,6 +89,10 @@ sketches, 15: grid faces, 16: room outlines, 17: the plan marks of 16 dropped) t
 
 ## Fixed
 
+- **Centimetres in the readable output are rounded** to whole ones, or a tenth when they are
+  not whole: a kitchen read `297.2558999999999×502.85183000000006 cm`, now `297.3×502.9 cm`.
+  JSON keeps the full value.
+
 - **`ev regroup` offered a full drawer of boxes a spare box, even one standing inside it.** A
   holder without a size took every spare as bigger. A holder laid out in a grid is no longer
   offered one, and no holder is offered a spare that stands inside it.

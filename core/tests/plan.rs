@@ -270,3 +270,17 @@ fn an_empty_room_is_a_place_and_what_is_above_places_has_no_count() {
     assert!(count(&inv, "Vida kutusu").is_null());
     assert_eq!(count(&inv, "K1-01-A"), "raw");
 }
+
+#[test]
+fn next_and_todo_say_how_many_places_are_being_counted() {
+    let (_d, mut inv) = setup();
+    let t = inv
+        .task_add("Kutuyu say", "hiç açılmadı", &["Karton kutu".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "doing", None).unwrap();
+    // The summary both carry is the full progress, not a part of it.
+    assert_eq!(inv.next().unwrap()["progress"]["counting"], 1);
+    assert_eq!(inv.todo().unwrap()["progress"]["counting"], 1);
+}

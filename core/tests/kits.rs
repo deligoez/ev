@@ -161,3 +161,19 @@ fn kits_refuse_what_they_cannot_mean() {
     assert!(inv.show("RC522 okuyucu", false).is_ok());
     assert_eq!(inv.kit_list().unwrap()["kits"].as_array().unwrap().len(), 0);
 }
+
+#[test]
+fn a_part_that_left_the_home_no_longer_counts_as_found() {
+    let (_d, mut inv) = setup();
+    inv.kit_add("Set", None, None, &[("Kart".into(), 1)])
+        .unwrap();
+    let v = inv.kit_link("Set", 1, &["Beyaz kart".into()]).unwrap();
+    assert_eq!(part(&v, 1)["found"], 1);
+    // Thrown out: the link stays in the history, but the part is missing again.
+    inv.gone("Beyaz kart", Some(ev_core::Disposition::Trash))
+        .unwrap();
+    let v = inv.kit_show("Set").unwrap();
+    assert_eq!(part(&v, 1)["found"], 0);
+    assert_eq!(part(&v, 1)["lost"], 0);
+    assert_eq!(part(&v, 1)["open"], 1);
+}

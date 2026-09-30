@@ -479,3 +479,22 @@ fn a_room_moved_out_of_its_room_stays_where_it_lies_on_the_plan() {
         ])
     );
 }
+
+#[test]
+fn a_move_out_of_a_holder_with_no_place_leaves_the_sketch_as_it_was() {
+    let (_d, mut inv) = setup();
+    // The study has no place in the flat, so where its desk lies in the flat is unknown.
+    sketch(&mut inv, "Masa", Some("10,20"), Some("160,80"), None, None).unwrap();
+    sketch(
+        &mut inv,
+        "Mutfak",
+        None,
+        None,
+        None,
+        Some("100,200 400,200 400,500 100,500"),
+    )
+    .unwrap();
+    inv.move_to("Masa", "Mutfak", false).unwrap();
+    let s = inv.sketch("Masa").unwrap();
+    assert_eq!((s["x"].as_f64(), s["y"].as_f64()), (Some(10.0), Some(20.0)));
+}

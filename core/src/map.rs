@@ -125,7 +125,30 @@ fn tile(conn: &Connection, n: &Node, rect: [f64; 4]) -> Result<Value> {
     let mut t = brief_json(conn, n.id)?;
     t["rect"] = json!(rect.map(|v| (v * 10_000.0).round() / 10_000.0));
     t["items"] = json!(item_total(conn, n.id)?);
-    t["children"] = json!(live_children(conn, n.id)?.len());
+    let kids = live_children(conn, n.id)?;
+    t["children"] = json!(kids.len());
+    // What a tile can say about its contents: holders by code first, then things by name.
+    let mut names: Vec<(bool, String)> = kids
+        .iter()
+        .map(|k| {
+            let mut s = k.code.clone().unwrap_or_else(|| k.name.clone());
+            if let Some(q) = k.qty.filter(|&q| q > 1) {
+                s.push_str(&format!(" ×{q}"));
+            }
+            (k.code.is_none(), s)
+        })
+        .collect();
+    names.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then(a.1.to_lowercase().cmp(&b.1.to_lowercase()))
+    });
+    t["contents"] = json!(
+        names
+            .into_iter()
+            .take(40)
+            .map(|(_, s)| s)
+            .collect::<Vec<_>>()
+    );
     for (k, on) in [("temporary", n.temporary), ("unknown", n.unknown)] {
         if on {
             t[k] = json!(true);
@@ -133,6 +156,9 @@ fn tile(conn: &Connection, n: &Node, rect: [f64; 4]) -> Result<Value> {
     }
     if let Some(f) = n.fill {
         t["fill"] = json!(f);
+    }
+    if let Some(th) = &n.theme {
+        t["theme"] = json!(th);
     }
     if let Some(c) = crate::grid::cells_of(conn, n.id)? {
         t["cells"] = json!(c.name());

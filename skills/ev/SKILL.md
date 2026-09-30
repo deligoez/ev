@@ -17,7 +17,7 @@ Everything is a node in one tree: `home` › `room` (rooms may nest) › `furnit
 what is printed on the physical labels, and there are two kinds. **A slot of furniture has a
 positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says where, so it is
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial
-code** (`S5-01`, a Samla box; `GF-001`, a gridfinity box): it says which box, and it stays
+code** (`S5-01`, a Samla box; `GF1x1-001`, a gridfinity box): it says which box, and it stays
 when the box moves to another drawer or room — where it is lives in the record (its parent,
 its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` (`GF1x1-012`,
 `GF1x2-003`), one series per footprint. Use codes exactly as the person gives them; for a new

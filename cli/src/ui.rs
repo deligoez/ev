@@ -193,6 +193,8 @@ struct Snapshot {
     parent: HashMap<i64, i64>,
     label: HashMap<i64, String>,
     signature: HashMap<i64, String>,
+    /// Counted, with nothing left to do on it or anything in it.
+    settled: HashSet<i64>,
 }
 
 impl Snapshot {
@@ -209,6 +211,10 @@ impl Snapshot {
         // A lost thing sits under the "Unknown place" heading, not under where it was seen.
         for u in s.lost.clone() {
             s.index(&u, Some(LOST_SECTION));
+        }
+        let open = inv.open_nodes()?;
+        for r in &s.roots {
+            settle(r, None, &open, &mut s.settled);
         }
         Ok(s)
     }
@@ -228,6 +234,27 @@ impl Snapshot {
 
 fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
+}
+
+/// Whether `n` is settled, adding every settled node under it to `out`: nothing waits on it or
+/// on anything in it, and it has been counted. A place counted on its own carries its count
+/// down to the things in it (`counted`); above those places, a holder is settled once
+/// everything in it is, and an empty one never is.
+fn settle(n: &Value, counted: Option<bool>, open: &HashSet<i64>, out: &mut HashSet<i64>) -> bool {
+    let id = n["id"].as_i64().unwrap_or_default();
+    let counted = n["count"].as_str().map(|c| c == "toured").or(counted);
+    let kids = children(n);
+    // Every child is walked, not stopped at the first that is not settled, so a settled one
+    // shows even beside one that is not.
+    let mut kids_settled = true;
+    for c in kids {
+        kids_settled &= settle(c, counted, open, out);
+    }
+    let settled = !open.contains(&id) && kids_settled && counted.unwrap_or(!kids.is_empty());
+    if settled {
+        out.insert(id);
+    }
+    settled
 }
 
 /// Key hints joined with ` · ` in the order given, fitted to `width`: while they do not fit, the
@@ -386,14 +413,17 @@ fn kind_name(k: &str) -> &'static str {
     }
 }
 
-fn name_style(n: &Value) -> Style {
+/// A name's colour tells how far it is, not what kind it is (its mark says that): green once
+/// settled, faded while it waits to leave.
+fn name_style(n: &Value, snap: &Snapshot) -> Style {
     let s = match n["kind"].as_str() {
         Some("home" | "room") => Style::new().bold(),
-        Some("furniture") => Style::new().fg(pal().furniture),
         _ => Style::new(),
     };
     if n["state"] == "candidate" {
         s.fg(pal().muted)
+    } else if snap.settled.contains(&n["id"].as_i64().unwrap_or_default()) {
+        s.fg(pal().done)
     } else {
         s
     }
@@ -421,7 +451,7 @@ fn node_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
         out.push(Span::styled(c.to_string(), Style::new().fg(pal().code)));
         out.push(Span::raw("  "));
     }
-    out.push(Span::styled(str_of(n, "name"), name_style(n)));
+    out.push(Span::styled(str_of(n, "name"), name_style(n, snap)));
     out.extend(marker_spans(n, snap));
     out
 }

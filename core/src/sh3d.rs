@@ -25,6 +25,12 @@ struct PlanRoom {
     points: Vec<[f64; 2]>,
 }
 
+struct Wall {
+    a: [f64; 2],
+    b: [f64; 2],
+    thickness: f64,
+}
+
 struct PlanPiece {
     /// `Table#2` for the second piece named Table; a door or window keeps its name.
     label: String,
@@ -34,7 +40,9 @@ struct PlanPiece {
     rect: [f64; 4],
 }
 
-fn read_plan(file: &Path) -> Result<(Vec<PlanRoom>, Vec<PlanPiece>)> {
+type Plan = (Vec<PlanRoom>, Vec<PlanPiece>, Vec<Wall>);
+
+fn read_plan(file: &Path) -> Result<Plan> {
     let f = std::fs::File::open(file)
         .map_err(|e| Error::NotFound(format!("{}: {e}", file.display())))?;
     let not_plan = |why: String| {
@@ -54,8 +62,23 @@ fn read_plan(file: &Path) -> Result<(Vec<PlanRoom>, Vec<PlanPiece>)> {
     let mut rooms = Vec::new();
     let mut pieces = Vec::new();
     let mut seen: HashMap<String, usize> = HashMap::new();
+    let mut walls = Vec::new();
     for n in doc.descendants() {
         match n.tag_name().name() {
+            "wall" => {
+                if let (Some(xs), Some(ys), Some(xe), Some(ye)) = (
+                    num(n, "xStart"),
+                    num(n, "yStart"),
+                    num(n, "xEnd"),
+                    num(n, "yEnd"),
+                ) {
+                    walls.push(Wall {
+                        a: [xs, ys],
+                        b: [xe, ye],
+                        thickness: num(n, "thickness").unwrap_or(10.0),
+                    });
+                }
+            }
             "room" => {
                 let points: Vec<[f64; 2]> = n
                     .children()
@@ -111,7 +134,7 @@ fn read_plan(file: &Path) -> Result<(Vec<PlanRoom>, Vec<PlanPiece>)> {
             _ => {}
         }
     }
-    Ok((rooms, pieces))
+    Ok((rooms, pieces, walls))
 }
 
 fn inside(p: [f64; 2], poly: &[[f64; 2]]) -> bool {
@@ -129,27 +152,150 @@ fn inside(p: [f64; 2], poly: &[[f64; 2]]) -> bool {
     odd
 }
 
+/// How far a point is from the segment a–b.
+fn to_segment(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+    let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+    let len = dx * dx + dy * dy;
+    let t = if len == 0.0 {
+        0.0
+    } else {
+        (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len).clamp(0.0, 1.0)
+    };
+    let (cx, cy) = (a[0] + t * dx, a[1] + t * dy);
+    ((p[0] - cx).powi(2) + (p[1] - cy).powi(2)).sqrt()
+}
+
 /// How far a point is from a polygon: 0 inside, else the distance to its nearest edge.
 fn distance(p: [f64; 2], poly: &[[f64; 2]]) -> f64 {
     if inside(p, poly) {
         return 0.0;
     }
-    let mut best = f64::MAX;
-    for i in 0..poly.len() {
-        let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
-        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
-        let len = dx * dx + dy * dy;
-        let t = if len == 0.0 {
-            0.0
-        } else {
-            (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len).clamp(0.0, 1.0)
-        };
-        let (cx, cy) = (a[0] + t * dx, a[1] + t * dy);
-        best = best.min(((p[0] - cx).powi(2) + (p[1] - cy).powi(2)).sqrt());
-    }
-    best
+    (0..poly.len())
+        .map(|i| to_segment(p, poly[i], poly[(i + 1) % poly.len()]))
+        .fold(f64::MAX, f64::min)
 }
 
+/// A room the plan did not draw, found from its walls: the space around `seed` that walls and
+/// the plan's rooms close in, as the corners of its outline. Refused when the space is not
+/// closed (it would run out of the plan) or the point is in a wall or a room.
+fn space_around(seed: [f64; 2], walls: &[Wall], rooms: &[PlanRoom]) -> Result<Vec<[f64; 2]>> {
+    const CELL: f64 = 5.0;
+    let ends: Vec<[f64; 2]> = walls.iter().flat_map(|w| [w.a, w.b]).collect();
+    if ends.is_empty() {
+        return Err(Error::Usage(
+            "the plan has no walls to find a space by".into(),
+        ));
+    }
+    let [bx, by, bw, bd] = crate::map::bbox(&ends);
+    let (x0, y0) = (bx - 50.0, by - 50.0);
+    let cols = ((bw + 100.0) / CELL).ceil() as usize;
+    let rows = ((bd + 100.0) / CELL).ceil() as usize;
+    let centre = |i: usize, j: usize| [x0 + (i as f64 + 0.5) * CELL, y0 + (j as f64 + 0.5) * CELL];
+    let blocked = |p: [f64; 2]| {
+        walls
+            .iter()
+            .any(|w| to_segment(p, w.a, w.b) <= w.thickness / 2.0)
+            || rooms.iter().any(|r| inside(p, &r.points))
+    };
+    let at = |v: f64, o: f64, n: usize| {
+        let k = ((v - o) / CELL).floor();
+        (k >= 0.0 && (k as usize) < n).then_some(k as usize)
+    };
+    let (Some(si), Some(sj)) = (at(seed[0], x0, cols), at(seed[1], y0, rows)) else {
+        return Err(Error::Usage(format!(
+            "{},{} is outside the plan",
+            seed[0], seed[1]
+        )));
+    };
+    if blocked(centre(si, sj)) {
+        return Err(Error::Usage(format!(
+            "{},{} is in a wall or in a room of the plan",
+            seed[0], seed[1]
+        )));
+    }
+    let mut filled = vec![false; cols * rows];
+    let mut seen = vec![false; cols * rows];
+    let mut queue = std::collections::VecDeque::from([(si, sj)]);
+    seen[sj * cols + si] = true;
+    while let Some((i, j)) = queue.pop_front() {
+        if i == 0 || j == 0 || i + 1 == cols || j + 1 == rows {
+            return Err(Error::Usage(format!(
+                "the space around {},{} is not closed by walls",
+                seed[0], seed[1]
+            )));
+        }
+        filled[j * cols + i] = true;
+        for (ni, nj) in [(i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)] {
+            if !seen[nj * cols + ni] {
+                seen[nj * cols + ni] = true;
+                if !blocked(centre(ni, nj)) {
+                    queue.push_back((ni, nj));
+                }
+            }
+        }
+    }
+    // The outline: every cell side between the space and the rest, walked clockwise.
+    let is = |i: isize, j: isize| {
+        i >= 0
+            && j >= 0
+            && (i as usize) < cols
+            && (j as usize) < rows
+            && filled[j as usize * cols + i as usize]
+    };
+    let mut next: HashMap<(isize, isize), Vec<(isize, isize)>> = HashMap::new();
+    for j in 0..rows as isize {
+        for i in 0..cols as isize {
+            if !is(i, j) {
+                continue;
+            }
+            let mut side =
+                |a: (isize, isize), b: (isize, isize)| next.entry(a).or_default().push(b);
+            if !is(i, j - 1) {
+                side((i, j), (i + 1, j));
+            }
+            if !is(i + 1, j) {
+                side((i + 1, j), (i + 1, j + 1));
+            }
+            if !is(i, j + 1) {
+                side((i + 1, j + 1), (i, j + 1));
+            }
+            if !is(i - 1, j) {
+                side((i, j + 1), (i, j));
+            }
+        }
+    }
+    let mut best: Vec<(isize, isize)> = Vec::new();
+    while let Some(&start) = next.keys().next() {
+        let mut ring = vec![start];
+        let mut cur = start;
+        while let Some(n) = next.get_mut(&cur).and_then(Vec::pop) {
+            if next.get(&cur).is_some_and(Vec::is_empty) {
+                next.remove(&cur);
+            }
+            if n == start {
+                break;
+            }
+            ring.push(n);
+            cur = n;
+        }
+        next.remove(&start)
+            .filter(|v| !v.is_empty())
+            .map(|v| next.insert(start, v));
+        if ring.len() > best.len() {
+            best = ring;
+        }
+    }
+    // Only the corners: drop points in line with their neighbours.
+    let n = best.len();
+    let corners: Vec<[f64; 2]> = (0..n)
+        .filter(|&k| {
+            let (a, b, c) = (best[(k + n - 1) % n], best[k], best[(k + 1) % n]);
+            (b.0 - a.0) * (c.1 - b.1) != (b.1 - a.1) * (c.0 - b.0)
+        })
+        .map(|k| [x0 + best[k].0 as f64 * CELL, y0 + best[k].1 as f64 * CELL])
+        .collect();
+    Ok(corners)
+}
 /// Where a node's own frame starts in the home's: its place plus its holders' places.
 fn origin(conn: &Connection, id: i64) -> Result<[f64; 2]> {
     let mut at = [0.0, 0.0];
@@ -191,17 +337,42 @@ impl Inventory {
     /// the room of the same name (or the one `--room "<plan name>=<ref>"` names), a piece named
     /// with `--piece "<Table#2>=<ref>"` gives its place and size to that record, and every other
     /// piece, door and window becomes a mark in the room it stands in, drawn on the map to find
-    /// one's way. All marks are replaced; rooms of the plan with no record are listed, not made.
+    /// one's way; one in no room is left out. `--space "<ref>@x,y"` gives a room the plan did
+    /// not draw the space around that point closed in by walls and the plan's rooms. All marks
+    /// are replaced; rooms of the plan with no record are listed, not made.
     pub fn sketch_import(
         &mut self,
         file: &Path,
         rooms: &[String],
         pieces: &[String],
+        spaces: &[String],
         dry_run: bool,
     ) -> Result<Value> {
-        let (plan_rooms, plan_pieces) = read_plan(file)?;
+        let (plan_rooms, plan_pieces, walls) = read_plan(file)?;
         let room_map = pairs(rooms, "--room")?;
         let piece_map = pairs(pieces, "--piece")?;
+        let mut found = Vec::new();
+        for s in spaces {
+            let bad = || {
+                Error::Usage(format!(
+                    "--space is `<ref>@x,y` in the plan's centimetres; got `{s}`"
+                ))
+            };
+            let (reference, at) = s.rsplit_once('@').ok_or_else(bad)?;
+            let (x, y) = at.split_once(',').ok_or_else(bad)?;
+            let seed = [
+                x.trim().parse::<f64>().map_err(|_| bad())?,
+                y.trim().parse::<f64>().map_err(|_| bad())?,
+            ];
+            let points = space_around(seed, &walls, &plan_rooms)?;
+            found.push((
+                reference.trim().to_string(),
+                PlanRoom {
+                    name: s.clone(),
+                    points,
+                },
+            ));
+        }
         let tx = self.conn.transaction()?;
         let home: i64 = tx
             .query_row(
@@ -241,6 +412,11 @@ impl Inventory {
                 }
                 None => unmatched.push(r.name.clone()),
             }
+        }
+        for (reference, r) in &found {
+            let id = resolve(&tx, reference, false)?;
+            let depth = crate::store::path(&tx, id)?.len();
+            matched.push((id, r, depth));
         }
         // Holders first, so a balcony is placed in its room's new frame.
         matched.sort_by_key(|m| m.2);

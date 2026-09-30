@@ -311,6 +311,10 @@ enum Cmd {
         /// With --import: `<piece in the plan, like Table#2>=<ref>` to place a record there.
         #[arg(long, requires = "import")]
         piece: Vec<String>,
+        /// With --import: `<ref>@x,y` for a room the plan did not draw: the space around that
+        /// point (plan centimetres) closed in by walls and the plan's rooms.
+        #[arg(long, requires = "import")]
+        space: Vec<String>,
         /// With --import: say what would change and change nothing.
         #[arg(long, requires = "import")]
         dry_run: bool,
@@ -828,10 +832,11 @@ fn run(cli: Cli) -> Result<Value> {
             import,
             room,
             piece,
+            space,
             dry_run,
         } => {
             if let Some(file) = import {
-                return inv.sketch_import(&file, &room, &piece, dry_run);
+                return inv.sketch_import(&file, &room, &piece, &space, dry_run);
             }
             let reference = reference.unwrap_or_default();
             if clear {

@@ -65,6 +65,7 @@ fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
             &p,
             &["Balkon=Salon balkonu".into()],
             &["Table#1=Masa".into()],
+            &[],
             false,
         )
         .unwrap();
@@ -107,6 +108,7 @@ fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
             &p,
             &["Balkon=Salon balkonu".into()],
             &["Table#1=Masa".into()],
+            &[],
             false,
         )
         .unwrap();
@@ -121,7 +123,7 @@ fn a_plan_gives_rooms_their_outlines_and_marks_what_is_no_record() {
         .as_array()
         .unwrap()
         .len();
-    inv.sketch_import(&p, &[], &[], true).unwrap();
+    inv.sketch_import(&p, &[], &[], &[], true).unwrap();
     assert_eq!(
         inv.history("Salon").unwrap()["events"]
             .as_array()
@@ -137,18 +139,20 @@ fn a_file_that_is_no_plan_is_refused() {
     let not = d.path().join("x.sh3d");
     std::fs::write(&not, "hello").unwrap();
     assert_eq!(
-        inv.sketch_import(&not, &[], &[], false).unwrap_err().code(),
+        inv.sketch_import(&not, &[], &[], &[], false)
+            .unwrap_err()
+            .code(),
         2
     );
     let missing = d.path().join("none.sh3d");
     assert_eq!(
-        inv.sketch_import(&missing, &[], &[], false)
+        inv.sketch_import(&missing, &[], &[], &[], false)
             .unwrap_err()
             .code(),
         3
     );
     assert_eq!(
-        inv.sketch_import(&p, &["Salon".into()], &[], false)
+        inv.sketch_import(&p, &["Salon".into()], &[], &[], false)
             .unwrap_err()
             .code(),
         2

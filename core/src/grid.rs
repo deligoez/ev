@@ -378,49 +378,73 @@ pub(crate) fn grid_json(conn: &Connection, holder: i64) -> Result<Option<Value>>
     })))
 }
 
+/// Lays `id` out in `cols` × `rows` cells inside the caller's transaction.
+fn grid_set_in(conn: &Connection, id: i64, cols: i64, rows: i64) -> Result<()> {
+    if !(1..=MAX_COLS).contains(&cols) || !(1..=MAX_ROWS).contains(&rows) {
+        return Err(Error::Usage(format!(
+            "a grid is 1–{MAX_COLS} columns and 1–{MAX_ROWS} rows"
+        )));
+    }
+    let outside: Vec<Value> = placed(conn, id)?
+        .iter()
+        .filter(|(_, c)| c.col + c.width > cols || c.row + c.depth > rows)
+        .map(|(b, c)| {
+            let mut v = brief_json(conn, *b)?;
+            v["cells"] = json!(c.name());
+            Ok(v)
+        })
+        .collect::<Result<_>>()?;
+    if !outside.is_empty() {
+        return Err(refused(
+            format!(
+                "{} placed box(es) would fall outside a {cols}×{rows} grid",
+                outside.len()
+            ),
+            json!({ "outside": outside }),
+        ));
+    }
+    let before = grid_of(conn, id)?;
+    conn.execute(
+        "INSERT INTO grids (node_id, cols, rows) VALUES (?1, ?2, ?3)
+         ON CONFLICT(node_id) DO UPDATE SET cols = excluded.cols, rows = excluded.rows",
+        params![id, cols, rows],
+    )?;
+    touch(conn, id)?;
+    event(
+        conn,
+        id,
+        "grid",
+        json!({ "before": before.map(|(c, r)| [c, r]), "after": [cols, rows] }),
+    )?;
+    Ok(())
+}
+
 impl Inventory {
     /// Lays `reference` out in `cols` × `rows` cells. Boxes already placed must still fit.
     pub fn grid_set(&mut self, reference: &str, cols: i64, rows: i64) -> Result<Value> {
-        if !(1..=MAX_COLS).contains(&cols) || !(1..=MAX_ROWS).contains(&rows) {
-            return Err(Error::Usage(format!(
-                "a grid is 1–{MAX_COLS} columns and 1–{MAX_ROWS} rows"
-            )));
-        }
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
-        let outside: Vec<Value> = placed(&tx, id)?
-            .iter()
-            .filter(|(_, c)| c.col + c.width > cols || c.row + c.depth > rows)
-            .map(|(b, c)| {
-                let mut v = brief_json(&tx, *b)?;
-                v["cells"] = json!(c.name());
-                Ok(v)
-            })
-            .collect::<Result<_>>()?;
-        if !outside.is_empty() {
-            return Err(refused(
-                format!(
-                    "{} placed box(es) would fall outside a {cols}×{rows} grid",
-                    outside.len()
-                ),
-                json!({ "outside": outside }),
-            ));
-        }
-        let before = grid_of(&tx, id)?;
-        tx.execute(
-            "INSERT INTO grids (node_id, cols, rows) VALUES (?1, ?2, ?3)
-             ON CONFLICT(node_id) DO UPDATE SET cols = excluded.cols, rows = excluded.rows",
-            params![id, cols, rows],
-        )?;
-        touch(&tx, id)?;
-        event(
-            &tx,
-            id,
-            "grid",
-            json!({ "before": before.map(|(c, r)| [c, r]), "after": [cols, rows] }),
-        )?;
+        grid_set_in(&tx, id, cols, rows)?;
         tx.commit()?;
         self.grid(&id.to_string())
+    }
+
+    /// Lays several alike holders out at once (the 16 compartments of a Kallax, each an upper
+    /// and a lower drawer), all or none.
+    pub fn grid_set_many(&mut self, references: &[String], cols: i64, rows: i64) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut ids = Vec::new();
+        for r in references {
+            let id = resolve(&tx, r, false)?;
+            grid_set_in(&tx, id, cols, rows)?;
+            ids.push(id);
+        }
+        tx.commit()?;
+        let grids = ids
+            .iter()
+            .map(|id| self.grid(&id.to_string()))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "grids": grids }))
     }
 
     /// Removes a grid; refused while boxes are placed in it.

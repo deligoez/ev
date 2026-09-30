@@ -143,6 +143,28 @@ fn a_box_moved_out_leaves_its_cells_free() {
 }
 
 /// Crops are stored to four decimals.
+#[test]
+fn a_grid_says_whether_it_is_seen_from_above_or_the_front() {
+    let (_d, mut inv) = setup();
+    // A drawer is seen from above, the default.
+    inv.grid_set("D", 2, 2).unwrap();
+    assert_eq!(inv.grid("D").unwrap()["grid"]["face"], "above");
+    // Furniture is seen from the front; the change is in the history.
+    let v = inv.grid_face(&["D".into()], "front").unwrap();
+    assert_eq!(v["grids"][0]["grid"]["face"], "front");
+    let h = inv.history("D").unwrap()["events"].clone();
+    let last = h.as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["type"], "grid_face");
+    assert_eq!(last["data"]["after"], "front");
+    // A holder without a grid has no face to set; nothing changes.
+    let err = inv
+        .grid_face(&["D".into(), "D-A4".into()], "above")
+        .unwrap_err();
+    assert_eq!(err.code(), 5);
+    assert_eq!(inv.grid("D").unwrap()["grid"]["face"], "front");
+    assert_eq!(inv.grid_face(&["D".into()], "side").unwrap_err().code(), 2);
+}
+
 fn close(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-3
 }

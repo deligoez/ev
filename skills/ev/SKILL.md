@@ -294,6 +294,16 @@ history); the panes resize by dragging their dividers or with `<` `>` `{` `}`. T
 with the node's `#id`: when the person says "#534", run commands on `#534` as it is. When they
 ask what happened to a place, its History tab shows the same as `ev history <x> --contents`.
 
+## Working through `ev`, not around it
+
+Read results with `--text` (the readable output, also through a pipe); use the JSON when you
+need ids to act on. Change many records at once with `ev edit --stdin` (NDJSON
+`{"ref": …, "set": {…}}`, all or nothing), never with a loop of `ev edit` calls. **A script
+that decides or writes around `ev`** — deriving fields in a loop, chaining lookups, collecting
+file paths to check photos by hand — means `ev` lacks a verb: say so, and record it in the
+repository's `BUGS.md`. Watch for this friction all the time: improving `ev` from how it is
+used is part of every session.
+
 ## Exit codes
 
 | Exit | Meaning | What you do |

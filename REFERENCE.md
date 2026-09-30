@@ -146,7 +146,7 @@ A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from 
 | `ev grid <ref>… --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside. Several references get the same grid, all or none, and return `grids` |
 | `ev grid <ref>… --face above\|front` | how the grid is seen: `above` (the default; a drawer, row 1 at the back) or `front` (furniture and its compartments, row 1 at the top); with or without `--cols`/`--rows`, all or none; refused (exit 5) for a holder without a grid. `grid.face` |
 | `ev grid <ref> --clear` | remove the grid; refused while boxes are placed in it |
-| `ev cell <ref>=<cells>… [--recode]` | place boxes in their holder's grid, several at once; `<ref>=` takes one out. Bounds and overlaps are checked against where every box ends up, so boxes can swap places in one step. `--recode` names each placed box `<holder code>-<back-left cell>`. `placed`, `grids` |
+| `ev cell <ref>=<cells>…` | place boxes in their holder's grid, several at once; `<ref>=` takes one out. Bounds and overlaps are checked against where every box ends up, so boxes can swap places in one step. A box keeps its code: it is the box's serial label, not its place. `placed`, `grids` |
 
 `ev show` carries `cells` for a placed box and `grid` for a holder that has one; `ev suggest`
 entries carry `cells`, and `grid` with its `free` cells. Moving a box out of its holder frees

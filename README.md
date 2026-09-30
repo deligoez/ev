@@ -37,7 +37,7 @@ ev edit 391 qty=11 note="…"      # change fields
 ev edit --stdin < edits.ndjson   # many records at once, all or nothing: {"ref":…,"set":{…}}
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
 ev grid 07-A --cols 6 --rows 7   # a gridfinity drawer: row 1 at the back, columns A…
-ev cell 07-A-A3=A3-B3 --recode   # a box covers cells; ev grid 07-A draws the map
+ev cell GF1x2-003=A3-B3          # a box covers cells; ev grid 07-A draws the map
 ev sketch K4x2 --on K4x4         # furniture standing on another, drawn with it
 ev map K4x4                      # a place as tiles: its grid, its sketch or a stack
 ev history 391                   # everything that happened to it
@@ -103,8 +103,8 @@ and boxes whose name says a size their `size` field does not.
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
 map and lists the free cells, `ev ui` shows it in the drawer's details, and `ev suggest` names
-the free cells. Boxes trade places in one `ev cell` call, and `--recode` renames them after
-their cells. Furniture is a grid too, seen from the front (`ev grid K4x4 --cols 4 --rows 4
+the free cells. Boxes trade places in one `ev cell` call and keep their codes. Furniture is a
+grid too, seen from the front (`ev grid K4x4 --cols 4 --rows 4
 --face front`, row 1 at the top); several holders take the same grid in one call. Movable
 boxes get serial codes that stay on their labels wherever they go: `code=GF1x1-*` takes the
 next free number of the series.

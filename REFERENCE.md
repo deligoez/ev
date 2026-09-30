@@ -59,8 +59,10 @@ Errors print nothing on stdout; stderr carries
 
 ## Event types
 
-create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo, grid,
-cell, observe, unobserve, review.
+create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
+photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
+review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
+kit_unlink (`kit`, `part`, `text`).
 
 ## `ev ui`
 

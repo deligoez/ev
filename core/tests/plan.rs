@@ -108,6 +108,12 @@ fn observations_show_on_the_place_and_can_be_removed() {
     let id = obs[0]["id"].as_i64().unwrap();
     let v = inv.unobserve(id).unwrap();
     assert!(v["observations"].as_array().unwrap().is_empty());
+    // The removal is in the place's history with the text it removed.
+    let h = inv.history("K1-01-A").unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["type"], "unobserve");
+    assert_eq!(last["data"]["text"], "screws loose in a bag");
+    assert_eq!(inv.unobserve(id).unwrap_err().code(), 3);
 }
 
 #[test]

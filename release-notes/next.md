@@ -41,6 +41,9 @@ Draft for the next release.
 
 - **`ev ui` opens on the newest photo**, not the oldest, with the photo's note in the panel title.
 
+- **`ev find --tag t` lists everything tagged t**; the search text is optional with `--tag` or
+  `--kind`.
+
 ## Fixed
 
 - **A drawer's own photo goes out of date with its boxes.** `ev todo` checked only the smallest

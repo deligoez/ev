@@ -43,6 +43,32 @@ fn names(list: &Value) -> Vec<String> {
 }
 
 #[test]
+fn an_uncounted_place_stays_on_the_list_when_a_box_is_put_on_it() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Masa", "furniture", Some("Oda"), None);
+    inv.edit("Masa", &["unknown=true".into()]).unwrap();
+    assert!(names(&inv.todo().unwrap()["unknown"]).contains(&"Masa".to_string()));
+    // A spare box put on the desk makes the desk a holder of holders; its own contents are
+    // still uncounted, so it is still work to do.
+    add(
+        &mut inv,
+        "Boş kutu",
+        "container",
+        Some("Masa"),
+        Some("GF1x1-001"),
+    );
+    let v = inv.todo().unwrap();
+    assert!(names(&v["unknown"]).contains(&"Masa".to_string()), "{v}");
+    assert_eq!(
+        v["counts"]["unknown"],
+        v["unknown"].as_array().unwrap().len()
+    );
+    // Counted: it leaves the list by its own field.
+    inv.edit("Masa", &["unknown=false".into()]).unwrap();
+    assert!(!names(&inv.todo().unwrap()["unknown"]).contains(&"Masa".to_string()));
+}
+
+#[test]
 fn a_new_code_needs_a_label_until_it_is_printed() {
     let (_d, mut inv) = setup();
     let v = inv.label(&[], true).unwrap();

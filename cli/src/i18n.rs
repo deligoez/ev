@@ -285,6 +285,13 @@ static TR: &[(&str, &str)] = &[
     ("{} on it", "üstünde {}"),
     ("M map", "M harita"),
     ("sketched", "krokiye işlendi"),
+    (
+        "{}×{} grid seen from the front, row 1 at the top",
+        "{}×{} ızgara, önden, 1. satır üstte",
+    ),
+    ("grid seen from", "ızgaranın bakışı"),
+    ("the front", "önden"),
+    ("above", "yukarıdan"),
     ("sketch removed", "krokiden çıkarıldı"),
     (
         "(the unplaced ones are listed last)",

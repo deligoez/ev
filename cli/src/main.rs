@@ -278,7 +278,11 @@ enum Cmd {
         cols: Option<i64>,
         #[arg(long, requires = "cols")]
         rows: Option<i64>,
-        #[arg(long, conflicts_with_all = ["cols", "rows"])]
+        /// How the grid is seen: `above` (a drawer, row 1 at the back) or `front` (furniture
+        /// and its compartments, row 1 at the top).
+        #[arg(long, value_parser = ["above", "front"])]
+        face: Option<String>,
+        #[arg(long, conflicts_with_all = ["cols", "rows", "face"])]
         clear: bool,
     },
     /// A sketch in centimetres: `--size w,d` for a room (or the home), `--at x,y --size w,d` for
@@ -771,19 +775,33 @@ fn run(cli: Cli) -> Result<Value> {
             references,
             cols,
             rows,
+            face,
             clear,
-        } => match (cols, rows, clear, references.as_slice()) {
-            (_, _, _, [one]) => match (cols, rows, clear) {
-                (Some(c), Some(r), _) => inv.grid_set(one, c, r),
-                (_, _, true) => inv.grid_clear(one),
-                _ => inv.grid(one),
-            },
-            (Some(c), Some(r), _, many) => inv.grid_set_many(many, c, r),
-            _ => Err(Error::Usage(
-                "several holders take --cols and --rows together; show or clear one at a time"
-                    .into(),
-            )),
-        },
+        } => {
+            let refs = references.as_slice();
+            let changes = cols.is_some() || face.is_some();
+            if (clear || !changes) && refs.len() > 1 {
+                return Err(Error::Usage(
+                    "several holders take --cols and --rows or --face; show or clear one at a time"
+                        .into(),
+                ));
+            }
+            if clear {
+                return inv.grid_clear(&refs[0]);
+            }
+            if let (Some(c), Some(r)) = (cols, rows) {
+                inv.grid_set_many(refs, c, r)?;
+            }
+            if let Some(f) = &face {
+                inv.grid_face(refs, f)?;
+            }
+            match refs {
+                [one] => inv.grid(one),
+                many => Ok(serde_json::json!({
+                    "grids": many.iter().map(|r| inv.grid(r)).collect::<Result<Vec<_>>>()?
+                })),
+            }
+        }
         Cmd::Sketch {
             reference,
             at,

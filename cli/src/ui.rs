@@ -3269,13 +3269,7 @@ impl App {
     /// free cells by name. It goes right under the path, above the fields and the contents,
     /// since a drawer with a photo and many boxes leaves little room below.
     fn grid_text(g: &Value, mark: Option<i64>) -> Vec<Line<'static>> {
-        let mut lines = vec![
-            Line::from(tf(
-                "{}×{} grid, row 1 at the back",
-                &[&g["cols"], &g["rows"]],
-            ))
-            .bold(),
-        ];
+        let mut lines = vec![Line::from(crate::render::grid_title(g)).bold()];
         // The boxes are drawn as frames on the plate, the way they sit in the drawer: a box
         // over several cells is one frame, and a free cell is a bare dot on the plate.
         const W: usize = 6;

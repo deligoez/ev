@@ -372,16 +372,19 @@ pub fn grid_lines(grid: &Value) -> Vec<String> {
     lines
 }
 
+/// A grid's size and which way its rows run: from the back of a drawer, from the top of a
+/// piece of furniture seen from the front.
+pub fn grid_title(grid: &Value) -> String {
+    let text = if grid["face"] == "front" {
+        "{}×{} grid seen from the front, row 1 at the top"
+    } else {
+        "{}×{} grid, row 1 at the back"
+    };
+    tf(text, &[&grid["cols"], &grid["rows"]])
+}
+
 fn grid_block(out: &mut String, node: &Value, grid: &Value) {
-    let _ = writeln!(
-        out,
-        "{}  {}",
-        s(node, "path_text"),
-        tf(
-            "{}×{} grid, row 1 at the back",
-            &[&grid["cols"], &grid["rows"]]
-        )
-    );
+    let _ = writeln!(out, "{}  {}", s(node, "path_text"), grid_title(grid));
     for l in grid_lines(grid) {
         let _ = writeln!(out, "  {l}");
     }

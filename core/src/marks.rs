@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use crate::error::refused;
-use crate::model::{Disposition, Node, State};
+use crate::model::{Disposition, Kind, Node, State};
 use crate::store::{Inventory, brief, ids, live_nodes, now, place_errands, resolve, show};
 use crate::{Error, Result};
 
@@ -554,12 +554,13 @@ impl Inventory {
                 unknown.push(brief_value(&self.conn, n.id)?);
             }
         }
-        // What waits in a parking place for its final one: the things put straight into a
-        // place marked `temporary`, each with that place.
+        // What waits for its final place: the things put straight into a place marked
+        // `temporary`, and an item marked `temporary` itself (one thing parked among things
+        // that do belong there), each with the place it waits in.
         let mut parked = Vec::new();
         for n in all.iter().filter(|n| n.state != State::Gone) {
             if let Some(p) = n.parent_id.and_then(|p| all.iter().find(|h| h.id == p))
-                && p.temporary
+                && (p.temporary || (n.temporary && n.kind == Kind::Item))
             {
                 let mut v = brief_value(&self.conn, n.id)?;
                 v["in"] = brief_value(&self.conn, p.id)?;

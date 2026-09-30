@@ -24,6 +24,19 @@ it; v0.14.0 then refuses it with exit 6. Copy `~/.ev/ev.db` aside first if you m
   still missing from the records themselves — find a lost card or move a board and the kit
   follows. A link is in the record's history and in its `ev show` (`kits`).
 
+- **A contact sheet of every crop.** `ev photo cut` and its `--preview` return `sheet`: one
+  image with every crop small, six to a row, labelled with its box's cell. A drawer cut makes
+  three dozen crops; checking them used to mean opening each one, so few were checked.
+- **`ev edit --stdin`: many records at once, all or nothing.** NDJSON lines
+  `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["+modül"], "note": null}}`; a failing
+  line is named and nothing changes. A field set twice in one line is one change in the
+  history (before the first, after the last).
+- **`--text`**, the counterpart of `--json`: the readable output through a pipe, for an agent
+  reading a result rather than parsing it.
+- **`ev audit` finds boxes whose name says a size their `size` field does not**
+  (`size_drift`). The field is what crops and bigger-box offers read; 21 boxes of the author's
+  drawer had their size only in their names.
+
 ## Changed
 
 - **A taller box gets a wider crop.** A grid cut widens each box's crop with its height from

@@ -2835,6 +2835,32 @@ impl Inventory {
 }
 
 #[cfg(test)]
+mod scratch_tests {
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn marked_copies_older_than_a_day_are_cleared_and_newer_ones_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old-marked.jpg");
+        let new = dir.path().join("new-marked.jpg");
+        std::fs::write(&old, b"x").unwrap();
+        std::fs::write(&new, b"x").unwrap();
+        let two_days_ago = SystemTime::now() - Duration::from_secs(2 * 24 * 3600);
+        std::fs::File::options()
+            .write(true)
+            .open(&old)
+            .unwrap()
+            .set_modified(two_days_ago)
+            .unwrap();
+        super::prune_older(dir.path(), Duration::from_secs(24 * 3600));
+        assert!(!old.exists());
+        assert!(new.exists());
+        // A folder that is not there yet is no error.
+        super::prune_older(&dir.path().join("missing"), Duration::from_secs(1));
+    }
+}
+
+#[cfg(test)]
 mod migration_tests {
     use super::{Inventory, SCHEMA_V1};
 

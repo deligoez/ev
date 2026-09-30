@@ -28,6 +28,19 @@ One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `c
 `address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`) plus optional `key`.
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
+## Edit lines (`ev edit --stdin`)
+
+One JSON object per line: `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["+modül", "-boş kap"], "note": null}}`.
+`ref` is a name, code, id or `#id`; each `set` entry is one `field=value` of `ev edit` (an
+array is one per item, `null` clears). Blank lines are skipped. All or nothing: a failing line
+is named (`line 2: …`) and nothing is changed. Each record gets one `edit` event, a field set
+several times showing its value before the first and after the last. Output: `edited`.
+
+## Output
+
+JSON when piped, readable text on a terminal. `--json` forces JSON on a terminal; `--text`
+forces the text through a pipe — to read a result, not to parse it.
+
 ## Payload shapes
 
 Every node reference (`NodeRef`) is:
@@ -171,7 +184,7 @@ creates the place.
 | `ev themes [<ref>]` | containers and furniture with things in them and no theme (kits recorded as items are left out): `themes`: `[{holder, things, words: [{word, things}], contents, like}]`, most things first. `words` are the stems the contents share, written as the inventory writes them, rarer ones first, colours and numbers left out; `like` is the themed holder those words read most like (NodeRef + `theme`, `score`), or null. `ev ui` shows the same under a place's details |
 | `ev facet add <name> [--words "a, b"]` / `ev facet list` / `ev facet remove <name>` | facets: kinds of things kept apart (modules and bare parts, novels and technical books). A holder is in a facet by carrying its name as a tag (`ev edit X tags=+modül`), or by being inside one that does; a thing by its own tag, else by a facet word in its name (any form: `modülü`, `modülleri` name `modül`), else by where it is. `suggest` never ranks a holder of another facet (it goes to `other_facet`) and `regroup` never proposes one. `facets`: `[{name, words, holders}]` |
 | `ev rule add <text>` / `ev rule list` / `ev rule remove <id>` | placement rules in plain words |
-| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried) |
+| `ev audit` | `spread` (words shared by items in 2–8 holders, top 40; Turkish forms such as `vida`/`vidası`/`vidalar` are one row, `word` is the shortest form and `forms` lists them all), `no_theme` (holders with items and no theme), `loose` (items directly in a room, on furniture or in a home), `unknown` (holders never inventoried), `size_drift` (boxes whose name carries a size — `Gridfinity 1x2x0.5 — …` — that their `size` field lacks or contradicts: NodeRef + `name_size`, `size`; the field is what crops and bigger-box offers read) |
 
 ### How `suggest` and `regroup` score
 
@@ -239,7 +252,7 @@ other exits 5).
 | `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
 | `ev photo remove <ref> <n>` | detach the n-th photo (the stored file stays); the history keeps a `photo_remove` event with what it was |
 | `ev photo add <ref> <file> --whole` | attach a whole photo that is already attached whole to another node; without `--whole` (and without `--crop`) that is refused with exit 5 and `details.attached_to` |
-| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--grid <corners>] [--note n]` | one photo cut up among several nodes in one step: a crop for each `<ref>=` (the same `<ref>` may come several times, one crop each: the three probes of three sets in one photo are one record), and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `--grid blx,bly,brx,bry,frx,fry,flx,fly` (needs `--place`, a place with a grid) gives the grid's back-left, back-right, front-right and front-left corners as fractions of the upright photo and adds a crop for every placed box, mapped with the photo's perspective and widened by a margin that grows with the box's height from its `size` (`1x2x1.5`: a tall box's rim leans out of its cells), never below 0.15 of a cell; a crop named by hand wins for its box. `--preview [note]` cuts and attaches nothing: it draws every crop it would make (each grid box framed on its cells, labelled with its back-left cell) on a temporary copy, `{preview, framed}`, and with a note shows it in a running `ev ui`. `attached`: `[NodeRef + photo, crop, path]` |
+| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--grid <corners>] [--note n]` | one photo cut up among several nodes in one step: a crop for each `<ref>=` (the same `<ref>` may come several times, one crop each: the three probes of three sets in one photo are one record), and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `--grid blx,bly,brx,bry,frx,fry,flx,fly` (needs `--place`, a place with a grid) gives the grid's back-left, back-right, front-right and front-left corners as fractions of the upright photo and adds a crop for every placed box, mapped with the photo's perspective and widened by a margin that grows with the box's height from its `size` (`1x2x1.5`: a tall box's rim leans out of its cells), never below 0.15 of a cell; a crop named by hand wins for its box. `--preview [note]` cuts and attaches nothing: it draws every crop it would make (each grid box framed on its cells, labelled with its back-left cell) on a temporary copy, `{preview, framed, sheet}`, and with a note shows it in a running `ev ui`. `attached`: `[NodeRef + photo, crop, path]`, and `sheet`: a contact sheet of every crop — each small, six to a row, labelled with its box's cell (`B3`), else its code or `#id` — written to the scratch folder of `photo mark`, to check a whole cut at a glance |
 | `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo adopt` | copy photos still referenced outside the store into it |
 

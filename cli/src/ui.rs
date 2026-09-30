@@ -4103,6 +4103,21 @@ mod tests {
     }
 
     #[test]
+    fn going_to_a_lost_thing_opens_the_collapsed_unknown_place_heading() {
+        let (_dir, mut inv) = home();
+        add(&mut inv, "Oda", "room", "Ev", None);
+        add(&mut inv, "Kalem", "item", "Oda", None);
+        inv.mark_lost("Kalem").unwrap();
+        let mut app = app_tr(inv);
+        let kalem = app.inv.resolve("Kalem", false).unwrap();
+        // The heading closed by hand, then the pen asked for (a search, `t`, `ev focus`).
+        app.toggle_section(super::LOST_SECTION).unwrap();
+        assert!(!app.rows.iter().any(|r| r.id == kalem));
+        app.reveal(kalem).unwrap();
+        assert_eq!(app.selected_id(), Some(kalem));
+    }
+
+    #[test]
     fn a_drawer_on_the_map_is_its_grid_plate_with_free_cells_and_cell_names() {
         let (_dir, mut inv) = led_drawer();
         // Two boxes in a 3×2 plate: four cells free.

@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), sketch_import (on the home: `file`, `rooms`, `marks`).
 
 ## `ev ui`
 
@@ -158,9 +158,9 @@ its cells.
 Any place drawn as the tiles of what is in it, laid out from what is recorded:
 
 - **grid**: the place has a grid; each placed box is a tile on its cells.
-- **sketch**: the place has a size and at least one thing in it has a place and a size, in
-  centimetres seen from above (a room in the home, a piece of furniture in a room). The others
-  are `unplaced`.
+- **sketch**: something in it has a place and a size, in centimetres seen from above (a room
+  in the home, a piece of furniture in a room), or the place has an outline or marks of its
+  own. The view covers the place's size and everything drawn. The others are `unplaced`.
 - **tiles**: neither; what is in it is laid out on its own, holders first, labelled ones first.
 - **stack**: furniture standing on another (`--on`) is drawn with it, front on, top first: one
   band per member, as tall as its grid has rows, each laid out by its own grid. In the room it
@@ -172,6 +172,8 @@ Any place drawn as the tiles of what is in it, laid out from what is recorded:
 | `ev sketch <ref> --size w,d` | its width and depth; a place with a size can be sketched in |
 | `ev sketch <ref> --at x,y` | its top-left corner in its holder, seen from above |
 | `ev sketch <ref> --on <ref>` | it stands on another; refused (exit 5) on itself or on what stands on it |
+| `ev sketch <ref> --points "x,y x,y …"` | an outline of three or more corners, for a room that is not a rectangle; its place and size become the rectangle around them. The place's own frame starts at that rectangle's corner |
+| `ev sketch --import <plan.sh3d> [--room "<plan name>=<ref>"]… [--piece "<Name#n>=<ref>"]… [--dry-run]` | sketch the home from a Sweet Home 3D plan (its `Home.xml`, 5.3 and later). Each room of the plan gives its outline to the room of the same name, folded (`--room` when the names differ; a room inside a room, like a balcony, is placed in its room's frame). `--piece Table#2=<ref>` places a record where the plan's second Table stands. Every other piece, door and window becomes a mark in the room it stands in (a door or window in each room within a wall's width), or on the home when it is in no room; marks are replaced on every import. `rooms` (`plan`, `node`, `changed`), `unmatched` (plan rooms with no record), `not_in_plan` (rooms of the home without an outline), `pieces` (`ref`, `room`, `linked`, `size`), `marks` |
 | `ev sketch <ref> --clear` | remove its sketch |
 | `ev map [<ref>]` | the home without a reference. `node`, `path_text`, `path`, `parent`, `sketch`, `layout` (`grid`, `sketch`, `tiles`, `stack`), `size` (`cols`, `rows` or `w`, `d`), `tiles`, `unplaced`; a stack adds `bands` (NodeRef + `rect`, `layout`, `size`) |
 
@@ -180,7 +182,11 @@ NodeRef with `rect` (`[x, y, w, h]` as fractions of the place, from its top-left
 drawer, the top of a stack), `items` (things inside, counted all the way down), `children`,
 `contents` (up to 40: holders by code, then things by name, `×n` for a count), and when set
 `theme`, `fill`, `cells`, `temporary`, `unknown`, `stacked` (what stands on it, bottom up) and
-`band` (the stack member it belongs to). `ev ui` shows the map with `M`.
+`band` (the stack member it belongs to). A tile with an outline carries `shapes`: its outline
+and the outlines of rooms inside it, as corners in fractions of the view. A sketch's `size`
+holds `w`, `d` (the view in centimetres), `floor` (the place's own outline) and `marks`
+(`kind` piece, door or window, `name`, `rect`). `ev ui` shows the map with `M`; a sketch with
+outlines is drawn as a floor plan, each room a floor of its own shape and tone.
 
 ## Places
 

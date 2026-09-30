@@ -27,6 +27,7 @@ use serde_json::Value;
 
 use crate::i18n::{self, Lang, t, tf};
 use crate::input::{self, Graphics, Input};
+use crate::mapview::{MapView, Outcome};
 use crate::settings::{self, LangPref, Settings, ThemePref, UiState};
 use crate::theme::{self, Mode, pal};
 
@@ -221,7 +222,7 @@ fn children(n: &Value) -> &[Value] {
 /// Key hints joined with ` · ` in the order given, fitted to `width`: while they do not fit, the
 /// least useful part (highest rank, the last of its rank) is left out; rank 0 always stays, and
 /// so does the status message, after them.
-fn fit_hints(mut parts: Vec<(u8, &str)>, width: usize, status: &str) -> String {
+pub(crate) fn fit_hints(mut parts: Vec<(u8, &str)>, width: usize, status: &str) -> String {
     let status = if status.is_empty() {
         String::new()
     } else {
@@ -626,6 +627,8 @@ struct App {
     overlay: Option<(Vec<String>, usize, Option<String>)>,
     /// The marked photos closed last, for `m` to open again.
     last_overlay: Option<(Vec<String>, usize, Option<String>)>,
+    /// The map (`M`) over the whole screen while open.
+    map_view: Option<MapView>,
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -742,6 +745,7 @@ impl App {
             grid_hit: None,
             overlay: None,
             last_overlay: None,
+            map_view: None,
         };
         app.apply_prefs();
         // A request made before this UI started is old news.
@@ -1721,6 +1725,9 @@ impl App {
         }
         self.snap = next;
         self.status = tf("updated {}", &[&clock_now()]);
+        if let Some(m) = self.map_view.as_mut() {
+            m.reload(&self.inv)?;
+        }
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
@@ -1816,6 +1823,24 @@ impl App {
             self.state.select(Some(i));
         }
         self.load_details()
+    }
+
+    /// Opens the map on the place holding the selected node, with that node chosen; a node with
+    /// no holder (the home) shows its own map.
+    fn open_map(&mut self) {
+        let sel = self
+            .selected_id()
+            .filter(|&i| i > 0)
+            .or(self.tree_position());
+        let parent = sel.and_then(|s| self.snap.parent.get(&s).copied());
+        let (place, select) = match parent {
+            Some(p) => (Some(p), sel),
+            None => (sel, None),
+        };
+        match MapView::open(&self.inv, place, select) {
+            Ok(v) => self.map_view = Some(v),
+            Err(e) => self.status = e.to_string(),
+        }
     }
 
     /// The node selected in the tree, whichever tab is open.
@@ -1979,6 +2004,18 @@ impl App {
             }
             return Ok(());
         }
+        if let Some(m) = self.map_view.as_mut() {
+            match m.key(&self.inv, k)? {
+                Outcome::Stay => {}
+                Outcome::Close => self.map_view = None,
+                Outcome::Quit => self.quit = true,
+                Outcome::Reveal(id) => {
+                    self.map_view = None;
+                    self.reveal(id)?;
+                }
+            }
+            return Ok(());
+        }
         if self.searching {
             match k.code {
                 // Esc empties a half-typed query first, and closes the box on an empty one.
@@ -2029,6 +2066,7 @@ impl App {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
             KeyCode::Char('m') => self.reopen_marked(),
+            KeyCode::Char('M') => self.open_map(),
             KeyCode::Char('/') => {
                 self.searching = true;
                 self.query.clear();
@@ -2108,6 +2146,12 @@ impl App {
                     self.close_fullscreen()
                 }
                 _ => {}
+            }
+            return Ok(());
+        }
+        if let Some(v) = self.map_view.as_mut() {
+            if let MouseEventKind::Down(MouseButton::Left) = m.kind {
+                v.click(&self.inv, m.column, m.row)?;
             }
             return Ok(());
         }
@@ -2389,6 +2433,9 @@ impl App {
             }
             self.fullscreen = false;
         }
+        if let Some(m) = self.map_view.as_mut() {
+            return m.draw(f);
+        }
         let [top, body, bottom] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(0),
@@ -2646,6 +2693,7 @@ impl App {
             parts.push((1, t("m marked photos")));
         }
         parts.push((2, t("/ search")));
+        parts.push((2, t("M map")));
         if self.details.is_some() {
             parts.push((2, t("H/L details tabs")));
             if scrolls {

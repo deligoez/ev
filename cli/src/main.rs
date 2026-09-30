@@ -8,6 +8,7 @@ use serde_json::Value;
 
 mod i18n;
 mod input;
+mod mapview;
 mod render;
 mod settings;
 mod theme;

@@ -218,7 +218,7 @@ they are recorded, not on the bag. Close-ups the person sends later (screw heads
 the item, cropped to the thing itself, and a photo of an empty holder goes to the holder. Photos
 are copied into `~/.ev/photos`; the original may then be deleted.
 
-**A tour is not finished on an old photo.** `ev review <place> --status toured` is refused while
+**A tour is not finished on an old photo.** `ev review <place> --as toured` is refused while
 the place or any placed box in its grid has no photo or one older than its last change
 (`details.stale`); attach a current photo, or say an old one still holds with
 `ev photo current <ref>`.

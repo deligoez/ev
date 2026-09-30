@@ -411,3 +411,33 @@ fn one_photo_is_cut_up_among_a_place_and_its_boxes_in_one_step() {
     assert!(!needing.contains(&"S5-01") && !needing.contains(&"S5-02"));
     assert_eq!(todo["counts"]["shared_photos"], 0);
 }
+
+#[test]
+fn a_counted_box_with_nothing_waiting_is_not_open_and_any_work_on_it_opens_it() {
+    let (_d, mut inv) = setup();
+    let id = |inv: &Inventory, r: &str| inv.resolve(r, false).unwrap();
+    // Not counted yet: open.
+    assert!(inv.open_nodes().unwrap().contains(&id(&inv, "S5-01")));
+    inv.label(&["S5-01".into()], true).unwrap();
+    inv.photo_current("S5-01").unwrap();
+    inv.review("S5-01", "toured", None).unwrap();
+    let open = inv.open_nodes().unwrap();
+    for r in ["S5-01", "Silikon", "Kulaklık"] {
+        assert!(!open.contains(&id(&inv, r)), "{r}: {open:?}");
+    }
+    // A task, an observation, and both ends of a planned move each leave work on a node.
+    let task = inv.task_add("Ayıkla", "karışık", &["S5-01".into()], None).unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    add(&mut inv, "Kutu", "container", Some("Oda"), None);
+    inv.observe("Oda", "Kablolar dağınık", None).unwrap();
+    inv.move_to("Kulaklık", "Kutu", true).unwrap();
+    let open = inv.open_nodes().unwrap();
+    for r in ["S5-01", "Oda", "Kulaklık", "Kutu"] {
+        assert!(open.contains(&id(&inv, r)), "{r}: {open:?}");
+    }
+    assert!(!open.contains(&id(&inv, "Silikon")), "{open:?}");
+    inv.task_set(task, "done", None).unwrap();
+    inv.done("Kulaklık").unwrap();
+    assert!(!inv.open_nodes().unwrap().contains(&id(&inv, "Kulaklık")));
+}

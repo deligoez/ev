@@ -1172,3 +1172,27 @@ fn tab_titles_are_hit_by_their_columns() {
     assert!(tab_at(10).is_none());
     assert!(tab_at(11) == Some(Tab::Pending));
 }
+
+#[test]
+fn the_tree_reopens_with_its_nodes_open_and_headings_closed_as_left() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let led = app.inv.resolve("Kırmızı LED 10 mm", false).unwrap();
+    // The drawer and its buzzer box opened down to the LED, and the Unknown place heading
+    // closed; then ev ui left.
+    app.reveal(led).unwrap();
+    app.collapsed.insert(super::LOST_SECTION);
+    let mut kept = app.tree_json();
+    kept["expanded"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!(999_999));
+    // The next session opens the same way; a node gone since is dropped.
+    let inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    let mut again = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    assert!(!again.rows.iter().any(|r| r.id == led));
+    again.apply_tree(&kept).unwrap();
+    assert!(again.rows.iter().any(|r| r.id == led));
+    assert!(again.collapsed.contains(&super::LOST_SECTION));
+    assert!(!again.expanded.contains(&999_999));
+}

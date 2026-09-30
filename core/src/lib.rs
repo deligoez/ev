@@ -3,6 +3,7 @@
 mod error;
 mod fold;
 mod grid;
+mod kits;
 mod marks;
 mod model;
 mod photo;

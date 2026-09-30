@@ -10,7 +10,7 @@ use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State
 use crate::{Error, Result, fold};
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 11;
+pub const SCHEMA_VERSION: i64 = 12;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -238,6 +238,37 @@ PRAGMA user_version = 11;
 COMMIT;
 ";
 
+/// Kits (spec §29): what a bought set should contain, part by part, and which records are
+/// those parts, so what is still missing from it is read off the records.
+const SCHEMA_V12: &str = "
+BEGIN;
+CREATE TABLE kits (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    name_folded TEXT NOT NULL UNIQUE,
+    copies INTEGER NOT NULL DEFAULT 1,
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE kit_parts (
+    kit_id INTEGER NOT NULL REFERENCES kits(id),
+    position INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    qty INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (kit_id, position)
+);
+CREATE TABLE kit_links (
+    kit_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    PRIMARY KEY (kit_id, position, node_id),
+    FOREIGN KEY (kit_id, position) REFERENCES kit_parts(kit_id, position)
+);
+CREATE INDEX kit_links_node ON kit_links(node_id);
+PRAGMA user_version = 12;
+COMMIT;
+";
+
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
 fn prune_older(dir: &Path, age: Duration) {
@@ -333,6 +364,9 @@ impl Inventory {
         }
         if version < 11 {
             conn.execute_batch(SCHEMA_V11)?;
+        }
+        if version < 12 {
+            conn.execute_batch(SCHEMA_V12)?;
         }
         let photo_dir = path
             .parent()
@@ -1195,6 +1229,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "last_seen": last_seen,
         "review": review,
         "observations": observations,
+        "kits": crate::kits::kits_of(conn, id)?,
     }))
 }
 

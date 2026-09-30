@@ -63,6 +63,21 @@ enum Cmd {
         #[arg(required = true)]
         assignments: Vec<String>,
     },
+    /// Split one record into several kinds of thing: each `<name>=<qty>` becomes a new record
+    /// beside it (same place, kind, tags); the original keeps the rest (--rename, --qty). The
+    /// history links them both ways; photos stay on the original, to be cropped per part.
+    Split {
+        reference: String,
+        /// `<name>=<qty>`, or just `<name>` for a record without a count.
+        #[arg(required = true)]
+        parts: Vec<String>,
+        /// A new name for the original, for the part it keeps.
+        #[arg(long)]
+        rename: Option<String>,
+        /// The original's count after the split.
+        #[arg(long)]
+        qty: Option<i64>,
+    },
     /// Give several nodes new codes at once: swap or rotate codes when boxes change places.
     Recode {
         /// <ref>=<new code>; an empty code clears it.
@@ -658,6 +673,27 @@ fn run(cli: Cli) -> Result<Value> {
                     .filter_map(|a| a.strip_prefix("photos=+")),
             );
             inv.edit(&reference, &assignments)
+        }
+        Cmd::Split {
+            reference,
+            parts,
+            rename,
+            qty,
+        } => {
+            let parts = parts
+                .iter()
+                .map(|p| match p.rsplit_once('=') {
+                    Some((name, q)) => q
+                        .trim()
+                        .parse::<i64>()
+                        .map(|q| (name.trim().to_string(), Some(q)))
+                        .map_err(|_| {
+                            Error::Usage(format!("`{p}`: the count after = is not a number"))
+                        }),
+                    None => Ok((p.trim().to_string(), None)),
+                })
+                .collect::<Result<Vec<_>>>()?;
+            inv.split(&reference, &parts, rename.as_deref(), qty)
         }
         Cmd::Recode { pairs } => {
             let pairs = pairs

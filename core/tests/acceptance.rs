@@ -690,35 +690,30 @@ fn suggest_matches_word_starts_not_fragments() {
 }
 
 #[test]
-fn uninventoried_holders_are_flagged() {
+fn a_place_is_not_counted_until_it_is_counted() {
     let (_d, mut inv) = inv();
     home(&mut inv);
-    let mut n = node("Karton kutu", "container", Some("Kiler"), None);
-    n.unknown = true;
-    let id = inv.add(n).unwrap()["node"]["id"].as_i64().unwrap();
-    let v = inv.suggest("herhangi", None).unwrap();
-    let c = v["containers"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|c| c["id"] == id)
-        .unwrap()
-        .clone();
-    assert_eq!(c["unknown"], true);
-    assert!(
-        inv.audit().unwrap()["unknown"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|n| n["id"] == id)
-    );
-    inv.edit(&id.to_string(), &["unknown=false".into()])
+    let id = inv
+        .add(node("Karton kutu", "container", Some("Kiler"), None))
+        .unwrap()["node"]["id"]
+        .as_i64()
         .unwrap();
-    assert!(
-        inv.audit().unwrap()["unknown"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    let count = |inv: &Inventory| {
+        let t = inv.tree(Some(&id.to_string()), Some(0)).unwrap();
+        t["tree"][0]["count"].clone()
+    };
+    // A new place is not counted: its empty count says nothing yet.
+    assert_eq!(count(&inv), "raw");
+    inv.review(&id.to_string(), "counting", None).unwrap();
+    assert_eq!(count(&inv), "counting");
+    inv.review(&id.to_string(), "toured", None).unwrap();
+    assert_eq!(count(&inv), "toured");
+    // The old mark is gone: nothing sets it any more.
+    assert_eq!(
+        inv.edit(&id.to_string(), &["unknown=true".into()])
+            .unwrap_err()
+            .code(),
+        2
     );
 }
 
@@ -948,4 +943,38 @@ fn audit_groups_turkish_word_forms_under_one_stem() {
     );
     // "kartuşu" folds to "kartusu" and must not collapse into "kart".
     assert_eq!(row("kart")["forms"], serde_json::json!(["kart", "karti"]));
+}
+
+#[test]
+fn a_lost_thing_is_listed_apart_with_where_it_was_last_seen() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    inv.mark_lost("Flipper Zero").unwrap();
+    let drawer = inv.tree(Some("K4x4-15-A"), None).unwrap()["tree"][0].clone();
+    // Not where it was seen: not among the drawer's contents, not in its count.
+    assert!(
+        drawer["children"].as_array().unwrap().is_empty(),
+        "{drawer}"
+    );
+    assert_eq!(drawer["items"], 0);
+    let t = inv.tree(None, None).unwrap();
+    assert_eq!(t["lost"][0]["name"], "Flipper Zero");
+    assert_eq!(t["lost"][0]["last_seen"]["code"], "K4x4-15-A");
+    // A thing never seen anywhere is lost too, with no last-seen place.
+    let mut n = node("Etiket makinesi", "item", None, None);
+    n.lost = true;
+    inv.add(n).unwrap();
+    let t = inv.tree(None, None).unwrap();
+    assert!(t["lost"][1]["last_seen"].is_null(), "{}", t["lost"]);
+    // Found where it was last seen, or somewhere else: back in the tree either way.
+    assert_eq!(inv.found("Etiket makinesi").unwrap_err().code(), 5);
+    inv.found_in("Etiket makinesi", "Salon").unwrap();
+    inv.found("Flipper Zero").unwrap();
+    let t = inv.tree(None, None).unwrap();
+    assert!(t["lost"].as_array().unwrap().is_empty(), "{}", t["lost"]);
+    assert_eq!(
+        inv.tree(Some("K4x4-15-A"), None).unwrap()["tree"][0]["items"],
+        1
+    );
+    assert_eq!(inv.found_in("Flipper Zero", "Kiler").unwrap_err().code(), 5);
 }

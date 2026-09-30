@@ -225,3 +225,48 @@ fn next_brings_the_task_its_places_what_arrives_and_the_gaps() {
     assert!(v["unplanned"].as_array().unwrap().is_empty());
     assert_eq!(inv.goal(Some("tidy")).unwrap_err().code(), 2);
 }
+
+/// How far a place is counted, as `ev tree` shows it.
+fn count(inv: &Inventory, r: &str) -> Value {
+    inv.tree(Some(r), Some(0)).unwrap()["tree"][0]["count"].clone()
+}
+
+#[test]
+fn a_task_begun_counts_its_places_and_one_left_unfinished_uncounts_them() {
+    let (_d, mut inv) = setup();
+    let t = inv
+        .task_add("Kutuyu say", "hiç açılmadı", &["Karton kutu".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    inv.task_set(t, "doing", None).unwrap();
+    assert_eq!(count(&inv, "Karton kutu"), "counting");
+    assert_eq!(inv.progress().unwrap()["counting"], 1);
+    // Dropped half way: it is not counted after all.
+    inv.task_set(t, "dropped", None).unwrap();
+    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    // A place counted during the task stays counted when the task closes.
+    inv.task_set(t, "doing", None).unwrap();
+    inv.review("Karton kutu", "toured", None).unwrap();
+    inv.task_set(t, "done", None).unwrap();
+    assert_eq!(count(&inv, "Karton kutu"), "toured");
+}
+
+#[test]
+fn an_empty_room_is_a_place_and_what_is_above_places_has_no_count() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Mutfak", "room", Some("Ev"), None);
+    let places: Vec<String> = inv.progress().unwrap()["places"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_string())
+        .collect();
+    assert!(places.contains(&"Mutfak".to_string()), "{places:?}");
+    assert_eq!(count(&inv, "Mutfak"), "raw");
+    // A room with furniture is counted through it, a box inside a drawer with the drawer.
+    assert!(count(&inv, "Oda").is_null());
+    assert!(count(&inv, "Vida kutusu").is_null());
+    assert_eq!(count(&inv, "K1-01-A"), "raw");
+}

@@ -43,29 +43,20 @@ fn names(list: &Value) -> Vec<String> {
 }
 
 #[test]
-fn an_uncounted_place_stays_on_the_list_when_a_box_is_put_on_it() {
+fn a_place_not_counted_yet_is_listed_until_it_is_counted() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Masa", "furniture", Some("Oda"), None);
-    inv.edit("Masa", &["unknown=true".into()]).unwrap();
-    assert!(names(&inv.todo().unwrap()["unknown"]).contains(&"Masa".to_string()));
-    // A spare box put on the desk makes the desk a holder of holders; its own contents are
-    // still uncounted, so it is still work to do.
-    add(
-        &mut inv,
-        "Boş kutu",
-        "container",
-        Some("Masa"),
-        Some("GF1x1-001"),
-    );
     let v = inv.todo().unwrap();
-    assert!(names(&v["unknown"]).contains(&"Masa".to_string()), "{v}");
+    assert!(names(&v["uncounted"]).contains(&"Masa".to_string()), "{v}");
     assert_eq!(
-        v["counts"]["unknown"],
-        v["unknown"].as_array().unwrap().len()
+        v["counts"]["uncounted"],
+        v["uncounted"].as_array().unwrap().len()
     );
-    // Counted: it leaves the list by its own field.
-    inv.edit("Masa", &["unknown=false".into()]).unwrap();
-    assert!(!names(&inv.todo().unwrap()["unknown"]).contains(&"Masa".to_string()));
+    // Being counted, it is still work to do; counted, it leaves the list.
+    inv.review("Masa", "counting", None).unwrap();
+    assert!(names(&inv.todo().unwrap()["uncounted"]).contains(&"Masa".to_string()));
+    inv.review("Masa", "toured", None).unwrap();
+    assert!(!names(&inv.todo().unwrap()["uncounted"]).contains(&"Masa".to_string()));
 }
 
 #[test]
@@ -335,7 +326,6 @@ fn focus_names_a_node_and_its_last_photo_by_default() {
 fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Kutu", "container", Some("Oda"), None);
-    inv.edit("Kutu", &["unknown=true".into()]).unwrap();
     add(&mut inv, "Belirsiz parça", "item", Some("S5-01"), None);
     inv.move_to("Silikon", "Kutu", true).unwrap();
     inv.edit("Kulaklık", &["owner=Mahmutlar".into()]).unwrap();
@@ -346,7 +336,7 @@ fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     assert_eq!(c["moves"], 1);
     assert_eq!(c["errands"], 1);
     assert_eq!(c["lost"], 1);
-    assert_eq!(c["unknown"], 1);
+    assert!(names(&t["uncounted"]).contains(&"Kutu".to_string()));
     assert_eq!(names(&t["unclear"]), ["Belirsiz parça"]);
 
     // Doing the thing is what clears it; nothing to close in todo.

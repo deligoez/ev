@@ -1286,7 +1286,11 @@ fn a_counted_box_with_nothing_waiting_turns_green_and_its_holders_wait_for_all_o
     tour(&mut app.inv);
     // Its own writes do not move the database's data version, so read it again here.
     app.snap = super::Snapshot::load(&app.inv).unwrap();
+    app.rebuild().unwrap();
     for r in ["Aktif buzzer", "D-A1", "D-B1", "D", "Oda", "Ev"] {
         assert!(settled(&app, r), "{r}");
     }
+    // The whole row turns green, the code with the name.
+    term.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(fg_of(&term, "D-A1"), Some(done));
 }

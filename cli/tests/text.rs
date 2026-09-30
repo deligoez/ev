@@ -124,3 +124,24 @@ fn todo_lists_each_kind_of_waiting_work_under_its_count() {
     assert!(s.contains("\nNot counted yet (2)\n"), "{s}");
     assert!(s.contains("\n  Ev › Oda › D  (no photo)\n"), "{s}");
 }
+
+#[test]
+fn suggest_ranks_the_best_holder_first_and_says_what_matched_and_why() {
+    let h = Home::new();
+    let s = h.text(&["suggest", "--for", "Kırmızı LED 10 mm"]);
+    assert!(
+        s.starts_with("For: Ev › Oda › D › D-B1 › Kırmızı LED 10 mm\n"),
+        "{s}"
+    );
+    // The stray LED's best place is the LED box, on its theme, with the rare words starred.
+    assert!(
+        s.contains("\n  1. D-A1  Kutu  (not counted)  score "),
+        "{s}"
+    );
+    assert!(s.contains("matched: led* "), "{s}");
+    assert!(
+        s.contains("\nAll 4 places that can hold something:\n"),
+        "{s}"
+    );
+    assert!(s.contains("\nScoring: "), "{s}");
+}

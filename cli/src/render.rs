@@ -372,6 +372,21 @@ pub fn grid_lines(grid: &Value) -> Vec<String> {
     lines
 }
 
+/// Centimetres as a person reads them: whole, or to a tenth when that is not a whole.
+pub fn cm(v: &Value) -> String {
+    match v.as_f64() {
+        Some(n) => {
+            let r = (n * 10.0).round() / 10.0;
+            if r.fract() == 0.0 {
+                format!("{}", r as i64)
+            } else {
+                format!("{r:.1}")
+            }
+        }
+        None => v.to_string(),
+    }
+}
+
 /// A grid's size and which way its rows run: from the back of a drawer, from the top of a
 /// piece of furniture seen from the front.
 pub fn grid_title(grid: &Value) -> String {
@@ -731,7 +746,10 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", s(v, "path_text"));
         let layout = match v["layout"].as_str().unwrap_or_default() {
             "grid" => tf("grid {}×{}", &[&v["size"]["cols"], &v["size"]["rows"]]),
-            "sketch" => tf("sketch {}×{} cm", &[&v["size"]["w"], &v["size"]["d"]]),
+            "sketch" => tf(
+                "sketch {}×{} cm",
+                &[&cm(&v["size"]["w"]), &cm(&v["size"]["d"])],
+            ),
             "stack" => t("stack, front on, top first").to_string(),
             _ => t("tiles (no layout yet)").to_string(),
         };
@@ -796,10 +814,10 @@ pub fn human(v: &Value) -> String {
         } else {
             let mut parts = Vec::new();
             if !p["x"].is_null() {
-                parts.push(tf("at {},{} cm", &[&p["x"], &p["y"]]));
+                parts.push(tf("at {},{} cm", &[&cm(&p["x"]), &cm(&p["y"])]));
             }
             if !p["w"].is_null() {
-                parts.push(tf("{}×{} cm", &[&p["w"], &p["d"]]));
+                parts.push(tf("{}×{} cm", &[&cm(&p["w"]), &cm(&p["d"])]));
             }
             if !p["on"].is_null() {
                 parts.push(tf("on #{}", &[&p["on"]]));

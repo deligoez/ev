@@ -3182,10 +3182,16 @@ impl App {
                         let a = &d["after"];
                         let mut parts = Vec::new();
                         if !a["x"].is_null() {
-                            parts.push(tf("at {},{} cm", &[&a["x"], &a["y"]]));
+                            parts.push(tf(
+                                "at {},{} cm",
+                                &[&crate::render::cm(&a["x"]), &crate::render::cm(&a["y"])],
+                            ));
                         }
                         if !a["w"].is_null() {
-                            parts.push(tf("{}×{} cm", &[&a["w"], &a["d"]]));
+                            parts.push(tf(
+                                "{}×{} cm",
+                                &[&crate::render::cm(&a["w"]), &crate::render::cm(&a["d"])],
+                            ));
                         }
                         if !a["on"].is_null() {
                             parts.push(tf("on #{}", &[&a["on"]]));

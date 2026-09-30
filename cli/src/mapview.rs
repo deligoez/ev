@@ -372,7 +372,13 @@ impl MapView {
         let m = &self.map;
         match m["layout"].as_str().unwrap_or_default() {
             "grid" => tf("grid {}×{}", &[&m["size"]["cols"], &m["size"]["rows"]]),
-            "sketch" => tf("sketch {}×{} cm", &[&m["size"]["w"], &m["size"]["d"]]),
+            "sketch" => tf(
+                "sketch {}×{} cm",
+                &[
+                    &crate::render::cm(&m["size"]["w"]),
+                    &crate::render::cm(&m["size"]["d"]),
+                ],
+            ),
             "stack" => t("stack, front on, top first").to_string(),
             _ => t("tiles (no layout yet)").to_string(),
         }

@@ -1196,3 +1196,35 @@ fn the_tree_reopens_with_its_nodes_open_and_headings_closed_as_left() {
     assert!(again.collapsed.contains(&super::LOST_SECTION));
     assert!(!again.expanded.contains(&999_999));
 }
+
+#[test]
+fn each_kind_has_its_own_mark_before_it_in_the_tree_and_the_search() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let led = app.inv.resolve("Aktif buzzer", false).unwrap();
+    app.reveal(led).unwrap();
+    let mut term = Terminal::new(TestBackend::new(120, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    // A box and the thing in it read apart, and so do the home and its room.
+    for row in [
+        "⌂ Ev",
+        "◫ Oda",
+        "□ D  Çekmece",
+        "□ D-B1  Kutu",
+        "· Aktif buzzer",
+    ] {
+        assert!(s.contains(row), "{row} in {s}");
+    }
+    press(&mut app, KeyCode::Char('/'));
+    for c in "buzzer".chars() {
+        press(&mut app, KeyCode::Char(c));
+    }
+    press(&mut app, KeyCode::Enter);
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(
+        screen(&term).contains("· Ev › Oda › D › D-B1 › Aktif buzzer"),
+        "{}",
+        screen(&term)
+    );
+}

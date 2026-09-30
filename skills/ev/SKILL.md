@@ -154,7 +154,8 @@ in this order:
 6. **Turn corrections into data.** When the person picks another place, record why: a `theme`
    on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
    miss was two words for one thing. Give boxes a `size` (`1x2x0.5`) and tag empty ones
-   `boş kap`, so regrouping can offer them.
+   `boş kap`, so regrouping can offer them; a size written only in a box's name is not read —
+   `ev audit` lists those under `size_drift`.
 
 At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
 proposals: things better off elsewhere, mixed boxes, full boxes and the bigger spare box with

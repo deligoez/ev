@@ -22,8 +22,13 @@ struct Cli {
     json: bool,
 
     /// Force the readable text output even through a pipe (to read a result, not parse it).
-    #[arg(long, global = true, conflicts_with = "json")]
-    text: bool,
+    #[arg(
+        long = "text",
+        id = "text_output",
+        global = true,
+        conflicts_with = "json"
+    )]
+    text_output: bool,
 
     /// Database file; wins over EV_DB. Defaults to ~/.ev/ev.db.
     #[arg(long, global = true, env = "EV_DB")]

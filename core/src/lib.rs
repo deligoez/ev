@@ -9,6 +9,7 @@ mod kits;
 mod map;
 mod marks;
 mod model;
+mod money;
 mod photo;
 mod placement;
 mod plan;

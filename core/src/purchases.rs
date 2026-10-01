@@ -173,9 +173,27 @@ pub(crate) fn purchases_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
                 o.remove("raw");
             }
             p["linked_qty"] = json!(q);
+            // What the linked part of the line cost, in today's money (spec §3.9).
+            with_today(conn, &mut p, q)?;
             Ok(p)
         })
         .collect()
+}
+
+/// Adds `today`: what `qty` of the line cost, in today's home money, when it can be computed.
+fn with_today(conn: &Connection, p: &mut Value, qty: i64) -> Result<()> {
+    if let (Some(paid), Some(of)) = (
+        p["paid"].as_str().and_then(|x| parse_money(x).ok()),
+        p["qty"].as_i64().filter(|q| *q > 0),
+    ) {
+        let date = p["delivered_at"].as_str().or(p["ordered_at"].as_str());
+        if let Some(t) =
+            crate::money::today_money(conn, paid * qty / of, p["currency"].as_str(), date)?
+        {
+            p["today"] = t;
+        }
+    }
+    Ok(())
 }
 
 /// One normalized purchase line, checked.
@@ -532,7 +550,10 @@ impl Inventory {
     }
 
     pub fn buy_show(&self, id: i64) -> Result<Value> {
-        Ok(json!({ "purchase": purchase_json(&self.conn, id)? }))
+        let mut p = purchase_json(&self.conn, id)?;
+        let qty = p["qty"].as_i64().unwrap_or(1);
+        with_today(&self.conn, &mut p, qty)?;
+        Ok(json!({ "purchase": p }))
     }
 
     /// Links a line to a node on the person's word, for `qty` of it (all that is open by

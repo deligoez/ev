@@ -672,6 +672,9 @@ enum DocCmd {
         issuer: Option<String>,
         #[arg(long)]
         note: Option<String>,
+        /// The coverage it proves (a warranty certificate, a policy).
+        #[arg(long)]
+        coverage: Option<i64>,
     },
     /// Every document, or those of one thing.
     List { reference: Option<String> },
@@ -1339,18 +1342,25 @@ fn run(cli: Cli) -> Result<Value> {
             issued,
             issuer,
             note,
-        }) => inv.doc_add(
-            &file,
-            &NewDoc {
-                kind,
-                number,
-                ettn,
-                issued,
-                issuer,
-                note,
-            },
-            &for_refs,
-        ),
+            coverage,
+        }) => {
+            let v = inv.doc_add(
+                &file,
+                &NewDoc {
+                    kind,
+                    number,
+                    ettn,
+                    issued,
+                    issuer,
+                    note,
+                },
+                &for_refs,
+            )?;
+            match (coverage, v["document"]["id"].as_i64()) {
+                (Some(c), Some(d)) => inv.doc_attach_coverage(d, c),
+                _ => Ok(v),
+            }
+        }
         Cmd::Doc(DocCmd::List { reference }) => inv.doc_list(reference.as_deref()),
         Cmd::Buy(BuyCmd::Import { file, stdin }) => {
             let text = match (file, stdin) {

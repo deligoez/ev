@@ -484,7 +484,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
     ))
 }
 
-fn clear_decision(conn: &Connection, node: i64, subject: &str) -> Result<()> {
+pub(crate) fn clear_decision(conn: &Connection, node: i64, subject: &str) -> Result<()> {
     conn.execute(
         "DELETE FROM marks WHERE node_id = ?1 AND kind = ?2",
         params![node, format!("{subject}_skip")],

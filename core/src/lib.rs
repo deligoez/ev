@@ -16,6 +16,7 @@ mod plan;
 mod purchase_match;
 mod purchases;
 mod store;
+mod valuations;
 
 pub use coverage::{COVERAGE_KINDS, INVENTORY_SETTINGS, NewCoverage};
 pub use docs::{DOC_KINDS, NewDoc};
@@ -27,3 +28,4 @@ pub use model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 pub use photo::{Crop, open_upright};
 pub use purchases::{BUCKETS, DISMISSALS};
 pub use store::{Inventory, SCHEMA_VERSION};
+pub use valuations::NewValuation;

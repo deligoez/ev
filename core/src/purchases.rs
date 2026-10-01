@@ -75,7 +75,7 @@ fn text(v: &Value, k: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn date(v: &Option<String>) -> Result<Option<String>> {
+pub(crate) fn date(v: &Option<String>) -> Result<Option<String>> {
     v.as_deref()
         .map(|d| {
             let d = d.get(..10).unwrap_or(d);

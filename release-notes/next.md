@@ -68,6 +68,7 @@ Draft for the next release.
   n11, Robo90, Robotistan, sahibinden, Trendyol, Vivense, each reading a saved export, and
   `umr.py`, which reads a copy of Under My Roof's store: each item with its value, warranties,
   info link, receipts and attachments.
+- **`ev split` offers each new part's purchase**, as `ev add` does.
 - **`ev sale --condition new|like-new|used`**: what a buyer is told, the only place a condition
   is recorded.
 

@@ -122,23 +122,38 @@ fn broken_expiring_and_needs_show_on_the_node_and_in_todo() {
 fn only_a_sell_candidate_has_a_sale() {
     let (_d, mut inv) = setup();
     assert_eq!(
-        inv.sale("Kulaklık", Some("listed"), Some(500), None)
+        inv.sale("Kulaklık", Some("listed"), Some(500), None, None)
             .unwrap_err()
             .code(),
         5
     );
     inv.dispose("Kulaklık", Disposition::Sell).unwrap();
-    inv.sale("Kulaklık", Some("listed"), Some(500), Some("Sahibinden"))
-        .unwrap();
+    inv.sale(
+        "Kulaklık",
+        Some("listed"),
+        Some(500),
+        Some("Sahibinden"),
+        Some("like-new"),
+    )
+    .unwrap();
     // Reserving keeps the price and where it is listed.
-    let v = inv.sale("Kulaklık", Some("reserved"), None, None).unwrap();
+    let v = inv
+        .sale("Kulaklık", Some("reserved"), None, None, None)
+        .unwrap();
     assert_eq!(v["marks"]["sale"]["value"], "reserved");
     assert_eq!(v["marks"]["sale"]["amount"], 500);
     assert_eq!(v["marks"]["sale"]["note"], "Sahibinden");
+    // The condition told to buyers stays with the sale.
+    assert_eq!(v["marks"]["condition"]["value"], "like-new");
+    assert!(
+        inv.sale("Kulaklık", Some("listed"), None, None, Some("excellent"))
+            .is_err()
+    );
     let d = inv.disposals(None).unwrap();
     assert_eq!(d["disposals"]["sell"][0]["sale"]["value"], "reserved");
-    let v = inv.sale("Kulaklık", None, None, None).unwrap();
+    let v = inv.sale("Kulaklık", None, None, None, None).unwrap();
     assert!(v["marks"].get("sale").is_none());
+    assert!(v["marks"].get("condition").is_none());
 }
 
 #[test]

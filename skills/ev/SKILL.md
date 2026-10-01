@@ -51,6 +51,11 @@ whose place is unknown is `lost`.
    came from, why they keep it ("a wrench that came with the kitchen tap, kept because it is
    often needed"). That knowledge is what makes a later decision possible; record it the moment
    they say it, in their words, with the date.
+   **Read the label while the person holds the thing.** A make, a model code and a serial
+   number (`make=Bosch model="GSB 13 RE"`, `model=PKM17EPPH4001`) go into those fields, not
+   the note: they are what finds the thing again and ties it to its purchase and its invoice.
+   Read them off the label or the photo; ask when a photo does not show them. The name stays
+   the person's — what the thing is, then make and model (`Darbeli matkap, Bosch GSB 13 RE`).
 6. **Uncertainty goes into `note`**, never guessed into a field. If you are not sure what
    something is, ask the person, then record the answer.
    **A set of separate parts is one record per part kind, not one for the set.** A soil

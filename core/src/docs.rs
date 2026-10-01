@@ -159,51 +159,64 @@ fn kind_of(conn: &Connection, doc: i64) -> Result<String> {
     .ok_or_else(|| Error::NotFound(format!("no document with id {doc}")))
 }
 
+/// Copies a file into the store and records it, or finds the document already holding the
+/// same bytes. Returns its id and whether it was already there. Nothing is written when the
+/// description is refused.
+pub(crate) fn store_doc(
+    conn: &Connection,
+    dir: &Path,
+    file: &Path,
+    new: &NewDoc,
+) -> Result<(i64, bool)> {
+    let kind = check_kind(&new.kind)?;
+    let issued = text(&new.issued).map(|d| check_date(&d)).transpose()?;
+    if !file.is_file() {
+        return Err(Error::Usage(format!("{}: no such file", file.display())));
+    }
+    let bytes =
+        std::fs::read(file).map_err(|e| Error::Usage(format!("{}: {e}", file.display())))?;
+    let stored = crate::photo::store_bytes(dir, &bytes, &extension(file))?;
+    let stored = stored.to_string_lossy().into_owned();
+    let existing: Option<i64> = conn
+        .query_row("SELECT id FROM documents WHERE file = ?1", [&stored], |r| {
+            r.get(0)
+        })
+        .optional()?;
+    if let Some(id) = existing {
+        return Ok((id, true));
+    }
+    conn.execute(
+        "INSERT INTO documents (kind, file, original_name, number, ettn, issued_at, issuer, note,
+                                added_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            kind,
+            stored,
+            file.file_name().map(|n| n.to_string_lossy().into_owned()),
+            text(&new.number),
+            text(&new.ettn),
+            issued,
+            text(&new.issuer),
+            text(&new.note),
+            now()
+        ],
+    )?;
+    Ok((conn.last_insert_rowid(), false))
+}
+
 impl Inventory {
     /// Copies a file into the document store and links it to each of `for_refs`. The same file
     /// added again is the same document: its fields are kept and the new links are added.
     pub fn doc_add(&mut self, file: &Path, new: &NewDoc, for_refs: &[String]) -> Result<Value> {
-        let kind = check_kind(&new.kind)?;
-        let issued = text(&new.issued).map(|d| check_date(&d)).transpose()?;
-        if !file.is_file() {
-            return Err(Error::Usage(format!("{}: no such file", file.display())));
-        }
-        let bytes =
-            std::fs::read(file).map_err(|e| Error::Usage(format!("{}: {e}", file.display())))?;
+        // Refuse a bad description or an unknown thing before anything is copied.
+        check_kind(&new.kind)?;
+        text(&new.issued).map(|d| check_date(&d)).transpose()?;
         let tx = self.conn.transaction()?;
         let nodes = for_refs
             .iter()
             .map(|r| resolve(&tx, r, false))
             .collect::<Result<Vec<_>>>()?;
-        let stored = crate::photo::store_bytes(&self.doc_dir, &bytes, &extension(file))?;
-        let stored = stored.to_string_lossy().into_owned();
-        let existing: Option<i64> = tx
-            .query_row("SELECT id FROM documents WHERE file = ?1", [&stored], |r| {
-                r.get(0)
-            })
-            .optional()?;
-        let (id, again) = match existing {
-            Some(id) => (id, true),
-            None => {
-                tx.execute(
-                    "INSERT INTO documents (kind, file, original_name, number, ettn, issued_at,
-                                            issuer, note, added_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                    params![
-                        kind,
-                        stored,
-                        file.file_name().map(|n| n.to_string_lossy().into_owned()),
-                        text(&new.number),
-                        text(&new.ettn),
-                        issued,
-                        text(&new.issuer),
-                        text(&new.note),
-                        now()
-                    ],
-                )?;
-                (tx.last_insert_rowid(), false)
-            }
-        };
+        let (id, again) = store_doc(&tx, &self.doc_dir, file, new)?;
         let doc_kind = kind_of(&tx, id)?;
         for n in nodes {
             link_node(&tx, id, n, &doc_kind)?;

@@ -1,5 +1,18 @@
 Draft for the next release.
 
+## New
+
+- **A thing's make, model and serial number** (`ev edit X make=Bosch model="GSB 13 RE"
+  serial=…`, or `--make/--model/--serial` on `ev add`). Read off the label while the thing is in
+  hand, they are what finds it again: `ev find` searches them as strongly as a code, so
+  `ev find gsb 13` finds a record named just "Matkap". `ev show` and the details in `ev ui` list
+  them. The first step of the purchases spec (`spec/purchases.md`): a model code is the exact
+  key a purchase and its invoice will be matched by.
+
+## Upgrade notes
+
+- The database moves to schema 20 (three new columns) the first time this version opens it;
+  an older `ev` then refuses it.
 ## Changed
 
 - **`ev ui` reopens the tree as it was left.** It already went back to the node that was

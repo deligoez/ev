@@ -1544,6 +1544,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     for n in v["needs"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
     }
+    for p in v["purchases"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("bought"), purchase_line(p));
+    }
     for d in v["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
     }

@@ -427,6 +427,9 @@ impl App {
                 ),
             );
         }
+        for p in v["purchases"].as_array().into_iter().flatten() {
+            field(t("bought"), Span::raw(crate::render::purchase_line(p)));
+        }
         for d in v["documents"].as_array().into_iter().flatten() {
             field(t("document"), Span::raw(crate::render::doc_line(d)));
         }

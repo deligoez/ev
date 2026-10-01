@@ -242,6 +242,16 @@ linked to the thing: `ev doc add <file> --kind invoice --for <ref> --issued <dat
 file is copied into `ev`'s store, so the original may be deleted. When a thing breaks or is
 sold, `ev show` lists its documents: read them out before the person goes looking.
 
+## Purchases
+
+**What was bought is evidence, not a record.** Purchase lines come from a shop's export
+(`tools/purchases/<shop>.py | ev buy import --stdin`) or by hand (`ev buy add`); none of them
+is a thing in the tree. When the person holds a thing that matches a line ("this is the drill I
+bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`. The thing then
+reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
+returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
+your own reading of a name; ask.
+
 ## Photos
 
 **Name every part by where it is in the photo, every time.** "The transistors" or "the

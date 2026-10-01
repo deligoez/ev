@@ -580,6 +580,7 @@ impl Inventory {
         let disposal_count: usize = disposals
             .as_object()
             .map_or(0, |o| o.values().map(count).sum());
+        let (coverage_ending, coverage) = crate::coverage::todo_parts(&self.conn)?;
         Ok(json!({
             "goal": goal,
             "progress": next["progress"],
@@ -599,6 +600,8 @@ impl Inventory {
                 "unclear": unclear.len(),
                 "photos": photos.len(),
                 "shared_photos": shared.len(),
+                "coverage_ending": coverage_ending.len(),
+                "coverage": coverage["count"],
             },
             "tasks": tasks,
             "moves": moves,
@@ -615,6 +618,8 @@ impl Inventory {
             "unclear": unclear,
             "photos": photos,
             "shared_photos": shared,
+            "coverage_ending": coverage_ending,
+            "coverage": coverage,
         }))
     }
 

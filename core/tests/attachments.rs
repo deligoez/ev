@@ -97,6 +97,26 @@ fn the_join_holds_whichever_source_comes_first() {
 }
 
 #[test]
+fn without_a_product_key_the_name_picks_the_line_only_when_it_is_clear() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(&lines(&shop())).unwrap();
+    let order = "https://shop.example/orders?orderID=404-1234567";
+    let v = inv
+        .buy_import(&lines(&[
+            json!({"type": "purchase", "source": "umr", "key": "item-2",
+                   "name": "Duvar askı aparatı TV için", "order_url": order}),
+            json!({"type": "purchase", "source": "umr", "key": "item-3",
+                   "name": "Kablo", "order_url": order}),
+        ]))
+        .unwrap();
+    assert_eq!(v["imported"]["joined"], 1);
+    let wall = &inv.buy_show(id_of(&inv, "item-2")).unwrap()["purchase"];
+    assert_eq!(wall["same_as"], id_of(&inv, "o1:b"));
+    let cable = &inv.buy_show(id_of(&inv, "item-3")).unwrap()["purchase"];
+    assert!(cable["same_as"].is_null());
+}
+
+#[test]
 fn bringing_makes_the_attachments_the_things_own_once() {
     let (_d, mut inv) = setup();
     inv.buy_import(&lines(&shop())).unwrap();

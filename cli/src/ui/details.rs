@@ -322,6 +322,9 @@ impl App {
             (t("owner"), "owner"),
             (t("lent to"), "with"),
             (t("theme"), "theme"),
+            (t("make"), "make"),
+            (t("model"), "model"),
+            (t("serial"), "serial"),
             (t("note"), "note"),
             (t("address"), "address"),
         ] {

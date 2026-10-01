@@ -1277,6 +1277,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
     }
     for (key, label) in [
+        ("make", t("make")),
+        ("model", t("model")),
+        ("serial", t("serial")),
         ("note", t("note")),
         ("theme", t("theme")),
         ("size", t("size")),

@@ -260,3 +260,36 @@ fn doc_add_names_the_document_its_stored_copy_and_what_it_belongs_to() {
         "{show}"
     );
 }
+
+#[test]
+fn buy_add_shows_the_line_its_order_and_the_thing_it_is_linked_to() {
+    let h = Home::new();
+    let s = h.text(&[
+        "buy",
+        "add",
+        "Aktif buzzer 5V",
+        "--shop",
+        "Robotistan",
+        "--date",
+        "2021-12-24",
+        "--paid",
+        "12,50",
+        "--currency",
+        "TRY",
+        "--order",
+        "TS-1",
+        "--for",
+        "Aktif buzzer",
+    ]);
+    assert_eq!(
+        s,
+        "#1  2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY  [linked]\n  \
+         order: TS-1\n  → #7 Ev › Oda › D › D-B1 › Aktif buzzer ×1\n"
+    );
+    let show = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        show.contains("\n  bought: #1  2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY\n"),
+        "{show}"
+    );
+    assert_eq!(h.text(&["buy", "list", "--open"]), "(no purchases)\n");
+}

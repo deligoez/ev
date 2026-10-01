@@ -45,12 +45,21 @@ Draft for the next release.
   tool with no key (Eurostat HICP, the World Bank for countries Eurostat lacks, the Central Bank
   of Türkiye or the ECB for rates), so `ev` stays offline; `ev money status` says when the index
   is stale. The valuable count in `ev todo` uses today's money.
+- **What a thing is worth, with its date** (`ev value <ref> 2500 --source "listing" --at
+  2026-09-20`). The latest observation is the current value and shows in `ev show` and `ev ui`;
+  older ones stay as history. The purchase price is never a value. `ev todo` counts bought things
+  with no value and lists the dearest; a value, like a "don't track" decision, closes the
+  question.
+- **Links with an archive** (`ev link add <ref> <url> --kind manual --archive <file|url>`): a
+  product, manual, support or driver page; a saved copy goes into the document store, so the
+  link survives the page.
+- **`ev todo` counts the open purchase lines** still to be linked to a thing.
 
 ## Upgrade notes
 
-- The database moves to schema 24 (node identity columns, documents, purchases, coverage, the
-  price index and rate caches) the first time this version opens it; an older `ev` then
-  refuses it.
+- The database moves to schema 25 (node identity columns, documents, purchases, coverage, the
+  price index and rate caches, values, links) the first time this version opens it; an older
+  `ev` then refuses it.
 
 ## Changed
 

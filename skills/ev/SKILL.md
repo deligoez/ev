@@ -244,6 +244,9 @@ sold, `ev show` lists its documents: read them out before the person goes lookin
 
 ## Purchases
 
+**Import purchases into the person's inventory only when they ask.** The raw exports under
+`~/.ev/purchases/` stay outside `ev` until the person says to bring a shop in; running an
+adapter into their database on your own is not part of any other task.
 **What was bought is evidence, not a record.** Purchase lines come from a shop's export
 (`tools/purchases/<shop>.py | ev buy import --stdin`) or by hand (`ev buy add`); none of them
 is a thing in the tree. When the person holds a thing that matches a line ("this is the drill I

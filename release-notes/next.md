@@ -27,10 +27,22 @@ Draft for the next release.
   on one shop's 158 lines against 451 records: each known right match ranked first, and about one
   record in thirty got a wrong first offer.
 
+- **Warranties and insurance, with their status** (`ev cover add <ref> --kind manufacturer
+  --term 2y`, `list`, `show`, `remove`). One record covers one or more things; it starts at the
+  linked purchase's delivery, on a date, or when another coverage ends (an extended warranty).
+  Its end, days left and status (active, ending, ended, undetermined) are computed, and a
+  statutory or manufacturer warranty runs longer by the days its thing spent broken. A linked
+  durable purchase proposes a two-year statutory warranty, recorded only when confirmed.
+  `ev todo` lists coverages ending within 60 days and counts valuable things with none.
+- **"Don't track this" and "not now"** (`ev track <ref> value|coverage no|later`), on a thing or
+  a whole holder: the question is never raised again on its own.
+- **Inventory settings** in the database: `ev settings inventory` (home country and currency,
+  price index, the valuable threshold, the warning window).
+
 ## Upgrade notes
 
-- The database moves to schema 22 (three new node columns, documents, purchases) the first
-  time this version opens it; an older `ev` then refuses it.
+- The database moves to schema 23 (node identity columns, documents, purchases, coverage) the
+  first time this version opens it; an older `ev` then refuses it.
 
 ## Changed
 

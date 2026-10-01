@@ -199,3 +199,24 @@ fn photo_add_and_list_name_the_node_then_each_photo_by_number_with_its_note() {
     assert!(!s.contains('{'), "{s}");
     assert_eq!(s, h.text(&["photo", "list", "D-B1"]));
 }
+
+#[test]
+fn show_lists_make_model_and_serial_before_the_note() {
+    let h = Home::new();
+    h.run(
+        &[
+            "edit",
+            "Aktif buzzer",
+            "make=Murata",
+            "model=PKM17EPPH4001",
+            "note=kart üstü",
+        ],
+        None,
+    );
+    let s = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        s.contains("\n  make: Murata\n  model: PKM17EPPH4001\n  note: kart üstü\n"),
+        "{s}"
+    );
+    assert!(!s.contains("serial"), "{s}");
+}

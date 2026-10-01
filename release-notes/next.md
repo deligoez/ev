@@ -17,6 +17,13 @@ Draft for the next release.
   finished. The name's colour now says only this; the kind is left to the mark, so furniture
   names lose their own colour, a quantity (`×3`) is no longer green, and a settled row drops
   its `[counted]` tag.
+- **`ev find` and `/` in `ev ui` search by words, not by one exact string.** Every word of
+  the query has to turn up on the record (name, code, tags, theme or note) but in any order, so
+  `led kırmızı` finds "Kırmızı LED, 5 mm". A word also finds its Turkish stem (`kırmızılar`),
+  and the synonym groups of `ev synonym` count. A word that matches nothing as written is tried
+  again with a typo or two (`kirmzi`); a word that does match never drags in look-alikes
+  (`kablo` does not bring `tablo`). Results come best first: a match in the name or code above
+  one in tags, theme or note.
 
 ## Fixed
 

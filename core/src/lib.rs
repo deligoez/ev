@@ -1,5 +1,6 @@
 //! Data model, rules and storage for `ev`, the agent-first home inventory.
 
+mod attachments;
 mod coverage;
 mod docs;
 mod error;

@@ -140,11 +140,25 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
             .map(|(n, q)| Ok(json!({ "node": brief(conn, *n)?, "qty": q })))
             .collect::<Result<Vec<_>>>()?
     );
-    p["open_qty"] = json!((p["qty"].as_i64().unwrap_or(0) - linked).max(0));
+    // A line joined to another (the same purchase seen by a second source) is settled through
+    // that line: nothing of it is left open.
+    p["open_qty"] = if p["same_as"].is_null() {
+        json!((p["qty"].as_i64().unwrap_or(0) - linked).max(0))
+    } else {
+        json!(0)
+    };
+    p["joined"] = json!(ids(
+        conn,
+        "SELECT id FROM purchases WHERE same_as = ?1 ORDER BY id",
+        [id]
+    )?);
+    p["attachments"] = json!(crate::attachments::attachments_of(conn, id)?);
     p["documents"] = json!(
         ids(
             conn,
-            "SELECT document_id FROM document_links WHERE target = 'purchase' AND target_id = ?1
+            "SELECT DISTINCT document_id FROM document_links
+              WHERE target = 'purchase'
+                AND (target_id = ?1 OR target_id IN (SELECT id FROM purchases WHERE same_as = ?1))
               ORDER BY document_id",
             [id],
         )?
@@ -469,11 +483,45 @@ impl Inventory {
                         }
                     }
                 }
+                kind if crate::attachments::ATTACHMENT_KINDS.contains(&kind) => {
+                    let source = text(&v, "source")
+                        .ok_or_else(|| Error::Usage("`source` is required".into()))
+                        .map_err(at)?;
+                    let data = crate::attachments::attachment_data(kind, &v).map_err(at)?;
+                    let mut keys: Vec<String> = v
+                        .get("purchases")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|k| k.as_str().map(str::to_string))
+                        .collect();
+                    keys.extend(text(&v, "purchase"));
+                    let mut any = false;
+                    for k in keys {
+                        let p: Option<i64> = tx
+                            .query_row(
+                                "SELECT id FROM purchases WHERE source = ?1 AND source_key = ?2",
+                                params![source, k],
+                                |r| r.get(0),
+                            )
+                            .optional()?;
+                        if let Some(p) = p {
+                            any = true;
+                            if crate::attachments::attach(&tx, p, kind, &data)? {
+                                *counts.entry("attachments").or_default() += 1;
+                            }
+                        }
+                    }
+                    if !any {
+                        *counts.entry("attachments_skipped").or_default() += 1;
+                    }
+                }
                 other => {
                     return Err(Error::Usage(format!("unknown line type `{other}`")).at_line(i + 1));
                 }
             }
         }
+        let joined = crate::attachments::join_same(&tx)?;
         tx.commit()?;
         Ok(json!({
             "imported": {
@@ -483,6 +531,9 @@ impl Inventory {
                 "skipped": counts.get("skipped").copied().unwrap_or(0),
                 "document_links": docs_added,
                 "documents_skipped": counts.get("documents_skipped").copied().unwrap_or(0),
+                "attachments": counts.get("attachments").copied().unwrap_or(0),
+                "attachments_skipped": counts.get("attachments_skipped").copied().unwrap_or(0),
+                "joined": joined,
             }
         }))
     }

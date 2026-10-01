@@ -72,7 +72,8 @@ fn importing_twice_changes_nothing_and_skips_consumables_and_cancelled_lines() {
     assert_eq!(
         first["imported"],
         json!({"new": 2, "updated": 0, "unchanged": 0, "skipped": 2,
-               "document_links": 2, "documents_skipped": 1})
+               "document_links": 2, "documents_skipped": 1, "attachments": 0,
+               "attachments_skipped": 0, "joined": 0})
     );
     let again = inv.buy_import(&export(&d, "2479.00")).unwrap();
     assert_eq!(again["imported"]["new"], 0);

@@ -257,6 +257,19 @@ and offer the line's make and model when the record has none. `ev buy for <ref>`
 for a record added earlier. The reasons say why: a shared model code is strong, shared words
 are weak.
 
+## Warranty, insurance and what is not tracked
+
+**When the person mentions a warranty or an insurance, record it:** `ev cover add <ref> --kind
+manufacturer|extended|store|statutory|insurance --term 2y [--from <date>|after:<id>] [--issuer
+<brand>]`; an insurance takes `--ends`, `--number`, `--premium`, `--scope`. A certificate or a
+policy goes in with `ev doc add <file> --kind warranty --coverage <id>`. `ev show` gives the
+status; when it shows `coverage_proposal` (a two-year statutory warranty from a linked
+purchase's delivery), offer it once; it is recorded only on a yes.
+**Ask about coverage and value once, and respect the answer.** `ev todo` counts valuable things
+with no coverage; ask about them while touring, dearest first. When the person says "don't
+track this" or "not now", record it with `ev track <ref> coverage|value no|later --why "…"`,
+on a whole box or drawer when they say so, and never bring it up again unless they ask.
+
 ## Photos
 
 **Name every part by where it is in the photo, every time.** "The transistors" or "the

@@ -1429,6 +1429,10 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", line(node));
         for p in into {
             let _ = writeln!(out, "  + {}", line(p));
+            if let Some(c) = p.get("purchase_candidates") {
+                let _ = writeln!(out, "    {}", t("Could be one of these purchases:"));
+                candidate_lines(&mut out, c);
+            }
         }
         return out;
     }

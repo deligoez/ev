@@ -123,7 +123,8 @@ Record the kinds that have their own verbs as you meet them:
 - **Broken:** `ev broken <x> --note "<what is wrong>"`; `ev fixed <x>`; if it will not be fixed,
   propose `ev dispose`.
 - **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
-- **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …`,
+- **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …
+  --condition new|like-new|used` (ask the condition here, and only here),
   then `--reserved`; when it is sold, `ev gone <x>`.
 - **Photo of the current state:** every place should have a photo of how it is now — its own
   photo, or a crop cut for it from a wider one (a box out of a drawer photo).

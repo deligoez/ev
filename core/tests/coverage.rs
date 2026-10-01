@@ -65,7 +65,7 @@ fn coverages(inv: &Inventory, r: &str) -> Value {
 fn a_linked_purchase_proposes_two_years_from_delivery_until_one_is_recorded() {
     let (_d, mut inv) = setup();
     let delivered = day(23, 0);
-    bought(&mut inv, "Matkap", &delivered, "2479");
+    bought(&mut inv, "Matkap", &delivered, "1999");
     let p = inv.show("Matkap", false).unwrap()["coverage_proposal"].clone();
     assert_eq!(p["kind"], "statutory");
     assert_eq!(p["start"], delivered);
@@ -83,7 +83,7 @@ fn a_linked_purchase_proposes_two_years_from_delivery_until_one_is_recorded() {
 #[test]
 fn time_in_repair_is_added_to_a_manufacturer_warranty() {
     let (_d, mut inv) = setup();
-    bought(&mut inv, "Matkap", &day(25, 0), "2479");
+    bought(&mut inv, "Matkap", &day(25, 0), "1999");
     inv.cover_add(&["Matkap".into()], &cover("manufacturer", Some("2y")))
         .unwrap();
     assert_eq!(coverages(&inv, "Matkap")[0]["status"], "ended");
@@ -109,7 +109,7 @@ fn time_in_repair_is_added_to_a_manufacturer_warranty() {
 fn an_extended_warranty_starts_when_the_manufacturers_ends() {
     let (_d, mut inv) = setup();
     let delivered = day(30, 0);
-    bought(&mut inv, "Matkap", &delivered, "2479");
+    bought(&mut inv, "Matkap", &delivered, "1999");
     let m = inv
         .cover_add(&["Matkap".into()], &cover("manufacturer", Some("2y")))
         .unwrap()["coverage"]["id"]
@@ -161,7 +161,7 @@ fn an_insurance_needs_an_end_and_can_cover_several_things() {
 fn a_decision_on_a_holder_silences_its_contents_until_data_is_entered() {
     let (_d, mut inv) = setup();
     bought(&mut inv, "Vida", &day(1, 0), "5000");
-    bought(&mut inv, "Matkap", &day(1, 0), "2479");
+    bought(&mut inv, "Matkap", &day(1, 0), "1999");
     assert_eq!(inv.todo().unwrap()["counts"]["coverage"], 2);
     inv.track("Vida kutusu", "coverage", "no", Some("vidalar"))
         .unwrap();

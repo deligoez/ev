@@ -375,7 +375,7 @@ fn money_imports_the_index_and_a_bought_thing_shows_its_price_in_todays_money() 
             "--date",
             "2024-05-16",
             "--paid",
-            "439.12",
+            "500.00",
             "--currency",
             "TRY",
             "--for",
@@ -393,7 +393,7 @@ fn money_imports_the_index_and_a_bought_thing_shows_its_price_in_todays_money() 
     assert_eq!(imported, "2 index values, 0 rates imported\n");
     let show = h.text(&["show", "Aktif buzzer"]);
     assert!(
-        show.contains("439.12 TRY  ≈ 825.67 TRY in 2026-08 money\n"),
+        show.contains("500.00 TRY  ≈ 940.14 TRY in 2026-08 money\n"),
         "{show}"
     );
     let status = h.text(&["money", "status"]);

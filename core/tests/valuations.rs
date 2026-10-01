@@ -60,7 +60,7 @@ fn a_value_answers_a_closed_value_question() {
 fn a_bought_thing_with_no_value_is_counted_until_one_is_recorded() {
     let (_d, mut inv) = setup();
     inv.buy_add(
-        &json!({"name": "Bosch GSB 13 RE", "ordered_at": "2024-05-01", "paid": "2479"}),
+        &json!({"name": "Bosch GSB 13 RE", "ordered_at": "2024-05-01", "paid": "1999"}),
         Some("Matkap"),
     )
     .unwrap();

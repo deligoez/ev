@@ -32,7 +32,7 @@ fn shop() -> Vec<Value> {
     vec![
         json!({"type": "purchase", "source": "shop", "key": "o1:a", "order": "404-1234567",
                "sku": "B0TVTVTV01", "name": "OLED TV 55", "ordered_at": "2022-02-08",
-               "paid": "16776.27", "currency": "TRY"}),
+               "paid": "15000.00", "currency": "TRY"}),
         json!({"type": "purchase", "source": "shop", "key": "o1:b", "order": "404-1234567",
                "sku": "B0WALLMNT2", "name": "Duvar askı aparatı", "ordered_at": "2022-02-08",
                "paid": "300", "currency": "TRY"}),
@@ -42,10 +42,10 @@ fn shop() -> Vec<Value> {
 /// The same TV recorded in another app: its order page, product page, a value and a warranty.
 fn other_app() -> Vec<Value> {
     vec![
-        json!({"type": "purchase", "source": "umr", "key": "item-1", "name": "LG C1 55",
+        json!({"type": "purchase", "source": "umr", "key": "item-1", "name": "OLED TV 55 inç",
                "order_url": "https://shop.example/orders?orderID=404-1234567",
-               "product_url": "https://shop.example/dp/B0TVTVTV01", "paid": "16776.27"}),
-        json!({"type": "valuation", "source": "umr", "purchase": "item-1", "amount": "29398",
+               "product_url": "https://shop.example/dp/B0TVTVTV01", "paid": "15000.00"}),
+        json!({"type": "valuation", "source": "umr", "purchase": "item-1", "amount": "27000",
                "at": "2025-08-01", "approximate": true, "from": "umr"}),
         json!({"type": "coverage", "source": "umr", "purchase": "item-1",
                "kind": "manufacturer", "term": "2y", "issuer": "LG"}),
@@ -133,7 +133,7 @@ fn bringing_makes_the_attachments_the_things_own_once() {
     );
     let v = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
     assert_eq!(v["brought"].as_array().unwrap().len(), 3);
-    assert_eq!(v["valuations"][0]["amount"], "29398.00");
+    assert_eq!(v["valuations"][0]["amount"], "27000.00");
     assert_eq!(v["valuations"][0]["approximate"], true);
     assert_eq!(v["coverages"][0]["kind"], "manufacturer");
     assert_eq!(v["links"][0]["url"], "https://www.lg.example/oled55c1");

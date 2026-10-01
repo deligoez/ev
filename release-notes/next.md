@@ -40,7 +40,7 @@ Draft for the next release.
   price index, the valuable threshold, the warning window).
 - **A price in today's money** (`ev money needs`, piped through `tools/money/fetch.py` into
   `ev money import --stdin`). A purchase shows what it cost grown by the home price index to the latest month
-  ("≈ 825.67 TRY in 2026-08 money"); one in another currency is first turned into the home
+  ("≈ 940.14 TRY in 2026-08 money"); one in another currency is first turned into the home
   currency at its day's rate. The index and rates are cached in the database and fetched by the
   tool with no key (Eurostat HICP, the World Bank for countries Eurostat lacks, the Central Bank
   of Türkiye or the ECB for rates), so `ev` stays offline; `ev money status` says when the index

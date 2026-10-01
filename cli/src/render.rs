@@ -323,7 +323,7 @@ pub(crate) fn link_line(l: &Value) -> String {
     format!("{}{note}", parts.join("  "))
 }
 
-/// `#12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY`: when, where, what, how many, paid.
+/// `#12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  1999.00 TRY`: when, where, what, how many, paid.
 pub(crate) fn purchase_line(p: &Value) -> String {
     let mut parts = vec![format!("#{}", p["id"])];
     if let Some(d) = p["delivered_at"].as_str().or(p["ordered_at"].as_str()) {
@@ -438,7 +438,7 @@ fn purchase(out: &mut String, p: &Value) {
     }
 }
 
-/// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY  (73: model gsb13re 60, …)`.
+/// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  1999.00 TRY  (73: model gsb13re 60, …)`.
 fn candidate_lines(out: &mut String, list: &Value) {
     for (i, c) in list.as_array().into_iter().flatten().enumerate() {
         let why = c["why"]

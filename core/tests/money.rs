@@ -54,7 +54,7 @@ fn a_foreign_purchase_takes_its_day_rate_then_grows_by_the_home_index() {
 #[test]
 fn without_the_index_or_the_rate_there_is_no_todays_money() {
     let (_d, mut inv) = setup();
-    let home = buy(&mut inv, "439.12", "TRY", "2024-05-16");
+    let home = buy(&mut inv, "500.00", "TRY", "2024-05-16");
     let foreign = buy(&mut inv, "120", "EUR", "2024-05-04");
     assert!(
         inv.buy_show(home).unwrap()["purchase"]
@@ -64,7 +64,7 @@ fn without_the_index_or_the_rate_there_is_no_todays_money() {
     inv.money_import(&lines(&index_lines())).unwrap();
     assert_eq!(
         inv.buy_show(home).unwrap()["purchase"]["today"]["amount"],
-        "825.67"
+        "940.14"
     );
     assert!(
         inv.buy_show(foreign).unwrap()["purchase"]

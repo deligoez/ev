@@ -8,11 +8,17 @@ Draft for the next release.
   `ev find gsb 13` finds a record named just "Matkap". `ev show` and the details in `ev ui` list
   them. The first step of the purchases spec (`spec/purchases.md`): a model code is the exact
   key a purchase and its invoice will be matched by.
+- **Documents: invoices, warranty certificates, manuals** (`ev doc add <file> --kind invoice
+  --for <ref> --issued 2024-05-03 --issuer <shop> --number <no>`). The file is copied into `docs/`
+  beside the database, named by content hash like photos, so the original may be deleted; the
+  same file added again is the same document with one more link. `ev show` and `ev ui` list a
+  thing's documents; `ev doc list`, `show`, `link` and `unlink` manage them.
 
 ## Upgrade notes
 
-- The database moves to schema 20 (three new columns) the first time this version opens it;
-  an older `ev` then refuses it.
+- The database moves to schema 21 (three new node columns, two document tables) the first time
+  this version opens it; an older `ev` then refuses it.
+
 ## Changed
 
 - **`ev ui` reopens the tree as it was left.** It already went back to the node that was

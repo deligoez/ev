@@ -58,7 +58,7 @@ one, its name otherwise.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`) and `kits` (the kit parts it is: `[{kit, n, text}]`) |
+| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`) and `documents` (see Documents) |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared.
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`).
 
 ## `ev ui`
 
@@ -287,6 +287,22 @@ not attached and leaves no history. `--show` also sends it to a running `ev ui`.
 note. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
 `ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any
 other exits 5).
+
+## Documents
+
+Invoices, warranty certificates, manuals, service forms, appraisals and policies, copied into
+`docs/` beside the database (named by content hash, like photos) and linked to the things they
+belong to. The copy outlives the file it came from.
+
+| Command | Payload |
+|---|---|
+| `ev doc add <file> --kind k [--for <ref>]… [--number n] [--ettn u] [--issued d] [--issuer i] [--note t]` | `document`, `existing`. `kind`: `invoice`, `warranty`, `manual`, `service`, `appraisal`, `policy`, `other`; `issued`: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. The same file again is the same document: `existing: true`, its fields are kept, only new links are added. Anything refused stores nothing |
+| `ev doc list [<ref>]` | `documents`: every document (each with `nodes`), or one thing's, newest issue first |
+| `ev doc show <id>` | `document`: `id`, `kind`, `file` (the stored copy), `original_name`, `number`, `ettn`, `issued_at`, `issuer`, `note`, `added_at`, `nodes` |
+| `ev doc link <id> <ref>` / `ev doc unlink <id> <ref>` | `document`; unlinking keeps it in the store |
+
+`ev show` lists a thing's documents under `documents` (each without `nodes`); the history has
+`doc_linked` and `doc_unlinked` events (`document`, `kind`).
 
 ## Photos
 

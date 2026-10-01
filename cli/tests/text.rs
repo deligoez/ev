@@ -322,3 +322,44 @@ fn buy_for_ranks_the_lines_with_their_reasons_and_add_offers_them() {
     assert!(f.contains("model pkm17epph4001 60"), "{f}");
     assert!(f.contains("brand murata 12"), "{f}");
 }
+
+#[test]
+fn cover_add_states_the_term_and_status_and_show_lists_it() {
+    let h = Home::new();
+    let s = h.text(&[
+        "cover",
+        "add",
+        "Aktif buzzer",
+        "--kind",
+        "manufacturer",
+        "--term",
+        "lifetime",
+        "--from",
+        "2020-01-01",
+        "--issuer",
+        "Murata",
+    ]);
+    assert_eq!(
+        s,
+        "#1 manufacturer warranty  Murata  lifetime  active, lifetime\n  \
+         → #7 Ev › Oda › D › D-B1 › Aktif buzzer\n"
+    );
+    let show = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        show.contains(
+            "\n  coverage: #1 manufacturer warranty  Murata  lifetime  active, lifetime\n"
+        ),
+        "{show}"
+    );
+    h.run(&["track", "D-A1", "value", "no", "--why", "LED'ler"], None);
+    let led = h.text(&["show", "Kırmızı LED 5 mm"]);
+    assert!(
+        led.contains("\n  value: not tracked — LED'ler  (via #4)\n"),
+        "{led}"
+    );
+    let settings = h.text(&["settings", "inventory"]);
+    assert!(
+        settings.contains("valuable_threshold: 1000  (default)\n"),
+        "{settings}"
+    );
+}

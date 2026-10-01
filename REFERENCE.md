@@ -328,7 +328,7 @@ digits is refused, not guessed).
 | `ev buy import <file>` / `--stdin` | `imported`: `new`, `updated`, `unchanged`, `skipped` (cancelled and consumable lines), `document_links`, `documents_skipped` (a document naming no imported line is not stored). All or nothing; the same lines again change nothing, and an update never touches links or a dismissal |
 | `ev buy add <name> [--shop s] [--date d] [--paid n] [--currency c] [--qty n] [--order o] [--order-url u] [--url u] [--brand b] [--for <ref>]` | `purchase`: a line entered by hand (`source: manual`), linked to `--for` at once |
 | `ev buy list [--open] [--bucket b] [--shop s] [--since d]` | `purchases`, newest first; `--open`: something left to link and not dismissed |
-| `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty`, `documents` |
+| `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty`, `documents`, `today` (see **Money over time**) |
 | `ev buy for <ref>` | `node`, `candidates` (up to 12, best first): `purchase` (`id`, `name`, `shop`, `brand`, dates, `qty`, `open_qty`, `paid`, `currency`), `score`, `why` (`[{why, points}]`), `linked` when already linked to it. Open, undismissed lines scoring above zero, and any linked to it. Points: a product linked before to a thing of the same name 80; the thing's `model` or `serial` in the line 60; each shared model code (letters and digits, four or more, not a size like `64gb` or `3x3`) 25, at most two; the line's brand as whole words in the thing's name or make (never the shop's own name) 12; shared words weighted by how rare they are among lines and records, at most 30; each unit whose numbers all differ (`125 kHz` against `13,56 MHz`, units converted) −40 |
 | `ev buy link <id> <ref> [--qty n]` / `ev buy unlink <id> <ref>` | `purchase`; a link takes all that is left of the line by default, never more; it remembers the shop's product key for the next purchase of it |
 | `ev buy dismiss <id> --as <reason> [--why t]` / `--clear` | `purchase`; reasons: `consumed`, `given`, `returned`, `elsewhere`, `not-mine`, `duplicate`. A dismissed line cannot be linked |
@@ -369,6 +369,29 @@ one or more things; its status is computed from its start and term, never stored
 
 The end of a `statutory` or `manufacturer` coverage moves by the days its things spent broken
 (`ev broken` to `ev fixed`, or to today while still broken) after it started.
+
+## Money over time
+
+A purchase price in today's money (`spec/purchases.md` §3.9). One country per inventory: an
+amount in another currency is turned into the home currency at the purchase day's rate (or the
+closest earlier one within a week), then grown by the home price index from the purchase month
+to the latest cached one; a month the series lacks takes its year's value. `ev` stays offline:
+`tools/money/fetch.py` fetches the index (Eurostat HICP for `eurostat:<geo>`, World Bank annual
+CPI for `worldbank:<iso2>`) and the rates (the Central Bank of Türkiye when home is TRY, the ECB
+otherwise), with no key.
+
+    ev money needs | tools/money/fetch.py | ev money import --stdin
+
+| Command | Payload |
+|---|---|
+| `ev money needs` | `money_needs`: `home_currency`, `home_country`, `index` (the series), `from_month` (the earliest purchase month), `rates` (`[{currency, day}]` not cached) |
+| `ev money import <file>\|--stdin` | `money_imported`: `index`, `rates` counted. Lines `{"type":"index","series","period":"YYYY-MM\|YYYY","value","source"}` and `{"type":"rate","currency","home","day","rate","source"}` (home per unit of `currency`); all or nothing, a value fetched again replaces the cached one |
+| `ev money status` | `money`: `home_currency`, `index`, `periods`, `latest`, `stale` (the latest period began more than 75 days ago), `rates`, `missing_rates` |
+
+A purchase in `ev buy show`, and each in `ev show`'s `purchases` (for the linked quantity), carries
+`today` when it can be computed: `amount`, `currency` (home), `index`, `index_month`; for a foreign
+currency also `rate`, `rate_day`, `in_home_then`. The valuable count in `ev todo` uses it, falling
+back to the price paid in the home currency.
 
 `ev show` carries `coverages` (each without `nodes`), `coverage_proposal` (a durable linked
 purchase and no statutory coverage nor decision: `kind`, `term`, `start`, `end`, `why`; a
@@ -422,7 +445,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`), `coverage_ending` (coverages within the warning window, each with `nodes`), `coverage` (`count` of valuable things — a durable linked purchase in the home currency from `valuable_threshold` — with no coverage and no decision, `threshold`, `currency`, `top`: the five dearest) |
+| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`), `coverage_ending` (coverages within the warning window, each with `nodes`), `coverage` (`count` of valuable things — a durable linked purchase in the home currency from `valuable_threshold` — with no coverage and no decision, `threshold`, `currency`, `top`: the five dearest, each with `worth`, in today's money when the index is cached) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

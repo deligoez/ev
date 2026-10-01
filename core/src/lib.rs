@@ -11,6 +11,7 @@ mod model;
 mod photo;
 mod placement;
 mod plan;
+mod purchase_match;
 mod purchases;
 mod store;
 

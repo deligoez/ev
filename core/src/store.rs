@@ -998,6 +998,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         .is_some()
         .then(|| crate::placement::room(conn, &n))
         .transpose()?;
+    let (coverages, proposal) = crate::coverage::coverages_of(conn, id)?;
     Ok(json!({
         "cells": cells,
         "grid": grid,
@@ -1015,6 +1016,14 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "kits": crate::kits::kits_of(conn, id)?,
         "documents": crate::docs::docs_of(conn, id)?,
         "purchases": crate::purchases::purchases_of(conn, id)?,
+        "coverages": coverages,
+        "coverage_proposal": proposal,
+        "tracking": {
+            "value": crate::coverage::decision(conn, id, "value")?
+                .map(|(v, why, on)| json!({ "decision": v, "why": why, "on": on })),
+            "coverage": crate::coverage::decision(conn, id, "coverage")?
+                .map(|(v, why, on)| json!({ "decision": v, "why": why, "on": on })),
+        },
     }))
 }
 

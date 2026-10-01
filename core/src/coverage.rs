@@ -594,91 +594,15 @@ impl Inventory {
 
     /// A warranty or an insurance covering one or more things.
     pub fn cover_add(&mut self, refs: &[String], new: &NewCoverage) -> Result<Value> {
-        let kind = new.kind.trim().to_lowercase();
-        if !COVERAGE_KINDS.contains(&kind.as_str()) {
-            return Err(Error::Usage(format!(
-                "`{}` is not a coverage kind; use {}",
-                new.kind,
-                COVERAGE_KINDS.join(", ")
-            )));
-        }
         if refs.is_empty() {
             return Err(Error::Usage("name at least one thing it covers".into()));
         }
-        let (starts, start_date, after_id) = match text(&new.from).as_deref() {
-            None | Some("delivery") => ("delivery", None, None),
-            Some(a) if a.starts_with("after:") => {
-                let id: i64 = a[6..]
-                    .trim()
-                    .parse()
-                    .map_err(|_| Error::Usage(format!("`{a}`: after:<coverage id>")))?;
-                ("after", None, Some(id))
-            }
-            Some(d) => ("date", Some(parse_day(d)?.to_string()), None),
-        };
-        let term = text(&new.term).map(|t| parse_term(&t)).transpose()?;
-        let ends = text(&new.ends)
-            .map(|e| parse_day(&e).map(|d| d.to_string()))
-            .transpose()?;
-        if term.is_none() && ends.is_none() {
-            return Err(Error::Usage(
-                "give a --term (2y, 18m, lifetime) or an --ends date".into(),
-            ));
-        }
-        if kind == "insurance" && ends.is_none() && term.is_none_or(|(_, u)| u == "lifetime") {
-            return Err(Error::Usage(
-                "an insurance needs an --ends date or a term".into(),
-            ));
-        }
-        let premium = text(&new.premium).map(|p| parse_money(&p)).transpose()?;
-        let deductible = text(&new.deductible).map(|p| parse_money(&p)).transpose()?;
         let tx = self.conn.transaction()?;
-        if let Some(a) = after_id {
-            row(&tx, a)?;
-        }
         let nodes = refs
             .iter()
             .map(|r| resolve(&tx, r, false))
             .collect::<Result<Vec<_>>>()?;
-        tx.execute(
-            "INSERT INTO coverages (kind, issuer, number, starts, start_date, after_id, term_n,
-                                    term_unit, usage, ends_on, premium, deductible, currency,
-                                    scope, note, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![
-                kind,
-                text(&new.issuer),
-                text(&new.number),
-                starts,
-                start_date,
-                after_id,
-                term.map(|(n, _)| n),
-                term.map(|(_, u)| u),
-                text(&new.usage),
-                ends,
-                premium,
-                deductible,
-                text(&new.currency).map(|c| c.to_uppercase()),
-                text(&new.scope),
-                text(&new.note),
-                now()
-            ],
-        )?;
-        let id = tx.last_insert_rowid();
-        for n in nodes {
-            tx.execute(
-                "INSERT OR IGNORE INTO coverage_nodes (coverage_id, node_id) VALUES (?1, ?2)",
-                params![id, n],
-            )?;
-            // Entering data clears a "do not track" decision on the thing itself.
-            clear_decision(&tx, n, "coverage")?;
-            event(
-                &tx,
-                n,
-                "coverage_added",
-                json!({ "coverage": id, "kind": kind }),
-            )?;
-        }
+        let id = add_coverage(&tx, &nodes, new)?;
         tx.commit()?;
         self.cover_show(id)
     }
@@ -686,7 +610,91 @@ impl Inventory {
     pub fn cover_show(&self, id: i64) -> Result<Value> {
         Ok(json!({ "coverage": coverage_json(&self.conn, id, warning_days(&self.conn)?)? }))
     }
+}
 
+/// Records a coverage over `nodes` and returns its id; clears their "do not track" decision.
+pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) -> Result<i64> {
+    let kind = new.kind.trim().to_lowercase();
+    if !COVERAGE_KINDS.contains(&kind.as_str()) {
+        return Err(Error::Usage(format!(
+            "`{}` is not a coverage kind; use {}",
+            new.kind,
+            COVERAGE_KINDS.join(", ")
+        )));
+    }
+    let (starts, start_date, after_id) = match text(&new.from).as_deref() {
+        None | Some("delivery") => ("delivery", None, None),
+        Some(a) if a.starts_with("after:") => {
+            let id: i64 = a[6..]
+                .trim()
+                .parse()
+                .map_err(|_| Error::Usage(format!("`{a}`: after:<coverage id>")))?;
+            ("after", None, Some(id))
+        }
+        Some(d) => ("date", Some(parse_day(d)?.to_string()), None),
+    };
+    let term = text(&new.term).map(|t| parse_term(&t)).transpose()?;
+    let ends = text(&new.ends)
+        .map(|e| parse_day(&e).map(|d| d.to_string()))
+        .transpose()?;
+    if term.is_none() && ends.is_none() {
+        return Err(Error::Usage(
+            "give a --term (2y, 18m, lifetime) or an --ends date".into(),
+        ));
+    }
+    if kind == "insurance" && ends.is_none() && term.is_none_or(|(_, u)| u == "lifetime") {
+        return Err(Error::Usage(
+            "an insurance needs an --ends date or a term".into(),
+        ));
+    }
+    let premium = text(&new.premium).map(|p| parse_money(&p)).transpose()?;
+    let deductible = text(&new.deductible).map(|p| parse_money(&p)).transpose()?;
+    if let Some(a) = after_id {
+        row(tx, a)?;
+    }
+    tx.execute(
+        "INSERT INTO coverages (kind, issuer, number, starts, start_date, after_id, term_n,
+                                term_unit, usage, ends_on, premium, deductible, currency,
+                                scope, note, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+        params![
+            kind,
+            text(&new.issuer),
+            text(&new.number),
+            starts,
+            start_date,
+            after_id,
+            term.map(|(n, _)| n),
+            term.map(|(_, u)| u),
+            text(&new.usage),
+            ends,
+            premium,
+            deductible,
+            text(&new.currency).map(|c| c.to_uppercase()),
+            text(&new.scope),
+            text(&new.note),
+            now()
+        ],
+    )?;
+    let id = tx.last_insert_rowid();
+    for &n in nodes {
+        tx.execute(
+            "INSERT OR IGNORE INTO coverage_nodes (coverage_id, node_id) VALUES (?1, ?2)",
+            params![id, n],
+        )?;
+        // Entering data clears a "do not track" decision on the thing itself.
+        clear_decision(tx, n, "coverage")?;
+        event(
+            tx,
+            n,
+            "coverage_added",
+            json!({ "coverage": id, "kind": kind }),
+        )?;
+    }
+    Ok(id)
+}
+
+impl Inventory {
     /// Every coverage, or only those ending within the warning window (and already ended
     /// ones are left out of that).
     pub fn cover_list(&self, ending: bool) -> Result<Value> {

@@ -284,6 +284,16 @@ pub(crate) fn purchase_line(p: &Value) -> String {
         let cur = p["currency"].as_str().unwrap_or_default();
         parts.push(format!("{paid} {cur}").trim_end().to_string());
     }
+    if let Some(today) = p["today"].as_object() {
+        parts.push(tf(
+            "≈ {} {} in {} money",
+            &[
+                &today["amount"].as_str().unwrap_or_default(),
+                &today["currency"].as_str().unwrap_or_default(),
+                &today["index_month"].as_str().unwrap_or_default(),
+            ],
+        ));
+    }
     parts.join("  ")
 }
 
@@ -1112,6 +1122,42 @@ pub fn human(v: &Value) -> String {
         for cv in list {
             let _ = writeln!(out, "{}", coverage_line(cv));
         }
+        return out;
+    }
+    if let Some(m) = v.get("money") {
+        let latest = m["latest"].as_str().unwrap_or("-");
+        let stale = if m["stale"] == true {
+            format!("  {}", t("(stale: fetch again)"))
+        } else {
+            String::new()
+        };
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "{} index: {} periods, latest {}{}; {} rates, {} missing; home currency {}",
+                &[
+                    &s(m, "index"),
+                    &m["periods"],
+                    &latest,
+                    &stale,
+                    &m["rates"],
+                    &m["missing_rates"],
+                    &s(m, "home_currency")
+                ]
+            )
+        );
+        return out;
+    }
+    if let Some(m) = v.get("money_imported") {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "{} index values, {} rates imported",
+                &[&m["index"], &m["rates"]]
+            )
+        );
         return out;
     }
     if let Some(r) = v.get("removed") {

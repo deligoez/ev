@@ -534,6 +534,17 @@ static TR: &[(&str, &str)] = &[
     ("value", "değer"),
     ("not now", "şimdilik değil"),
     ("not tracked", "takip edilmiyor"),
+    // Money over time
+    ("≈ {} {} in {} money", "≈ {} {} ({} parasıyla)"),
+    ("(stale: fetch again)", "(eski: yeniden çek)"),
+    (
+        "{} index: {} periods, latest {}{}; {} rates, {} missing; home currency {}",
+        "{} endeksi: {} dönem, son {}{}; {} kur, {} eksik; ev para birimi {}",
+    ),
+    (
+        "{} index values, {} rates imported",
+        "{} endeks değeri, {} kur alındı",
+    ),
     ("address", "adres"),
     ("fill", "doluluk"),
     ("{}%", "%{}"),

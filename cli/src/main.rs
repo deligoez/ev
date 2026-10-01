@@ -291,6 +291,10 @@ enum Cmd {
     /// manufacturer --term 2y`; `ev cover list --ending`.
     #[command(subcommand)]
     Cover(CoverCmd),
+    /// Money over time: the cached price index and exchange rates that give a purchase price in
+    /// today's money. `ev money needs | tools/money/fetch.py | ev money import --stdin`.
+    #[command(subcommand)]
+    Money(MoneyCmd),
     /// Close or reopen a tracked question about a thing: `ev track <ref> value|coverage
     /// no|later|yes [--why …]`. `no` and `later` are never raised again by ev on its own; a
     /// decision on a holder covers what is in it.
@@ -566,6 +570,22 @@ enum CoverCmd {
     Show { id: i64 },
     /// Remove a coverage recorded by mistake; its documents stay.
     Remove { id: i64 },
+}
+
+#[derive(Subcommand)]
+enum MoneyCmd {
+    /// What to fetch: the index series from the earliest purchase month, and the rates of
+    /// foreign-currency purchase days not cached.
+    Needs,
+    /// Import index and rate lines (NDJSON) from tools/money.
+    Import {
+        #[arg(conflicts_with = "stdin")]
+        file: Option<PathBuf>,
+        #[arg(long)]
+        stdin: bool,
+    },
+    /// What is cached and whether the index is stale.
+    Status,
 }
 
 #[derive(Subcommand)]
@@ -1434,6 +1454,22 @@ fn run(cli: Cli) -> Result<Value> {
             )
         }
         Cmd::Cover(CoverCmd::List { ending }) => inv.cover_list(ending),
+        Cmd::Money(MoneyCmd::Needs) => inv.money_needs(),
+        Cmd::Money(MoneyCmd::Status) => inv.money_status(),
+        Cmd::Money(MoneyCmd::Import { file, stdin }) => {
+            let text = match (file, stdin) {
+                (Some(f), false) => std::fs::read_to_string(&f)
+                    .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
+                (None, true) => {
+                    let mut s = String::new();
+                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut s)
+                        .map_err(|e| Error::Usage(format!("stdin: {e}")))?;
+                    s
+                }
+                _ => return Err(Error::Usage("give a file or --stdin".into())),
+            };
+            inv.money_import(&text)
+        }
         Cmd::Cover(CoverCmd::Show { id }) => inv.cover_show(id),
         Cmd::Cover(CoverCmd::Remove { id }) => inv.cover_remove(id),
         Cmd::Track {

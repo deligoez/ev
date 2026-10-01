@@ -427,6 +427,9 @@ impl App {
                 ),
             );
         }
+        for d in v["documents"].as_array().into_iter().flatten() {
+            field(t("document"), Span::raw(crate::render::doc_line(d)));
+        }
         for task in v["tasks"].as_array().into_iter().flatten() {
             let via = if task["via"] == n["id"] {
                 String::new()

@@ -1445,6 +1445,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     for n in v["needs"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
     }
+    for d in v["documents"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
+    }
     for t_ in v["tasks"].as_array().into_iter().flatten() {
         let via = if t_["via"] == node["id"] {
             String::new()

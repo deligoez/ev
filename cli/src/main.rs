@@ -287,6 +287,10 @@ enum Cmd {
     /// appraisals, policies. `ev doc add <file> --kind invoice --for <ref>` copies the file in.
     #[command(subcommand)]
     Doc(DocCmd),
+    /// Purchases: lines of what was bought, linked to things on the person's word. A line never
+    /// creates a thing. `ev buy import` takes an adapter's NDJSON; `ev buy add` one by hand.
+    #[command(subcommand)]
+    Buy(BuyCmd),
     /// A holder laid out in cells (a gridfinity drawer, a Kallax): show its map, or set its
     /// size — for several holders at once when they are alike (`ev grid K4x4-01 K4x4-02 …
     /// --cols 1 --rows 2`).
@@ -496,6 +500,82 @@ fn kit_parts(parts: &[String]) -> Result<Vec<(String, i64)>> {
         })
         .collect()
 }
+#[derive(Subcommand)]
+enum BuyCmd {
+    /// Import an adapter's NDJSON (`purchase` and `document` lines); importing the same lines
+    /// again changes nothing. All or nothing.
+    Import {
+        #[arg(conflicts_with = "stdin")]
+        file: Option<PathBuf>,
+        #[arg(long)]
+        stdin: bool,
+    },
+    /// A purchase entered by hand: bought in a shop, a gift, from a person.
+    Add {
+        name: String,
+        #[arg(long)]
+        shop: Option<String>,
+        /// When it was bought, YYYY-MM-DD.
+        #[arg(long)]
+        date: Option<String>,
+        /// What was paid for the whole line, e.g. 1234.56.
+        #[arg(long)]
+        paid: Option<String>,
+        #[arg(long)]
+        currency: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        qty: i64,
+        /// The order number, for customer service.
+        #[arg(long)]
+        order: Option<String>,
+        #[arg(long)]
+        order_url: Option<String>,
+        /// The product's page.
+        #[arg(long)]
+        url: Option<String>,
+        #[arg(long)]
+        brand: Option<String>,
+        /// Link it to this thing at once.
+        #[arg(long = "for")]
+        for_ref: Option<String>,
+    },
+    /// Purchase lines, newest first.
+    List {
+        /// Only lines with something left to link and not dismissed.
+        #[arg(long)]
+        open: bool,
+        #[arg(long)]
+        bucket: Option<String>,
+        #[arg(long)]
+        shop: Option<String>,
+        /// Bought on or after YYYY-MM-DD.
+        #[arg(long)]
+        since: Option<String>,
+    },
+    /// One line with what it is linked to and its documents.
+    Show { id: i64 },
+    /// Link a line to a thing on the person's word (all that is left of it by default).
+    Link {
+        id: i64,
+        reference: String,
+        #[arg(long)]
+        qty: Option<i64>,
+    },
+    /// Undo a link.
+    Unlink { id: i64, reference: String },
+    /// Settle a line that will never be a thing: consumed, given, returned, elsewhere,
+    /// not-mine, duplicate; `--clear` takes that back.
+    Dismiss {
+        id: i64,
+        #[arg(long = "as", required_unless_present = "clear")]
+        reason: Option<String>,
+        #[arg(long)]
+        why: Option<String>,
+        #[arg(long, conflicts_with = "reason")]
+        clear: bool,
+    },
+}
+
 #[derive(Subcommand)]
 enum DocCmd {
     /// Copy a file into the document store and link it to things; the same file again is the
@@ -1202,6 +1282,59 @@ fn run(cli: Cli) -> Result<Value> {
             &for_refs,
         ),
         Cmd::Doc(DocCmd::List { reference }) => inv.doc_list(reference.as_deref()),
+        Cmd::Buy(BuyCmd::Import { file, stdin }) => {
+            let text = match (file, stdin) {
+                (Some(f), false) => std::fs::read_to_string(&f)
+                    .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
+                (None, true) => {
+                    let mut s = String::new();
+                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut s)
+                        .map_err(|e| Error::Usage(format!("stdin: {e}")))?;
+                    s
+                }
+                _ => return Err(Error::Usage("give a file or --stdin".into())),
+            };
+            inv.buy_import(&text)
+        }
+        Cmd::Buy(BuyCmd::Add {
+            name,
+            shop,
+            date,
+            paid,
+            currency,
+            qty,
+            order,
+            order_url,
+            url,
+            brand,
+            for_ref,
+        }) => inv.buy_add(
+            &serde_json::json!({
+                "name": name, "shop": shop, "ordered_at": date, "paid": paid,
+                "currency": currency, "qty": qty, "order": order, "order_url": order_url,
+                "product_url": url, "brand": brand,
+            }),
+            for_ref.as_deref(),
+        ),
+        Cmd::Buy(BuyCmd::List {
+            open,
+            bucket,
+            shop,
+            since,
+        }) => inv.buy_list(open, bucket.as_deref(), shop.as_deref(), since.as_deref()),
+        Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
+        Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
+        Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
+        Cmd::Buy(BuyCmd::Dismiss {
+            id,
+            reason,
+            why,
+            clear,
+        }) => inv.buy_dismiss(
+            id,
+            if clear { None } else { reason.as_deref() },
+            why.as_deref(),
+        ),
         Cmd::Doc(DocCmd::Show { id }) => inv.doc_show(id),
         Cmd::Doc(DocCmd::Link { id, reference }) => inv.doc_link(id, &reference),
         Cmd::Doc(DocCmd::Unlink { id, reference }) => inv.doc_unlink(id, &reference),

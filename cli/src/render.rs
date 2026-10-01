@@ -267,6 +267,72 @@ pub(crate) fn doc_line(d: &Value) -> String {
     format!("{}{note}", parts.join("  "))
 }
 
+/// `#12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY`: when, where, what, how many, paid.
+pub(crate) fn purchase_line(p: &Value) -> String {
+    let mut parts = vec![format!("#{}", p["id"])];
+    if let Some(d) = p["delivered_at"].as_str().or(p["ordered_at"].as_str()) {
+        parts.push(d.to_string());
+    }
+    if let Some(sh) = p["shop"].as_str() {
+        parts.push(sh.to_string());
+    }
+    let qty = p["linked_qty"]
+        .as_i64()
+        .unwrap_or(p["qty"].as_i64().unwrap_or(1));
+    parts.push(format!("{} ×{qty}", s(p, "name")));
+    if let Some(paid) = p["paid"].as_str() {
+        let cur = p["currency"].as_str().unwrap_or_default();
+        parts.push(format!("{paid} {cur}").trim_end().to_string());
+    }
+    parts.join("  ")
+}
+
+/// Where a line stands: dismissed, returned, or how much of it is still to link.
+fn purchase_state(p: &Value) -> String {
+    if let Some(d) = p["dismissed"].as_str() {
+        return tf("[dismissed: {}]", &[&d]);
+    }
+    let open = p["open_qty"].as_i64().unwrap_or(0);
+    let mut st = if open > 0 {
+        tf("[{} open]", &[&open])
+    } else {
+        t("[linked]").to_string()
+    };
+    if p["status"] == "returned" {
+        st.push_str(&format!(" {}", t("[returned]")));
+    }
+    st
+}
+
+/// One purchase: its line, links, pages, order and documents.
+fn purchase(out: &mut String, p: &Value) {
+    let _ = writeln!(out, "{}  {}", purchase_line(p), purchase_state(p));
+    for (k, label) in [
+        ("merchant", t("seller")),
+        ("brand", t("make")),
+        ("order_no", t("order")),
+        ("order_url", t("order page")),
+        ("product_url", t("product page")),
+        ("why", t("why")),
+    ] {
+        if let Some(x) = p[k].as_str() {
+            let _ = writeln!(out, "  {label}: {x}");
+        }
+    }
+    for l in p["linked"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "  → #{} {} ×{}",
+            l["node"]["id"],
+            s(&l["node"], "path_text"),
+            l["qty"]
+        );
+    }
+    for d in p["documents"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
+    }
+}
+
 /// One document: its line, where its copy is, and what it belongs to.
 fn document(out: &mut String, v: &Value) {
     let d = &v["document"];
@@ -912,6 +978,39 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("document").is_some_and(Value::is_object) {
         document(&mut out, v);
+        return out;
+    }
+    if let Some(i) = v.get("imported") {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped",
+                &[
+                    &i["new"],
+                    &i["updated"],
+                    &i["unchanged"],
+                    &i["skipped"],
+                    &i["document_links"],
+                    &i["documents_skipped"]
+                ]
+            )
+        );
+        return out;
+    }
+    if v.get("purchase").is_some_and(Value::is_object) {
+        purchase(&mut out, &v["purchase"]);
+        return out;
+    }
+    if let Some(list) = v.get("purchases").and_then(Value::as_array)
+        && v.get("node").is_none()
+    {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(no purchases)"));
+        }
+        for p in list {
+            let _ = writeln!(out, "{}  {}", purchase_line(p), purchase_state(p));
+        }
         return out;
     }
     if let Some(list) = v.get("documents").and_then(Value::as_array)

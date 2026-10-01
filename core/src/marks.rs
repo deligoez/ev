@@ -20,6 +20,9 @@ use crate::{Error, Result};
 /// How close a use-by date has to be before it shows in `todo`.
 const EXPIRY_WINDOW_DAYS: i64 = 60;
 
+/// What a buyer is told about a thing's state, recorded only when it is listed for sale.
+pub const SALE_CONDITIONS: [&str; 3] = ["new", "like-new", "used"];
+
 /// Words that mark a record as a guess to clear up with the person.
 const UNSURE: [&str; 3] = ["belirsiz", "muhtemelen", "?"];
 
@@ -47,7 +50,14 @@ pub(crate) fn mark(conn: &Connection, id: i64, kind: &str) -> Result<Value> {
 
 pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {
     let mut out = serde_json::Map::new();
-    for kind in ["label", "broken", "expires", "sale", "photo_ok"] {
+    for kind in [
+        "label",
+        "broken",
+        "expires",
+        "sale",
+        "condition",
+        "photo_ok",
+    ] {
         let m = mark(conn, id, kind)?;
         if !m.is_null() {
             out.insert(kind.into(), m);
@@ -391,13 +401,24 @@ impl Inventory {
 
     /// Where a sale stands: `listed` (with price and where) or `reserved`; `None` clears it.
     /// Only a sell candidate has a sale; selling it is `ev gone`.
+    /// Records a sale's state; `listed` and `reserved` may say the thing's condition.
     pub fn sale(
         &mut self,
         reference: &str,
         status: Option<&str>,
         price: Option<i64>,
         place: Option<&str>,
+        condition: Option<&str>,
     ) -> Result<Value> {
+        // The one place a condition is recorded (purchases spec §4.2): what a buyer is told.
+        if let Some(c) = condition
+            && !SALE_CONDITIONS.contains(&c)
+        {
+            return Err(Error::Usage(format!(
+                "`{c}` is not a condition; use {}",
+                SALE_CONDITIONS.join(", ")
+            )));
+        }
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
         let (state, disposition): (String, Option<String>) = tx.query_row(
@@ -412,8 +433,14 @@ impl Inventory {
             ));
         }
         match status {
-            None => clear_mark(&tx, id, "sale")?,
+            None => {
+                clear_mark(&tx, id, "sale")?;
+                clear_mark(&tx, id, "condition")?;
+            }
             Some(s @ ("listed" | "reserved")) => {
+                if let Some(c) = condition {
+                    set_mark(&tx, id, "condition", Some(c), None, None)?;
+                }
                 let before = mark(&tx, id, "sale")?;
                 let price = price.or_else(|| before["amount"].as_i64());
                 let place = place

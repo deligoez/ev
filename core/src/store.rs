@@ -24,7 +24,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 22;
+pub const SCHEMA_VERSION: i64 = 23;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -126,6 +126,9 @@ impl Inventory {
         }
         if version < 22 {
             conn.execute_batch(SCHEMA_V22)?;
+        }
+        if version < 23 {
+            conn.execute_batch(SCHEMA_V23)?;
         }
         let home = path
             .parent()

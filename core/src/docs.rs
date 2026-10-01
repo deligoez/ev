@@ -287,6 +287,18 @@ impl Inventory {
         self.doc_show(id)
     }
 
+    /// Links a stored document to a coverage (a warranty certificate, a policy).
+    pub fn doc_attach_coverage(&mut self, id: i64, coverage: i64) -> Result<Value> {
+        kind_of(&self.conn, id)?;
+        crate::coverage::coverage_json(&self.conn, coverage, 0)?;
+        self.conn.execute(
+            "INSERT OR IGNORE INTO document_links (document_id, target, target_id, at)
+             VALUES (?1, 'coverage', ?2, ?3)",
+            params![id, coverage, now()],
+        )?;
+        self.doc_show(id)
+    }
+
     /// Takes a document off a node; the document stays in the store.
     pub fn doc_unlink(&mut self, id: i64, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;

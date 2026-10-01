@@ -1,5 +1,6 @@
 //! Data model, rules and storage for `ev`, the agent-first home inventory.
 
+mod coverage;
 mod docs;
 mod error;
 mod fold;
@@ -15,6 +16,7 @@ mod purchase_match;
 mod purchases;
 mod store;
 
+pub use coverage::{COVERAGE_KINDS, INVENTORY_SETTINGS, NewCoverage};
 pub use docs::{DOC_KINDS, NewDoc};
 pub use error::{Error, Result};
 pub use fold::fold;

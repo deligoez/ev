@@ -433,3 +433,36 @@ CREATE TABLE purchase_aliases (
 PRAGMA user_version = 22;
 COMMIT;
 ";
+
+/// Schema 23: coverage (purchases spec §3.6), warranties and insurance as one record, covering
+/// one or more things; its status is computed, never stored.
+pub(super) const SCHEMA_V23: &str = "
+BEGIN;
+CREATE TABLE coverages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    issuer TEXT,
+    number TEXT,
+    starts TEXT NOT NULL DEFAULT 'delivery',
+    start_date TEXT,
+    after_id INTEGER REFERENCES coverages(id),
+    term_n INTEGER,
+    term_unit TEXT,
+    usage TEXT,
+    ends_on TEXT,
+    premium INTEGER,
+    deductible INTEGER,
+    currency TEXT,
+    scope TEXT,
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE coverage_nodes (
+    coverage_id INTEGER NOT NULL REFERENCES coverages(id),
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    PRIMARY KEY (coverage_id, node_id)
+);
+CREATE INDEX coverage_nodes_node ON coverage_nodes(node_id);
+PRAGMA user_version = 23;
+COMMIT;
+";

@@ -293,3 +293,32 @@ fn buy_add_shows_the_line_its_order_and_the_thing_it_is_linked_to() {
     );
     assert_eq!(h.text(&["buy", "list", "--open"]), "(no purchases)\n");
 }
+
+#[test]
+fn buy_for_ranks_the_lines_with_their_reasons_and_add_offers_them() {
+    let h = Home::new();
+    h.run(
+        &["buy", "import", "--stdin"],
+        Some(
+            r#"{"source":"s","key":"1","shop":"Shop","brand":"Murata","name":"Murata PKM17EPPH4001 Buzzer","delivered_at":"2021-12-24","paid":"12.50","currency":"TRY"}"#,
+        ),
+    );
+    let s = h.text(&[
+        "add",
+        "Buzzer, Murata",
+        "--kind",
+        "item",
+        "--in",
+        "D-B1",
+        "--model",
+        "PKM17EPPH4001",
+    ]);
+    assert!(s.contains("\n  Could be one of these purchases:\n  1. #1  2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("), "{s}");
+    let f = h.text(&["buy", "for", "Buzzer, Murata"]);
+    assert!(
+        f.starts_with("#9 Ev › Oda › D › D-B1 › Buzzer, Murata\n  1. #1 "),
+        "{f}"
+    );
+    assert!(f.contains("model pkm17epph4001 60"), "{f}");
+    assert!(f.contains("brand murata 12"), "{f}");
+}

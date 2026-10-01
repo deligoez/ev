@@ -692,6 +692,14 @@ enum BuyCmd {
         #[arg(long, conflicts_with = "reason")]
         clear: bool,
     },
+    /// Bring what came with a line (a link, a value, a warranty) to a thing it is linked to.
+    Bring {
+        id: i64,
+        reference: String,
+        /// Only these attachments, by id (repeatable); all not yet brought by default.
+        #[arg(long)]
+        only: Vec<i64>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1563,6 +1571,11 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Buy(BuyCmd::For { reference }) => inv.buy_for(&reference),
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
+        Cmd::Buy(BuyCmd::Bring {
+            id,
+            reference,
+            only,
+        }) => inv.buy_bring(id, &reference, &only),
         Cmd::Buy(BuyCmd::Dismiss {
             id,
             reason,

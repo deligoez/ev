@@ -485,8 +485,8 @@ static TR: &[(&str, &str)] = &[
     ("product page", "ürün sayfası"),
     ("why", "neden"),
     (
-        "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped",
-        "{} yeni, {} güncellendi, {} aynı, {} atlandı; {} belge bağı, {} belge atlandı",
+        "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped; {} attachments; {} joined to another source's line",
+        "{} yeni, {} güncellendi, {} aynı, {} atlandı; {} belge bağı, {} belge atlandı; {} ek; {} satır başka kaynağın satırına bağlandı",
     ),
     ("(no purchases)", "(alım yok)"),
     ("bought", "alım"),
@@ -534,6 +534,12 @@ static TR: &[(&str, &str)] = &[
     ("value", "değer"),
     ("not now", "şimdilik değil"),
     ("not tracked", "takip edilmiyor"),
+    // Attachments and joined lines
+    ("the same purchase as #{}", "#{} ile aynı alım"),
+    ("also seen as #{}", "#{} olarak da görüldü"),
+    ("brought to #{}", "#{} eşyasına aktarıldı"),
+    ("to bring", "aktarılacak"),
+    ("attachment", "ek"),
     // Values and links
     ("  (+{} earlier)", "  (+{} önceki)"),
     ("(no links)", "(bağlantı yok)"),

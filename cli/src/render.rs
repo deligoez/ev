@@ -397,6 +397,45 @@ fn purchase(out: &mut String, p: &Value) {
     for d in p["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
     }
+    if let Some(of) = p["same_as"].as_i64() {
+        let _ = writeln!(out, "  {}", tf("the same purchase as #{}", &[&of]));
+    }
+    for j in p["joined"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", tf("also seen as #{}", &[j]));
+    }
+    for a in p["attachments"].as_array().into_iter().flatten() {
+        let what = match a["type"].as_str() {
+            Some("link") => format!("{}  {}", t("link"), s(a, "url")),
+            Some("valuation") => {
+                let at = a["at"].as_str().unwrap_or("-");
+                let at = if a["approximate"] == true {
+                    tf("about {}", &[&at])
+                } else {
+                    at.to_string()
+                };
+                format!(
+                    "{}  {} {}  {at}",
+                    t("value"),
+                    s(a, "amount"),
+                    a["currency"].as_str().unwrap_or_default()
+                )
+            }
+            _ => format!(
+                "{}  {} {}",
+                t("coverage"),
+                a["kind"].as_str().unwrap_or_default(),
+                a["term"]
+                    .as_str()
+                    .or(a["ends"].as_str())
+                    .unwrap_or_default()
+            ),
+        };
+        let state = match a["brought_to"].as_i64() {
+            Some(n) => tf("brought to #{}", &[&n]),
+            None => t("to bring").to_string(),
+        };
+        let _ = writeln!(out, "  {} #{}: {what}  [{state}]", t("attachment"), a["id"]);
+    }
 }
 
 /// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY  (73: model gsb13re 60, …)`.
@@ -1165,14 +1204,16 @@ pub fn human(v: &Value) -> String {
             out,
             "{}",
             tf(
-                "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped",
+                "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped; {} attachments; {} joined to another source's line",
                 &[
                     &i["new"],
                     &i["updated"],
                     &i["unchanged"],
                     &i["skipped"],
                     &i["document_links"],
-                    &i["documents_skipped"]
+                    &i["documents_skipped"],
+                    &i["attachments"],
+                    &i["joined"]
                 ]
             )
         );

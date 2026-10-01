@@ -54,6 +54,13 @@ Draft for the next release.
   product, manual, support or driver page; a saved copy goes into the document store, so the
   link survives the page.
 - **`ev todo` counts the open purchase lines** still to be linked to a thing.
+- **What came with a purchase comes along on request** (`ev buy bring <line> <ref>`). An
+  adapter can hang a link, a value or a warranty on a line; after the line is linked to a thing,
+  one command makes them the thing's own. `ev buy show` lists them.
+- **One purchase seen by two sources is joined** on import (`same_as`): another app's record
+  whose order page names a shop's order number points at that shop's line, narrowed by the
+  product key when the order has several lines. The joined line counts as settled; its
+  documents and attachments come with the line it joins.
 
 ## Upgrade notes
 

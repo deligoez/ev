@@ -170,7 +170,18 @@ impl Inventory {
         };
         let id = add_one(&tx, &new, parent)?;
         tx.commit()?;
-        show(&self.conn, id)
+        let mut v = show(&self.conn, id)?;
+        // While the person still holds the thing: the purchases it could be (purchases spec §5).
+        let offered = crate::purchase_match::candidates_for(
+            &self.conn,
+            id,
+            crate::purchase_match::OFFER_AT,
+            3,
+        )?;
+        if !offered.is_empty() {
+            v["purchase_candidates"] = json!(offered);
+        }
+        Ok(v)
     }
 
     /// Adds every line or none (spec §6, §11.5).

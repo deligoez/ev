@@ -28,7 +28,7 @@ diacritic-insensitively.
 ev add Ev --kind home
 ev add Salon --kind room --in Ev
 ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing batch
-ev find flipper                  # folded search over name, code, note, theme, tags
+ev find flipper                  # word search over name, code, note, theme, tags
 ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows

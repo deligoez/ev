@@ -259,6 +259,10 @@ thing is in hand** ("is this the one bought from <shop> on <date>?"); on a yes, 
 and offer the line's make and model when the record has none. `ev buy for <ref>` ranks lines
 for a record added earlier. The reasons say why: a shared model code is strong, shared words
 are weak.
+**After a link, offer what came with the line in one question.** `ev buy link` shows the line's
+`attachments` (a product page, a value, a warranty from the source): "bring along the invoice,
+1 link, a value of 2,500 TRY (approximate date), a 2-year warranty?" On a yes,
+`ev buy bring <line> <ref>`; `--only <id>` for the ones they want.
 
 ## Warranty, insurance and what is not tracked
 

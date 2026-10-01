@@ -490,6 +490,14 @@ static TR: &[(&str, &str)] = &[
     ),
     ("(no purchases)", "(alım yok)"),
     ("bought", "alım"),
+    (
+        "(no purchase could be this)",
+        "(bu olabilecek bir alım yok)",
+    ),
+    (
+        "Could be one of these purchases:",
+        "Şu alımlardan biri olabilir:",
+    ),
     ("address", "adres"),
     ("fill", "doluluk"),
     ("{}%", "%{}"),

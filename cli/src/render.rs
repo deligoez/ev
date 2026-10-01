@@ -333,6 +333,31 @@ fn purchase(out: &mut String, p: &Value) {
     }
 }
 
+/// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY  (73: model gsb13re 60, …)`.
+fn candidate_lines(out: &mut String, list: &Value) {
+    for (i, c) in list.as_array().into_iter().flatten().enumerate() {
+        let why = c["why"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|w| format!("{} {}", s(w, "why"), w["points"]))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let linked = if c["linked"] == true {
+            format!("  {}", t("[linked]"))
+        } else {
+            String::new()
+        };
+        let _ = writeln!(
+            out,
+            "  {}. {}{linked}  ({}: {why})",
+            i + 1,
+            purchase_line(&c["purchase"]),
+            c["score"]
+        );
+    }
+}
+
 /// One document: its line, where its copy is, and what it belongs to.
 fn document(out: &mut String, v: &Value) {
     let d = &v["document"];
@@ -1002,6 +1027,14 @@ pub fn human(v: &Value) -> String {
         purchase(&mut out, &v["purchase"]);
         return out;
     }
+    if let Some(list) = v.get("candidates") {
+        let _ = writeln!(out, "{}", line(&v["node"]));
+        if list.as_array().is_none_or(Vec::is_empty) {
+            let _ = writeln!(out, "  {}", t("(no purchase could be this)"));
+        }
+        candidate_lines(&mut out, list);
+        return out;
+    }
     if let Some(list) = v.get("purchases").and_then(Value::as_array)
         && v.get("node").is_none()
     {
@@ -1546,6 +1579,11 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     }
     for p in v["purchases"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("bought"), purchase_line(p));
+    }
+    // Only on a fresh `ev add`: what to ask while the thing is in hand.
+    if let Some(c) = v.get("purchase_candidates") {
+        let _ = writeln!(out, "  {}", t("Could be one of these purchases:"));
+        candidate_lines(out, c);
     }
     for d in v["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));

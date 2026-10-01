@@ -554,6 +554,8 @@ enum BuyCmd {
     },
     /// One line with what it is linked to and its documents.
     Show { id: i64 },
+    /// Purchase lines that could be this thing, best first, with the reasons.
+    For { reference: String },
     /// Link a line to a thing on the person's word (all that is left of it by default).
     Link {
         id: i64,
@@ -1323,6 +1325,7 @@ fn run(cli: Cli) -> Result<Value> {
             since,
         }) => inv.buy_list(open, bucket.as_deref(), shop.as_deref(), since.as_deref()),
         Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
+        Cmd::Buy(BuyCmd::For { reference }) => inv.buy_for(&reference),
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
         Cmd::Buy(BuyCmd::Dismiss {

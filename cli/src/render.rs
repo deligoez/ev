@@ -1840,11 +1840,15 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             "broken" => t("broken"),
             "expires" => t("use-by"),
             "sale" => t("sale"),
+            "condition" => t("condition"),
             other => other,
         };
         let what = [
             m["value"].as_str().map(|x| {
                 match x {
+                    "new" => t("new"),
+                    "like-new" => t("like new"),
+                    "used" => t("used"),
                     "needed" => t("to print"),
                     "printed" => t("printed"),
                     "listed" => t("listed"),

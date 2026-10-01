@@ -279,6 +279,9 @@ enum Cmd {
         price: Option<i64>,
         #[arg(long = "where")]
         place: Option<String>,
+        /// What the buyer is told: new, like-new or used. Recorded only with a sale.
+        #[arg(long, conflicts_with = "clear")]
+        condition: Option<String>,
     },
     /// Things to buy or make.
     #[command(subcommand)]
@@ -1400,6 +1403,7 @@ fn run(cli: Cli) -> Result<Value> {
             clear,
             price,
             place,
+            condition,
         } => {
             if !(listed || reserved || clear) {
                 return Err(Error::Usage("say --listed, --reserved or --clear".into()));
@@ -1411,7 +1415,13 @@ fn run(cli: Cli) -> Result<Value> {
             } else {
                 None
             };
-            inv.sale(&reference, status, price, place.as_deref())
+            inv.sale(
+                &reference,
+                status,
+                price,
+                place.as_deref(),
+                condition.as_deref(),
+            )
         }
         Cmd::Need(NeedCmd::Add {
             text,

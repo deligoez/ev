@@ -534,6 +534,11 @@ static TR: &[(&str, &str)] = &[
     ("value", "değer"),
     ("not now", "şimdilik değil"),
     ("not tracked", "takip edilmiyor"),
+    // Condition at sale
+    ("condition", "durum"),
+    ("new", "yeni"),
+    ("like new", "yeni gibi"),
+    ("used", "kullanılmış"),
     // Attachments and joined lines
     ("the same purchase as #{}", "#{} ile aynı alım"),
     ("also seen as #{}", "#{} olarak da görüldü"),

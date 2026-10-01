@@ -1001,13 +1001,24 @@ fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
     reason = "one match arm per subcommand; long, but flat"
 )]
 fn run(cli: Cli) -> Result<Value> {
-    if let Cmd::Settings { name, value } = cli.cmd {
-        return settings_cmd(name, value);
+    // The inventory's own settings live in its database; the display settings do not.
+    let inventory_setting = |n: &Option<String>| {
+        n.as_deref().is_some_and(|n| {
+            n == "inventory" || ev_core::INVENTORY_SETTINGS.iter().any(|(k, _)| *k == n)
+        })
+    };
+    if let Cmd::Settings { name, value } = &cli.cmd
+        && !inventory_setting(name)
+    {
+        return settings_cmd(name.clone(), value.clone());
     }
     let db = db_path(cli.db)?;
     let mut inv = Inventory::open(&db)?;
     match cli.cmd {
-        Cmd::Settings { .. } => unreachable!("settings are handled before the database opens"),
+        Cmd::Settings { name, value } => {
+            let name = name.filter(|n| n != "inventory");
+            inv.inventory_settings(name.as_deref(), value.as_deref())
+        }
         Cmd::Grid {
             references,
             cols,

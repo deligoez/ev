@@ -1022,6 +1022,8 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "kits": crate::kits::kits_of(conn, id)?,
         "documents": crate::docs::docs_of(conn, id)?,
         "purchases": crate::purchases::purchases_of(conn, id)?,
+        "valuations": crate::valuations::valuations_of(conn, id)?,
+        "links": crate::links::links_of(conn, id)?,
         "coverages": coverages,
         "coverage_proposal": proposal,
         "tracking": {

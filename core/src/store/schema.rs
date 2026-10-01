@@ -352,3 +352,31 @@ ALTER TABLE nodes ADD COLUMN serial TEXT;
 PRAGMA user_version = 20;
 COMMIT;
 ";
+
+/// Schema 21: documents (purchases spec §3.5), copied into the store and linked to what they
+/// belong to: a node now, a purchase or a coverage later.
+pub(super) const SCHEMA_V21: &str = "
+BEGIN;
+CREATE TABLE documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    file TEXT NOT NULL UNIQUE,
+    original_name TEXT,
+    number TEXT,
+    ettn TEXT,
+    issued_at TEXT,
+    issuer TEXT,
+    note TEXT,
+    added_at TEXT NOT NULL
+);
+CREATE TABLE document_links (
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    target TEXT NOT NULL,
+    target_id INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (document_id, target, target_id)
+);
+CREATE INDEX document_links_target ON document_links(target, target_id);
+PRAGMA user_version = 21;
+COMMIT;
+";

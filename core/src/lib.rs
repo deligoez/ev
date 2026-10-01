@@ -1,5 +1,6 @@
 //! Data model, rules and storage for `ev`, the agent-first home inventory.
 
+mod docs;
 mod error;
 mod fold;
 mod grid;
@@ -12,6 +13,7 @@ mod placement;
 mod plan;
 mod store;
 
+pub use docs::{DOC_KINDS, NewDoc};
 pub use error::{Error, Result};
 pub use fold::fold;
 pub use grid::{Cells, GridCorners};

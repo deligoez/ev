@@ -24,7 +24,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 20;
+pub const SCHEMA_VERSION: i64 = 21;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -38,6 +38,8 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
 pub struct Inventory {
     pub(crate) conn: Connection,
     photo_dir: std::path::PathBuf,
+    /// Where documents are copied (purchases spec §3.5), beside the photos.
+    pub(crate) doc_dir: std::path::PathBuf,
 }
 
 impl Inventory {
@@ -119,12 +121,18 @@ impl Inventory {
         if version < 20 {
             conn.execute_batch(SCHEMA_V20)?;
         }
-        let photo_dir = path
+        if version < 21 {
+            conn.execute_batch(SCHEMA_V21)?;
+        }
+        let home = path
             .parent()
             .filter(|d| !d.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."))
-            .join("photos");
-        Ok(Self { conn, photo_dir })
+            .unwrap_or_else(|| Path::new("."));
+        Ok(Self {
+            conn,
+            photo_dir: home.join("photos"),
+            doc_dir: home.join("docs"),
+        })
     }
 
     /// Changes whenever another connection commits a write; used to refresh readers.

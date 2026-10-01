@@ -5,7 +5,7 @@ use super::*;
 
 // ---------- places (spec §13) ----------
 
-/// Folded place key; apostrophes are dropped so "Saliha'lar" and "Salihalar" match.
+/// Folded place key; apostrophes are dropped so "Ayşe'lar" and "Ayşelar" match.
 fn place_key(text: &str) -> String {
     fold(text).replace(['\'', '’'], "")
 }

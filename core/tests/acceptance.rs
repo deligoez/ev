@@ -455,21 +455,21 @@ fn data_version_moves_when_another_connection_writes() {
 fn places_with_aliases_answer_what_goes_where() {
     let (_d, mut inv) = inv();
     home(&mut inv);
-    inv.place_add("Mahmutlar", &["Saliha'lar".into(), "Güneşler".into()])
+    inv.place_add("Annemler", &["Ayşe'lar".into(), "Güneşler".into()])
         .unwrap();
-    inv.edit("Flipper Zero", &["owner=saliha'lar".into()])
+    inv.edit("Flipper Zero", &["owner=ayşe'lar".into()])
         .unwrap();
     add(&mut inv, "Merdiven", "item", Some("Kiler"), None);
     inv.lend("Merdiven", "GUNESLER").unwrap();
     add(&mut inv, "Kek kalıbı", "item", Some("Kiler"), None);
-    inv.edit("Kek kalıbı", &["to=Mahmutlar".into()]).unwrap();
+    inv.edit("Kek kalıbı", &["to=Annemler".into()]).unwrap();
 
     assert_eq!(
-        inv.errands(Some("salihalar")).unwrap()["place"]["name"],
-        "Mahmutlar"
+        inv.errands(Some("ayşelar")).unwrap()["place"]["name"],
+        "Annemler"
     );
     let v = inv.errands(Some("güneşler")).unwrap();
-    assert_eq!(v["place"]["name"], "Mahmutlar");
+    assert_eq!(v["place"]["name"], "Annemler");
     assert_eq!(v["take"][0]["name"], "Kek kalıbı");
     assert_eq!(v["return"][0]["name"], "Flipper Zero");
     assert_eq!(v["collect"][0]["name"], "Merdiven");
@@ -477,14 +477,14 @@ fn places_with_aliases_answer_what_goes_where() {
     // An alias taken by another place is refused; a lent node of someone else is refused.
     inv.place_add("Ofis", &[]).unwrap();
     assert_eq!(
-        code_of(&inv.place_alias("Ofis", "saliha'lar").unwrap_err()),
+        code_of(&inv.place_alias("Ofis", "ayşe'lar").unwrap_err()),
         5
     );
     assert_eq!(code_of(&inv.lend("Flipper Zero", "Ofis").unwrap_err()), 5);
 
     inv.back("Merdiven").unwrap();
     assert!(
-        inv.errands(Some("Mahmutlar")).unwrap()["collect"]
+        inv.errands(Some("Annemler")).unwrap()["collect"]
             .as_array()
             .unwrap()
             .is_empty()
@@ -497,11 +497,11 @@ fn places_with_aliases_answer_what_goes_where() {
 fn merging_places_moves_references_and_aliases() {
     let (_d, mut inv) = inv();
     home(&mut inv);
-    inv.edit("Flipper Zero", &["to=Salihalar".into()]).unwrap();
-    inv.place_add("Mahmutlar", &[]).unwrap();
-    inv.place_merge("Salihalar", "Mahmutlar").unwrap();
-    let v = inv.errands(Some("salihalar")).unwrap();
-    assert_eq!(v["place"]["name"], "Mahmutlar");
+    inv.edit("Flipper Zero", &["to=Ayşelar".into()]).unwrap();
+    inv.place_add("Annemler", &[]).unwrap();
+    inv.place_merge("Ayşelar", "Annemler").unwrap();
+    let v = inv.errands(Some("ayşelar")).unwrap();
+    assert_eq!(v["place"]["name"], "Annemler");
     assert_eq!(v["take"][0]["name"], "Flipper Zero");
     assert_eq!(
         inv.place_list().unwrap()["places"]
@@ -516,7 +516,7 @@ fn merging_places_moves_references_and_aliases() {
 fn returning_what_is_not_ours_is_a_disposition() {
     let (_d, mut inv) = inv();
     home(&mut inv);
-    inv.edit("Flipper Zero", &["owner=Mahmutlar".into()])
+    inv.edit("Flipper Zero", &["owner=Annemler".into()])
         .unwrap();
     let v = inv.gone("Flipper Zero", Some(Disposition::Return)).unwrap();
     assert_eq!(v["node"]["disposition"], "return");
@@ -534,10 +534,10 @@ fn a_thing_meant_for_its_owner_is_listed_once_as_a_return() {
     home(&mut inv);
     inv.edit(
         "Flipper Zero",
-        &["owner=Mahmutlar".into(), "to=Mahmutlar".into()],
+        &["owner=Annemler".into(), "to=Annemler".into()],
     )
     .unwrap();
-    let v = inv.errands(Some("Mahmutlar")).unwrap();
+    let v = inv.errands(Some("Annemler")).unwrap();
     assert!(v["take"].as_array().unwrap().is_empty(), "{v}");
     assert_eq!(v["return"].as_array().unwrap().len(), 1);
 }

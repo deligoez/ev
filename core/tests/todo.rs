@@ -343,7 +343,7 @@ fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     add(&mut inv, "Kutu", "container", Some("Oda"), None);
     add(&mut inv, "Belirsiz parça", "item", Some("S5-01"), None);
     inv.move_to("Silikon", "Kutu", true).unwrap();
-    inv.edit("Kulaklık", &["owner=Mahmutlar".into()]).unwrap();
+    inv.edit("Kulaklık", &["owner=Annemler".into()]).unwrap();
     inv.mark_lost("Belirsiz parça").unwrap();
 
     let t = inv.todo().unwrap();

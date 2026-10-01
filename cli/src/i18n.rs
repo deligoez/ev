@@ -829,7 +829,7 @@ mod tests {
     fn text_follows_the_language_and_falls_back_to_english() {
         set_lang(Lang::Tr);
         assert_eq!(t("Layout"), "Yerleşim");
-        assert_eq!(tf("  [with {}]", &[&"Mahmutlar"]), "  [Mahmutlar'de]");
+        assert_eq!(tf("  [with {}]", &[&"Annemler"]), "  [Annemler'de]");
         assert_eq!(t("no such text"), "no such text");
         set_lang(Lang::En);
         assert_eq!(tf("{}%", &[&40]), "40%");

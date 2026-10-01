@@ -109,7 +109,7 @@ places, and how far the whole home is (`progress`). Then:
 ## Everything waiting: `ev todo`
 
 When the person asks what is left, or a session starts with no clear task, run `ev todo` and
-summarise by kind with counts ("19 tasks, 8 moves, 2 things to return to Mahmutlar, 8 things
+summarise by kind with counts ("19 tasks, 8 moves, 2 things to return to Annemler, 8 things
 leaving, 1 thing to buy"). Most of it is state on the records — never copy it into tasks; it
 leaves the list when you record the thing itself (`done`, `gone`, `back`, `found`, …).
 Record the kinds that have their own verbs as you meet them:
@@ -375,9 +375,9 @@ the place or any placed box in its grid has no photo or one older than its last 
 
 ## Going somewhere
 
-Whenever the person says they are going somewhere or meeting someone ("yarın Mahmutlara
+Whenever the person says they are going somewhere or meeting someone ("yarın Annemlera
 gidiyorum", "Ayşe gelecek"), run `ev for <place>` with the Turkish case suffix removed
-(`Mahmutlara` → `Mahmutlar`) and tell them what to take, return and collect, with where each
+(`Annemlera` → `Annemler`) and tell them what to take, return and collect, with where each
 thing is. Record new intentions as they come up: `ev edit X to=<place>` (take it there),
 `ev edit X owner=<place>` (it is theirs), `ev lend X --to <place>` / `ev back X` (lent out).
 Different names for the same household are aliases of one place (`ev place alias`); if two

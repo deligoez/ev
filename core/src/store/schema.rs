@@ -466,3 +466,28 @@ CREATE INDEX coverage_nodes_node ON coverage_nodes(node_id);
 PRAGMA user_version = 23;
 COMMIT;
 ";
+
+/// Schema 24: money over time (purchases spec §3.9), a cached price index and exchange rates,
+/// fetched outside `ev` and imported.
+pub(super) const SCHEMA_V24: &str = "
+BEGIN;
+CREATE TABLE price_index (
+    series TEXT NOT NULL,
+    period TEXT NOT NULL,
+    value REAL NOT NULL,
+    source TEXT,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (series, period)
+);
+CREATE TABLE fx_rates (
+    currency TEXT NOT NULL,
+    home TEXT NOT NULL,
+    day TEXT NOT NULL,
+    rate REAL NOT NULL,
+    source TEXT,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (currency, home, day)
+);
+PRAGMA user_version = 24;
+COMMIT;
+";

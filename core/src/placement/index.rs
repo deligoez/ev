@@ -125,7 +125,7 @@ const ENDINGS: &[&[&str]] = &[
 /// the endings above, each time keeping at least three letters. A stem left by an ending that
 /// starts with a vowel also appears with its last consonant hardened back (`kitabı`→`kitap`,
 /// `ışığı`→`ışık`, `rengi`→`renk`). Plain-ASCII words also lose English plurals.
-pub(super) fn candidates(word: &str) -> Vec<String> {
+pub(crate) fn candidates(word: &str) -> Vec<String> {
     let mut out = vec![word.to_string()];
     let mut frontier = vec![word.to_string()];
     for layer in ENDINGS {

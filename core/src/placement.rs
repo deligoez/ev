@@ -25,8 +25,8 @@ mod vocab;
 
 #[cfg(test)]
 use index::Lexicon;
-use index::{COLORS, FILLER, candidates, weighted};
-pub(crate) use index::{Index, Scored, Term, terms};
+use index::{COLORS, FILLER, weighted};
+pub(crate) use index::{Index, Scored, Term, candidates, terms};
 use vocab::Facets;
 
 /// How much a match in each field counts.

@@ -14,10 +14,17 @@ Draft for the next release.
   same file added again is the same document with one more link. `ev show` and `ev ui` list a
   thing's documents; `ev doc list`, `show`, `link` and `unlink` manage them.
 
+- **Purchases: what was bought, linked to things on the person's word** (`ev buy import`,
+  `add`, `list`, `show`, `link`, `unlink`, `dismiss`). A line never creates a thing. An adapter
+  turns a shop's export into NDJSON (`tools/purchases/hepsiburada.py | ev buy import --stdin`);
+  importing again changes nothing, cancelled and consumable lines are skipped, and the shop's
+  invoices come along, hung on their order's lines. A linked thing shows its purchases and
+  reaches their invoices in `ev show` and `ev ui`. Amounts are exact (minor units).
+
 ## Upgrade notes
 
-- The database moves to schema 21 (three new node columns, two document tables) the first time
-  this version opens it; an older `ev` then refuses it.
+- The database moves to schema 22 (three new node columns, documents, purchases) the first
+  time this version opens it; an older `ev` then refuses it.
 
 ## Changed
 

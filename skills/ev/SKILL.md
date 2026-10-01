@@ -269,6 +269,12 @@ purchase's delivery), offer it once; it is recorded only on a yes.
 with no coverage; ask about them while touring, dearest first. When the person says "don't
 track this" or "not now", record it with `ev track <ref> coverage|value no|later --why "…"`,
 on a whole box or drawer when they say so, and never bring it up again unless they ask.
+**Write a value with its source and date:** `ev value <ref> 2500 --source "sahibinden ilanı"
+--at <date>` when the person reports a price they saw; the purchase price is never a value.
+`ev todo` counts bought things with no value; ask while touring, dearest first, and respect
+"no" and "not now" as for coverage. A product page, manual or driver page goes in with
+`ev link add <ref> <url> --kind manual`; add `--archive` (a saved copy or a Wayback address)
+when the page may die.
 **Prices in today's money.** A bought thing shows `≈ <amount> in <month> money` when the index
 is cached; before quoting what something is worth, run `ev money status` and, if it is `stale`
 or rates are missing, pipe `ev money needs` through `tools/money/fetch.py` into

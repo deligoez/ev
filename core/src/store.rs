@@ -1000,6 +1000,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "observations": observations,
         "kits": crate::kits::kits_of(conn, id)?,
         "documents": crate::docs::docs_of(conn, id)?,
+        "purchases": crate::purchases::purchases_of(conn, id)?,
     }))
 }
 

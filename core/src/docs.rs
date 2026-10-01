@@ -116,22 +116,51 @@ pub(crate) fn doc_json(conn: &Connection, id: i64) -> Result<Value> {
 
 /// The documents linked to a node, newest issue first, without the node list on each.
 pub(crate) fn docs_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
-    ids(
-        conn,
-        "SELECT d.id FROM documents d JOIN document_links l ON l.document_id = d.id
+    // Its own documents, then those of the purchases linked to it (an invoice belongs to the
+    // order; the thing reaches it through its purchase), each once, marked with the purchase.
+    let mut stmt = conn.prepare(
+        "SELECT d.id, NULL FROM documents d JOIN document_links l ON l.document_id = d.id
           WHERE l.target = 'node' AND l.target_id = ?1
-          ORDER BY COALESCE(d.issued_at, d.added_at) DESC, d.id",
-        [node],
-    )?
-    .into_iter()
-    .map(|d| {
-        let mut v = doc_json(conn, d)?;
-        if let Some(o) = v.as_object_mut() {
-            o.remove("nodes");
-        }
-        Ok(v)
-    })
-    .collect()
+         UNION
+         SELECT d.id, MIN(pl.purchase_id) FROM documents d
+           JOIN document_links l ON l.document_id = d.id AND l.target = 'purchase'
+           JOIN purchase_links pl ON pl.purchase_id = l.target_id
+          WHERE pl.node_id = ?1
+            AND d.id NOT IN (SELECT document_id FROM document_links
+                              WHERE target = 'node' AND target_id = ?1)
+          GROUP BY d.id",
+    )?;
+    let rows = stmt
+        .query_map([node], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Option<i64>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut out = rows
+        .into_iter()
+        .map(|(d, via)| {
+            let mut v = doc_json(conn, d)?;
+            if let Some(o) = v.as_object_mut() {
+                o.remove("nodes");
+            }
+            if let Some(p) = via {
+                v["via_purchase"] = json!(p);
+            }
+            Ok(v)
+        })
+        .collect::<Result<Vec<Value>>>()?;
+    out.sort_by(|a, b| {
+        let when = |v: &Value| {
+            v["issued_at"]
+                .as_str()
+                .or(v["added_at"].as_str())
+                .unwrap_or_default()
+                .to_string()
+        };
+        when(b)
+            .cmp(&when(a))
+            .then(a["id"].as_i64().cmp(&b["id"].as_i64()))
+    });
+    Ok(out)
 }
 
 fn link_node(conn: &Connection, doc: i64, node: i64, kind: &str) -> Result<bool> {

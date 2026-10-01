@@ -430,6 +430,12 @@ impl App {
         for p in v["purchases"].as_array().into_iter().flatten() {
             field(t("bought"), Span::raw(crate::render::purchase_line(p)));
         }
+        if let Some(x) = v["valuations"].as_array().and_then(|l| l.first()) {
+            field(t("value"), Span::raw(crate::render::valuation_line(x)));
+        }
+        for l in v["links"].as_array().into_iter().flatten() {
+            field(t("link"), Span::raw(crate::render::link_line(l)));
+        }
         for d in v["documents"].as_array().into_iter().flatten() {
             field(t("document"), Span::raw(crate::render::doc_line(d)));
         }

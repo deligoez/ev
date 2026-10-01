@@ -534,6 +534,27 @@ static TR: &[(&str, &str)] = &[
     ("value", "değer"),
     ("not now", "şimdilik değil"),
     ("not tracked", "takip edilmiyor"),
+    // Values and links
+    ("  (+{} earlier)", "  (+{} önceki)"),
+    ("(no links)", "(bağlantı yok)"),
+    ("(no value recorded)", "(değer kaydı yok)"),
+    ("Purchases to link", "Bağlanacak alımlar"),
+    ("Value not asked", "Değeri sorulmamış"),
+    ("about {}", "yaklaşık {}"),
+    ("archive: {}", "arşiv: {}"),
+    (
+        "bought things with no value recorded; the dearest:",
+        "değeri kaydedilmemiş alınmış eşyalar; en pahalıları:",
+    ),
+    ("driver", "sürücü"),
+    (
+        "durable purchase lines not linked to a thing yet: ev buy list --open",
+        "henüz bir eşyaya bağlanmamış kalıcı alım satırları: ev buy list --open",
+    ),
+    ("info page", "ürün sayfası"),
+    ("link", "bağlantı"),
+    ("other", "diğer"),
+    ("support", "destek"),
     // Money over time
     ("≈ {} {} in {} money", "≈ {} {} ({} parasıyla)"),
     ("(stale: fetch again)", "(eski: yeniden çek)"),

@@ -305,6 +305,34 @@ enum Cmd {
         #[arg(long)]
         why: Option<String>,
     },
+    /// What a thing is worth, observed on a date: a second-hand listing, a shop's price, an
+    /// appraisal. Never the purchase price. With only `<ref>`, its observations, newest first.
+    Value {
+        reference: String,
+        /// The amount, e.g. 2500 or 2.499,90.
+        amount: Option<String>,
+        /// Defaults to the home currency.
+        #[arg(long, requires = "amount")]
+        currency: Option<String>,
+        /// When it was observed: YYYY-MM-DD; today by default.
+        #[arg(long, requires = "amount")]
+        at: Option<String>,
+        /// Where the figure comes from (sahibinden listing, appraisal, shop page).
+        #[arg(long, requires = "amount")]
+        source: Option<String>,
+        #[arg(long, requires = "amount")]
+        note: Option<String>,
+        /// The date is a guess.
+        #[arg(long, requires = "amount")]
+        approximate: bool,
+        /// Remove an observation recorded by mistake, by its id.
+        #[arg(long, conflicts_with = "amount")]
+        remove: Option<i64>,
+    },
+    /// A thing's links: its product page, manual, support or driver page, with an archive copy
+    /// for when the page dies.
+    #[command(subcommand)]
+    Link(LinkCmd),
     /// Purchases: lines of what was bought, linked to things on the person's word. A line never
     /// creates a thing. `ev buy import` takes an adapter's NDJSON; `ev buy add` one by hand.
     #[command(subcommand)]
@@ -664,6 +692,27 @@ enum BuyCmd {
         #[arg(long, conflicts_with = "reason")]
         clear: bool,
     },
+}
+
+#[derive(Subcommand)]
+enum LinkCmd {
+    /// Add a link, or update the kind, archive and note of the same address.
+    Add {
+        reference: String,
+        url: String,
+        /// info, manual, support, driver or other.
+        #[arg(long, default_value = "info")]
+        kind: String,
+        /// Where the page survives: a saved file (copied into the store) or a Wayback address.
+        #[arg(long)]
+        archive: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// A thing's links.
+    List { reference: String },
+    /// Remove a link by its id.
+    Remove { id: i64 },
 }
 
 #[derive(Subcommand)]
@@ -1478,6 +1527,38 @@ fn run(cli: Cli) -> Result<Value> {
             decision,
             why,
         } => inv.track(&reference, &subject, &decision, why.as_deref()),
+        Cmd::Value {
+            remove: Some(id), ..
+        } => inv.value_remove(id),
+        Cmd::Value {
+            reference,
+            amount,
+            currency,
+            at,
+            source,
+            note,
+            approximate,
+            remove: None,
+        } => {
+            let new = amount.map(|amount| ev_core::NewValuation {
+                amount,
+                currency,
+                at,
+                approximate,
+                source,
+                note,
+            });
+            inv.value(&reference, new.as_ref())
+        }
+        Cmd::Link(LinkCmd::Add {
+            reference,
+            url,
+            kind,
+            archive,
+            note,
+        }) => inv.link_add(&reference, &url, &kind, archive.as_deref(), note.as_deref()),
+        Cmd::Link(LinkCmd::List { reference }) => inv.link_list(&reference),
+        Cmd::Link(LinkCmd::Remove { id }) => inv.link_remove(id),
         Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
         Cmd::Buy(BuyCmd::For { reference }) => inv.buy_for(&reference),
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),

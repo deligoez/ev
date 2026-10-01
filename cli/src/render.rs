@@ -267,6 +267,62 @@ pub(crate) fn doc_line(d: &Value) -> String {
     format!("{}{note}", parts.join("  "))
 }
 
+/// `#3  2026-10-01  2500.00 TRY  second-hand listing — note`: when, how much, from where.
+pub(crate) fn valuation_line(x: &Value) -> String {
+    let mut parts = vec![format!("#{}", x["id"]), s(x, "at")];
+    if x["approximate"] == true {
+        parts[1] = tf("about {}", &[&parts[1]]);
+    }
+    parts.push(format!("{} {}", s(x, "amount"), s(x, "currency")));
+    if let Some(today) = x["today"].as_object().filter(|_| x["currency"].is_string()) {
+        let month = today["index_month"].as_str().unwrap_or_default();
+        if !s(x, "at").starts_with(month) {
+            parts.push(tf(
+                "≈ {} {} in {} money",
+                &[
+                    &today["amount"].as_str().unwrap_or_default(),
+                    &today["currency"].as_str().unwrap_or_default(),
+                    &month,
+                ],
+            ));
+        }
+    }
+    if let Some(src) = x["source"].as_str() {
+        parts.push(src.to_string());
+    }
+    let note = x["note"]
+        .as_str()
+        .map(|n| format!(" — {n}"))
+        .unwrap_or_default();
+    format!("{}{note}", parts.join("  "))
+}
+
+/// `#2 info  https://…  (archived)`.
+pub(crate) fn link_line(l: &Value) -> String {
+    let mut parts = vec![
+        format!(
+            "#{} {}",
+            l["id"],
+            match l["kind"].as_str() {
+                Some("info") => t("info page"),
+                Some("manual") => t("manual"),
+                Some("support") => t("support"),
+                Some("driver") => t("driver"),
+                _ => t("other"),
+            }
+        ),
+        s(l, "url"),
+    ];
+    if let Some(a) = l["archive"].as_str() {
+        parts.push(tf("archive: {}", &[&a]));
+    }
+    let note = l["note"]
+        .as_str()
+        .map(|n| format!(" — {n}"))
+        .unwrap_or_default();
+    format!("{}{note}", parts.join("  "))
+}
+
 /// `#12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  2479.00 TRY`: when, where, what, how many, paid.
 pub(crate) fn purchase_line(p: &Value) -> String {
     let mut parts = vec![format!("#{}", p["id"])];
@@ -532,6 +588,23 @@ fn todo(out: &mut String, v: &Value) {
         for n in cv["top"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "worth"), s(n, "currency"));
         }
+    }
+    if head(out, t("Value not asked"), &c["values"]) {
+        let _ = writeln!(
+            out,
+            "  {}",
+            t("bought things with no value recorded; the dearest:")
+        );
+        for n in v["values"]["top"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "worth"), s(n, "currency"));
+        }
+    }
+    if head(out, t("Purchases to link"), &c["purchases"]) {
+        let _ = writeln!(
+            out,
+            "  {}",
+            t("durable purchase lines not linked to a thing yet: ev buy list --open")
+        );
     }
 }
 
@@ -1107,6 +1180,32 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("purchase").is_some_and(Value::is_object) {
         purchase(&mut out, &v["purchase"]);
+        return out;
+    }
+    if let (Some(list), Some(node)) = (
+        v.get("valuations").and_then(Value::as_array),
+        v.get("node").filter(|_| v.get("added").is_some()),
+    ) {
+        let _ = writeln!(out, "{}", line(node));
+        if list.is_empty() {
+            let _ = writeln!(out, "  {}", t("(no value recorded)"));
+        }
+        for x in list {
+            let _ = writeln!(out, "  {}", valuation_line(x));
+        }
+        return out;
+    }
+    if let (Some(list), Some(node)) = (
+        v.get("links").and_then(Value::as_array),
+        v.get("node").filter(|_| v.get("children").is_none()),
+    ) {
+        let _ = writeln!(out, "{}", line(node));
+        if list.is_empty() {
+            let _ = writeln!(out, "  {}", t("(no links)"));
+        }
+        for l in list {
+            let _ = writeln!(out, "  {}", link_line(l));
+        }
         return out;
     }
     if v.get("coverage").is_some_and(|c| c.get("status").is_some()) {
@@ -1732,6 +1831,23 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     if let Some(c) = v.get("purchase_candidates") {
         let _ = writeln!(out, "  {}", t("Could be one of these purchases:"));
         candidate_lines(out, c);
+    }
+    // The latest observation is the current value; older ones are history (`ev value X`).
+    if let Some(vals) = v["valuations"].as_array().filter(|l| !l.is_empty()) {
+        let earlier = if vals.len() > 1 {
+            tf("  (+{} earlier)", &[&(vals.len() - 1)])
+        } else {
+            String::new()
+        };
+        let _ = writeln!(
+            out,
+            "  {}: {}{earlier}",
+            t("value"),
+            valuation_line(&vals[0])
+        );
+    }
+    for l in v["links"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("link"), link_line(l));
     }
     for d in v["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));

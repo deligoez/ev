@@ -73,7 +73,7 @@ They are searched by `ev find` (name weight) and are exact keys for purchase ran
 | `qty`, `paid`, `currency` | `paid` is the line total actually paid, tax included; unit price is derived |
 | `billed_to` | who the invoice names when it is not the household, e.g. a company; information only (§3.8) |
 | `status` | `delivered`, `returned`; cancelled lines are not imported |
-| `bucket` | `durable`, `consumable`, `clothing`, `digital`; set by the adapter, editable |
+| `bucket` | `durable`, `clothing`, `digital`; set by the adapter, editable. `consumable` lines are not imported for now (§11) |
 | `dismissed`, `why` | a reason when a line will never be a node: `consumed`, `given`, `returned`, `elsewhere`, `not-mine`, `duplicate` |
 | `raw` | path to the raw record under `~/.ev/purchases/<source>/`; never copied |
 | `same_as` | another line that is the same purchase seen by a second source (§6) |
@@ -234,6 +234,7 @@ the person says `owner=…`. Everything recorded in `ev` is tracked, whoever own
 - `ev sale --listed`: takes `--condition new|like-new|used`. The only place a condition is
   recorded (§10).
 - `ev settings`: the inventory settings of §3.8.
+- `ev ui`: a node's details show its purchases, today's money and latest value; lists do not.
 - `ev find`: searches `make`, `model`, `serial`.
 
 ### 4.3 `ev todo`
@@ -332,17 +333,26 @@ Each phase ends with the gate green and one measured check.
 | Condition scale (excellent … poor) | subjective and goes stale; dated photos show the state, `broken` the function; asked only at sale |
 | Insurance claims | coverage records hold the policy; a claim is a note or a document for now |
 | Depreciation | valuations give the real figure with a date |
-| Maintenance tasks, consumable stock | later; consumables start as the `consumable` bucket and `ev need` |
+| Maintenance tasks, consumables | later; consumable purchase lines are not even imported yet (§11) |
 | Custom fields | the schema stays fixed; anything else goes in `note` |
 | Per-currency inflation | one country per inventory (§3.9) |
 | Country-specific index logic | the series is a setting; an alternative index is entered like any other |
 
-## 11. Open questions
+## 11. Decided after the first draft (2026-10-01)
 
-1. **Import consumables at all?** Proposal: yes, in the `consumable` bucket, hidden by default.
-   It is cheap, and makes re-order hints possible later.
-2. **Prices in `ev ui`?** Proposal: shown in details, hidden in lists.
-3. **Back-fill over existing records?** Proposal: a one-off `ev buy for` pass over open durable
-   lines, answered in numbered batches.
-4. **Rename a node from its purchase?** Proposal: never automatically; suggest the purchase name
-   when the node's name is a guess.
+1. **Consumables are not imported for now.** Adapters still classify each line, but drop
+   `consumable` lines instead of emitting them. The bucket stays in the format so they can be
+   imported later without a format change.
+2. **Prices show in a node's details in `ev ui`**: purchases, today's money, the latest value.
+   Lists and the tree show no prices.
+3. **A one-off back-fill:** `ev buy for` over open durable lines against existing records,
+   answered in numbered batches.
+4. **A node's name comes from the person, not the shop.** It says what the thing is, then its
+   make and model: `Darbeli matkap, Bosch GSB 13 RE`, in the inventory's existing style
+   (`Kırmızı LED, 5 mm`). The rule:
+   - **Never renamed automatically.**
+   - When a purchase is linked and the node has no `make` / `model`, the same question offers
+     them, read from the line's brand and model code.
+   - When the name lacks the make and model, the same question offers that name.
+   - A shop's long title ("Bosch Professional GSB 13 RE Darbeli Matkap (600 W, Mandren Çapı …)")
+     never becomes the name. It stays on the purchase line.

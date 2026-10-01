@@ -220,3 +220,43 @@ fn show_lists_make_model_and_serial_before_the_note() {
     );
     assert!(!s.contains("serial"), "{s}");
 }
+
+#[test]
+fn doc_add_names_the_document_its_stored_copy_and_what_it_belongs_to() {
+    let h = Home::new();
+    let pdf = h.dir.path().join("fatura.pdf");
+    std::fs::write(&pdf, "%PDF").unwrap();
+    let s = h.text(&[
+        "doc",
+        "add",
+        pdf.to_str().unwrap(),
+        "--kind",
+        "invoice",
+        "--for",
+        "Aktif buzzer",
+        "--issued",
+        "2024-05-03",
+        "--issuer",
+        "Robotistan",
+        "--number",
+        "RBT-1",
+    ]);
+    assert!(
+        s.starts_with("#1 invoice  2024-05-03  Robotistan  no RBT-1  fatura.pdf\n  file: "),
+        "{s}"
+    );
+    assert!(s.contains("/docs/"), "{s}");
+    assert!(
+        s.ends_with("  → #7 Ev › Oda › D › D-B1 › Aktif buzzer\n"),
+        "{s}"
+    );
+    assert_eq!(
+        h.text(&["doc", "list"]),
+        "#1 invoice  2024-05-03  Robotistan  no RBT-1  fatura.pdf  → #7\n"
+    );
+    let show = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        show.contains("\n  document: #1 invoice  2024-05-03  Robotistan  no RBT-1  fatura.pdf\n"),
+        "{show}"
+    );
+}

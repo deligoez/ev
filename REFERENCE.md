@@ -58,7 +58,7 @@ one, its name otherwise.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`) and `documents` (see Documents) |
+| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents) and `purchases` (see Purchases) |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`).
 
 ## `ev ui`
 
@@ -303,6 +303,42 @@ belong to. The copy outlives the file it came from.
 
 `ev show` lists a thing's documents under `documents` (each without `nodes`); the history has
 `doc_linked` and `doc_unlinked` events (`document`, `kind`).
+
+## Purchases
+
+Lines of what was bought (`spec/purchases.md`). A line never creates a thing; it is linked to
+one on the person's word, for part or all of its quantity. Amounts are kept in minor units and
+shown as `1234.56`; input takes `1234.56`, `1.234,56` or `1234` (a lone separator before three
+digits is refused, not guessed).
+
+| Command | Payload |
+|---|---|
+| `ev buy import <file>` / `--stdin` | `imported`: `new`, `updated`, `unchanged`, `skipped` (cancelled and consumable lines), `document_links`, `documents_skipped` (a document naming no imported line is not stored). All or nothing; the same lines again change nothing, and an update never touches links or a dismissal |
+| `ev buy add <name> [--shop s] [--date d] [--paid n] [--currency c] [--qty n] [--order o] [--order-url u] [--url u] [--brand b] [--for <ref>]` | `purchase`: a line entered by hand (`source: manual`), linked to `--for` at once |
+| `ev buy list [--open] [--bucket b] [--shop s] [--since d]` | `purchases`, newest first; `--open`: something left to link and not dismissed |
+| `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty`, `documents` |
+| `ev buy link <id> <ref> [--qty n]` / `ev buy unlink <id> <ref>` | `purchase`; a link takes all that is left of the line by default, never more; it remembers the shop's product key for the next purchase of it |
+| `ev buy dismiss <id> --as <reason> [--why t]` / `--clear` | `purchase`; reasons: `consumed`, `given`, `returned`, `elsewhere`, `not-mine`, `duplicate`. A dismissed line cannot be linked |
+
+`ev show` lists a thing's purchases under `purchases` (each with `linked_qty`, without `linked`,
+`documents` or `raw`), and its `documents` include those of its purchases, marked
+`via_purchase`. Events: `purchase_linked` (`purchase`, `qty`), `purchase_unlinked` (`purchase`).
+
+### Import lines
+
+One JSON object per line; `type` is `purchase` (the default) or `document`.
+
+- `purchase`: `source` and `key` (required, the line's identity), `name` (required), `shop`,
+  `merchant`, `order`, `order_url`, `product_url`, `sku`, `brand`, `category`, `ordered_at`,
+  `delivered_at` (`YYYY-MM-DD`; a longer timestamp is cut to its date), `qty` (default 1),
+  `paid` (the line total paid), `currency`, `billed_to`, `status` (`delivered`, `returned`,
+  `cancelled`), `bucket` (`durable`, `clothing`, `digital`, `consumable`), `raw` (path of the
+  raw record).
+- `document`: `source`, `file`, `purchases` (keys of that source's lines), `kind` (default
+  `invoice`), `number`, `ettn`, `issued`, `issuer`, `note`.
+
+Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
+outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`.
 
 ## Photos
 

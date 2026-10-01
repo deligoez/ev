@@ -59,8 +59,17 @@ Draft for the next release.
   one command makes them the thing's own. `ev buy show` lists them.
 - **One purchase seen by two sources is joined** on import (`same_as`): another app's record
   whose order page names a shop's order number points at that shop's line, narrowed by the
-  product key when the order has several lines. The joined line counts as settled; its
-  documents and attachments come with the line it joins.
+  product key, or by a clearly closest name, when the order has several lines. The joined line
+  counts as settled; its documents and attachments come with the line it joins. Measured on one
+  household's Under My Roof records against its shop exports: 36 records joined, each to the
+  right line.
+- **Purchase adapters for fifteen shops and Under My Roof** (`tools/purchases/`): AliExpress,
+  Amazon.com.tr, Amazon.de, Decathlon, GittiGidiyor, Hepsiburada, idefix, IKEA, Kitapyurdu,
+  n11, Robo90, Robotistan, sahibinden, Trendyol, Vivense, each reading a saved export, and
+  `umr.py`, which reads a copy of Under My Roof's store: each item with its value, warranties,
+  info link, receipts and attachments.
+- **`ev sale --condition new|like-new|used`**: what a buyer is told, the only place a condition
+  is recorded.
 
 ## Upgrade notes
 

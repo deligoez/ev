@@ -422,9 +422,23 @@ impl Inventory {
         event(&tx, n.id, "split", json!({ "into": parts_json }))?;
         touch(&tx, n.id)?;
         tx.commit()?;
+        // Each new part may be a purchase of its own, asked while it is in hand (spec §4.2).
         let into = into
             .iter()
-            .map(|id| brief(&self.conn, *id))
+            .map(|id| {
+                let mut v = serde_json::to_value(brief(&self.conn, *id)?)
+                    .map_err(|e| Error::Internal(e.to_string()))?;
+                let offered = crate::purchase_match::candidates_for(
+                    &self.conn,
+                    *id,
+                    crate::purchase_match::OFFER_AT,
+                    3,
+                )?;
+                if !offered.is_empty() {
+                    v["purchase_candidates"] = json!(offered);
+                }
+                Ok(v)
+            })
             .collect::<Result<Vec<_>>>()?;
         let photos = self.photo_list(&n.id.to_string())?["photos"].clone();
         Ok(json!({ "node": brief(&self.conn, n.id)?, "into": into, "photos": photos }))

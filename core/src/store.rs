@@ -14,6 +14,7 @@ mod edit;
 mod photos;
 mod places;
 mod schema;
+mod search;
 
 pub(crate) use audit::{holder_json, is_holder, live_nodes, parking_of, rules_json};
 pub(crate) use edit::{apply_edit, parse_size};
@@ -240,15 +241,15 @@ impl Inventory {
         kind: Option<Kind>,
         include_gone: bool,
     ) -> Result<Value> {
-        let needle = fold(text);
+        let query = search::Query::parse(&self.conn, text)?;
         // Without text a filter must narrow it: `--tag x` alone lists everything tagged x.
-        if needle.is_empty() && tag.is_none() && kind.is_none() {
+        if query.is_empty() && tag.is_none() && kind.is_none() {
             return Err(Error::Usage(
                 "search text is empty; give text, or --tag / --kind to list".into(),
             ));
         }
         let tag = tag.map(|t| t.trim().to_lowercase());
-        let mut results = Vec::new();
+        let mut nodes = Vec::new();
         for id in ids(&self.conn, "SELECT id FROM nodes ORDER BY id", [])? {
             let n = load(&self.conn, id)?;
             if (n.state == State::Gone && !include_gone)
@@ -257,22 +258,17 @@ impl Inventory {
             {
                 continue;
             }
-            let haystacks = [
-                Some(&n.name),
-                n.code.as_ref(),
-                n.note.as_ref(),
-                n.theme.as_ref(),
-            ];
-            let hit = needle.is_empty()
-                || haystacks
-                    .iter()
-                    .flatten()
-                    .any(|h| fold(h).contains(&needle))
-                || n.tags.iter().any(|t| fold(t).contains(&needle));
-            if hit {
-                results.push(brief(&self.conn, id)?);
-            }
+            nodes.push(n);
         }
+        let hits: Vec<i64> = if query.is_empty() {
+            nodes.iter().map(|n| n.id).collect()
+        } else {
+            query.rank(&nodes).into_iter().map(|(id, _)| id).collect()
+        };
+        let results = hits
+            .into_iter()
+            .map(|id| brief(&self.conn, id))
+            .collect::<Result<Vec<_>>>()?;
         Ok(json!({ "query": text, "results": results }))
     }
 

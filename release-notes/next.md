@@ -20,6 +20,12 @@ Draft for the next release.
   importing again changes nothing, cancelled and consumable lines are skipped, and the shop's
   invoices come along, hung on their order's lines. A linked thing shows its purchases and
   reaches their invoices in `ev show` and `ev ui`. Amounts are exact (minor units).
+- **The purchase a thing could be, asked while it is in hand.** `ev add` lists up to three
+  purchase lines that could be the new record, and `ev buy for <ref>` ranks them for any record,
+  each with its reasons: a shared model code, the brand, the record's own `model`, rarer shared
+  words; two numbers of one unit that differ (125 kHz against 13,56 MHz) rule a line out. Measured
+  on one shop's 158 lines against 451 records: each known right match ranked first, and about one
+  record in thirty got a wrong first offer.
 
 ## Upgrade notes
 

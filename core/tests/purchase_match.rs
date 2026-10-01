@@ -145,3 +145,19 @@ fn a_linked_or_dismissed_line_is_offered_no_more_except_to_its_own_thing() {
             .all(|c| c["purchase"]["id"] != line)
     );
 }
+
+#[test]
+fn a_part_split_off_is_offered_its_purchase_too() {
+    let (_d, mut inv) = setup();
+    item(&mut inv, "Karışık el aletleri", None);
+    let v = inv
+        .split(
+            "Karışık el aletleri",
+            &[("Pense, Pro'sKit 1PK-052DS".into(), Some(1))],
+            None,
+            None,
+        )
+        .unwrap();
+    let offered = v["into"][0]["purchase_candidates"].as_array().unwrap();
+    assert_eq!(offered[0]["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
+}

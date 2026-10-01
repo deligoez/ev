@@ -325,13 +325,22 @@ digits is refused, not guessed).
 
 | Command | Payload |
 |---|---|
-| `ev buy import <file>` / `--stdin` | `imported`: `new`, `updated`, `unchanged`, `skipped` (cancelled and consumable lines), `document_links`, `documents_skipped` (a document naming no imported line is not stored). All or nothing; the same lines again change nothing, and an update never touches links or a dismissal |
+| `ev buy import <file>` / `--stdin` | `imported`: `new`, `updated`, `unchanged`, `skipped` (cancelled and consumable lines), `document_links`, `documents_skipped` (a document naming no imported line is not stored), `attachments` (new ones stored), `attachments_skipped` (naming no imported line), `joined` (lines found to be another source's line, see below). All or nothing; the same lines again change nothing, and an update never touches links or a dismissal |
 | `ev buy add <name> [--shop s] [--date d] [--paid n] [--currency c] [--qty n] [--order o] [--order-url u] [--url u] [--brand b] [--for <ref>]` | `purchase`: a line entered by hand (`source: manual`), linked to `--for` at once |
 | `ev buy list [--open] [--bucket b] [--shop s] [--since d]` | `purchases`, newest first; `--open`: something left to link and not dismissed |
-| `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty`, `documents`, `today` (see **Money over time**) |
+| `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty` (0 for a joined line), `joined` (the ids of lines that are the same purchase), `attachments` (its own and its joined lines': `id`, `purchase`, `type`, the fields given, `brought_to`), `documents` (also those of its joined lines), `today` (see **Money over time**) |
 | `ev buy for <ref>` | `node`, `candidates` (up to 12, best first): `purchase` (`id`, `name`, `shop`, `brand`, dates, `qty`, `open_qty`, `paid`, `currency`), `score`, `why` (`[{why, points}]`), `linked` when already linked to it. Open, undismissed lines scoring above zero, and any linked to it. Points: a product linked before to a thing of the same name 80; the thing's `model` or `serial` in the line 60; each shared model code (letters and digits, four or more, not a size like `64gb` or `3x3`) 25, at most two; the line's brand as whole words in the thing's name or make (never the shop's own name) 12; shared words weighted by how rare they are among lines and records, at most 30; each unit whose numbers all differ (`125 kHz` against `13,56 MHz`, units converted) −40 |
 | `ev buy link <id> <ref> [--qty n]` / `ev buy unlink <id> <ref>` | `purchase`; a link takes all that is left of the line by default, never more; it remembers the shop's product key for the next purchase of it |
 | `ev buy dismiss <id> --as <reason> [--why t]` / `--clear` | `purchase`; reasons: `consumed`, `given`, `returned`, `elsewhere`, `not-mine`, `duplicate`. A dismissed line cannot be linked |
+| `ev buy bring <id> <ref> [--only <attachment>]…` | the thing, as `ev show`, plus `brought` (attachment ids). The line's attachments not brought yet (all, or `--only` these) become the thing's own: a link, a value, a coverage. The line must be linked to the thing first |
+
+**One purchase seen by two sources** (a shop's export and another app that recorded the same
+thing) is joined on import: a line whose `order_url` contains another source's order number
+(six characters or more) points at that line with `same_as`; when the order has several lines,
+the product key (`sku`) in the line's addresses picks one; with no order address, a product key
+named by exactly one other line is enough. Anything less certain is left unjoined. The line
+pointed at is the one linked; the joined line counts as settled, and its attachments and
+documents come with the line it joins.
 
 `ev show` lists a thing's purchases under `purchases` (each with `linked_qty`, without `linked`,
 `documents` or `raw`), and its `documents` include those of its purchases, marked
@@ -349,6 +358,10 @@ One JSON object per line; `type` is `purchase` (the default) or `document`.
   raw record).
 - `document`: `source`, `file`, `purchases` (keys of that source's lines), `kind` (default
   `invoice`), `number`, `ettn`, `issued`, `issuer`, `note`.
+- Attachments, hung on lines by `purchase` (one key) or `purchases`, brought to a thing with
+  `ev buy bring`: `link` (`url`, `kind`, `archive`, `note`), `valuation` (`amount`, `currency`,
+  `at`, `approximate`, `from`: where the figure came from, `note`), `coverage` (`kind`, `term`,
+  `from`, `ends`, `issuer`, `number`, `note`).
 
 Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
 outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`.

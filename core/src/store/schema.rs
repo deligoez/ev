@@ -341,3 +341,14 @@ UPDATE nodes SET lost = 1 WHERE parent_id IS NULL AND kind != 'home' AND state !
 PRAGMA user_version = 19;
 COMMIT;
 ";
+
+/// Schema 20: what a thing is beyond its name (purchases spec §3.1): its make, model and
+/// serial, read off its label, so a purchase can be matched by an exact key.
+pub(super) const SCHEMA_V20: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN make TEXT;
+ALTER TABLE nodes ADD COLUMN model TEXT;
+ALTER TABLE nodes ADD COLUMN serial TEXT;
+PRAGMA user_version = 20;
+COMMIT;
+";

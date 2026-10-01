@@ -20,6 +20,9 @@ pub(super) fn field_value(n: &Node, field: &str) -> Value {
         "owner" => json!(n.owner),
         "with" => json!(n.with),
         "temporary" => json!(n.temporary),
+        "make" => json!(n.make),
+        "model" => json!(n.model),
+        "serial" => json!(n.serial),
         _ => Value::Null,
     }
 }
@@ -177,7 +180,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 params![v, n.id],
             )?;
         }
-        "note" | "theme" => {
+        "note" | "theme" | "make" | "model" | "serial" => {
             conn.execute(
                 &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),
                 params![text(value), n.id],
@@ -262,7 +265,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary (how far a place is counted is `ev review`)"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, make, model, serial (how far a place is counted is `ev review`)"
             )));
         }
     }

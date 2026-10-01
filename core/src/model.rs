@@ -94,6 +94,10 @@ pub struct Node {
     pub temporary: bool,
     pub created_at: String,
     pub updated_at: String,
+    /// What it is beyond its name, read off its label (purchases spec §3.1).
+    pub make: Option<String>,
+    pub model: Option<String>,
+    pub serial: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -156,4 +160,10 @@ pub struct NewNode {
     pub owner: Option<String>,
     #[serde(default)]
     pub temporary: bool,
+    #[serde(default)]
+    pub make: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub serial: Option<String>,
 }

@@ -55,7 +55,7 @@ enum Cmd {
         #[arg(long)]
         depth: Option<usize>,
     },
-    /// Folded search over name, code, note, theme and tags.
+    /// Word search over name, code, make, model, serial, note, theme and tags: every word in any order, by stem, synonym or with a typo.
     Find {
         /// What to look for; may be left out with --tag or --kind, to list all of them.
         #[arg(default_value = "")]
@@ -67,7 +67,7 @@ enum Cmd {
         #[arg(long)]
         include_gone: bool,
     },
-    /// Change fields: name, code, kind, address, qty, note, theme, fill, tags=+x/-x, photos=+p/-p.
+    /// Change fields: name, code, kind, address, qty, note, theme, fill, make, model, serial, tags=+x/-x, photos=+p/-p.
     Edit {
         #[arg(required_unless_present = "stdin")]
         reference: Option<String>,
@@ -702,6 +702,15 @@ struct AddArgs {
     /// A parking place: what is put in it waits for its final place.
     #[arg(long)]
     temporary: bool,
+    /// Make, as on the label (Bosch).
+    #[arg(long)]
+    make: Option<String>,
+    /// Model, as on the label (GSB 13 RE).
+    #[arg(long)]
+    model: Option<String>,
+    /// Serial number, as on the label.
+    #[arg(long)]
+    serial: Option<String>,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,
@@ -1295,6 +1304,9 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         to: a.to,
         owner: a.owner,
         temporary: a.temporary,
+        make: a.make,
+        model: a.model,
+        serial: a.serial,
     })
 }
 

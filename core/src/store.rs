@@ -24,7 +24,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 19;
+pub const SCHEMA_VERSION: i64 = 20;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -33,7 +33,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), size, temporary";
+     (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -115,6 +115,9 @@ impl Inventory {
         }
         if version < 19 {
             conn.execute_batch(SCHEMA_V19)?;
+        }
+        if version < 20 {
+            conn.execute_batch(SCHEMA_V20)?;
         }
         let photo_dir = path
             .parent()
@@ -835,6 +838,9 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
                     to: r.get(18)?,
                     size: r.get(19)?,
                     temporary: r.get(20)?,
+                    make: r.get(21)?,
+                    model: r.get(22)?,
+                    serial: r.get(23)?,
                 })
             },
         )
@@ -1397,6 +1403,18 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     }
     if new.temporary {
         conn.execute("UPDATE nodes SET temporary = 1 WHERE id = ?1", [id])?;
+    }
+    for (column, text) in [
+        ("make", &new.make),
+        ("model", &new.model),
+        ("serial", &new.serial),
+    ] {
+        if let Some(t) = non_empty(text) {
+            conn.execute(
+                &format!("UPDATE nodes SET {column} = ?1 WHERE id = ?2"),
+                params![t, id],
+            )?;
+        }
     }
     for (column, text) in [("to_place", &new.to), ("owner_place", &new.owner)] {
         if let Some(t) = non_empty(text) {

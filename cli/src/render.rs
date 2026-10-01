@@ -232,6 +232,61 @@ fn need_line(n: &Value) -> String {
     format!("#{} {qty}{}{make}{for_}", n["id"], s(n, "text"))
 }
 
+/// A document's kind in the reader's language.
+fn doc_kind(k: &str) -> &str {
+    match k {
+        "invoice" => t("invoice"),
+        "warranty" => t("warranty certificate"),
+        "manual" => t("manual"),
+        "service" => t("service form"),
+        "appraisal" => t("appraisal"),
+        "policy" => t("policy"),
+        "other" => t("other document"),
+        other => other,
+    }
+}
+
+/// `#3 invoice  2024-05-03  Amazon  no 402-123  fatura.pdf — note`: what is known of it.
+pub(crate) fn doc_line(d: &Value) -> String {
+    let mut parts = vec![format!("#{} {}", d["id"], doc_kind(&s(d, "kind")))];
+    for k in ["issued_at", "issuer"] {
+        if let Some(x) = d[k].as_str() {
+            parts.push(x.to_string());
+        }
+    }
+    if let Some(n) = d["number"].as_str() {
+        parts.push(tf("no {}", &[&n]));
+    }
+    if let Some(n) = d["original_name"].as_str() {
+        parts.push(n.to_string());
+    }
+    let note = d["note"]
+        .as_str()
+        .map(|n| format!(" — {n}"))
+        .unwrap_or_default();
+    format!("{}{note}", parts.join("  "))
+}
+
+/// One document: its line, where its copy is, and what it belongs to.
+fn document(out: &mut String, v: &Value) {
+    let d = &v["document"];
+    let _ = writeln!(out, "{}", doc_line(d));
+    if v["existing"] == true {
+        let _ = writeln!(
+            out,
+            "  {}",
+            t("(already in the store; only new links were added)")
+        );
+    }
+    let _ = writeln!(out, "  {}: {}", t("file"), s(d, "file"));
+    if let Some(e) = d["ettn"].as_str() {
+        let _ = writeln!(out, "  ETTN: {e}");
+    }
+    for n in d["nodes"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  → #{} {}", n["id"], s(n, "path_text"));
+    }
+}
+
 fn todo(out: &mut String, v: &Value) {
     let c = &v["counts"];
     let _ = writeln!(
@@ -852,6 +907,32 @@ pub fn human(v: &Value) -> String {
         }
         for n in list {
             let _ = writeln!(out, "{}", need_line(n));
+        }
+        return out;
+    }
+    if v.get("document").is_some_and(Value::is_object) {
+        document(&mut out, v);
+        return out;
+    }
+    if let Some(list) = v.get("documents").and_then(Value::as_array)
+        && v.get("node").is_none()
+    {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(no documents)"));
+        }
+        for d in list {
+            let on = d["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| format!("#{}", n["id"]))
+                .collect::<Vec<_>>();
+            let on = if on.is_empty() {
+                String::new()
+            } else {
+                format!("  → {}", on.join(" "))
+            };
+            let _ = writeln!(out, "{}{on}", doc_line(d));
         }
         return out;
     }

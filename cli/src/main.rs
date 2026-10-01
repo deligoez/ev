@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
-use ev_core::{Disposition, Error, Inventory, Kind, NewNode, Result};
+use ev_core::{Disposition, Error, Inventory, Kind, NewDoc, NewNode, Result};
 use serde_json::Value;
 
 mod i18n;
@@ -283,6 +283,10 @@ enum Cmd {
     /// Things to buy or make.
     #[command(subcommand)]
     Need(NeedCmd),
+    /// Documents kept in ev's own store: invoices, warranty certificates, manuals, service forms,
+    /// appraisals, policies. `ev doc add <file> --kind invoice --for <ref>` copies the file in.
+    #[command(subcommand)]
+    Doc(DocCmd),
     /// A holder laid out in cells (a gridfinity drawer, a Kallax): show its map, or set its
     /// size — for several holders at once when they are alike (`ev grid K4x4-01 K4x4-02 …
     /// --cols 1 --rows 2`).
@@ -492,6 +496,43 @@ fn kit_parts(parts: &[String]) -> Result<Vec<(String, i64)>> {
         })
         .collect()
 }
+#[derive(Subcommand)]
+enum DocCmd {
+    /// Copy a file into the document store and link it to things; the same file again is the
+    /// same document, only the new links are added.
+    Add {
+        file: PathBuf,
+        /// invoice, warranty, manual, service, appraisal, policy or other.
+        #[arg(long)]
+        kind: String,
+        /// What it belongs to (repeatable).
+        #[arg(long = "for")]
+        for_refs: Vec<String>,
+        /// The document's number (invoice no, policy no).
+        #[arg(long)]
+        number: Option<String>,
+        /// An e-Archive invoice's UUID.
+        #[arg(long)]
+        ettn: Option<String>,
+        /// When it was issued: YYYY-MM-DD, YYYY-MM or YYYY.
+        #[arg(long)]
+        issued: Option<String>,
+        /// Who issued it (a shop, a brand, a service).
+        #[arg(long)]
+        issuer: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Every document, or those of one thing.
+    List { reference: Option<String> },
+    /// One document with what it belongs to.
+    Show { id: i64 },
+    /// Link a stored document to one more thing.
+    Link { id: i64, reference: String },
+    /// Take a document off a thing; it stays in the store.
+    Unlink { id: i64, reference: String },
+}
+
 #[derive(Subcommand)]
 enum NeedCmd {
     /// Something to buy (or --make, e.g. 3D print), optionally for a place.
@@ -1139,6 +1180,31 @@ fn run(cli: Cli) -> Result<Value> {
             note,
         }) => inv.need_add(&text, qty, make, for_ref.as_deref(), note.as_deref()),
         Cmd::Need(NeedCmd::List { all }) => inv.need_list(all),
+        Cmd::Doc(DocCmd::Add {
+            file,
+            kind,
+            for_refs,
+            number,
+            ettn,
+            issued,
+            issuer,
+            note,
+        }) => inv.doc_add(
+            &file,
+            &NewDoc {
+                kind,
+                number,
+                ettn,
+                issued,
+                issuer,
+                note,
+            },
+            &for_refs,
+        ),
+        Cmd::Doc(DocCmd::List { reference }) => inv.doc_list(reference.as_deref()),
+        Cmd::Doc(DocCmd::Show { id }) => inv.doc_show(id),
+        Cmd::Doc(DocCmd::Link { id, reference }) => inv.doc_link(id, &reference),
+        Cmd::Doc(DocCmd::Unlink { id, reference }) => inv.doc_unlink(id, &reference),
         Cmd::Need(NeedCmd::Got { id, note }) => inv.need_close(id, true, note.as_deref()),
         Cmd::Need(NeedCmd::Drop { id, note }) => inv.need_close(id, false, note.as_deref()),
         Cmd::Task(TaskCmd::Add { title, why, on, at }) => inv.task_add(&title, &why, &on, at),

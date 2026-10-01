@@ -58,7 +58,7 @@ one, its name otherwise.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents) and `purchases` (see Purchases) |
+| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage) |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
@@ -77,7 +77,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`), coverage_added and coverage_removed (`coverage`, `kind`), track (`subject`, `decision`, `why`).
 
 ## `ev ui`
 
@@ -135,6 +135,18 @@ of the preferred languages in System Settings, elsewhere the locale variables.
 Only the language part of the tag counts (`en-TR` is English); a language ev does not speak
 falls back to English. JSON output and error messages are always English. A running `ev ui`
 picks a change up within a second.
+
+The inventory's own settings live in its database (`spec/purchases.md` §3.8), read and set
+by name: `ev settings inventory` lists them with their values (`default` when unset), `ev
+settings <name> <value>` sets one.
+
+| Name | Default | Is |
+|---|---|---|
+| `home_country` | `TR` | the country whose price index money over time follows |
+| `home_currency` | `TRY` | the currency amounts are compared in |
+| `price_index` | `eurostat:TR` | the index series |
+| `valuable_threshold` | `1000` | from this much (home currency) a thing is valuable: its coverage is asked about |
+| `coverage_warning_days` | `60` | how close an end makes a coverage `ending` |
 ## Grids
 
 A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from the left, rows
@@ -341,6 +353,29 @@ One JSON object per line; `type` is `purchase` (the default) or `document`.
 Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
 outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`.
 
+## Coverage
+
+Warranties and insurance as one kind of record (`spec/purchases.md` §3.6). A coverage covers
+one or more things; its status is computed from its start and term, never stored.
+
+| Command | Payload |
+|---|---|
+| `ev cover add <ref>… --kind k [--term t] [--from f] [--ends d] [--usage u] [--issuer i] [--number n] [--premium p] [--deductible p] [--currency c] [--scope s] [--note t]` | `coverage`. `kind`: `statutory`, `manufacturer`, `extended`, `store`, `insurance`; `term`: `2y`, `18m`, `6w`, `90d` or `lifetime`; `from`: `delivery` (the default: the earliest delivery of the purchases linked to its things), a date, or `after:<id>` (starts when that coverage ends). A term or an end is required; an insurance needs an end or a time term. Recording one clears the things' own "do not track" decision on coverage |
+| `ev cover list [--ending]` | `coverages`; `--ending` only those within the warning window |
+| `ev cover show <id>` | `coverage`: the fields given, plus `start`, `end`, `days_left`, `status` (`active`, `ending`, `ended`, `undetermined` when no start can be known), `repair_days`, `nodes`, `documents` |
+| `ev cover remove <id>` | `removed`; for a coverage recorded by mistake. Its documents stay in the store |
+| `ev doc add <file> … --coverage <id>` | links the document to a coverage too (a warranty certificate, a policy) |
+| `ev track <ref> value\|coverage no\|later\|yes [--why t]` | the node, as `ev show`. `no` (do not track) and `later` (not now) close the question: `ev` never raises it again on its own. A decision on a holder covers everything in it, also what is put there later. `yes` clears it; recording the data clears it too |
+
+The end of a `statutory` or `manufacturer` coverage moves by the days its things spent broken
+(`ev broken` to `ev fixed`, or to today while still broken) after it started.
+
+`ev show` carries `coverages` (each without `nodes`), `coverage_proposal` (a durable linked
+purchase and no statutory coverage nor decision: `kind`, `term`, `start`, `end`, `why`; a
+proposal, never a record) and `tracking` (`value`, `coverage`: `decision`, `why`, `on`, the node
+the decision was made on). Events: `coverage_added`, `coverage_removed` (`coverage`, `kind`),
+`track` (`subject`, `decision`, `why`).
+
 ## Photos
 
 | Command | Does |
@@ -387,7 +422,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`) |
+| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`), `coverage_ending` (coverages within the warning window, each with `nodes`), `coverage` (`count` of valuable things — a durable linked purchase in the home currency from `valuable_threshold` — with no coverage and no decision, `threshold`, `currency`, `top`: the five dearest) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

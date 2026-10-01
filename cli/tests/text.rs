@@ -363,3 +363,42 @@ fn cover_add_states_the_term_and_status_and_show_lists_it() {
         "{settings}"
     );
 }
+
+#[test]
+fn money_imports_the_index_and_a_bought_thing_shows_its_price_in_todays_money() {
+    let h = Home::new();
+    h.run(
+        &[
+            "buy",
+            "add",
+            "Aktif buzzer 5V",
+            "--date",
+            "2024-05-16",
+            "--paid",
+            "439.12",
+            "--currency",
+            "TRY",
+            "--for",
+            "Aktif buzzer",
+        ],
+        None,
+    );
+    let imported = h.run(
+        &["--text", "money", "import", "--stdin"],
+        Some(
+            "{\"type\":\"index\",\"series\":\"eurostat:TR\",\"period\":\"2024-05\",\"value\":71.67}\n\
+             {\"type\":\"index\",\"series\":\"eurostat:TR\",\"period\":\"2026-08\",\"value\":134.76}\n",
+        ),
+    );
+    assert_eq!(imported, "2 index values, 0 rates imported\n");
+    let show = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        show.contains("439.12 TRY  ≈ 825.67 TRY in 2026-08 money\n"),
+        "{show}"
+    );
+    let status = h.text(&["money", "status"]);
+    assert!(
+        status.starts_with("eurostat:TR index: 2 periods, latest 2026-08"),
+        "{status}"
+    );
+}

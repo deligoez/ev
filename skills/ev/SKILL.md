@@ -269,6 +269,11 @@ purchase's delivery), offer it once; it is recorded only on a yes.
 with no coverage; ask about them while touring, dearest first. When the person says "don't
 track this" or "not now", record it with `ev track <ref> coverage|value no|later --why "…"`,
 on a whole box or drawer when they say so, and never bring it up again unless they ask.
+**Prices in today's money.** A bought thing shows `≈ <amount> in <month> money` when the index
+is cached; before quoting what something is worth, run `ev money status` and, if it is `stale`
+or rates are missing, pipe `ev money needs` through `tools/money/fetch.py` into
+`ev money import --stdin` (from the ev repository). Say which month's money a figure is in; it is the money's value, not the
+thing's resale price.
 
 ## Photos
 

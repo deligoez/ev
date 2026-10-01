@@ -996,6 +996,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "review": review,
         "observations": observations,
         "kits": crate::kits::kits_of(conn, id)?,
+        "documents": crate::docs::docs_of(conn, id)?,
     }))
 }
 

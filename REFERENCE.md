@@ -364,7 +364,12 @@ One JSON object per line; `type` is `purchase` (the default) or `document`.
   `from`, `ends`, `issuer`, `number`, `note`).
 
 Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
-outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`.
+outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`. There is one
+for each of AliExpress, Amazon.com.tr, Amazon.de, Decathlon, GittiGidiyor, Hepsiburada, idefix,
+IKEA, Kitapyurdu, n11, Robo90, Robotistan, sahibinden, Trendyol and Vivense, and `umr.py` reads
+Under My Roof's own store (a copy of it; the app's data is never written): each item becomes a
+line with its value, warranties and info link as attachments, and its receipts and attachments
+as documents.
 
 ## Coverage
 

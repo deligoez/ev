@@ -234,6 +234,14 @@ placed, the theme is set), remove it in the same step with `ev unobserve <id>` â
 keeps both. Before you call a place done, read its `observations` in `ev show <place>`; one
 left behind keeps coming back in `ev next` as work still to do.
 
+## Documents
+
+**An invoice, a warranty certificate or a manual the person shows goes into `ev doc add`,**
+linked to the thing: `ev doc add <file> --kind invoice --for <ref> --issued <date> --issuer
+<shop> [--number n]`. A photo of a paper invoice is a document, not a photo of the thing. The
+file is copied into `ev`'s store, so the original may be deleted. When a thing breaks or is
+sold, `ev show` lists its documents: read them out before the person goes looking.
+
 ## Photos
 
 **Name every part by where it is in the photo, every time.** "The transistors" or "the

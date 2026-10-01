@@ -520,7 +520,7 @@ fn todo(out: &mut String, v: &Value) {
             )
         );
         for n in cv["top"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "paid"), s(n, "currency"));
+            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "worth"), s(n, "currency"));
         }
     }
 }

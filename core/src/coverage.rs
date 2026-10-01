@@ -419,20 +419,49 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
         .optional()?
         .unwrap_or_else(|| "TRY".into());
     let at = threshold(conn)?;
+    // What each uncovered thing cost: its dearest linked durable line, in today's money when
+    // the index (and the rate, for another currency) is cached, else as paid when it was paid
+    // in the home currency (spec §3.9).
     let mut stmt = conn.prepare(
-        "SELECT l.node_id, MAX(p.paid * 1.0 / p.qty * l.qty) FROM purchases p
+        "SELECT l.node_id, p.paid * l.qty / p.qty, p.currency,
+                COALESCE(p.delivered_at, p.ordered_at)
+           FROM purchases p
            JOIN purchase_links l ON l.purchase_id = p.id
            JOIN nodes n ON n.id = l.node_id
           WHERE n.state != 'gone' AND p.bucket = 'durable' AND p.paid IS NOT NULL
-            AND COALESCE(p.currency, ?1) = ?1
-            AND NOT EXISTS (SELECT 1 FROM coverage_nodes c WHERE c.node_id = l.node_id)
-          GROUP BY l.node_id",
+            AND NOT EXISTS (SELECT 1 FROM coverage_nodes c WHERE c.node_id = l.node_id)",
     )?;
     let rows = stmt
-        .query_map([&home], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, f64>(1)?)))?
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<String>>(3)?,
+            ))
+        })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut worth: std::collections::BTreeMap<i64, f64> = std::collections::BTreeMap::new();
+    for (node, paid, currency, date) in rows {
+        let today = crate::money::today_money(conn, paid, currency.as_deref(), date.as_deref())?
+            .and_then(|t| t["amount"].as_str().and_then(|a| parse_money(a).ok()));
+        let v = match today {
+            Some(t) => Some(t),
+            None if currency
+                .as_deref()
+                .is_none_or(|c| c.eq_ignore_ascii_case(&home)) =>
+            {
+                Some(paid)
+            }
+            None => None,
+        };
+        if let Some(v) = v {
+            let e = worth.entry(node).or_insert(0.0);
+            *e = e.max(v as f64);
+        }
+    }
     let mut open = Vec::new();
-    for (node, paid) in rows {
+    for (node, paid) in worth {
         if paid >= at as f64 && decision(conn, node, "coverage")?.is_none() {
             open.push((paid, node));
         }
@@ -444,7 +473,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
         .map(|(paid, n)| {
             let mut v = serde_json::to_value(brief(conn, *n)?)
                 .map_err(|e| Error::Internal(e.to_string()))?;
-            v["paid"] = json!(money(*paid as i64));
+            v["worth"] = json!(money(*paid as i64));
             v["currency"] = json!(home);
             Ok(v)
         })

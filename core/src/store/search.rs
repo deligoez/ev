@@ -1,8 +1,9 @@
 //! Free-text search behind `ev find` and the UI's `/`. Every word of the query has to turn up
-//! somewhere on the record — name, code, tags, theme or note — in any order. A word counts when
-//! it appears as written, when one of its Turkish stems starts a word there (`kırmızılar` finds
-//! `kırmızı`), or when a synonym group names it. Only a word that meets nothing at all that way
-//! is tried again with a typo or two (`kirmzi`), so a correct word never drags in look-alikes.
+//! somewhere on the record — name, code, make, model, serial, tags, theme or note — in any
+//! order. A word counts when it appears as written, when one of its Turkish stems starts a word
+//! there (`kırmızılar` finds `kırmızı`), or when a synonym group names it. Only a word that
+//! meets nothing at all that way is tried again with a typo or two (`kirmzi`), so a correct word
+//! never drags in look-alikes.
 
 use rusqlite::Connection;
 
@@ -101,6 +102,13 @@ impl Query {
 fn fields(n: &Node) -> Vec<(f64, String)> {
     let mut out = vec![(NAME, fold(&n.name))];
     out.extend(n.code.iter().map(|c| (CODE, fold(c))));
+    // Make, model and serial are read off the label: as telling as the code.
+    out.extend(
+        [&n.make, &n.model, &n.serial]
+            .into_iter()
+            .flatten()
+            .map(|t| (CODE, fold(t))),
+    );
     out.extend(n.tags.iter().map(|t| (TAG, fold(t))));
     out.extend(n.theme.iter().map(|t| (THEME, fold(t))));
     out.extend(n.note.iter().map(|t| (NOTE, fold(t))));

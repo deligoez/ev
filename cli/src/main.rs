@@ -287,6 +287,20 @@ enum Cmd {
     /// appraisals, policies. `ev doc add <file> --kind invoice --for <ref>` copies the file in.
     #[command(subcommand)]
     Doc(DocCmd),
+    /// Warranties and insurance (coverage), with a computed status: `ev cover add <ref> --kind
+    /// manufacturer --term 2y`; `ev cover list --ending`.
+    #[command(subcommand)]
+    Cover(CoverCmd),
+    /// Close or reopen a tracked question about a thing: `ev track <ref> value|coverage
+    /// no|later|yes [--why …]`. `no` and `later` are never raised again by ev on its own; a
+    /// decision on a holder covers what is in it.
+    Track {
+        reference: String,
+        subject: String,
+        decision: String,
+        #[arg(long)]
+        why: Option<String>,
+    },
     /// Purchases: lines of what was bought, linked to things on the person's word. A line never
     /// creates a thing. `ev buy import` takes an adapter's NDJSON; `ev buy add` one by hand.
     #[command(subcommand)]
@@ -500,6 +514,60 @@ fn kit_parts(parts: &[String]) -> Result<Vec<(String, i64)>> {
         })
         .collect()
 }
+#[derive(Args)]
+struct CoverAddArgs {
+    #[arg(required = true)]
+    references: Vec<String>,
+    /// statutory, manufacturer, extended, store or insurance.
+    #[arg(long)]
+    kind: String,
+    /// 2y, 18m, 6w, 90d or lifetime.
+    #[arg(long)]
+    term: Option<String>,
+    /// When it starts: delivery (the default: the linked purchase's), a date, or
+    /// after:<coverage id> (an extended warranty after the manufacturer's).
+    #[arg(long)]
+    from: Option<String>,
+    /// An explicit end date (an insurance policy's).
+    #[arg(long)]
+    ends: Option<String>,
+    /// A usage limit beside the time term: 5000 h, 60000 km.
+    #[arg(long)]
+    usage: Option<String>,
+    /// Brand, importer, distributor or insurer.
+    #[arg(long)]
+    issuer: Option<String>,
+    /// The warranty or policy number.
+    #[arg(long)]
+    number: Option<String>,
+    #[arg(long)]
+    premium: Option<String>,
+    #[arg(long)]
+    deductible: Option<String>,
+    #[arg(long)]
+    currency: Option<String>,
+    /// What an insurance covers: screen breakage, theft.
+    #[arg(long)]
+    scope: Option<String>,
+    #[arg(long)]
+    note: Option<String>,
+}
+
+#[derive(Subcommand)]
+enum CoverCmd {
+    /// A warranty or an insurance for one or more things.
+    Add(Box<CoverAddArgs>),
+    /// Every coverage; --ending only those ending within the warning window.
+    List {
+        #[arg(long)]
+        ending: bool,
+    },
+    /// One coverage with its things, documents and status.
+    Show { id: i64 },
+    /// Remove a coverage recorded by mistake; its documents stay.
+    Remove { id: i64 },
+}
+
 #[derive(Subcommand)]
 enum BuyCmd {
     /// Import an adapter's NDJSON (`purchase` and `document` lines); importing the same lines
@@ -1324,6 +1392,35 @@ fn run(cli: Cli) -> Result<Value> {
             shop,
             since,
         }) => inv.buy_list(open, bucket.as_deref(), shop.as_deref(), since.as_deref()),
+        Cmd::Cover(CoverCmd::Add(a)) => {
+            let a = *a;
+            inv.cover_add(
+                &a.references,
+                &ev_core::NewCoverage {
+                    kind: a.kind,
+                    issuer: a.issuer,
+                    number: a.number,
+                    from: a.from,
+                    term: a.term,
+                    usage: a.usage,
+                    ends: a.ends,
+                    premium: a.premium,
+                    deductible: a.deductible,
+                    currency: a.currency,
+                    scope: a.scope,
+                    note: a.note,
+                },
+            )
+        }
+        Cmd::Cover(CoverCmd::List { ending }) => inv.cover_list(ending),
+        Cmd::Cover(CoverCmd::Show { id }) => inv.cover_show(id),
+        Cmd::Cover(CoverCmd::Remove { id }) => inv.cover_remove(id),
+        Cmd::Track {
+            reference,
+            subject,
+            decision,
+            why,
+        } => inv.track(&reference, &subject, &decision, why.as_deref()),
         Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
         Cmd::Buy(BuyCmd::For { reference }) => inv.buy_for(&reference),
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),

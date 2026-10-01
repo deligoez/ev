@@ -501,6 +501,78 @@ fn todo(out: &mut String, v: &Value) {
             let _ = writeln!(out, "  {}", line(&m["node"]));
         }
     }
+    if head(out, t("Coverage ending"), &c["coverage_ending"]) {
+        for cv in v["coverage_ending"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", coverage_line(cv));
+            for n in cv["nodes"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "    {}", line(n));
+            }
+        }
+    }
+    if head(out, t("Coverage not asked"), &c["coverage"]) {
+        let cv = &v["coverage"];
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "valuable things (from {} {}) with no warranty or insurance recorded; the dearest:",
+                &[&s(cv, "threshold"), &s(cv, "currency")]
+            )
+        );
+        for n in cv["top"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "paid"), s(n, "currency"));
+        }
+    }
+}
+
+/// A coverage's status in the reader's language, with the days left when it ends soon.
+fn coverage_status(cv: &Value) -> String {
+    match cv["status"].as_str().unwrap_or_default() {
+        "active" if cv["end"].is_null() => t("active, lifetime").to_string(),
+        "active" => tf("active until {}", &[&s(cv, "end")]),
+        "ending" => tf("ends {} ({} days left)", &[&s(cv, "end"), &cv["days_left"]]),
+        "ended" => tf("ended {}", &[&s(cv, "end")]),
+        _ => t("undetermined: no start known").to_string(),
+    }
+}
+
+/// `#3 manufacturer  Bosch  2 years from delivery  active until 2026-05-03`.
+pub(crate) fn coverage_line(cv: &Value) -> String {
+    let kind = match cv["kind"].as_str().unwrap_or_default() {
+        "statutory" => t("statutory warranty"),
+        "manufacturer" => t("manufacturer warranty"),
+        "extended" => t("extended warranty"),
+        "store" => t("store warranty"),
+        "insurance" => t("insurance"),
+        other => other,
+    };
+    let mut parts = vec![format!("#{} {kind}", cv["id"])];
+    for k in ["issuer", "number", "term", "usage"] {
+        if let Some(x) = cv[k].as_str() {
+            parts.push(x.to_string());
+        }
+    }
+    if let Some(r) = cv["repair_days"].as_i64() {
+        parts.push(tf("+{} days in repair", &[&r]));
+    }
+    parts.push(coverage_status(cv));
+    parts.join("  ")
+}
+
+/// One coverage: its line, what it covers, its documents.
+fn coverage(out: &mut String, cv: &Value) {
+    let _ = writeln!(out, "{}", coverage_line(cv));
+    for (k, label) in [("scope", t("scope")), ("note", t("note"))] {
+        if let Some(x) = cv[k].as_str() {
+            let _ = writeln!(out, "  {label}: {x}");
+        }
+    }
+    for n in cv["nodes"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  → #{} {}", n["id"], s(n, "path_text"));
+    }
+    for d in cv["documents"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
+    }
 }
 
 /// A grid as text: a header of column letters, then one line per row from the back, each cell
@@ -1025,6 +1097,36 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("purchase").is_some_and(Value::is_object) {
         purchase(&mut out, &v["purchase"]);
+        return out;
+    }
+    if v.get("coverage").is_some_and(|c| c.get("status").is_some()) {
+        coverage(&mut out, &v["coverage"]);
+        return out;
+    }
+    if let Some(list) = v.get("coverages").and_then(Value::as_array)
+        && v.get("node").is_none()
+    {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(no coverage)"));
+        }
+        for cv in list {
+            let _ = writeln!(out, "{}", coverage_line(cv));
+        }
+        return out;
+    }
+    if let Some(r) = v.get("removed") {
+        let _ = writeln!(out, "{}", tf("coverage #{} removed", &[r]));
+        return out;
+    }
+    if let Some(o) = v.get("inventory_settings").and_then(Value::as_object) {
+        for (k, x) in o {
+            let default = if x["default"] == true {
+                format!("  {}", t("(default)"))
+            } else {
+                String::new()
+            };
+            let _ = writeln!(out, "{k}: {}{default}", s(x, "value"));
+        }
         return out;
     }
     if let Some(list) = v.get("candidates") {
@@ -1587,6 +1689,38 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     }
     for d in v["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
+    }
+    for cv in v["coverages"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("coverage"), coverage_line(cv));
+    }
+    if let Some(p) = v.get("coverage_proposal").filter(|p| p.is_object()) {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "proposed: statutory warranty until {} (2 years from delivery {}), not recorded",
+                &[&s(p, "end"), &s(p, "start")]
+            )
+        );
+    }
+    for (subject, label) in [("value", t("value")), ("coverage", t("coverage"))] {
+        let d = &v["tracking"][subject];
+        if d.is_object() {
+            let what = match d["decision"].as_str() {
+                Some("later") => t("not now"),
+                _ => t("not tracked"),
+            };
+            let inherited = if d["on"] == node["id"] {
+                String::new()
+            } else {
+                tf("  (via #{})", &[&d["on"]])
+            };
+            let why = d["why"]
+                .as_str()
+                .map(|w| format!(" — {w}"))
+                .unwrap_or_default();
+            let _ = writeln!(out, "  {label}: {what}{why}{inherited}");
+        }
     }
     for t_ in v["tasks"].as_array().into_iter().flatten() {
         let via = if t_["via"] == node["id"] {

@@ -185,9 +185,10 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
                 .filter(|v| v.len() == 1)
                 .map(|v| v[0]),
             0 => None,
-            _ => Some(by_product(&by_order)?)
-                .filter(|v| v.len() == 1)
-                .map(|v| v[0]),
+            _ => match by_product(&by_order)?.as_slice() {
+                [one] => Some(*one),
+                _ => by_name(conn, id, &by_order)?,
+            },
         };
         if let Some(t) = target.filter(|t| *t != id) {
             conn.execute(
@@ -198,6 +199,38 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
         }
     }
     Ok(joined)
+}
+
+fn words(s: &str) -> std::collections::HashSet<String> {
+    crate::fold(s)
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() >= 3)
+        .map(str::to_string)
+        .collect()
+}
+
+/// Among an order's lines, the one whose name shares clearly the most words with this line's:
+/// at least two, and more than any other line shares.
+fn by_name(conn: &Connection, id: i64, among: &[i64]) -> Result<Option<i64>> {
+    let name_of = |p: i64| -> Result<String> {
+        Ok(
+            conn.query_row("SELECT name FROM purchases WHERE id = ?1", [p], |r| {
+                r.get(0)
+            })?,
+        )
+    };
+    let mine = words(&name_of(id)?);
+    let mut scored = among
+        .iter()
+        .map(|&p| Ok((words(&name_of(p)?).intersection(&mine).count(), p)))
+        .collect::<Result<Vec<_>>>()?;
+    scored.sort_by_key(|a| std::cmp::Reverse(a.0));
+    Ok(match scored.as_slice() {
+        [(best, p), rest @ ..] if *best >= 2 && rest.first().is_none_or(|(n, _)| n < best) => {
+            Some(*p)
+        }
+        _ => None,
+    })
 }
 
 impl Inventory {

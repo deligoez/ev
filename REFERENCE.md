@@ -370,6 +370,29 @@ one or more things; its status is computed from its start and term, never stored
 The end of a `statutory` or `manufacturer` coverage moves by the days its things spent broken
 (`ev broken` to `ev fixed`, or to today while still broken) after it started.
 
+`ev show` carries `coverages` (each without `nodes`), `coverage_proposal` (a durable linked
+purchase and no statutory coverage nor decision: `kind`, `term`, `start`, `end`, `why`; a
+proposal, never a record) and `tracking` (`value`, `coverage`: `decision`, `why`, `on`, the node
+the decision was made on). Events: `coverage_added`, `coverage_removed` (`coverage`, `kind`),
+`track` (`subject`, `decision`, `why`).
+
+## Values and links
+
+What a thing is worth is a dated observation (`spec/purchases.md` §3.3): a second-hand listing,
+a shop's price, an appraisal. The latest is the current value; the purchase price is never one.
+A link (§3.4) keeps an archive for when its page dies.
+
+| Command | Payload |
+|---|---|
+| `ev value <ref> [<amount>] [--currency c] [--at d] [--source s] [--note t] [--approximate]` | `node`, `added` (the new observation's id, or null), `valuations`: newest first, each `id`, `amount`, `currency` (the home one by default), `at` (today by default), `approximate` (the date is a guess), `source`, `note`, `today` (as for a purchase). Recording one clears the thing's own "do not track" decision on value |
+| `ev value <ref> --remove <id>` | the same; for an observation recorded by mistake |
+| `ev link add <ref> <url> [--kind k] [--archive a] [--note t]` | `node`, `links`. `kind`: `info` (the default), `manual`, `support`, `driver`, `other`. `archive`: a saved file, copied into the document store, or a web address (a Wayback Machine copy). The same address again on the same thing updates its kind, archive and note |
+| `ev link list <ref>` | `node`, `links`: each `id`, `kind`, `url`, `archive`, `note`, `added_at` |
+| `ev link remove <id>` | `node`, `links` |
+
+`ev show` and the details in `ev ui` carry `valuations` (the first is the current value) and
+`links`.
+
 ## Money over time
 
 A purchase price in today's money (`spec/purchases.md` §3.9). One country per inventory: an
@@ -392,12 +415,6 @@ A purchase in `ev buy show`, and each in `ev show`'s `purchases` (for the linked
 `today` when it can be computed: `amount`, `currency` (home), `index`, `index_month`; for a foreign
 currency also `rate`, `rate_day`, `in_home_then`. The valuable count in `ev todo` uses it, falling
 back to the price paid in the home currency.
-
-`ev show` carries `coverages` (each without `nodes`), `coverage_proposal` (a durable linked
-purchase and no statutory coverage nor decision: `kind`, `term`, `start`, `end`, `why`; a
-proposal, never a record) and `tracking` (`value`, `coverage`: `decision`, `why`, `on`, the node
-the decision was made on). Events: `coverage_added`, `coverage_removed` (`coverage`, `kind`),
-`track` (`subject`, `decision`, `why`).
 
 ## Photos
 
@@ -445,7 +462,7 @@ title.
 
 | Command | Does |
 |---|---|
-| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`), `coverage_ending` (coverages within the warning window, each with `nodes`), `coverage` (`count` of valuable things — a durable linked purchase in the home currency from `valuable_threshold` — with no coverage and no decision, `threshold`, `currency`, `top`: the five dearest, each with `worth`, in today's money when the index is cached) |
+| `ev todo` | `goal`, `progress` (as in `ev next`), `counts` and lists: `tasks`, `moves`, `errands`, `disposals` (sell entries carry `sale`), `labels`, `needs`, `repairs`, `expiring` (`expires`, `days_left`), `lost`, `uncounted` (places not counted yet or being counted, from `ev progress`), `parked` (things waiting for their final place: put straight into a `temporary` place, or marked `temporary` themselves, each with `in`), `stale` (organize only), `unclear` (names containing "belirsiz", "muhtemelen" or "?"), `shared_photos` (a whole photo attached to several live nodes, with `nodes`), `photos` (units with contents and no photo of their own, `photo_reason: none`, or whose contents changed after it, `changed` with `photo_at` and `changed_at`; a move out counts; a crop attached to the place itself counts as its photo, crops on the things inside do not; a holder with a grid is checked too, since its photo is what its boxes' crops are cut from, and carries `grid: true`), `coverage_ending` (coverages within the warning window, each with `nodes`), `coverage` (`count` of valuable things — a durable linked purchase in the home currency from `valuable_threshold` — with no coverage and no decision, `threshold`, `currency`, `top`: the five dearest, each with `worth`, in today's money when the index is cached), `values` (`count` of things with a durable linked purchase and no value nor decision, `currency`, `top`: the five dearest, as for `coverage`); `counts.purchases` is the number of open durable purchase lines (nothing linked yet, not dismissed, not joined to another line) |
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |

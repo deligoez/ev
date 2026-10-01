@@ -484,7 +484,7 @@ title.
 | `ev label` | codes whose label still has to be printed; `ev label <ref>…` marks them printed, `--needed` marks them needed again. Setting or changing a code marks it needed |
 | `ev broken <ref> [--note t]` / `ev fixed <ref>` | broken, and what is wrong / repaired |
 | `ev expires <ref> <YYYY-MM-DD\|YYYY-MM>` / `--clear` | use-by date; `todo` shows it within 60 days or past |
-| `ev sale <ref> --listed\|--reserved [--price n] [--where t]` / `--clear` | where a sale stands; only for a sell candidate; price and place carry over when not repeated |
+| `ev sale <ref> --listed\|--reserved [--price n] [--where t] [--condition c]` / `--clear` | where a sale stands; only for a sell candidate; price and place carry over when not repeated. `--condition` (`new`, `like-new`, `used`) is what the buyer is told, kept as the `condition` mark; the only place a condition is recorded. `--clear` drops both |
 | `ev need add "<text>" [--qty n] [--make] [--for ref] [--note t]` | something to buy (or make, e.g. 3D print) |
 | `ev need list [--all]` · `ev need got <id>` · `ev need drop <id>` | open needs; close one |
 

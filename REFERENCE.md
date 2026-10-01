@@ -11,6 +11,7 @@
 | address | `--address`, `edit address=` | homes only |
 | qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
 | note, theme | `--note`, `--theme`, `edit note=` | empty clears |
+| make, model, serial | `--make`, `--model`, `--serial`, `edit make=` | what the thing is beyond its name, as on its label (`make=Bosch model=GSB 13 RE`); searched by `ev find` as strongly as a code; empty clears |
 | fill | `--fill`, `edit fill=` | 0–100 estimate |
 | size | `--size`, `edit size=` | `WxDxH` or `WxD` in grid units, e.g. `1x2x0.5` (`×` and a decimal comma accepted); empty clears. What `regroup` compares when it offers a bigger spare box |
 | tags | `--tag` (repeatable), `edit tags=+x` / `tags=-x` | stored lowercase |
@@ -26,7 +27,7 @@
 
 One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `code`,
 `address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`,
-`temporary`) plus optional `key`.
+`temporary`, `make`, `model`, `serial`) plus optional `key`.
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
 ## Edit lines (`ev edit --stdin`)

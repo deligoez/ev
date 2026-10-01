@@ -402,3 +402,47 @@ fn money_imports_the_index_and_a_bought_thing_shows_its_price_in_todays_money() 
         "{status}"
     );
 }
+
+#[test]
+fn value_and_link_show_on_the_thing_with_the_latest_value_first() {
+    let h = Home::new();
+    h.run(
+        &[
+            "value",
+            "Aktif buzzer",
+            "40",
+            "--at",
+            "2025-01-10",
+            "--source",
+            "ilan",
+        ],
+        None,
+    );
+    let v = h.text(&["value", "Aktif buzzer", "55", "--at", "2026-09-01"]);
+    assert_eq!(
+        v,
+        "#7 Ev › Oda › D › D-B1 › Aktif buzzer\n  #2  2026-09-01  55.00 TRY\n  \
+         #1  2025-01-10  40.00 TRY  ilan\n"
+    );
+    let l = h.text(&[
+        "link",
+        "add",
+        "Aktif buzzer",
+        "https://example.com/buzzer",
+        "--archive",
+        "https://web.archive.org/web/2024/https://example.com/buzzer",
+    ]);
+    assert!(
+        l.contains("  #1 info page  https://example.com/buzzer  archive: https://web.archive.org/"),
+        "{l}"
+    );
+    let show = h.text(&["show", "Aktif buzzer"]);
+    assert!(
+        show.contains("\n  value: #2  2026-09-01  55.00 TRY  (+1 earlier)\n"),
+        "{show}"
+    );
+    assert!(
+        show.contains("\n  link: #1 info page  https://example.com/buzzer"),
+        "{show}"
+    );
+}

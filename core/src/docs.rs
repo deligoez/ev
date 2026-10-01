@@ -125,6 +125,7 @@ pub(crate) fn docs_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
          SELECT d.id, MIN(pl.purchase_id) FROM documents d
            JOIN document_links l ON l.document_id = d.id AND l.target = 'purchase'
            JOIN purchase_links pl ON pl.purchase_id = l.target_id
+             OR l.target_id IN (SELECT id FROM purchases WHERE same_as = pl.purchase_id)
           WHERE pl.node_id = ?1
             AND d.id NOT IN (SELECT document_id FROM document_links
                               WHERE target = 'node' AND target_id = ?1)

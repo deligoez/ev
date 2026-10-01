@@ -200,6 +200,21 @@ walked box by box. The pane scrolls (`J`/`K`, the wheel). Drag the divider betwe
 the details, or under the photo, to resize (`<` `>` `{` `}` from the keyboard, a double click
 resets); the sizes and the tab are kept.
 
+**What it cost, what proves it, what still covers it.** A thing carries its make, model and
+serial (`ev edit X make=Bosch model="GSB 13 RE"`), searched like a code. Invoices, manuals and
+policies are copied into the store (`ev doc add invoice.pdf --kind invoice --for X`).
+Purchases are a list of their own, never things in the tree: an adapter turns a shop's saved
+export into lines (`tools/purchases/<shop>.py | ev buy import --stdin`; fifteen shops and
+Under My Roof), and a line is linked to a thing only on the person's word (`ev buy link`).
+`ev add` and `ev split` offer the purchases a new record could be, with the reasons; one
+purchase seen by two sources is joined; what came with a line (a link, a value, a warranty)
+comes along with `ev buy bring`. Warranties and insurance have a computed status
+(`ev cover add X --kind manufacturer --term 2y`; repair time extends it), values are dated
+observations (`ev value X 2500 --source "listing"`), links keep an archive copy
+(`ev link add X <url> --archive page.html`), and "don't track this" or "not now" is never asked
+again (`ev track X coverage no`). A price shows in today's money: `ev money needs`, piped
+through `tools/money/fetch.py` into `ev money import --stdin`, caches the official price index
+and exchange rates, so `ev` itself stays offline.
 **English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with
 `ev settings language en|tr|auto`. The appearance follows the terminal's light or dark
@@ -214,6 +229,7 @@ live in `~/.ev/settings.json`, outside the database; JSON output stays English.
 - `REFERENCE.md` — every command, field, key and payload shape
 - `skills/ev/SKILL.md` — how an agent should use it in conversation
 - `spec/0.1.0.md` — the decisions behind the model
+- `spec/purchases.md` — what a thing cost, what proves it, what still covers it
 - `release-notes/` — what changed in each version; `next.md` is the draft of the coming one
 - `BUGS.md` — rough edges found in use, fixed in batches
 

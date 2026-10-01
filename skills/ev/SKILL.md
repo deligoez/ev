@@ -251,6 +251,11 @@ bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`.
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
 returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
 your own reading of a name; ask.
+**When `ev add` prints "Could be one of these purchases", ask about the first one while the
+thing is in hand** ("is this the one bought from <shop> on <date>?"); on a yes, `ev buy link`,
+and offer the line's make and model when the record has none. `ev buy for <ref>` ranks lines
+for a record added earlier. The reasons say why: a shared model code is strong, shared words
+are weak.
 
 ## Photos
 

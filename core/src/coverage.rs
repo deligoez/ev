@@ -398,10 +398,10 @@ pub(crate) fn threshold(conn: &Connection) -> Result<i64> {
     Ok(v.and_then(|v| parse_money(&v).ok()).unwrap_or(100_000))
 }
 
-/// For `ev todo`: coverages ending within the warning window, one each, and valuable things
-/// with no coverage and no decision, as a count with the five dearest. A purchase counts
-/// towards the threshold in the home currency only, until money over time converts it.
-pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
+/// For `ev todo`: coverages ending within the warning window, one each; valuable things with no
+/// coverage and no decision, and bought things with no value and no decision, each as a count
+/// with the five dearest; and the open purchase lines, as a count.
+pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
     let warning = warning_days(conn)?;
     let ending = ids(conn, "SELECT id FROM coverages ORDER BY id", [])?
         .into_iter()
@@ -428,8 +428,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
            FROM purchases p
            JOIN purchase_links l ON l.purchase_id = p.id
            JOIN nodes n ON n.id = l.node_id
-          WHERE n.state != 'gone' AND p.bucket = 'durable' AND p.paid IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM coverage_nodes c WHERE c.node_id = l.node_id)",
+          WHERE n.state != 'gone' AND p.bucket = 'durable' AND p.paid IS NOT NULL",
     )?;
     let rows = stmt
         .query_map([], |r| {
@@ -460,28 +459,72 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<(Vec<Value>, Value)> {
             *e = e.max(v as f64);
         }
     }
-    let mut open = Vec::new();
+    let exists = |sql: &str, node: i64| -> Result<bool> {
+        Ok(conn.query_row(sql, [node], |r| r.get::<_, i64>(0))? > 0)
+    };
+    let (mut uncovered, mut unvalued) = (Vec::new(), Vec::new());
     for (node, paid) in worth {
-        if paid >= at as f64 && decision(conn, node, "coverage")?.is_none() {
-            open.push((paid, node));
+        if paid >= at as f64
+            && !exists(
+                "SELECT COUNT(*) FROM coverage_nodes WHERE node_id = ?1",
+                node,
+            )?
+            && decision(conn, node, "coverage")?.is_none()
+        {
+            uncovered.push((paid, node));
+        }
+        if !exists("SELECT COUNT(*) FROM valuations WHERE node_id = ?1", node)?
+            && decision(conn, node, "value")?.is_none()
+        {
+            unvalued.push((paid, node));
         }
     }
-    open.sort_by(|a, b| b.0.total_cmp(&a.0));
-    let top = open
-        .iter()
-        .take(5)
-        .map(|(paid, n)| {
-            let mut v = serde_json::to_value(brief(conn, *n)?)
-                .map_err(|e| Error::Internal(e.to_string()))?;
-            v["worth"] = json!(money(*paid as i64));
-            v["currency"] = json!(home);
-            Ok(v)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok((
+    let summary = |mut open: Vec<(f64, i64)>, extra: Value| -> Result<Value> {
+        open.sort_by(|a, b| b.0.total_cmp(&a.0));
+        let top = open
+            .iter()
+            .take(5)
+            .map(|(paid, n)| {
+                let mut v = serde_json::to_value(brief(conn, *n)?)
+                    .map_err(|e| Error::Internal(e.to_string()))?;
+                v["worth"] = json!(money(*paid as i64));
+                v["currency"] = json!(home);
+                Ok(v)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut v = json!({ "count": open.len(), "currency": home, "top": top });
+        if let (Some(o), Some(e)) = (v.as_object_mut(), extra.as_object()) {
+            o.extend(e.clone());
+        }
+        Ok(v)
+    };
+    Ok(TodoParts {
         ending,
-        json!({ "count": open.len(), "threshold": money(at), "currency": home, "top": top }),
-    ))
+        coverage: summary(uncovered, json!({ "threshold": money(at) }))?,
+        values: summary(unvalued, json!({}))?,
+        purchases: open_purchases(conn)?,
+    })
+}
+
+/// Open durable purchase lines: something left to link, not dismissed, not the second sight of
+/// another line (spec §4.3).
+fn open_purchases(conn: &Connection) -> Result<i64> {
+    Ok(conn.query_row(
+        "SELECT COUNT(*) FROM purchases p
+          WHERE p.bucket = 'durable' AND p.status = 'delivered' AND p.dismissed IS NULL
+            AND p.same_as IS NULL
+            AND p.qty > COALESCE((SELECT SUM(qty) FROM purchase_links WHERE purchase_id = p.id), 0)",
+        [],
+        |r| r.get(0),
+    )?)
+}
+
+/// What the coverage and value subjects add to `ev todo`.
+pub(crate) struct TodoParts {
+    pub ending: Vec<Value>,
+    pub coverage: Value,
+    pub values: Value,
+    pub purchases: i64,
 }
 
 pub(crate) fn clear_decision(conn: &Connection, node: i64, subject: &str) -> Result<()> {

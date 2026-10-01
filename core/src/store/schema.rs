@@ -380,3 +380,56 @@ CREATE INDEX document_links_target ON document_links(target, target_id);
 PRAGMA user_version = 21;
 COMMIT;
 ";
+
+/// Schema 22: purchases (purchases spec §3.2), lines of what was bought, linked to things on
+/// the person's word; a product linked once is remembered for its next purchase. Amounts are in
+/// minor units (kuruş, cents).
+pub(super) const SCHEMA_V22: &str = "
+BEGIN;
+CREATE TABLE purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    source_key TEXT NOT NULL,
+    shop TEXT,
+    merchant TEXT,
+    order_no TEXT,
+    order_url TEXT,
+    product_url TEXT,
+    shop_sku TEXT,
+    name TEXT NOT NULL,
+    brand TEXT,
+    category TEXT,
+    ordered_at TEXT,
+    delivered_at TEXT,
+    qty INTEGER NOT NULL DEFAULT 1,
+    paid INTEGER,
+    currency TEXT,
+    billed_to TEXT,
+    status TEXT NOT NULL DEFAULT 'delivered',
+    bucket TEXT NOT NULL DEFAULT 'durable',
+    dismissed TEXT,
+    why TEXT,
+    raw TEXT,
+    same_as INTEGER REFERENCES purchases(id),
+    imported_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (source, source_key)
+);
+CREATE TABLE purchase_links (
+    purchase_id INTEGER NOT NULL REFERENCES purchases(id),
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    qty INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (purchase_id, node_id)
+);
+CREATE INDEX purchase_links_node ON purchase_links(node_id);
+CREATE TABLE purchase_aliases (
+    shop TEXT NOT NULL,
+    shop_sku TEXT NOT NULL,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    at TEXT NOT NULL,
+    PRIMARY KEY (shop, shop_sku, node_id)
+);
+PRAGMA user_version = 22;
+COMMIT;
+";

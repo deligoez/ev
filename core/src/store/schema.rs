@@ -491,3 +491,42 @@ CREATE TABLE fx_rates (
 PRAGMA user_version = 24;
 COMMIT;
 ";
+
+/// Schema 25: what a thing is worth (dated observations, never the purchase price), its links
+/// with an archive copy, and what an adapter hangs on a purchase line for the thing it becomes
+/// (purchases spec §3.3, §3.4, §6).
+pub(super) const SCHEMA_V25: &str = "
+BEGIN;
+CREATE TABLE valuations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    amount INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    at TEXT NOT NULL,
+    approximate INTEGER NOT NULL DEFAULT 0,
+    source TEXT,
+    note TEXT,
+    added_at TEXT NOT NULL
+);
+CREATE INDEX valuations_node ON valuations(node_id, at);
+CREATE TABLE links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    kind TEXT NOT NULL,
+    url TEXT NOT NULL,
+    archive TEXT,
+    note TEXT,
+    added_at TEXT NOT NULL,
+    UNIQUE (node_id, url)
+);
+CREATE TABLE purchase_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_id INTEGER NOT NULL REFERENCES purchases(id),
+    kind TEXT NOT NULL,
+    data TEXT NOT NULL,
+    brought_to INTEGER REFERENCES nodes(id),
+    UNIQUE (purchase_id, kind, data)
+);
+PRAGMA user_version = 25;
+COMMIT;
+";

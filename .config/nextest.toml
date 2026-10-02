@@ -1,0 +1,8 @@
+# The command-line tests spawn the `ev` binary and wait for it; under a fully parallel run its
+# output pipes sometimes close later than nextest's default 100 ms leak timeout, which reports
+# a passing test as leaky. Measured on 2026-10-02 over 25 full runs each: the default gave 3
+# LEAKs, 500 ms still 2, each time a different test of `cli/tests/cli.rs`; nothing in those
+# tests or in `ev` leaves a process behind. 2 s is the bar measured to give none.
+[[profile.default.overrides]]
+filter = 'binary_id(ev-cli::cli) | binary_id(ev-cli::text)'
+leak-timeout = "2s"

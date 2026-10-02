@@ -407,6 +407,30 @@ impl App {
                 None => {}
             }
         }
+        // One thing kept in several places: all of it, then each other place with its count.
+        let th = &v["thing"];
+        if th.is_object() {
+            field(
+                t("in all"),
+                tf(
+                    "×{} in {} places · in use {} · spare {}",
+                    &[&th["total"], &th["places"], &th["in_use"], &th["spare"]],
+                ),
+                Style::new().fg(pal().qty),
+            );
+            for p in th["elsewhere"].as_array().into_iter().flatten() {
+                let used = if p["in_use"] == true {
+                    t(" (in use)")
+                } else {
+                    ""
+                };
+                field(
+                    t("elsewhere"),
+                    format!("{} ×{}{used}", str_of(p, "path_text"), p["qty"]),
+                    plain,
+                );
+            }
+        }
         if let Some(c) = v["cells"].as_str() {
             field(t("cells"), c.to_string(), Style::new().fg(pal().code));
         }

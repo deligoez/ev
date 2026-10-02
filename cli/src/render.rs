@@ -23,6 +23,7 @@ fn disposition(d: &str) -> String {
         "return" => t("return"),
         "mistake" => t("record error"),
         "digitize" => t("photograph, then throw out"),
+        "merged" => t("joined another portion"),
         other => return other.to_string(),
     }
     .to_string()
@@ -2121,6 +2122,38 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     if let Some(tags) = node["tags"].as_array().filter(|t| !t.is_empty()) {
         let tags: Vec<_> = tags.iter().filter_map(Value::as_str).collect();
         let _ = writeln!(out, "  {}: {}", t("tags"), tags.join(", "));
+    }
+    // One thing kept in several places: all its units, then where the others are.
+    let th = &v["thing"];
+    if th.is_object() {
+        let lost = th["lost"]
+            .as_i64()
+            .filter(|l| *l > 0)
+            .map(|l| tf(" · lost {}", &[&l]))
+            .unwrap_or_default();
+        let _ = writeln!(
+            out,
+            "  {}{lost}",
+            tf(
+                "thing: ×{} in {} places · in use {} · spare {}",
+                &[&th["total"], &th["places"], &th["in_use"], &th["spare"]]
+            )
+        );
+        for p in th["elsewhere"].as_array().into_iter().flatten() {
+            let used = if p["in_use"] == true {
+                t(" (in use)")
+            } else {
+                ""
+            };
+            let _ = writeln!(
+                out,
+                "    {}{used}",
+                tf(
+                    "elsewhere: #{} {} ×{}",
+                    &[&p["id"], &s(p, "path_text"), &p["qty"]]
+                )
+            );
+        }
     }
     for p in node["photos"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("photo"), p.as_str().unwrap_or_default());

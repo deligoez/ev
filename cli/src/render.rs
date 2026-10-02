@@ -316,13 +316,24 @@ pub(crate) fn coverage_kind(k: &str) -> &str {
     }
 }
 
-/// `2024-05-03 · Shop · ×2 · 500.00 TRY · ≈ 940.14 TRY today`: a purchase in one line
-/// without the shop's title, for the details pane, which shows the title apart.
+/// A purchase's dates, each named: the order date is the one the shop's order page shows (and
+/// the one a person means by "bought on"), the delivery date follows when it differs. A bare
+/// date was read as the purchase day when it was the delivery.
+pub(crate) fn purchase_dates(p: &Value) -> Option<String> {
+    let (ordered, delivered) = (p["ordered_at"].as_str(), p["delivered_at"].as_str());
+    match (ordered, delivered) {
+        (Some(o), Some(d)) if o != d => Some(tf("ordered {} · delivered {}", &[&o, &d])),
+        (Some(o), _) => Some(tf("ordered {}", &[&o])),
+        (None, Some(d)) => Some(tf("delivered {}", &[&d])),
+        (None, None) => None,
+    }
+}
+
+/// `ordered 2024-05-03 · Shop · ×2 · 500.00 TRY · ≈ 940.14 TRY today`: a purchase in one
+/// line without the shop's title, for the details pane, which shows the title apart.
 pub(crate) fn purchase_brief(p: &Value) -> String {
     let mut parts = Vec::new();
-    if let Some(d) = p["delivered_at"].as_str().or(p["ordered_at"].as_str()) {
-        parts.push(d.to_string());
-    }
+    parts.extend(purchase_dates(p));
     if let Some(sh) = p["shop"].as_str() {
         parts.push(sh.to_string());
     }
@@ -460,9 +471,7 @@ pub(crate) fn link_line(l: &Value) -> String {
 /// `#12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  1999.00 TRY`: when, where, what, how many, paid.
 pub(crate) fn purchase_line(p: &Value) -> String {
     let mut parts = vec![format!("#{}", p["id"])];
-    if let Some(d) = p["delivered_at"].as_str().or(p["ordered_at"].as_str()) {
-        parts.push(d.to_string());
-    }
+    parts.extend(purchase_dates(p));
     if let Some(sh) = p["shop"].as_str() {
         parts.push(sh.to_string());
     }

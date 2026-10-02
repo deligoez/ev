@@ -143,8 +143,9 @@ only their number is shown). What is already state on a record is read where it 
 list by its own verb, so nothing is kept twice. The kinds that had no state get small marks:
 `ev label` (a new or changed code needs its label printed), `ev need add|list|got|drop`,
 `ev broken` / `ev fixed`, `ev expires <x> 2026-07`, `ev sale <x> --listed --price n`
-for a thing being sold, and `ev photo current <x>` when the old photo still shows a place well
-enough after a small change.
+for a thing being sold, `ev photo current <x>` when the old photo still shows a place well
+enough after a small change, and `ev photo stale <x> --why "…"` when it no longer does for a
+change the records never saw (a drawer emptied before it was recorded).
 
 **Photos.** `ev photo add X photo.jpg` copies a photo into the store and attaches it;
 `--crop x,y,w,h` attaches a cut-out of a drawer photo to each box in it, remembering the

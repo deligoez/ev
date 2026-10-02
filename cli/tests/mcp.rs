@@ -172,6 +172,37 @@ async fn each_read_tool_answers_as_the_command_it_stands_for() {
     client.cancel().await.unwrap();
 }
 
+#[tokio::test]
+async fn text_results_follow_the_language_setting_even_when_it_changes_during_the_session() {
+    let (_d, client) = start().await;
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["add", "Ev", "--kind", "home"] }),
+    )
+    .await;
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["settings", "language", "tr"] }),
+    )
+    .await;
+    // Through the general tool and through a read tool alike.
+    let r = call(&client, "ev", json!({ "args": ["show", "Ev"] })).await;
+    assert!(text(&r).contains("tür: ev"), "{}", text(&r));
+    let r = call(&client, "show", json!({ "ref": "Ev" })).await;
+    assert!(text(&r).contains("tür: ev"), "{}", text(&r));
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["settings", "language", "en"] }),
+    )
+    .await;
+    let r = call(&client, "show", json!({ "ref": "Ev" })).await;
+    assert!(text(&r).contains("kind: home"), "{}", text(&r));
+    client.cancel().await.unwrap();
+}
+
 /// The width and height of a result's image block, decoded.
 fn image_size(r: &CallToolResult, at: usize) -> (u32, u32) {
     let img = r.content[at].as_image().expect("an image block");

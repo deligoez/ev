@@ -309,6 +309,13 @@ pub(crate) struct Lexicon {
     /// word (written on their own, or a stem of two words), so `controller` makes no `control`
     /// noun of its own.
     plural_stems: HashSet<String>,
+    /// Written words that are roots of their own though they read as a shorter word plus an
+    /// ending: another written word carries an ending on them that cannot follow that ending
+    /// (`üniteleri` is not `ünit`+`e`+`leri`, so `ünite` is no dative; `pensesi`, `altında`
+    /// with no `altı` written), and that word
+    /// cannot be read through some other written word instead (`dolabının` is `dolabı`+`nın`,
+    /// so it says nothing about `dolabın`).
+    roots: HashSet<String>,
 }
 
 impl Lexicon {
@@ -335,15 +342,42 @@ impl Lexicon {
                 }
             }
         }
+        let all: Vec<&str> = ENDINGS.iter().flat_map(|l| l.iter().copied()).collect();
+        // `v` read as another written word plus an ending that may follow that word's own.
+        let other_reading = |v: &str, w: &str| {
+            all.iter().any(|then| {
+                v.strip_suffix(then).is_some_and(|u| {
+                    u != w && u.chars().count() >= 3 && words.contains(u) && {
+                        let firsts = last_endings(u);
+                        firsts.is_empty() || firsts.iter().any(|f| may_follow(f, then))
+                    }
+                })
+            })
+        };
+        let roots = words
+            .iter()
+            .filter(|w| {
+                let firsts = last_endings(w);
+                !firsts.is_empty()
+                    && all.iter().any(|then| {
+                        let v = format!("{w}{then}");
+                        words.contains(&v)
+                            && firsts.iter().all(|f| !may_follow(f, then))
+                            && !other_reading(&v, w)
+                    })
+            })
+            .cloned()
+            .collect();
         Lexicon {
             words,
             shared,
             plural_stems,
+            roots,
         }
     }
 
     pub(crate) fn key(&self, word: &str) -> String {
-        if word.chars().any(|c| c.is_ascii_digit()) {
+        if word.chars().any(|c| c.is_ascii_digit()) || self.roots.contains(word) {
             return word.to_string();
         }
         let cands = candidates(word);

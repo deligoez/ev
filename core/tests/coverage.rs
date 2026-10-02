@@ -197,3 +197,44 @@ fn the_threshold_is_an_inventory_setting() {
             .is_err()
     );
 }
+
+/// A durable purchase from `shop`, paid in `currency`, delivered `delivered`, linked to `node`.
+fn bought_from(inv: &mut Inventory, node: &str, shop: &str, currency: &str, delivered: &str) {
+    inv.buy_add(
+        &json!({"name": node, "shop": shop, "ordered_at": delivered, "paid": "100",
+                "currency": currency}),
+        Some(node),
+    )
+    .unwrap();
+}
+
+fn proposal(inv: &Inventory, r: &str) -> Value {
+    inv.show(r, false).unwrap()["coverage_proposal"].clone()
+}
+
+#[test]
+fn no_statutory_warranty_is_proposed_once_it_has_ended_or_for_a_line_bought_abroad() {
+    let (_d, mut inv) = setup();
+    // Two years and a month ago: the two years have passed, so there is nothing to ask.
+    bought(&mut inv, "Matkap", &day(25, 0), "1999");
+    assert!(proposal(&inv, "Matkap").is_null());
+    // A foreign marketplace, even charging in the home currency.
+    bought_from(&mut inv, "Telefon", "AliExpress", "TRY", &day(3, 0));
+    assert!(proposal(&inv, "Telefon").is_null());
+    // Another currency than the home one.
+    bought_from(&mut inv, "Vida kutusu", "Shop", "EUR", &day(3, 0));
+    assert!(proposal(&inv, "Vida kutusu").is_null());
+    // A line from a shop at home proposes, from its own delivery.
+    bought_from(&mut inv, "Vida", "Shop", "TRY", &day(3, 0));
+    assert_eq!(proposal(&inv, "Vida")["start"], day(3, 0));
+
+    // At home in Germany, a euro line and Amazon.de are at home; AliExpress is still abroad.
+    inv.inventory_settings(Some("home_country"), Some("DE"))
+        .unwrap();
+    inv.inventory_settings(Some("home_currency"), Some("EUR"))
+        .unwrap();
+    assert_eq!(proposal(&inv, "Vida kutusu")["kind"], "statutory");
+    assert!(proposal(&inv, "Telefon").is_null());
+    bought_from(&mut inv, "Telefon", "Amazon.de", "EUR", &day(2, 0));
+    assert_eq!(proposal(&inv, "Telefon")["start"], day(2, 0));
+}

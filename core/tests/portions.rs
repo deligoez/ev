@@ -215,3 +215,31 @@ fn records_made_separately_join_into_one_thing_and_a_different_model_is_refused(
     assert!(alone["thing"].is_null());
     assert!(inv.show("#6", false).unwrap()["thing"].is_null());
 }
+
+#[test]
+fn audit_leaves_a_spread_thing_alone_and_hints_join_for_the_same_name_recorded_twice() {
+    let (_d, mut inv) = setup();
+    inv.move_qty("Eneloop AA", "El feneri", false, Some(2))
+        .unwrap();
+    let rows = |inv: &Inventory| -> Vec<Value> {
+        inv.audit().unwrap()["spread"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|r| r["word"] == "eneloop")
+            .cloned()
+            .collect()
+    };
+    assert!(rows(&inv).is_empty(), "{:?}", rows(&inv));
+    // The same name recorded apart in the toy: one thing recorded twice?
+    inv.add(NewNode {
+        name: "Eneloop AA".into(),
+        kind: "item".into(),
+        parent: Some("Oyuncak".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let found = rows(&inv);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0]["same_name"], serde_json::json!(["Eneloop AA"]));
+}

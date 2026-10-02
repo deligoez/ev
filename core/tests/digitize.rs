@@ -100,3 +100,37 @@ fn a_copy_too_small_to_read_leaves_with_a_warning_and_a_document_counts_as_a_cop
     assert_eq!(v["node"]["disposition"], "digitize");
     assert!(v.get("warnings").is_none());
 }
+
+#[test]
+fn only_what_goes_in_the_bin_is_shredded_and_restoring_takes_the_mark_back() {
+    let (_dir, mut inv) = setup();
+    assert!(
+        inv.dispose_with("Eski kimlik kartı", Disposition::Give, true)
+            .is_err()
+    );
+    inv.dispose_with("Eski kimlik kartı", Disposition::Trash, true)
+        .unwrap();
+    let pile = inv.disposals(Some(Disposition::Trash)).unwrap();
+    assert_eq!(pile["disposals"]["trash"][0]["shred"], true);
+    assert_eq!(
+        inv.show("Eski kimlik kartı", false).unwrap()["marks"]["shred"]["value"],
+        "yes"
+    );
+    inv.restore("Eski kimlik kartı").unwrap();
+    assert!(
+        inv.show("Eski kimlik kartı", false).unwrap()["marks"]
+            .get("shred")
+            .is_none()
+    );
+}
+
+#[test]
+fn a_digitized_thing_inside_a_box_needs_its_copy_when_the_box_leaves() {
+    let (_dir, mut inv) = setup();
+    inv.dispose("Konser bileti 2015", Disposition::Digitize)
+        .unwrap();
+    inv.dispose("Eski kimlik kartı", Disposition::Trash)
+        .unwrap();
+    let e = inv.gone("Çekmece", Some(Disposition::Trash)).unwrap_err();
+    assert!(e.to_string().contains("Konser bileti 2015"), "{e}");
+}

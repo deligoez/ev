@@ -186,3 +186,31 @@ fn a_cut_numbers_its_crops_on_the_whole_photo_in_the_order_given() {
     assert_eq!(v["legend"], serde_json::json!([]));
     assert!(v["marked"].is_null());
 }
+
+#[test]
+fn a_removed_crop_no_record_uses_is_deleted_and_a_whole_photo_is_kept() {
+    let (_dir, mut inv, photo) = setup();
+    inv.add(NewNode {
+        name: "Kutu".into(),
+        kind: "container".into(),
+        parent: Some("Çekmece".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let crop = "0.5,0,0.5,1".parse().unwrap();
+    inv.photo_add("Çekmece", &photo, None, None).unwrap();
+    let v = inv.photo_add("Kutu", &photo, Some(crop), None).unwrap();
+    let cut = v["photos"][0]["path"].as_str().unwrap().to_string();
+    let whole = v["photos"][0]["source"].as_str().unwrap().to_string();
+    // The same crop on a second record: removing it from one keeps the file.
+    inv.photo_add("Çekmece", &photo, Some(crop), None).unwrap();
+    let v = inv.photo_remove("Kutu", 1).unwrap();
+    assert!(v.get("deleted_file").is_none(), "{v}");
+    assert!(std::path::Path::new(&cut).exists());
+    // The last record using it lets it go; the whole photo it was cut from stays.
+    let v = inv.photo_remove("Çekmece", 2).unwrap();
+    assert_eq!(v["deleted_file"], cut.as_str());
+    assert!(!std::path::Path::new(&cut).exists());
+    inv.photo_remove("Çekmece", 1).unwrap();
+    assert!(std::path::Path::new(&whole).exists());
+}

@@ -497,6 +497,25 @@ fn photo_mark_lists_each_label_and_where_the_numbered_copy_is() {
         "1=0.1,0.1,0.3,0.3",
         "2=0.5,0.5,0.2,0.2",
     ]);
+
+    #[test]
+    fn focus_says_what_ev_ui_was_asked_to_show_or_that_the_request_is_cleared() {
+        let h = Home::new();
+        assert_eq!(h.text(&["focus", "D"]), "Sent to ev ui: #3\n");
+        let file = h.dir.path().join("marked.png");
+        image::RgbImage::from_pixel(20, 10, image::Rgb([0, 0, 0]))
+            .save(&file)
+            .unwrap();
+        let file = file.to_string_lossy().to_string();
+        assert_eq!(
+            h.text(&["focus", "--file", &file]),
+            "Sent to ev ui: 1 picture(s)\n"
+        );
+        assert_eq!(
+            h.text(&["focus", "--clear"]),
+            "The request to ev ui is cleared.\n"
+        );
+    }
     assert!(
         s.starts_with("1  0.1,0.1,0.3,0.3\n2  0.5,0.5,0.2,0.2\nNumbered photo: "),
         "{s}"

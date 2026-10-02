@@ -416,7 +416,11 @@ has things in the photo, all in one step.
 **A tour is not finished on an old photo.** `ev review <place> --as toured` is refused while
 the place or any placed box in its grid has no photo or one older than its last change
 (`details.stale`); attach a current photo, or say an old one still holds with
-`ev photo current <ref>`.
+`ev photo current <ref>`. **When a photo is old for a reason the records never saw** (the
+place was emptied or rearranged before it was recorded, the person says "that photo is old"),
+say so with `ev photo stale <ref> --why "<what changed>"`, never only in an observation or a
+photo note: prose is read by no list, and the place keeps its old photo as current until a
+newer one comes.
 
 ## Going somewhere
 

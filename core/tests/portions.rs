@@ -60,3 +60,29 @@ fn some_units_move_as_a_portion_and_join_the_rest_when_they_come_back() {
     let gone = inv.show(&id(&lamp), true).unwrap();
     assert_eq!(gone["node"]["disposition"], "merged");
 }
+
+#[test]
+fn what_the_thing_is_set_on_one_portion_is_set_on_all_and_a_kind_is_refused() {
+    let (_d, mut inv) = setup();
+    let lamp = inv
+        .move_qty("Eneloop AA", "El feneri", false, Some(2))
+        .unwrap();
+    inv.edit(
+        &id(&lamp),
+        &[
+            "model=BK-3MCCE".into(),
+            "tags=+pil".into(),
+            "note=şarjlı".into(),
+        ],
+    )
+    .unwrap();
+    let drawer = inv.show("#6", false).unwrap();
+    assert_eq!(drawer["node"]["model"], "BK-3MCCE");
+    assert_eq!(drawer["node"]["tags"], serde_json::json!(["pil"]));
+    // A note is the portion's own.
+    assert!(drawer["node"]["note"].is_null(), "{drawer}");
+    let e = inv
+        .edit(&id(&lamp), &["kind=container".into()])
+        .unwrap_err();
+    assert_eq!(e.code(), 5);
+}

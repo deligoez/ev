@@ -66,6 +66,98 @@ pub(crate) struct EvArgs {
     format: Format,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct FormatOnly {
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct FindArgs {
+    /// Words to look for, in any order (stems, synonyms and typos match); may be left out with
+    /// `tag` or `kind` to list all of them.
+    text: Option<String>,
+    /// Only things with this tag.
+    tag: Option<String>,
+    /// Only this kind: home, room, furniture, container or item.
+    kind: Option<String>,
+    /// Also things that left the home.
+    include_gone: Option<bool>,
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct ShowArgs {
+    /// A code, an exact name or `#id` (a partial name never resolves).
+    #[serde(rename = "ref")]
+    reference: String,
+    /// A node that left the home, by id.
+    include_gone: Option<bool>,
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct SuggestArgs {
+    /// What the thing is: its name, part code and kind of thing, in Turkish and English when
+    /// both are used ("KY-018 LDR ışık sensörü modülü").
+    text: Option<String>,
+    /// An existing node instead of a text: its own name, note and tags are the query.
+    #[serde(rename = "for")]
+    for_ref: Option<String>,
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct HistoryArgs {
+    /// A code, an exact name or `#id`.
+    #[serde(rename = "ref")]
+    reference: String,
+    /// Also what came in, went out or was added there.
+    contents: Option<bool>,
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct TreeArgs {
+    /// The node to start from; every home when left out.
+    #[serde(rename = "ref")]
+    reference: Option<String>,
+    /// How many levels down.
+    depth: Option<usize>,
+    #[serde(default)]
+    format: Format,
+}
+
+/// `["--flag", value]` when the value is given.
+fn flag(name: &str, value: Option<String>) -> Vec<String> {
+    value.map_or_else(Vec::new, |v| vec![name.to_string(), v])
+}
+
+/// `["--flag"]` when true.
+fn switch(name: &str, on: Option<bool>) -> Vec<String> {
+    if on == Some(true) {
+        vec![name.to_string()]
+    } else {
+        Vec::new()
+    }
+}
+
+/// A command, its options, then `--` and its positional values, so a value that starts with
+/// `-` is never read as a flag.
+fn argv(cmd: &str, options: Vec<Vec<String>>, positional: Vec<String>) -> Vec<String> {
+    let mut out = vec![cmd.to_string()];
+    out.extend(options.into_iter().flatten());
+    if !positional.is_empty() {
+        out.push("--".into());
+        out.extend(positional);
+    }
+    out
+}
+
 #[derive(Clone)]
 pub(crate) struct Server {
     db: Option<PathBuf>,
@@ -111,6 +203,116 @@ format json returns the full JSON.",
     )]
     async fn ev(&self, Parameters(p): Parameters<EvArgs>) -> Result<CallToolResult, McpError> {
         self.call(p.args, p.input, p.format).await
+    }
+
+    #[tool(
+        description = "Where to pick up: the task to work on (one due within a day goes first), \
+each of its places with what is planned to arrive and what else waits there (photos, labels, \
+unclear names, coverage questions), notes on the order, progress and the places no task covers. \
+Call it first in every session.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn next(
+        &self,
+        Parameters(p): Parameters<FormatOnly>,
+    ) -> Result<CallToolResult, McpError> {
+        self.call(argv("next", vec![], vec![]), None, p.format)
+            .await
+    }
+
+    #[tool(
+        description = "Everything waiting, by kind with counts: tasks, planned moves, errands, \
+things leaving, labels to print, things to buy, repairs, use-by dates, lost things, places not \
+counted, photos needed now, unclear records, coverage and value questions.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn todo(
+        &self,
+        Parameters(p): Parameters<FormatOnly>,
+    ) -> Result<CallToolResult, McpError> {
+        self.call(argv("todo", vec![], vec![]), None, p.format)
+            .await
+    }
+
+    #[tool(
+        description = "Where is it? Word search over name, code, make, model, serial, note, theme \
+and tags, best match first, each with its #id and full path. Act on a result by its #id.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn find(&self, Parameters(p): Parameters<FindArgs>) -> Result<CallToolResult, McpError> {
+        let args = argv(
+            "find",
+            vec![
+                flag("--tag", p.tag),
+                flag("--kind", p.kind),
+                switch("--include-gone", p.include_gone),
+            ],
+            p.text.into_iter().collect(),
+        );
+        self.call(args, None, p.format).await
+    }
+
+    #[tool(
+        description = "One node: its fields, path, what is in it, its photos and documents, planned \
+move, marks, tasks and observations. Read a place this way before proposing it.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn show(&self, Parameters(p): Parameters<ShowArgs>) -> Result<CallToolResult, McpError> {
+        let args = argv(
+            "show",
+            vec![switch("--include-gone", p.include_gone)],
+            vec![p.reference],
+        );
+        self.call(args, None, p.format).await
+    }
+
+    #[tool(
+        description = "Where should this go: the rules, where similar things are with the words \
+that matched and why, and whether nothing here is this kind of thing (new_group_likely). \
+Give `text` for a new thing or `for` for one already recorded.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn suggest(
+        &self,
+        Parameters(p): Parameters<SuggestArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let words = p
+            .text
+            .map(|t| t.split_whitespace().map(str::to_string).collect())
+            .unwrap_or_default();
+        let args = argv("suggest", vec![flag("--for", p.for_ref)], words);
+        self.call(args, None, p.format).await
+    }
+
+    #[tool(
+        description = "What happened to a node, oldest first; with `contents`, also what came in, \
+went out or was added there.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn history(
+        &self,
+        Parameters(p): Parameters<HistoryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let args = argv(
+            "history",
+            vec![switch("--contents", p.contents)],
+            vec![p.reference],
+        );
+        self.call(args, None, p.format).await
+    }
+
+    #[tool(
+        description = "The tree under a node, or every home; `depth` limits how far down. On a \
+whole home this is long: start from a room or a piece of furniture.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn tree(&self, Parameters(p): Parameters<TreeArgs>) -> Result<CallToolResult, McpError> {
+        let args = argv(
+            "tree",
+            vec![flag("--depth", p.depth.map(|d| d.to_string()))],
+            p.reference.into_iter().collect(),
+        );
+        self.call(args, None, p.format).await
     }
 }
 

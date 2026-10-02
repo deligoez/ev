@@ -220,18 +220,8 @@ impl Inventory {
         };
         let id = add_one(&tx, &new, parent)?;
         tx.commit()?;
-        let mut v = show(&self.conn, id)?;
         // While the person still holds the thing: the purchases it could be (purchases spec §5).
-        let offered = crate::purchase_match::candidates_for(
-            &self.conn,
-            id,
-            crate::purchase_match::OFFER_AT,
-            3,
-        )?;
-        if !offered.is_empty() {
-            v["purchase_candidates"] = json!(offered);
-        }
-        Ok(v)
+        offer_purchases(&self.conn, id, show(&self.conn, id)?)
     }
 
     /// Adds every line or none (spec §6, §11.5).
@@ -354,7 +344,15 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let id = edit_in(&tx, reference, assignments)?;
         tx.commit()?;
-        show(&self.conn, id)
+        let v = show(&self.conn, id)?;
+        // A make or model just learned is what matches a purchase best: ask now, as `add` does.
+        if assignments
+            .iter()
+            .any(|a| a.starts_with("make=") || a.starts_with("model="))
+        {
+            return offer_purchases(&self.conn, id, v);
+        }
+        Ok(v)
     }
 
     /// Applies the assignments of several records at once, all or none: a line that fails
@@ -469,18 +467,9 @@ impl Inventory {
         let into = into
             .iter()
             .map(|id| {
-                let mut v = serde_json::to_value(brief(&self.conn, *id)?)
+                let v = serde_json::to_value(brief(&self.conn, *id)?)
                     .map_err(|e| Error::Internal(e.to_string()))?;
-                let offered = crate::purchase_match::candidates_for(
-                    &self.conn,
-                    *id,
-                    crate::purchase_match::OFFER_AT,
-                    3,
-                )?;
-                if !offered.is_empty() {
-                    v["purchase_candidates"] = json!(offered);
-                }
-                Ok(v)
+                offer_purchases(&self.conn, *id, v)
             })
             .collect::<Result<Vec<_>>>()?;
         let photos = self.photo_list(&n.id.to_string())?["photos"].clone();
@@ -852,7 +841,8 @@ impl Inventory {
         touch(&tx, node.id)?;
         event(&tx, node.id, "found", json!({ "at": node.parent_id }))?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        // Back in hand: the moment to ask which purchase it was, as for a new record.
+        offer_purchases(&self.conn, node.id, show(&self.conn, node.id)?)
     }
 
     /// A lost node turned up somewhere else than where it was last seen: it moves there, which
@@ -865,7 +855,8 @@ impl Inventory {
                 Value::Null,
             ));
         }
-        self.move_to(&format!("#{}", node.id), place, false)
+        let v = self.move_to(&format!("#{}", node.id), place, false)?;
+        offer_purchases(&self.conn, node.id, v)
     }
 
     pub fn lost_list(&self) -> Result<Value> {
@@ -1709,6 +1700,17 @@ fn check_shred(d: Disposition, shred: bool) -> Result<()> {
 /// The short side, in pixels, below which a copy may not read: a ticket's small print needs
 /// about this much. A guess to warn on, never to refuse on.
 const COPY_SHORT_SIDE: u32 = 800;
+
+/// Adds the purchase lines a node could be (purchases spec §5) to a result, when there are any:
+/// asked while the thing is in hand, after `add`, `split`, `found` and a new make or model.
+fn offer_purchases(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
+    let offered =
+        crate::purchase_match::candidates_for(conn, id, crate::purchase_match::OFFER_AT, 3)?;
+    if !offered.is_empty() {
+        v["purchase_candidates"] = json!(offered);
+    }
+    Ok(v)
+}
 
 /// A digitized thing leaves only with a copy on its own record: a photo, or a document linked
 /// to it. Refuses when there is none; returns a warning when every copy is an image too small

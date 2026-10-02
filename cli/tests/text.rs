@@ -575,3 +575,28 @@ fn a_thing_in_several_places_shows_its_units_in_all_and_where_the_rest_are() {
         "{s}"
     );
 }
+
+#[test]
+fn find_shows_a_thing_in_several_places_together_under_one_line() {
+    let h = Home::new();
+    h.run(&["edit", "Kırmızı LED 5 mm", "qty=10"], None);
+    h.run(
+        &[
+            "move",
+            "Kırmızı LED 5 mm",
+            "--qty",
+            "3",
+            "--to",
+            "Aktif buzzer",
+        ],
+        None,
+    );
+    let s = h.text(&["find", "kırmızı led 5 mm"]);
+    assert!(
+        s.starts_with(
+            "Kırmızı LED 5 mm ×10 in 2 places · in use 3 · spare 7\n  #6 Ev › Oda › D › D-A1 › \
+             Kırmızı LED 5 mm  x7\n  #9 Ev › Oda › D › D-B1 › Aktif buzzer › Kırmızı LED 5 mm  x3\n"
+        ),
+        "{s}"
+    );
+}

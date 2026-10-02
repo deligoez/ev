@@ -80,8 +80,11 @@ enum Cmd {
         stdin: bool,
     },
     /// Split one record into several kinds of thing: each `<name>=<qty>` becomes a new record
-    /// beside it (same place, kind, tags); the original keeps the rest (--rename, --qty). The
-    /// history links them both ways; photos stay on the original, to be cropped per part.
+    /// beside it (same place, kind, tags). By default the parts are what each unit is made of
+    /// (3 sets → `card=3` `cable=3`) and the original keeps its count; with --take they are
+    /// some of its units (2 of 4 cells are another make) and come off its count. --rename and
+    /// --qty set the original. The history links them both ways; photos stay on the original,
+    /// to be cropped per part.
     Split {
         reference: String,
         /// `<name>=<qty>`, or just `<name>` for a record without a count.
@@ -93,6 +96,9 @@ enum Cmd {
         /// The original's count after the split.
         #[arg(long)]
         qty: Option<i64>,
+        /// The parts are some of the original's units: their counts come off its count.
+        #[arg(long, conflicts_with = "qty")]
+        take: bool,
     },
     /// Give several nodes new codes at once: swap or rotate codes when boxes change places.
     Recode {
@@ -1395,6 +1401,7 @@ fn run(cli: Cli) -> Result<Value> {
             parts,
             rename,
             qty,
+            take,
         } => {
             let parts = parts
                 .iter()
@@ -1409,7 +1416,7 @@ fn run(cli: Cli) -> Result<Value> {
                     None => Ok((p.trim().to_string(), None)),
                 })
                 .collect::<Result<Vec<_>>>()?;
-            inv.split(&reference, &parts, rename.as_deref(), qty)
+            inv.split_with(&reference, &parts, rename.as_deref(), qty, take)
         }
         Cmd::Recode { pairs } => {
             let pairs = pairs

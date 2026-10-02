@@ -14,7 +14,8 @@ Content shown to the person by `ev` (Turkish UI text) goes through `cli/src/i18n
 ## This repository is PUBLIC
 
 github.com/deligoez/ev. **No personal data, ever:** no real purchase prices, order numbers,
-addresses, employer names, family or household names, ids or names from the real inventory.
+addresses, employer names, family or household names, ids or names from the real inventory,
+and nothing about the person's own servers (host names, ports, where the data repository lives).
 Tests, docs and examples use invented data (`Annemler`, `Ayşe`, round prices like 1999).
 Measurements are described generally ("one household's ~1,170 lines from 14 shops"). Raw
 purchase data (`~/.ev/purchases/`) never enters any repository. Scan the diff before a release.

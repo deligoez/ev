@@ -554,3 +554,12 @@ ALTER TABLE purchases ADD COLUMN pack INTEGER NOT NULL DEFAULT 1 CHECK (pack >= 
 PRAGMA user_version = 27;
 COMMIT;
 ";
+
+/// A task's due date (`YYYY-MM-DD`): a day the person wants it done by, so a date said in
+/// conversation is no longer prose in its reason.
+pub(super) const SCHEMA_V28: &str = "
+BEGIN;
+ALTER TABLE tasks ADD COLUMN due TEXT;
+PRAGMA user_version = 28;
+COMMIT;
+";

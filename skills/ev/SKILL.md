@@ -499,6 +499,10 @@ A partial name never resolves (`flipper` does not find "Flipper Zero"): search f
 then act by id. Codes and names compare case- and diacritic-insensitively, so `k4x4-07-u`
 finds `K4x4-07-Ü`.
 
+`#N` alone is a node. After a record's word it is that record's own number, not a node:
+`task #16` → `ev task show 16`, a purchase line `#1` → `ev buy show 1`, `doc #269` →
+`ev doc show 269`, `need #3`, `cover #2`, `observed #22`. Those commands take `#16` or `16`.
+
 ## Useful reads
 
 - `ev find <text> [--tag t] [--kind k]` — where is it? `ev find --tag t` alone lists all tagged

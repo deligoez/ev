@@ -121,10 +121,41 @@ const ENDINGS: &[&[&str]] = &[
     &["li", "lu"],
 ];
 
+/// Whether `stem` can carry ending `e` as Turkish writes it, on folded letters: an ending
+/// starting with `t` follows only a voiceless consonant and one starting with `d` never does
+/// (`kitaptan`, `kutuda`; not `civa`+`ta`, `var`+`ta`, `uni`+`te`), and the ending's high
+/// vowel follows the stem's last vowel (`i` after a/e/i, `u` after o/u; not `sab`+`un`).
+/// Folding merges ı/i, u/ü, o/ö and ç/c, so only what survives it is checked: a stem ending
+/// in `c` may take either consonant, and the a/e of an ending is not checked at all (loans
+/// such as `saatler` break it). The `-ki` and `-ları` endings carry their own vowels.
+fn fits(stem: &str, e: &str) -> bool {
+    let last = stem.chars().last();
+    if e.starts_with('t') && !last.is_some_and(|c| "fstkhpc".contains(c)) {
+        return false;
+    }
+    if e.starts_with('d') && last.is_some_and(|c| "fstkhp".contains(c)) {
+        return false;
+    }
+    if e.ends_with("ki") || e.starts_with("lar") || e.starts_with("ler") {
+        return true;
+    }
+    let Some(high) = e.chars().rev().find(|c| matches!(c, 'i' | 'u')) else {
+        return true;
+    };
+    match stem.chars().rev().find(|c| "aeiou".contains(*c)) {
+        Some('a' | 'e' | 'i') => high == 'i',
+        Some(_) => high == 'u',
+        None => true,
+    }
+}
+
 /// Every stem a folded word might have: the word, and what is left after taking off any run of
-/// the endings above, each time keeping at least three letters. A stem left by an ending that
-/// starts with a vowel also appears with its last consonant hardened back (`kitabı`→`kitap`,
-/// `ışığı`→`ışık`, `rengi`→`renk`). Plain-ASCII words also lose English plurals.
+/// the endings above, each time keeping at least three letters and only where the stem can
+/// carry the ending (`fits`). A stem left by an ending that starts with a vowel also appears
+/// with its last consonant hardened back (`kitabı`→`kitap`, `ışığı`→`ışık`, `rengi`→`renk`).
+/// Plain-ASCII words also lose English plurals; `-es` leaves a three-letter stem only after a
+/// sibilant, where English writes it (`boxes`→`box`, but not `güneş`→`gün`; `modules` still
+/// meets `modül`).
 pub(crate) fn candidates(word: &str) -> Vec<String> {
     let mut out = vec![word.to_string()];
     let mut frontier = vec![word.to_string()];
@@ -135,7 +166,7 @@ pub(crate) fn candidates(word: &str) -> Vec<String> {
                 let Some(stem) = w.strip_suffix(e) else {
                     continue;
                 };
-                if stem.chars().count() < 3 {
+                if stem.chars().count() < 3 || !fits(stem, e) {
                     continue;
                 }
                 next.push(stem.to_string());
@@ -166,6 +197,11 @@ pub(crate) fn candidates(word: &str) -> Vec<String> {
     if word.is_ascii() {
         for (end, repl) in [("ies", "y"), ("es", ""), ("s", "")] {
             if let Some(stem) = word.strip_suffix(end) {
+                let sibilant =
+                    stem.ends_with(['s', 'x', 'z']) || stem.ends_with("ch") || stem.ends_with("sh");
+                if end == "es" && !sibilant && stem.chars().count() < 4 {
+                    continue;
+                }
                 let s = format!("{stem}{repl}");
                 if s.chars().count() >= 3 && !out.contains(&s) {
                     out.push(s);
@@ -174,6 +210,34 @@ pub(crate) fn candidates(word: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// The single endings a word may end in (`-ki`, case, possessive), each leaving a stem of at
+/// least three letters that can carry it.
+fn last_endings(word: &str) -> Vec<&'static str> {
+    ENDINGS[..3]
+        .iter()
+        .flat_map(|layer| layer.iter().copied())
+        .filter(|e| {
+            word.strip_suffix(e)
+                .is_some_and(|stem| stem.chars().count() >= 3 && fits(stem, e))
+        })
+        .collect()
+}
+
+/// Whether ending `then` can follow ending `first` on one word: after a possessive only a
+/// case with the pronominal `n` or `-(y)la` (`arkasında`, `sapıyla`), after a case nothing
+/// on this list, after `-ki` anything.
+fn may_follow(first: &str, then: &str) -> bool {
+    const POSSESSIVE: &[&str] = &["lari", "leri", "si", "su", "i", "u"];
+    const AFTER_POSSESSIVE: &[&str] = &[
+        "nda", "nde", "ndan", "nden", "na", "ne", "ni", "nu", "nin", "nun", "yla", "yle",
+    ];
+    if POSSESSIVE.contains(&first) {
+        AFTER_POSSESSIVE.contains(&then)
+    } else {
+        !ENDINGS[1].contains(&first)
+    }
 }
 
 pub(super) const COLORS: &[&str] = &[
@@ -227,15 +291,17 @@ fn is_compound(a: &Term, b: &Term) -> bool {
 }
 
 /// Chooses a word's stem by looking at the inventory's own words, which is what keeps plain
-/// suffix stripping from cutting too deep. In order: the longest shorter form that some word
-/// carries a plural ending on (`bağları` makes `bağ` a noun, so `bağı`→`bağ` rather than the
-/// hardened `bak`; `bacaklarında`→`bacak`); the shortest shorter form that is written
-/// somewhere on its own (`kutuda`→`kutu`, `kitabı`→`kitap`, `modules`→`modül`); the word
-/// itself if it is written on its own, so a base form is never cut further (`kutu` stays,
-/// though it could read as `kut`+`u`); the longest shorter form two different words lead to
-/// (`vidası` with `vidaları`→`vida`); the word itself. The known gap: two forms whose base is
-/// written nowhere, both themselves written on their own, stay apart; and a word that is a root
-/// of its own may still be cut to another (`altın`→`alt`), which only a dictionary could tell.
+/// suffix stripping from cutting too deep. In order: the word itself if the inventory shows it
+/// is a root (see `roots`: `altın` stays, though `alt` is written too); the longest shorter
+/// form that some word carries a plural ending on (`bağları` makes `bağ` a noun, so
+/// `bağı`→`bağ` rather than the hardened `bak`; `bacaklarında`→`bacak`); the shortest shorter
+/// form that is written somewhere on its own (`kutuda`→`kutu`, `kitabı`→`kitap`,
+/// `modules`→`modül`); the word itself if it is written on its own, so a base form is never cut
+/// further (`kutu` stays, though it could read as `kut`+`u`); the longest shorter form two
+/// different words lead to (`vidası` with `vidaları`→`vida`); the word itself. The known gaps:
+/// two forms whose base is written nowhere, both themselves written on their own, stay apart;
+/// and a root the inventory never inflects is still cut when its letters read as a shorter
+/// written word plus an ending (`kapı`→`kap`, `veri`→`ver`), which only a dictionary could tell.
 pub(crate) struct Lexicon {
     words: HashSet<String>,
     shared: HashMap<String, usize>,

@@ -11,6 +11,20 @@ Draft for the next release.
   `suggest`, `history`, `tree`), so a client can let them run unasked. `photo` returns a
   node's photo as an image, and a numbered photo a command makes (`photo cut --show`, `photo
   mark`) comes back as an image too: the person sees it in the conversation with no `ev ui`
-  open. A refused command is a tool error with the CLI's message. The instructions stay under
-  the 2,048 characters Claude Code keeps; the skill is also the prompt `ev` and the resource
-  `ev://skill`, and the reference `ev://reference`. Nine tools take about 9 KB of definitions.
+  open. Text results follow `ev settings language`, read on every call. A refused command is a
+  tool error with the CLI's message. A text result over 50,000 characters is cut with a note on
+  how to narrow the call; a JSON result that long is refused with the same advice, since cut
+  JSON does not parse. The instructions stay under the 2,048 characters Claude Code keeps; the
+  skill is also the prompt `ev` and the resource `ev://skill`, and the reference
+  `ev://reference`. Nine tools take about 9 KB of definitions.
+
+## Fixed
+
+- **Writes at the same moment failed with "database is locked".** A command that read and then
+  wrote got the lock refused at once, without the five-second wait, when another write got in
+  between. Rare from one terminal, but an MCP client sends calls in parallel: in QA, seven of
+  eight parallel writes failed. Writes now take the lock up front and wait their turn; sixteen
+  parallel writers all succeed.
+- **`ev photo mark` and `ev focus` printed JSON as their text.** `photo mark` now lists each
+  label and where it is, then the numbered copy; `focus` says what `ev ui` was asked to show,
+  or that the request is cleared.

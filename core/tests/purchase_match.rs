@@ -308,3 +308,40 @@ fn an_ampere_is_read_only_where_it_is_written_as_one() {
     );
     assert!(v.get("purchase_candidates").is_none(), "{v}");
 }
+
+#[test]
+fn a_declined_line_is_offered_to_other_things_but_never_again_to_that_one() {
+    let (_d, mut inv) = setup();
+    item(&mut inv, "Mettzchrom LR1130 düğme pil", None);
+    item(&mut inv, "Mettzchrom AG10 düğme pil", None);
+    let line = first(&inv, "Mettzchrom LR1130 düğme pil")["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    let v = inv
+        .buy_decline(
+            line,
+            "Mettzchrom LR1130 düğme pil",
+            Some("başka paket"),
+            false,
+        )
+        .unwrap();
+    assert_eq!(v["purchase"]["declined"][0]["why"], "başka paket");
+    assert_eq!(v["purchase"]["open_qty"], 1);
+    assert!(
+        inv.buy_for("Mettzchrom LR1130 düğme pil").unwrap()["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| c["purchase"]["id"] != line)
+    );
+    assert_eq!(
+        first(&inv, "Mettzchrom AG10 düğme pil")["purchase"]["id"],
+        line
+    );
+    inv.buy_decline(line, "Mettzchrom LR1130 düğme pil", None, true)
+        .unwrap();
+    assert_eq!(
+        first(&inv, "Mettzchrom LR1130 düğme pil")["purchase"]["id"],
+        line
+    );
+}

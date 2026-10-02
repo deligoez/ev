@@ -114,8 +114,18 @@ places, and how far the whole home is (`progress`). Then:
   waits on it), payoff (space freed, things to give or sell). Show proposed orderings as a
   numbered table and let the person reorder; `unplanned` in `ev next` lists raw places no task
   covers yet.
+- **A day the person names is `--due`, never prose.** "I want to do this in a day or two",
+  "before Saturday": ask for the day if it is vague and record it with `ev task add … --due
+  YYYY-MM-DD` or `ev task edit <id> --due …`. `ev next` then puts the task first a day before
+  (`picked: due`) and lists it under `hints` until it is done; a date written only in the
+  reason is read by nothing. The order is still the person's: never rank tasks by a score of
+  your own, and bring `hints` up as questions ("#21 is due tomorrow", "#18's places are all
+  counted: close it?", "#9 settles 4 planned moves").
 - **Work one task.** `ev task start <id>`, go through its places box by box, bring up
-  everything under `arriving`, and add new tasks when you find work elsewhere.
+  everything under `arriving`, and add new tasks when you find work elsewhere. **Work its
+  `while_there` list in the same visit:** the photo, the labels, the unclear names, the
+  things leaving or waiting for their place, the coverage and value questions that sit in that
+  place. They are not ranked on their own; the drawer is open anyway.
 - **Close only on the person's word.** Before you ask, give the place its theme (see **Give
   every place a theme**). When they say the place is done: `ev review <place>
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
@@ -125,7 +135,9 @@ places, and how far the whole home is (`progress`). Then:
 
 When the person asks what is left, or a session starts with no clear task, run `ev todo` and
 summarise by kind with counts ("19 tasks, 8 moves, 2 things to return to Annemler, 8 things
-leaving, 1 thing to buy"). Most of it is state on the records — never copy it into tasks; it
+leaving, 1 thing to buy"); for photos say `photos_now`, the ones needed today — the rest are
+taken on their places' tours, and asking for them earlier only makes photos that go stale. Most
+of it is state on the records — never copy it into tasks; it
 leaves the list when you record the thing itself (`done`, `gone`, `back`, `found`, …).
 Record the kinds that have their own verbs as you meet them:
 

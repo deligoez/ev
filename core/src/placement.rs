@@ -753,6 +753,45 @@ mod tests {
         assert_eq!(k("controller"), "controller");
     }
 
+    /// A written word that the inventory inflects as a root of its own stays whole, though
+    /// its letters read as a shorter written word plus an ending; endings that cannot follow
+    /// the stem's sounds are never taken off; and none of it undoes the plural nouns above.
+    #[test]
+    fn a_word_that_is_a_root_of_its_own_stays_whole() {
+        let words = "alt altın altında altta ünite üniteleri uni pens pense pensesi cıvata \
+                     cıvatası cıva sap sabun var varta gün güneş türk türkiye box boxes \
+                     dolap dolabı dolabın dolabının kutu kutuda kitap kitaptan \
+                     bak bağı bağları bacaklarında bacağı blok bloğu";
+        let surfaces: Vec<String> = terms(words).into_iter().map(|t| t.surface).collect();
+        let lex = Lexicon::new(surfaces.iter().map(String::as_str));
+        let k = |w: &str| key(&lex, w);
+        // Roots the inventory inflects on their own: `altın`+`da`, `ünite`+`leri`,
+        // `pense`+`si`, `cıvata`+`sı` cannot be a case ending followed by another ending.
+        assert_eq!(k("altın"), "altin");
+        assert_eq!(k("ünite"), "unite");
+        assert_eq!(k("pense"), "pense");
+        assert_eq!(k("cıvata"), "civata");
+        // Endings that cannot follow the stem: `-ta` after a vowel or a voiced consonant,
+        // `-un` after `a`, `-es` where English would write `-s`.
+        assert_eq!(k("varta"), "varta");
+        assert_eq!(k("sabun"), "sabun");
+        assert_eq!(k("güneş"), "gunes");
+        assert_eq!(k("türkiye"), "turkiye");
+        assert_eq!(k("boxes"), "box");
+        // Still cut: real inflections of written words.
+        assert_eq!(k("altta"), "alt");
+        assert_eq!(k("kutuda"), "kutu");
+        assert_eq!(k("kitaptan"), "kitap");
+        assert_eq!(k("dolabı"), "dolap");
+        // `dolabının` reads as `dolabı`+`nın`, so it proves nothing about `dolabın`.
+        assert_eq!(k("dolabın"), "dolap");
+        // The plural nouns and the hardened written form keep working.
+        assert_eq!(k("bağı"), "bag");
+        assert_eq!(k("bağları"), "bag");
+        assert_eq!(k("bacaklarında"), "bacak");
+        assert_eq!(k("bloğu"), "blok");
+    }
+
     /// Writes `word<TAB>key` for every word of `EV_WORDS` (first column), stemmed against those
     /// same words, to `EV_OUT`; `tools/measure/stems.py` scores it.
     #[test]

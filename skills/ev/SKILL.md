@@ -299,8 +299,9 @@ your own reading of a name; ask.
 person's 8-pack is kept in two boxes, or a charger set's AA and AAA cells are separate records,
 set the line's units per bought quantity with `ev buy pack <line> <n>` and link each record with
 `ev buy link <line> <ref> --qty <its units>`; never leave the purchase as prose in a note.
-**When `ev add` prints "Could be one of these purchases", ask about the first one while the
-thing is in hand** ("is this the one bought from <shop> on <date>?"); on a yes, `ev buy link`,
+**When `ev add`, `ev found` or an `ev edit` that sets make or model prints "Could be one of
+these purchases", ask about the first one while the thing is in hand** ("is this the one bought
+from <shop> on <date>?"); on a yes, `ev buy link`,
 and offer the line's make and model when the record has none. `ev buy for <ref>` ranks lines
 for a record added earlier; ask about a record only once its place has been toured (in a
 place not toured yet, the record is still a guess: bring its candidates up during that tour).

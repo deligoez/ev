@@ -16,6 +16,15 @@ Draft for the next release.
   one, `O` or a click opens it in the program the system gives it, `y` copies its path or
   address.
 
+- **"Not this one" for a purchase candidate** (`ev buy decline <line> <ref> [--why …]`). When the
+  person says a line is not the thing in hand, the line stays open for other things and is no
+  longer offered to that one; `--clear` takes it back. `ev buy show` lists them under "not".
+
+## Upgrade notes
+
+- The database moves to schema 26 (declined purchase candidates) the first time this version
+  opens it; an older `ev` then refuses it.
+
 ## Changed
 
 - **The details Summary reads in sections, not as one long list.** After purchases, documents,

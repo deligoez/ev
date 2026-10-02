@@ -490,7 +490,91 @@ pub(crate) fn contact_sheet(file: &Path, tiles: &[(String, Crop)], out: &Path) -
 
 #[cfg(test)]
 mod tests {
-    use super::{Crop, glyph, label_spot};
+    use super::{Crop, Shape, draw_marks, fit_label, glyph, label_size, label_spot};
+
+    #[test]
+    fn a_long_label_shrinks_or_wraps_to_its_frame_and_a_number_keeps_its_size() {
+        let long = "1 LR44 Mettzchrom x17 (#484)";
+        for max_w in [120.0, 300.0, 600.0] {
+            let (lines, s) = fit_label(long, 27.0, max_w);
+            let (w, _) = label_size(&lines, s);
+            assert!(w <= max_w, "{w} > {max_w} for {lines:?} at {s}");
+            assert!(s >= 1.0);
+        }
+        // Wide enough: one line at the photo's scale. A bare number never shrinks.
+        assert_eq!(fit_label(long, 9.0, 2000.0), (vec![long.to_string()], 9.0));
+        assert_eq!(fit_label("12", 27.0, 500.0), (vec!["12".to_string()], 27.0));
+        // Broken at spaces before a smaller scale than a third of the photo's.
+        let (lines, s) = fit_label(long, 27.0, 600.0);
+        assert!(lines.len() > 1 && s >= 9.0, "{lines:?} at {s}");
+    }
+
+    #[test]
+    fn a_label_with_no_listed_spot_free_moves_down_its_column() {
+        let size = (100.0, 40.0);
+        let photo = (1000.0, 800.0);
+        let placed = [(300.0, 100.0, 100.0, 40.0), (300.0, 400.0, 100.0, 40.0)];
+        let tries = [(300.0, 100.0), (300.0, 400.0)];
+        let (x, y) = label_spot(&tries, &placed, &[], size, photo);
+        assert_eq!(x, 300.0);
+        assert!(y >= 140.0 && y + 40.0 <= 800.0, "{y}");
+        assert!(
+            placed
+                .iter()
+                .all(|&(_, py, _, ph)| y + 40.0 <= py || py + ph <= y)
+        );
+    }
+
+    #[test]
+    fn a_label_steps_off_another_frame_but_not_onto_another_label() {
+        let size = (100.0, 40.0);
+        let photo = (1000.0, 800.0);
+        let tries = [(300.0, 100.0), (300.0, 400.0)];
+        // Another frame where the label would go above: below instead.
+        let frames = [(250.0, 50.0, 300.0, 80.0)];
+        let spot = label_spot(&tries, &[], &frames, size, photo);
+        assert_eq!(spot, (300.0, 400.0));
+        // A label below as well: over the frame rather than over the label.
+        let placed = [(300.0, 400.0, 100.0, 40.0)];
+        let spot = label_spot(&tries, &placed, &frames, size, photo);
+        assert_eq!(spot, (300.0, 100.0));
+    }
+
+    #[test]
+    fn a_long_label_is_drawn_within_its_frames_width_and_inside_the_photo() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("p.png");
+        // A 2000×1500 grey photo: the scale of a phone photo, where labels came out as bars.
+        image::RgbImage::from_pixel(2000, 1500, image::Rgb([128, 128, 128]))
+            .save(&file)
+            .unwrap();
+        let out = dir.path().join("m.jpg");
+        let frame = Crop {
+            x: 0.4,
+            y: 0.0,
+            w: 0.2,
+            h: 0.3,
+        };
+        let marks = [
+            (
+                "1 LR44 Mettzchrom x17 (#484)".to_string(),
+                Shape::Rect(frame),
+            ),
+            ("2 CR2032 Varta x3 (#485)".to_string(), Shape::Rect(frame)),
+        ];
+        draw_marks(&file, &marks, &out).unwrap();
+        let img = image::open(&out).unwrap().to_rgb8();
+        let red = |p: &image::Rgb<u8>| p[0] > 180 && p[1] < 90 && p[2] < 90;
+        let (mut lo, mut hi) = (u32::MAX, 0);
+        for (x, _, p) in img.enumerate_pixels() {
+            if red(p) {
+                lo = lo.min(x);
+                hi = hi.max(x);
+            }
+        }
+        // The frame spans x 800–1200 and its line is about 8 px thick; nothing red outside it.
+        assert!(lo >= 790 && hi <= 1210, "red from x {lo} to {hi}");
+    }
 
     #[test]
     fn a_label_steps_aside_from_one_already_drawn_and_stays_in_the_photo() {
@@ -498,13 +582,16 @@ mod tests {
         let photo = (1000.0, 800.0);
         let tries = [(300.0, 100.0), (300.0, 400.0), (310.0, 150.0)];
         // Nothing drawn yet: above the frame.
-        assert_eq!(label_spot(&tries, &[], size, photo), (300.0, 100.0));
+        assert_eq!(label_spot(&tries, &[], &[], size, photo), (300.0, 100.0));
         // A label already there: below the frame instead.
         let placed = [(350.0, 90.0, 100.0, 40.0)];
-        assert_eq!(label_spot(&tries, &placed, size, photo), (300.0, 400.0));
+        assert_eq!(
+            label_spot(&tries, &placed, &[], size, photo),
+            (300.0, 400.0)
+        );
         // Above the photo's top edge does not count as a place.
         let tries = [(300.0, -20.0), (300.0, 400.0)];
-        assert_eq!(label_spot(&tries, &[], size, photo), (300.0, 400.0));
+        assert_eq!(label_spot(&tries, &[], &[], size, photo), (300.0, 400.0));
     }
 
     #[test]

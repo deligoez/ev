@@ -49,7 +49,8 @@ or a thing gone until the person says so: propose first, record when they confir
 The full process (tours, photos, placement, purchases) is the `ev` prompt or the resource \
 ev://skill; fields and payloads are in ev://reference.";
 
-/// Longer results are cut here, with a note on how to narrow the call.
+/// Longer text results are cut here, with a note on how to narrow the call; a longer JSON
+/// result is refused, since a cut one no longer parses.
 const MAX_CHARS: usize = 50_000;
 
 /// How a result comes back: the readable text (with #ids), or the JSON.
@@ -524,6 +525,16 @@ fn shaped(v: &Value, format: Format) -> CallToolResult {
         Format::Text => crate::render::human(v),
         Format::Json => serde_json::to_string_pretty(v).unwrap_or_default(),
     };
+    if let Format::Json = format {
+        let chars = body.chars().count();
+        if chars > MAX_CHARS {
+            return CallToolResult::error(vec![ContentBlock::text(format!(
+                "the JSON result is {chars} characters, over the {MAX_CHARS} a call returns, and \
+                 cut JSON does not parse; narrow the call (a reference, --depth, a tag or a kind) \
+                 or ask for the text format"
+            ))]);
+        }
+    }
     let mut content = vec![ContentBlock::text(cut(body))];
     for key in ["marked", "sheet"] {
         if let Some(block) = v[key].as_str().and_then(|p| image_block(Path::new(p))) {

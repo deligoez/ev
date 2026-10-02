@@ -623,6 +623,33 @@ impl Inventory {
         show(&self.conn, holder)
     }
 
+    /// Records made separately are one thing kept in several places (spec/portions.md §4.3).
+    pub fn join(&mut self, references: &[String]) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut nodes: Vec<Node> = Vec::new();
+        for r in references {
+            let n = load(&tx, resolve(&tx, r, false)?)?;
+            if !nodes.iter().any(|m| m.id == n.id) {
+                nodes.push(n);
+            }
+        }
+        if nodes.len() < 2 {
+            return Err(Error::Usage("name at least two records to join".into()));
+        }
+        let holder = crate::portions::join(&tx, &nodes)?;
+        tx.commit()?;
+        show(&self.conn, holder)
+    }
+
+    /// A portion is a thing of its own after all.
+    pub fn unjoin(&mut self, reference: &str) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let n = load(&tx, resolve(&tx, reference, false)?)?;
+        crate::portions::unjoin(&tx, &n)?;
+        tx.commit()?;
+        show(&self.conn, n.id)
+    }
+
     pub fn pending(&self) -> Result<Value> {
         let mut moves = Vec::new();
         let rows: Vec<(i64, i64)> = pairs(

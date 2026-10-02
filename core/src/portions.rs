@@ -183,6 +183,107 @@ fn merge(conn: &Connection, from: &Node, into: i64) -> Result<()> {
     Ok(())
 }
 
+/// `ev join` (spec §4.3): records made separately are one thing. What it is comes from the
+/// first, a make, model or size only the others know filling in, and the tags of all of them;
+/// a make or model that differs is refused with every value, for the person to settle. A record
+/// already a portion of another thing brings that thing's portions along. Portions that end up
+/// in one place join. Returns the record that holds the first one's units.
+pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
+    for n in nodes {
+        if n.state == State::Gone || n.kind != Kind::Item || n.serial.is_some() {
+            return Err(refused(
+                format!(
+                    "{}: only live items without a serial are kept in several places",
+                    label(n)
+                ),
+                Value::Null,
+            ));
+        }
+    }
+    let first = &nodes[0];
+    for (field, values) in [
+        (
+            "make",
+            nodes.iter().map(|n| n.make.clone()).collect::<Vec<_>>(),
+        ),
+        ("model", nodes.iter().map(|n| n.model.clone()).collect()),
+    ] {
+        let mut seen: Vec<String> = values.into_iter().flatten().collect();
+        seen.sort();
+        seen.dedup();
+        if seen.len() > 1 {
+            return Err(refused(
+                format!(
+                    "they differ in {field} ({}); set one {field} on all of them first if they \
+                     are one thing",
+                    seen.join(" / ")
+                ),
+                json!({ "field": field, "values": seen }),
+            ));
+        }
+    }
+    let key = first.thing.unwrap_or(first.id);
+    let mut members: Vec<i64> = Vec::new();
+    for n in nodes {
+        let mut tied = match n.thing {
+            Some(t) => ids(conn, "SELECT id FROM nodes WHERE thing = ?1", [t])?,
+            None => vec![n.id],
+        };
+        tied.retain(|id| !members.contains(id));
+        members.extend(tied);
+    }
+    let pick = |f: fn(&Node) -> Option<String>| nodes.iter().find_map(f);
+    let make = pick(|n| n.make.clone());
+    let model = pick(|n| n.model.clone());
+    let size = pick(|n| n.size.clone());
+    let mut tags: Vec<String> = nodes.iter().flat_map(|n| n.tags.clone()).collect();
+    tags.sort();
+    tags.dedup();
+    for id in &members {
+        let was = load(conn, *id)?;
+        conn.execute(
+            "UPDATE nodes SET thing = ?1 WHERE id = ?2",
+            params![key, id],
+        )?;
+        if was.state == State::Gone {
+            continue;
+        }
+        conn.execute(
+            "UPDATE nodes SET name = ?1, make = ?2, model = ?3, size = ?4 WHERE id = ?5",
+            params![first.name, make, model, size, id],
+        )?;
+        for t in &tags {
+            conn.execute(
+                "INSERT OR IGNORE INTO tags (node_id, tag) VALUES (?1, ?2)",
+                params![id, t],
+            )?;
+        }
+        if was.thing != Some(key) {
+            touch(conn, *id)?;
+            event(conn, *id, "join", json!({ "thing": key }))?;
+        }
+    }
+    for id in members.iter().filter(|id| **id != first.id) {
+        join_here(conn, *id)?;
+    }
+    join_here(conn, first.id)
+}
+
+/// `ev unjoin`: a portion is a thing of its own after all. It keeps what it is and leaves the
+/// thing; the others stay one thing, and what was linked to it (a purchase) stays with it.
+pub(crate) fn unjoin(conn: &Connection, n: &Node) -> Result<()> {
+    let Some(thing) = n.thing else {
+        return Err(refused(
+            format!("{} is not kept in several places", label(n)),
+            Value::Null,
+        ));
+    };
+    conn.execute("UPDATE nodes SET thing = NULL WHERE id = ?1", [n.id])?;
+    touch(conn, n.id)?;
+    event(conn, n.id, "unjoin", json!({ "thing": thing }))?;
+    Ok(())
+}
+
 /// The live portions of `thing`, oldest first.
 fn live(conn: &Connection, thing: i64) -> Result<Vec<Node>> {
     ids(

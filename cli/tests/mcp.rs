@@ -203,6 +203,32 @@ async fn text_results_follow_the_language_setting_even_when_it_changes_during_th
     client.cancel().await.unwrap();
 }
 
+#[tokio::test]
+async fn a_result_too_long_is_cut_as_text_and_refused_as_json_instead_of_cut_unparseable() {
+    let (_d, client) = start().await;
+    let mut seed = String::from("{\"name\":\"Ev\",\"kind\":\"home\"}\n");
+    for i in 0..1500 {
+        seed.push_str(&format!(
+            "{{\"name\":\"Kutu numarası {i} ve uzunca bir ad\",\"kind\":\"container\",\"in\":\"Ev\"}}\n"
+        ));
+    }
+    let r = call(
+        &client,
+        "ev",
+        json!({ "args": ["add", "--stdin"], "input": seed }),
+    )
+    .await;
+    assert_ne!(r.is_error, Some(true), "{}", text(&r));
+    let r = call(&client, "tree", json!({})).await;
+    assert_ne!(r.is_error, Some(true));
+    assert!(text(&r).ends_with("a tag or a kind)"), "{}", text(&r));
+    let r = call(&client, "tree", json!({ "format": "json" })).await;
+    assert_eq!(r.is_error, Some(true));
+    assert!(r.structured_content.is_none());
+    assert!(text(&r).contains("narrow the call"), "{}", text(&r));
+    client.cancel().await.unwrap();
+}
+
 /// The width and height of a result's image block, decoded.
 fn image_size(r: &CallToolResult, at: usize) -> (u32, u32) {
     let img = r.content[at].as_image().expect("an image block");

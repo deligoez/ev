@@ -11,7 +11,7 @@ use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
 
 /// The kinds of document, in the order a list shows them.
-pub const DOC_KINDS: [&str; 8] = [
+pub const DOC_KINDS: [&str; 9] = [
     "invoice",
     "warranty",
     "manual",
@@ -20,6 +20,9 @@ pub const DOC_KINDS: [&str; 8] = [
     "policy",
     // A copy of a paper that is thrown out once copied: a ticket, a letter, an old statement.
     "scan",
+    // The shop's picture of the product: what it looks like new, never the thing's own photo of
+    // how it is now (that is a photo).
+    "image",
     "other",
 ];
 
@@ -166,7 +169,7 @@ pub(crate) fn docs_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
     Ok(out)
 }
 
-fn link_node(conn: &Connection, doc: i64, node: i64, kind: &str) -> Result<bool> {
+pub(crate) fn link_node(conn: &Connection, doc: i64, node: i64, kind: &str) -> Result<bool> {
     let added = conn.execute(
         "INSERT OR IGNORE INTO document_links (document_id, target, target_id, at)
          VALUES (?1, 'node', ?2, ?3)",

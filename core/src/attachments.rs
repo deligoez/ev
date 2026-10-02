@@ -12,7 +12,7 @@ use crate::store::{Inventory, ids, resolve};
 use crate::valuations::NewValuation;
 use crate::{Error, Result};
 
-pub(crate) const ATTACHMENT_KINDS: [&str; 3] = ["link", "valuation", "coverage"];
+pub(crate) const ATTACHMENT_KINDS: [&str; 4] = ["link", "valuation", "coverage", "image"];
 
 fn text(v: &Value, k: &str) -> Option<String> {
     v.get(k)
@@ -73,6 +73,13 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
             for f in ["term", "from", "ends", "issuer", "number", "note"] {
                 put(f, text(v, f));
             }
+        }
+        // The shop's product picture, downloaded by the adapter: brought as a document of kind
+        // `image`, so it never stands in for the thing's own photo.
+        "image" => {
+            let file = text(v, "file").ok_or_else(|| Error::Usage("`file` is required".into()))?;
+            put("file", Some(file));
+            put("note", text(v, "note"));
         }
         other => return Err(Error::Usage(format!("unknown attachment `{other}`"))),
     }
@@ -300,6 +307,20 @@ impl Inventory {
                             ..Default::default()
                         },
                     )?;
+                }
+                Some("image") => {
+                    let file = s("file").unwrap_or_default();
+                    let (doc, _) = crate::docs::store_doc(
+                        &tx,
+                        &self.doc_dir,
+                        std::path::Path::new(&file),
+                        &crate::docs::NewDoc {
+                            kind: "image".into(),
+                            note: s("note"),
+                            ..Default::default()
+                        },
+                    )?;
+                    crate::docs::link_node(&tx, doc, node, "image")?;
                 }
                 _ => continue,
             }

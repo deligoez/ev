@@ -284,5 +284,7 @@ fn some_units_leave_are_lent_or_go_missing_while_the_rest_stay() {
     );
     let shown = inv.show("#6", false).unwrap();
     assert_eq!(shown["node"]["qty"], 18);
-    assert!(shown["thing"].is_null(), "{shown}");
+    // One place left, and the account of the rest: 2 thrown out.
+    assert_eq!(shown["thing"]["places"], 1, "{shown}");
+    assert_eq!(shown["thing"]["gone"], serde_json::json!({ "trash": 2 }));
 }

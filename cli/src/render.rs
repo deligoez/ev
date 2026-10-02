@@ -1760,6 +1760,11 @@ pub fn human(v: &Value) -> String {
             }
             for n in list {
                 let _ = writeln!(out, "{}", line(n));
+                // An `ev edit --stdin` line that set make or model, asked as a single edit is.
+                if let Some(c) = n.get("purchase_candidates") {
+                    let _ = writeln!(out, "  {}", t("Could be one of these purchases:"));
+                    candidate_lines(&mut out, c);
+                }
             }
             return out;
         }

@@ -545,3 +545,12 @@ CREATE TABLE purchase_declines (
 PRAGMA user_version = 26;
 COMMIT;
 ";
+
+/// A line's pack size: how many units each bought quantity holds (an 8-pack of cells, a set),
+/// so one line can be linked to every record its units went into.
+pub(super) const SCHEMA_V27: &str = "
+BEGIN;
+ALTER TABLE purchases ADD COLUMN pack INTEGER NOT NULL DEFAULT 1 CHECK (pack >= 1);
+PRAGMA user_version = 27;
+COMMIT;
+";

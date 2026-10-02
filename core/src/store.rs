@@ -42,6 +42,17 @@ pub struct Inventory {
     pub(crate) doc_dir: std::path::PathBuf,
 }
 
+impl Drop for Inventory {
+    /// After a write, fold the write-ahead log back into the database file, so a copy or a
+    /// commit of `ev.db` alone holds every change. FULL waits (within the busy timeout) for a
+    /// reader on an older snapshot, such as a running `ev ui`, instead of leaving pages behind.
+    fn drop(&mut self) {
+        if self.conn.total_changes() > 0 {
+            let _ = self.conn.execute_batch("PRAGMA wal_checkpoint(FULL);");
+        }
+    }
+}
+
 impl Inventory {
     /// Opens or creates the database; refuses a file written by a newer schema (exit 6).
     pub fn open(path: &Path) -> Result<Self> {
@@ -53,8 +64,8 @@ impl Inventory {
         }
         let mut conn = Connection::open(path)?;
         // Waiting beats failing: under a burst of parallel calls (measured: two MCP servers and
-        // the CLI, 60 writes among 40 reads) a writer waited past 5 s for the readers' shared
-        // locks; 30 s took all 60.
+        // the CLI, 60 writes among 40 reads) a writer waited past 5 s in rollback-journal mode;
+        // 30 s took all 60.
         conn.busy_timeout(Duration::from_secs(30))?;
         // A deferred transaction that reads and then writes gets SQLITE_BUSY at once, without
         // waiting, when another writer got in between; taking the write lock up front lets the
@@ -67,6 +78,13 @@ impl Inventory {
                 supported: SCHEMA_VERSION,
             });
         }
+        // Write-ahead log: readers (ev ui, an agent's reads) and the writer no longer wait for
+        // each other, only writers queue. The mode is kept in the file; `Drop` folds the log
+        // back into the database after a write, so the file alone (the one git commits) is whole.
+        // Switching an older file needs it to itself for a moment; when another process holds
+        // it, this command runs in the old mode and a later one switches (measured: 1 of 60
+        // writers lost the race while the file switched).
+        let _ = conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get::<_, String>(0));
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
         if version < 1 {
             conn.execute_batch(SCHEMA_V1)?;

@@ -288,12 +288,14 @@ fn buy_add_shows_the_line_its_order_and_the_thing_it_is_linked_to() {
     ]);
     assert_eq!(
         s,
-        "#1  2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY  [linked]\n  \
+        "#1  ordered 2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY  [linked]\n  \
          order: TS-1\n  → #7 Ev › Oda › D › D-B1 › Aktif buzzer ×1\n"
     );
     let show = h.text(&["show", "Aktif buzzer"]);
     assert!(
-        show.contains("\n  bought: #1  2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY\n"),
+        show.contains(
+            "\n  bought: #1  ordered 2021-12-24  Robotistan  Aktif buzzer 5V ×1  12.50 TRY\n"
+        ),
         "{show}"
     );
     assert_eq!(h.text(&["buy", "list", "--open"]), "(no purchases)\n");
@@ -318,7 +320,7 @@ fn buy_for_ranks_the_lines_with_their_reasons_and_add_offers_them() {
         "--model",
         "PKM17EPPH4001",
     ]);
-    assert!(s.contains("\n  Could be one of these purchases:\n  1. #1  2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("), "{s}");
+    assert!(s.contains("\n  Could be one of these purchases:\n  1. #1  delivered 2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("), "{s}");
     let f = h.text(&["buy", "for", "Buzzer, Murata"]);
     assert!(
         f.starts_with("#9 Ev › Oda › D › D-B1 › Buzzer, Murata\n  1. #1 "),
@@ -350,7 +352,7 @@ fn buy_for_toured_numbers_each_thing_with_its_path_then_the_line_and_its_reasons
     let s = h.text(&["buy", "for", "--toured"]);
     assert!(
         s.starts_with(
-            "1 of 5 unlinked things in toured places could be a purchase, best first:\n  1. #7 Ev › Oda › D › D-B1 › Aktif buzzer\n     #1  2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("
+            "1 of 5 unlinked things in toured places could be a purchase, best first:\n  1. #7 Ev › Oda › D › D-B1 › Aktif buzzer\n     #1  delivered 2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("
         ),
         "{s}"
     );

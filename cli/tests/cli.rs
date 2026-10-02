@@ -722,3 +722,25 @@ fn a_reader_that_stops_early_is_no_error() {
     assert!(!err.contains("panicked"), "{err}");
     assert!(out.status.success(), "{err}");
 }
+
+#[test]
+fn a_thing_used_up_leaves_as_used_and_neither_used_nor_merged_is_set_aside() {
+    let ev = Ev::new();
+    ev.ok(&["add", "Ev", "--kind", "home"]);
+    ev.ok(&["add", "Şerit kaset", "--kind", "item", "--in", "Ev"]);
+    ev.ok(&["add", "Kalem", "--kind", "item", "--in", "Ev"]);
+    let (code, _, _) = ev.run(&["dispose", "Şerit kaset", "--as", "used"]);
+    assert_eq!(code, 2);
+    let (code, _, _) = ev.run(&["gone", "Kalem", "--as", "merged"]);
+    assert_eq!(code, 2);
+    let v = ev.ok(&[
+        "gone",
+        "Şerit kaset",
+        "--as",
+        "used",
+        "--why",
+        "üç etiket bastı",
+    ]);
+    assert_eq!(v["node"]["state"], "gone");
+    assert_eq!(v["node"]["disposition"], "used");
+}

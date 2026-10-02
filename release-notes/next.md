@@ -42,5 +42,9 @@ Draft for the next release.
 - **A record id written as ev prints it was refused.** ev writes purchase lines, tasks,
   documents and observations as `#12`, but `ev buy show #1` or `ev task done #21` failed with
   "invalid digit". An agent copies the id as printed; every record id now takes `#12` or `12`.
+- **A task on a node read like a node.** `ev show` printed `task 14. #16 Samla …`; with the
+  position between the word and the id, an agent read `#16` as a node and opened a book. The
+  line now reads `task #16: Samla … (order 14)`, and the skill says that `#N` after a record's
+  word (task, purchase line, doc, need, cover) is that record's number.
 - **`ev … | head` panicked** with "failed printing to stdout: Broken pipe" when the reader
   stopped before ev finished writing. A closed pipe is now ignored.

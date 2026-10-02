@@ -227,8 +227,10 @@ impl Inventory {
         )?;
         touch(&tx, node.id)?;
         event(&tx, node.id, "back", json!({ "from": with }))?;
+        // Back home beside the rest of the same thing: the units join them.
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, holder)
     }
 }
 

@@ -64,6 +64,9 @@ label_enum!(Disposition, "disposition", {
     // Closing a record that should never have existed (a misreading, a duplicate): it keeps its
     // history but nothing actually left the home.
     Mistake => "mistake",
+    // A portion that joined another portion of the same thing in its place (spec/portions.md
+    // §4.2): its units live on in the other record. ev's own; never given on the command line.
+    Merged => "merged",
 });
 
 /// A stored node with every field of spec §3.1.
@@ -101,6 +104,10 @@ pub struct Node {
     pub make: Option<String>,
     pub model: Option<String>,
     pub serial: Option<String>,
+    /// The thing this record is a portion of, when it is kept in several places
+    /// (spec/portions.md): the id of the thing's first record.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thing: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

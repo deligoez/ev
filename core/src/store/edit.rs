@@ -119,6 +119,8 @@ pub(super) fn edit_in(conn: &Connection, reference: &str, assignments: &[String]
         touch(conn, id)?;
         event(conn, id, "edit", Value::Object(changes))?;
     }
+    // What the thing is, set on one portion, is set on all of them (spec/portions.md §3).
+    crate::portions::share_identity(conn, id, assignments)?;
     Ok(id)
 }
 

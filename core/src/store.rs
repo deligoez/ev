@@ -25,7 +25,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 29;
+pub const SCHEMA_VERSION: i64 = 30;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -34,7 +34,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial";
+     (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial, thing";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -180,6 +180,9 @@ impl Inventory {
         }
         if version < 29 {
             conn.execute_batch(SCHEMA_V29)?;
+        }
+        if version < 30 {
+            conn.execute_batch(SCHEMA_V30)?;
         }
         Ok(Self {
             conn,
@@ -575,9 +578,26 @@ impl Inventory {
     }
 
     pub fn move_to(&mut self, reference: &str, to: &str, plan: bool) -> Result<Value> {
+        self.move_qty(reference, to, plan, None)
+    }
+
+    /// `move_to` for `qty` of a record's units (spec/portions.md §4.1): fewer than all of them
+    /// are split off as a portion of their own, which moves (or, with `plan`, waits beside the
+    /// rest for its move). Arriving where a portion of the same thing already is, it joins it.
+    pub fn move_qty(
+        &mut self,
+        reference: &str,
+        to: &str,
+        plan: bool,
+        qty: Option<i64>,
+    ) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let mut node = load(&tx, resolve(&tx, reference, false)?)?;
         let target = resolve(&tx, to, false)?;
+        if let Some(count) = crate::portions::part_of(&node, qty)? {
+            let id = crate::portions::split_off(&tx, &node, count)?;
+            node = load(&tx, id)?;
+        }
         if plan {
             if let Some(p) = node.pending_to {
                 return Err(refused(
@@ -594,11 +614,13 @@ impl Inventory {
             )?;
             touch(&tx, node.id)?;
             event(&tx, node.id, "plan", json!({ "to": target }))?;
-        } else {
-            apply_move(&tx, &node, target, "move")?;
+            tx.commit()?;
+            return show(&self.conn, node.id);
         }
+        apply_move(&tx, &node, target, "move")?;
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, holder)
     }
 
     pub fn pending(&self) -> Result<Value> {
@@ -620,8 +642,9 @@ impl Inventory {
             .pending_to
             .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
         apply_move(&tx, &node, target, "done")?;
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, holder)
     }
 
     pub fn cancel(&mut self, reference: &str) -> Result<Value> {
@@ -653,6 +676,7 @@ impl Inventory {
         shred: bool,
     ) -> Result<Value> {
         check_shred(disposition, shred)?;
+        not_merged(Some(disposition))?;
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if disposition == Disposition::Mistake {
@@ -727,6 +751,7 @@ impl Inventory {
         shred: bool,
     ) -> Result<Value> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
+        not_merged(disposition)?;
         if disposition == Some(Disposition::Mistake) && why.is_none() {
             return Err(Error::Usage(
                 "say why the record was a mistake with --why".into(),
@@ -1030,6 +1055,7 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
                     make: r.get(21)?,
                     model: r.get(22)?,
                     serial: r.get(23)?,
+                    thing: r.get(24)?,
                 })
             },
         )
@@ -1101,7 +1127,7 @@ pub(crate) fn path_text(segments: &[PathSegment]) -> String {
         .join(" › ")
 }
 
-fn label(n: &Node) -> String {
+pub(crate) fn label(n: &Node) -> String {
     match &n.code {
         Some(c) => format!("{c} ({})", n.name),
         None => format!("#{} {}", n.id, n.name),
@@ -1172,6 +1198,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "marks": marks,
         "needs": needs,
         "node": node,
+        "thing": crate::portions::thing_json(conn, &n)?,
         "children": children,
         "pending": pending,
         "last_seen": last_seen,
@@ -1750,6 +1777,16 @@ fn check_shred(d: Disposition, shred: bool) -> Result<()> {
 /// The short side, in pixels, below which a copy may not read: a ticket's small print needs
 /// about this much. A guess to warn on, never to refuse on.
 const COPY_SHORT_SIDE: u32 = 800;
+
+/// `merged` is ev's own word for a portion that joined another; nobody says a thing left so.
+fn not_merged(disposition: Option<Disposition>) -> Result<()> {
+    if disposition == Some(Disposition::Merged) {
+        return Err(Error::Usage(
+            "`merged` is not a way to leave: ev sets it when a portion joins another".into(),
+        ));
+    }
+    Ok(())
+}
 
 /// Whether an edit sets a make or a model: the fields a purchase is matched by best.
 fn sets_identity(assignments: &[String]) -> bool {

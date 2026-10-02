@@ -575,3 +575,13 @@ UPDATE links SET archive = ev_store(archive) WHERE archive IS NOT NULL;
 PRAGMA user_version = 29;
 COMMIT;
 ";
+
+/// Schema 30: one thing kept in several places (spec/portions.md): each place's portion is a
+/// record, and the portions of one thing share `thing`, the id of its first record.
+pub(super) const SCHEMA_V30: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN thing INTEGER REFERENCES nodes(id);
+CREATE INDEX nodes_thing ON nodes(thing);
+PRAGMA user_version = 30;
+COMMIT;
+";

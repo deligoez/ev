@@ -15,6 +15,7 @@ mod money;
 mod photo;
 mod placement;
 mod plan;
+mod portions;
 mod purchase_match;
 mod purchases;
 mod store;

@@ -113,3 +113,55 @@ fn next_bundles_what_waits_in_the_task_place_and_nothing_from_elsewhere() {
     assert_eq!(names("photos", "code"), ["K1-U"]);
     assert!(!w.to_string().contains("GF-002"), "{w}");
 }
+
+#[test]
+fn a_photo_is_needed_now_only_where_the_place_is_counted_or_kept() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Pil", "item", Some("K1-U"), None);
+    add(&mut inv, "Kablo", "item", Some("K1-A"), None);
+    inv.review("K1-A", "kept", None).unwrap();
+    let todo = inv.todo().unwrap();
+    let when = |code: &str| -> String {
+        todo["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["code"] == code)
+            .unwrap_or_else(|| panic!("{code} not listed: {}", todo["photos"]))["when"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(when("K1-U"), "on_tour");
+    assert_eq!(when("K1-A"), "now");
+    assert_eq!(todo["counts"]["photos"], 2);
+    assert_eq!(todo["counts"]["photos_now"], 1);
+}
+
+#[test]
+fn next_notes_a_task_whose_places_are_counted_and_one_that_settles_moves() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Pil", "item", Some("K1-U"), None);
+    inv.photo_current("K1-A").unwrap();
+    let counted = inv
+        .task_add("Altı say", "unutuldu", &["K1-A".into()], None)
+        .unwrap()["id"]
+        .clone();
+    let settles = inv
+        .task_add("Üstü say", "pil gelecek", &["K1-U".into()], None)
+        .unwrap()["id"]
+        .clone();
+    inv.review("K1-A", "kept", None).unwrap();
+    inv.move_to("Pil", "K1-A", true).unwrap();
+    let hints = inv.next().unwrap()["hints"].clone();
+    let has = |task: &serde_json::Value, kind: &str| {
+        hints
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|h| &h["task"] == task && h["kind"] == kind)
+    };
+    assert!(has(&counted, "places_counted"), "{hints}");
+    assert!(has(&counted, "settles_moves"), "{hints}");
+    assert!(!has(&settles, "places_counted"), "{hints}");
+}

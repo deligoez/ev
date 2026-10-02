@@ -54,5 +54,10 @@ Draft for the next release.
   rows the first time this version opens the file (one household's 740 photo paths, 517 crop
   sources and 287 documents, all found afterwards). A relative `--db` no longer stores paths
   relative to the directory ev was started in.
+- **A thing found again, or one that just got its make and model, was not matched to a
+  purchase.** `ev add` and `ev split` offer the purchase lines a thing could be while it is in
+  hand; `ev found` and an `ev edit` setting `make=` / `model=` did not, though `ev buy for`
+  ranked a model match first. Both now carry the same `purchase_candidates`, and the skill asks
+  about the first one then.
 - **`ev … | head` panicked** with "failed printing to stdout: Broken pipe" when the reader
   stopped before ev finished writing. A closed pipe is now ignored.

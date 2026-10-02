@@ -173,3 +173,45 @@ fn more_of_a_thing_takes_what_it_is_and_joins_a_portion_already_there() {
     assert_eq!(drawer["thing"]["total"], 26);
     assert_eq!(drawer["thing"]["places"], 2);
 }
+
+#[test]
+fn records_made_separately_join_into_one_thing_and_a_different_model_is_refused() {
+    let (_d, mut inv) = setup();
+    let add = |inv: &mut Inventory, parent: &str, qty: i64, model: Option<&str>| {
+        inv.add(NewNode {
+            name: "Eneloop AA pil".into(),
+            kind: "item".into(),
+            parent: Some(parent.into()),
+            qty: Some(qty),
+            model: model.map(Into::into),
+            tags: vec!["şarjlı".into()],
+            ..Default::default()
+        })
+        .unwrap()
+    };
+    let toy = add(&mut inv, "Oyuncak", 4, Some("BK-3MCCE"));
+    let other = add(&mut inv, "El feneri", 2, Some("BK-3HCDE"));
+    let e = inv
+        .join(&["Eneloop AA".into(), id(&toy), id(&other)])
+        .unwrap_err();
+    assert_eq!(e.code(), 5);
+    assert!(inv.show("Eneloop AA", false).unwrap()["thing"].is_null());
+    // Without the other model: the toy's 4 become a portion, the drawer's name and the toy's
+    // model and tags hold for both; 4 more recorded apart in the drawer join the 20 there.
+    let drawer_copy = add(&mut inv, "D1", 4, None);
+    let v = inv
+        .join(&["Eneloop AA".into(), id(&toy), id(&drawer_copy)])
+        .unwrap();
+    assert_eq!(id(&v), "6");
+    assert_eq!(v["node"]["qty"], 24);
+    assert_eq!(v["node"]["model"], "BK-3MCCE");
+    assert_eq!(v["node"]["tags"], serde_json::json!(["şarjlı"]));
+    assert_eq!(v["thing"]["total"], 28);
+    assert_eq!(v["thing"]["places"], 2);
+    let toy = inv.show(&id(&toy), false).unwrap();
+    assert_eq!(toy["node"]["name"], "Eneloop AA");
+    // The toy's portion goes its own way again.
+    let alone = inv.unjoin(&id(&toy)).unwrap();
+    assert!(alone["thing"].is_null());
+    assert!(inv.show("#6", false).unwrap()["thing"].is_null());
+}

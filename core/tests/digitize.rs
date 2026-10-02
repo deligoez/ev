@@ -69,3 +69,34 @@ fn a_digitized_thing_stays_findable_and_a_thrown_out_one_does_not() {
     assert_eq!(names("konser"), ["Konser bileti 2015"]);
     assert!(names("kimlik").is_empty());
 }
+
+#[test]
+fn a_copy_too_small_to_read_leaves_with_a_warning_and_a_document_counts_as_a_copy() {
+    let (dir, mut inv) = setup();
+    let small = photo(&dir, "small.png", 400, 300);
+    inv.photo_add("Konser bileti 2015", &small, None, None)
+        .unwrap();
+    let v = inv
+        .gone("Konser bileti 2015", Some(Disposition::Digitize))
+        .unwrap();
+    let w = v["warnings"][0].as_str().unwrap();
+    assert!(w.contains("300 px"), "{w}");
+
+    // A scan filed as a document is a copy too, and a PDF is not measured.
+    let pdf = dir.path().join("kimlik.pdf");
+    std::fs::write(&pdf, "%PDF-1.4").unwrap();
+    inv.doc_add(
+        &pdf,
+        &NewDoc {
+            kind: "scan".into(),
+            ..Default::default()
+        },
+        &["Eski kimlik kartı".into()],
+    )
+    .unwrap();
+    let v = inv
+        .gone("Eski kimlik kartı", Some(Disposition::Digitize))
+        .unwrap();
+    assert_eq!(v["node"]["disposition"], "digitize");
+    assert!(v.get("warnings").is_none());
+}

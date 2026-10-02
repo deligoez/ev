@@ -10,7 +10,7 @@
 | code | `--code`, `edit code=`, `recode` | unique among non-gone nodes, folded; not digits only; `code=` clears; a code ending in `*` takes the next free number of its series (`GF1x1-*` after `GF1x1-007` is `GF1x1-008`, padded like the series, 3 digits for a new one, gone nodes' numbers never reused) in `add`, `edit` and `edit --stdin`; `ev recode A=X B=Y …` sets several at once, checking uniqueness against the codes they end up with (swap or rotate codes when boxes change places) |
 | address | `--address`, `edit address=` | homes only |
 | qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
-| note, theme | `--note`, `--theme`, `edit note=` | empty clears |
+| note, theme | `--note`, `--theme`, `edit note=` | empty clears; `note=+text` appends on a new line |
 | make, model, serial | `--make`, `--model`, `--serial`, `edit make=` | what the thing is beyond its name, as on its label (`make=Bosch model=GSB 13 RE`); searched by `ev find` as strongly as a code; empty clears |
 | fill | `--fill`, `edit fill=` | 0–100 estimate |
 | size | `--size`, `edit size=` | `WxDxH` or `WxD` in grid units, e.g. `1x2x0.5` (`×` and a decimal comma accepted); empty clears. What `regroup` compares when it offers a bigger spare box |

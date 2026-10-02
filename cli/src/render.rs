@@ -1760,7 +1760,34 @@ pub fn human(v: &Value) -> String {
             if list.is_empty() {
                 let _ = writeln!(out, "{}", t("(none)"));
             }
+            // `ev find`: the portions of one thing kept in several places stand together, under
+            // a line for the whole thing, where the first of them ranked.
+            let mut shown = std::collections::HashSet::new();
             for n in list {
+                if let Some(id) = n["thing"]["id"].as_i64() {
+                    if !shown.insert(id) {
+                        continue;
+                    }
+                    let th = &n["thing"];
+                    let _ = writeln!(
+                        out,
+                        "{}",
+                        tf(
+                            "{} ×{} in {} places · in use {} · spare {}",
+                            &[
+                                &s(n, "name"),
+                                &th["total"],
+                                &th["places"],
+                                &th["in_use"],
+                                &th["spare"]
+                            ]
+                        )
+                    );
+                    for p in list.iter().filter(|p| p["thing"]["id"] == id) {
+                        let _ = writeln!(out, "  {}", line(p));
+                    }
+                    continue;
+                }
                 let _ = writeln!(out, "{}", line(n));
                 // An `ev edit --stdin` line that set make or model, asked as a single edit is.
                 if let Some(c) = n.get("purchase_candidates") {

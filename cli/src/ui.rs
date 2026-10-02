@@ -1076,6 +1076,32 @@ impl App {
         Ok(())
     }
 
+    /// `p`: the next place of a thing kept in several places (spec/portions.md §5), by id and
+    /// round again, opened in the tree as Enter on a search result is.
+    fn next_portion(&mut self) -> Result<()> {
+        let Some(v) = &self.details else {
+            return Ok(());
+        };
+        let here = v["node"]["id"].as_i64().unwrap_or(0);
+        let mut others: Vec<i64> = v["thing"]["elsewhere"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|p| p["id"].as_i64())
+            .collect();
+        others.sort_unstable();
+        let Some(next) = others
+            .iter()
+            .find(|id| **id > here)
+            .or(others.first())
+            .copied()
+        else {
+            self.status = t("kept in one place").to_string();
+            return Ok(());
+        };
+        self.reveal(next)
+    }
+
     /// Opens the tree tab on `id`, expanding every ancestor.
     fn reveal(&mut self, id: i64) -> Result<()> {
         if id <= 0 {

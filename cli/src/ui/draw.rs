@@ -371,6 +371,13 @@ impl App {
         }
         parts.push((2, t("/ search")));
         parts.push((2, t("M map")));
+        if self.details.as_ref().is_some_and(|d| {
+            d["thing"]["elsewhere"]
+                .as_array()
+                .is_some_and(|e| !e.is_empty())
+        }) {
+            parts.push((1, t("p next place of this thing")));
+        }
         if self.details.is_some() {
             parts.push((2, t("H/L details tabs")));
             parts.push((4, t("E empty · y copy · + wide")));

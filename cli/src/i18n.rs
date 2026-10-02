@@ -854,6 +854,12 @@ static TR: &[(&str, &str)] = &[
     ("elsewhere: #{} {} ×{}", "başka yerde: #{} {} ×{}"),
     (" (in use)", " (kullanımda)"),
     ("in all", "toplam"),
+    ("kept in one place", "tek yerde duruyor"),
+    ("p next place of this thing", "p bu eşyanın sonraki yeri"),
+    (
+        "{} ×{} in {} places · in use {} · spare {}",
+        "{} ×{}, {} yerde · kullanımda {} · yedek {}",
+    ),
     ("  (on #{})", "  (#{} üzerinde)"),
     ("bought {}", "alınan {}"),
     ("here {}", "burada {}"),

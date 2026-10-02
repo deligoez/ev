@@ -72,6 +72,7 @@ impl App {
             KeyCode::Char('K') => self.scroll_details(-3),
             KeyCode::Char('+') => self.toggle_wide(),
             KeyCode::Char('y') => self.copy(),
+            KeyCode::Char('p') => self.next_portion()?,
             KeyCode::Char('E') => self.show_empty = !self.show_empty,
             KeyCode::Char('H') => self.step_detail_tab(-1),
             KeyCode::Char('L') => self.step_detail_tab(1),

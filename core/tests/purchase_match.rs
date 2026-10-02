@@ -385,3 +385,25 @@ fn a_lost_thing_found_again_offers_the_purchases_it_could_be() {
         assert_eq!(offered[0]["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
     }
 }
+
+#[test]
+fn an_edit_batch_line_that_sets_make_and_model_offers_the_purchases_too() {
+    let (_d, mut inv) = setup();
+    item(&mut inv, "Pense", None);
+    item(&mut inv, "Yan keski", None);
+    let v = inv
+        .edit_batch(&[
+            (
+                "Pense".into(),
+                vec!["make=Pro'sKit".into(), "model=1PK-052DS".into()],
+            ),
+            ("Yan keski".into(), vec!["note=masada".into()]),
+        ])
+        .unwrap();
+    let edited = v["edited"].as_array().unwrap();
+    assert_eq!(
+        edited[0]["purchase_candidates"][0]["purchase"]["name"],
+        "Pro's Kit 1PK-052DS Pense"
+    );
+    assert!(edited[1].get("purchase_candidates").is_none(), "{v}");
+}

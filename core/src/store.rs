@@ -335,9 +335,21 @@ impl Inventory {
         } else {
             query.rank(&nodes).into_iter().map(|(id, _)| id).collect()
         };
+        // A portion of a thing kept in several places says so: all of it, and in how many places
+        // (spec/portions.md §5). Agents keep acting on the portion's own id.
         let results = hits
             .into_iter()
-            .map(|id| brief(&self.conn, id))
+            .map(|id| {
+                let mut v = brief_json(&self.conn, id)?;
+                let n = load(&self.conn, id)?;
+                if let Some(th) = crate::portions::thing_json(&self.conn, &n)? {
+                    v["thing"] = json!({
+                        "id": th["id"], "total": th["total"], "places": th["places"],
+                        "in_use": th["in_use"], "spare": th["spare"],
+                    });
+                }
+                Ok(v)
+            })
             .collect::<Result<Vec<_>>>()?;
         Ok(json!({ "query": text, "results": results }))
     }

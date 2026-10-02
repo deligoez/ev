@@ -346,10 +346,7 @@ impl Inventory {
         tx.commit()?;
         let v = show(&self.conn, id)?;
         // A make or model just learned is what matches a purchase best: ask now, as `add` does.
-        if assignments
-            .iter()
-            .any(|a| a.starts_with("make=") || a.starts_with("model="))
-        {
+        if sets_identity(assignments) {
             return offer_purchases(&self.conn, id, v);
         }
         Ok(v)
@@ -370,9 +367,19 @@ impl Inventory {
             edited.push(edit_in(&tx, reference, assignments).map_err(|e| e.at_line(i + 1))?);
         }
         tx.commit()?;
+        // As a single edit does: a line that sets make or model asks about its purchases.
         let nodes = edited
             .iter()
-            .map(|id| brief(&self.conn, *id))
+            .zip(lines)
+            .map(|(id, (_, assignments))| {
+                let v = serde_json::to_value(brief(&self.conn, *id)?)
+                    .map_err(|e| Error::Internal(e.to_string()))?;
+                if sets_identity(assignments) {
+                    offer_purchases(&self.conn, *id, v)
+                } else {
+                    Ok(v)
+                }
+            })
             .collect::<Result<Vec<_>>>()?;
         Ok(json!({ "edited": nodes }))
     }
@@ -1743,6 +1750,13 @@ fn check_shred(d: Disposition, shred: bool) -> Result<()> {
 /// The short side, in pixels, below which a copy may not read: a ticket's small print needs
 /// about this much. A guess to warn on, never to refuse on.
 const COPY_SHORT_SIDE: u32 = 800;
+
+/// Whether an edit sets a make or a model: the fields a purchase is matched by best.
+fn sets_identity(assignments: &[String]) -> bool {
+    assignments
+        .iter()
+        .any(|a| a.starts_with("make=") || a.starts_with("model="))
+}
 
 /// Adds the purchase lines a node could be (purchases spec §5) to a result, when there are any:
 /// asked while the thing is in hand, after `add`, `split`, `found` and a new make or model.

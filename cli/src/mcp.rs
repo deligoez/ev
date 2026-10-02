@@ -7,9 +7,16 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerConfig};
+use rmcp::model::{
+    CallToolResult, ContentBlock, GetPromptRequestParams, GetPromptResponse, GetPromptResult,
+    Implementation, ListPromptsResult, ListResourcesResult, PaginatedRequestParams, Prompt,
+    PromptMessage, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+    ResourceContents, Role, ServerCapabilities, ServerConfig,
+};
+use rmcp::service::RequestContext;
 use rmcp::{
-    ErrorData as McpError, ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router,
+    ErrorData as McpError, RoleServer, ServerHandler, ServiceExt, schemars, tool, tool_handler,
+    tool_router,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -340,12 +347,103 @@ whole home this is long: start from a room or a piece of furniture.",
     }
 }
 
+/// The skill and the reference of this version, for clients with no skills of their own.
+const SKILL: &str = include_str!("../../skills/ev/SKILL.md");
+const REFERENCE: &str = include_str!("../../REFERENCE.md");
+
+/// The resources: (uri, name, description, text).
+const RESOURCES: [(&str, &str, &str, &str); 2] = [
+    (
+        "ev://skill",
+        "skill",
+        "How to keep the inventory with the person: the conversation loop, tours, photos, \
+         placement, purchases. Read it before the first tour.",
+        SKILL,
+    ),
+    (
+        "ev://reference",
+        "reference",
+        "Every command, field and payload of this version of ev.",
+        REFERENCE,
+    ),
+];
+
 #[tool_handler]
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("ev", env!("CARGO_PKG_VERSION")))
-            .with_instructions(INSTRUCTIONS)
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_prompts()
+                .enable_resources()
+                .build(),
+        )
+        .with_server_info(Implementation::new("ev", env!("CARGO_PKG_VERSION")))
+        .with_instructions(INSTRUCTIONS)
+    }
+
+    async fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, McpError> {
+        Ok(ListPromptsResult::with_all_items(vec![Prompt::new(
+            "ev",
+            Some("Keep the home inventory with ev: how the conversation, tours and photos go."),
+            None,
+        )]))
+    }
+
+    async fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResponse, McpError> {
+        if request.name != "ev" {
+            return Err(McpError::invalid_params(
+                format!("no prompt `{}`; there is `ev`", request.name),
+                None,
+            ));
+        }
+        Ok(GetPromptResponse::Complete(GetPromptResult::new(vec![
+            PromptMessage::new_text(Role::User, SKILL),
+        ])))
+    }
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        Ok(ListResourcesResult::with_all_items(
+            RESOURCES
+                .iter()
+                .map(|(uri, name, about, _)| {
+                    Resource::new(*uri, *name)
+                        .with_description(*about)
+                        .with_mime_type("text/markdown")
+                })
+                .collect(),
+        ))
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, McpError> {
+        let Some((uri, _, _, text)) = RESOURCES.iter().find(|r| r.0 == request.uri) else {
+            return Err(McpError::invalid_params(
+                format!(
+                    "no resource `{}`; there are ev://skill and ev://reference",
+                    request.uri
+                ),
+                None,
+            ));
+        };
+        Ok(ReadResourceResponse::Complete(ReadResourceResult::new(
+            vec![ResourceContents::text(*text, *uri).with_mime_type("text/markdown")],
+        )))
     }
 }
 

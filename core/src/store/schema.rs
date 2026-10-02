@@ -530,3 +530,18 @@ CREATE TABLE purchase_attachments (
 PRAGMA user_version = 25;
 COMMIT;
 ";
+
+/// Schema 26: a purchase line the person said is not a given thing (purchases spec §5): it
+/// stays open for others and is no longer offered to that one.
+pub(super) const SCHEMA_V26: &str = "
+BEGIN;
+CREATE TABLE purchase_declines (
+    purchase_id INTEGER NOT NULL REFERENCES purchases(id),
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    why TEXT,
+    at TEXT NOT NULL,
+    PRIMARY KEY (purchase_id, node_id)
+);
+PRAGMA user_version = 26;
+COMMIT;
+";

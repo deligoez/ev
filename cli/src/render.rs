@@ -704,6 +704,9 @@ fn todo(out: &mut String, v: &Value) {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
                     "photos" if n["photo_reason"] == "none" => Some(t("  (no photo)").into()),
+                    "photos" if n["photo_reason"] == "marked" => {
+                        Some(t("  (photo marked out of date)").into())
+                    }
                     "photos" => Some(tf("  (changed {})", &[&s(n, "changed_at")])),
                     "parked" => Some(tf(
                         "  (parked in {})",

@@ -367,6 +367,8 @@ impl App {
             plain("photos", &|n| {
                 let text = if n["photo_reason"] == "none" {
                     t("  no photo at all").to_string()
+                } else if n["photo_reason"] == "marked" {
+                    t("  photo marked out of date").to_string()
                 } else {
                     tf(
                         "  changed after the photo ({})",

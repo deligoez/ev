@@ -176,6 +176,10 @@ static TR: &[(&str, &str)] = &[
     ("PHOTO NEEDED", "FOTOĞRAF GEREKLİ"),
     ("  no photo at all", "  hiç fotoğrafı yok"),
     (
+        "  photo marked out of date",
+        "  fotoğrafı eski olarak işaretli",
+    ),
+    (
         "  changed after the photo ({})",
         "  fotoğraftan sonra değişti ({})",
     ),
@@ -704,6 +708,10 @@ static TR: &[(&str, &str)] = &[
     ),
     ("  {} ({} days)", "  {} ({} gün)"),
     ("  (no photo)", "  (fotoğraf yok)"),
+    (
+        "  (photo marked out of date)",
+        "  (fotoğrafı eski olarak işaretli)",
+    ),
     ("  (changed {})", "  (değişti {})"),
     (
         "Whole photo shared by several records",

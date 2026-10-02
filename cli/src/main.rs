@@ -946,6 +946,14 @@ enum PhotoCmd {
     Adopt,
     /// The newest photo still shows the place well enough; drop it from the photo-needed list.
     Current { reference: String },
+    /// The newest photo no longer shows the place, though the records saw no change (it was
+    /// emptied before it was recorded); keep it on the photo-needed list until a newer photo.
+    Stale {
+        reference: String,
+        /// What is different now.
+        #[arg(long)]
+        why: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1763,6 +1771,9 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
         Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),
         Cmd::Photo(PhotoCmd::Current { reference }) => inv.photo_current(&reference),
+        Cmd::Photo(PhotoCmd::Stale { reference, why }) => {
+            inv.photo_stale_mark(&reference, why.as_deref())
+        }
     }
 }
 

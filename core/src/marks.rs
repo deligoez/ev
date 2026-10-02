@@ -258,11 +258,24 @@ pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
 
 fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     let mut out = Vec::new();
-    let stale_entry = |mut v: Value, (reason, photo_at, changed): Stale| {
+    // A photo is needed now where the place is toured, kept or being counted: elsewhere the
+    // tour will change it, so it is taken then and a photo now would only go stale.
+    let stale_entry = |mut v: Value, (reason, photo_at, changed): Stale| -> Result<Value> {
         v["photo_reason"] = json!(reason);
         v["photo_at"] = json!(photo_at);
         v["changed_at"] = json!(changed);
-        v
+        let status = match v["review"]["status"].as_str() {
+            Some(s) => s.to_string(),
+            None => {
+                crate::plan::review_inherited(conn, v["id"].as_i64().unwrap_or_default())?["status"]
+                    .as_str()
+                    .unwrap_or("raw")
+                    .to_string()
+            }
+        };
+        let now = matches!(status.as_str(), "toured" | "kept" | "counting");
+        v["when"] = json!(if now { "now" } else { "on_tour" });
+        Ok(v)
     };
     // A box in a grid is cut from its drawer's photo, so the drawer's photo counts too: a box
     // added or changed after it leaves the drawer's photo out of date, though the drawer
@@ -291,14 +304,14 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
         if let Some(s) = photo_stale(conn, id)?
             && !(empty && s.0 == "none")
         {
-            out.push(stale_entry(u.clone(), s));
+            out.push(stale_entry(u.clone(), s)?);
         }
     }
     for g in grids {
         if let Some(s) = photo_stale(conn, g)? {
             let mut v = brief_value(conn, g)?;
             v["grid"] = json!(true);
-            out.push(stale_entry(v, s));
+            out.push(stale_entry(v, s)?);
         }
     }
     Ok(out)
@@ -644,6 +657,7 @@ impl Inventory {
             values,
             purchases,
         } = crate::coverage::todo_parts(&self.conn)?;
+        let photos_now = photos.iter().filter(|p| p["when"] == "now").count();
         Ok(json!({
             "goal": goal,
             "progress": next["progress"],
@@ -662,6 +676,7 @@ impl Inventory {
                 "stale": stale.len(),
                 "unclear": unclear.len(),
                 "photos": photos.len(),
+                "photos_now": photos_now,
                 "shared_photos": shared.len(),
                 "coverage_ending": coverage_ending.len(),
                 "coverage": coverage["count"],

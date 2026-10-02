@@ -50,6 +50,38 @@ fn tile_label(conn: &Connection, id: i64) -> Result<String> {
     Ok(load(conn, id)?.code.unwrap_or_else(|| format!("#{id}")))
 }
 
+/// The whole photo with a numbered red frame on each crop, numbered 1… in the order given, and
+/// the legend that says which record each number is: `[{n, ref, crop}]`. The person sees what
+/// was recognised and answers by number. A copy that cannot be drawn leaves `marked` empty: by
+/// then a cut is recorded already.
+fn numbered(
+    conn: &Connection,
+    name: &Path,
+    photo: &Path,
+    crops: &[(i64, crate::Crop)],
+) -> Result<(Option<String>, Vec<Value>)> {
+    let legend = crops
+        .iter()
+        .enumerate()
+        .map(|(i, (id, c))| {
+            Ok(json!({ "n": i + 1, "ref": brief_json(conn, *id)?, "crop": c.to_string() }))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if crops.is_empty() {
+        return Ok((None, legend));
+    }
+    let shapes: Vec<(String, crate::photo::Shape)> = crops
+        .iter()
+        .enumerate()
+        .map(|(i, (_, c))| ((i + 1).to_string(), crate::photo::Shape::Rect(*c)))
+        .collect();
+    let out = scratch_path(name, "numbered");
+    let marked = crate::photo::draw_marks(photo, &shapes, &out)
+        .ok()
+        .map(|()| out.to_string_lossy().into_owned());
+    Ok((marked, legend))
+}
+
 impl Inventory {
     /// Copies a photo into the store and attaches it to a node; with `crop`, attaches only
     /// the cut-out and remembers the stored original it came from.
@@ -273,7 +305,17 @@ impl Inventory {
                     .map(|()| out.to_string_lossy().into_owned())
             })
             .flatten();
-        Ok(json!({ "attached": attached, "sheet": sheet }))
+        let crops: Vec<(i64, crate::Crop)> = rows
+            .iter()
+            .filter_map(|(id, _, _, crop, _)| crop.map(|c| (*id, c)))
+            .collect();
+        let (marked, legend) = numbered(&self.conn, file, &original, &crops)?;
+        Ok(json!({
+            "attached": attached,
+            "sheet": sheet,
+            "marked": marked,
+            "legend": legend,
+        }))
     }
 
     /// What `photo_cut` would cut, drawn instead of cut: each placed box of the `place` grid
@@ -325,6 +367,8 @@ impl Inventory {
         }
         let out = out.map_or_else(|| scratch_copy(file), Path::to_path_buf);
         crate::photo::draw_marks(file, &shapes, &out)?;
+        let crops: Vec<(i64, crate::Crop)> = tiles.iter().map(|(id, _, c)| (*id, *c)).collect();
+        let (marked, legend) = numbered(&self.conn, file, file, &crops)?;
         let tiles: Vec<(String, crate::Crop)> =
             tiles.into_iter().map(|(_, label, c)| (label, c)).collect();
         let sheet = scratch_path(file, "sheet");
@@ -333,6 +377,8 @@ impl Inventory {
             "preview": out.to_string_lossy(),
             "framed": shapes.len(),
             "sheet": sheet.to_string_lossy(),
+            "marked": marked,
+            "legend": legend,
         }))
     }
 

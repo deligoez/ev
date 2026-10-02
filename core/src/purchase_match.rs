@@ -145,8 +145,13 @@ fn measures(text: &str) -> Vec<(&'static str, f64)> {
 }
 
 /// Dimensions where both texts give values and none of them agree.
+#[cfg(test)]
 fn conflicts(a: &str, b: &str) -> Vec<&'static str> {
-    let (ma, mb) = (measures(a), measures(b));
+    conflicting(&measures(a), &measures(b))
+}
+
+/// `conflicts` on measures already read.
+fn conflicting(ma: &[(&'static str, f64)], mb: &[(&'static str, f64)]) -> Vec<&'static str> {
     let dims: HashSet<&str> = ma.iter().map(|(d, _)| *d).collect();
     let mut out: Vec<&str> = dims
         .into_iter()
@@ -208,40 +213,114 @@ fn node_text(n: &Node) -> String {
     .join(" ")
 }
 
-fn score(conn: &Connection, corpus: &Corpus, n: &Node, p: &Value) -> Result<(f64, Vec<Value>)> {
-    let name = p["name"].as_str().unwrap_or_default();
+/// A purchase line with what scoring reads from it, read once however many things it is
+/// scored against.
+struct Line {
+    value: Value,
+    name: String,
+    squashed: String,
+    codes: HashSet<String>,
+    words: Vec<(String, Vec<String>)>,
+    measures: Vec<(&'static str, f64)>,
+    /// The line's brand, squashed, unless it is the shop's own name.
+    brand: Option<String>,
+    /// Things this product was linked to before: `(id, folded name)`.
+    aliases: Vec<(i64, String)>,
+}
+
+impl Line {
+    fn new(conn: &Connection, value: Value) -> Result<Line> {
+        let name = value["name"].as_str().unwrap_or_default().to_string();
+        let mut aliases = Vec::new();
+        if let (Some(shop), Some(sku)) = (value["shop"].as_str(), value["shop_sku"].as_str()) {
+            for a in ids(
+                conn,
+                "SELECT node_id FROM purchase_aliases WHERE shop = ?1 AND shop_sku = ?2",
+                [shop, sku],
+            )? {
+                aliases.push((a, fold(&load(conn, a)?.name)));
+            }
+        }
+        let shop = value["shop"].as_str().map(squash).unwrap_or_default();
+        let brand = value["brand"]
+            .as_str()
+            .map(squash)
+            .filter(|b| b.len() >= 2 && *b != shop);
+        Ok(Line {
+            squashed: squash(&name),
+            codes: codes(&name),
+            words: words(&name),
+            measures: measures(&name),
+            brand,
+            aliases,
+            name,
+            value,
+        })
+    }
+}
+
+/// A thing with what scoring reads from it.
+struct Thing<'a> {
+    node: &'a Node,
+    folded_name: String,
+    /// Model and serial, squashed, when long enough to mean something.
+    keys: Vec<(&'static str, String)>,
+    codes: HashSet<String>,
+    words: Vec<(String, Vec<String>)>,
+    measures: Vec<(&'static str, f64)>,
+    /// Name and make: where a line's brand is looked for.
+    own: String,
+    make: Option<String>,
+}
+
+impl<'a> Thing<'a> {
+    fn new(n: &'a Node) -> Thing<'a> {
+        let text = node_text(n);
+        Thing {
+            node: n,
+            folded_name: fold(&n.name),
+            keys: [("model", &n.model), ("serial", &n.serial)]
+                .into_iter()
+                .filter_map(|(f, v)| {
+                    v.as_deref()
+                        .map(squash)
+                        .filter(|v| v.len() >= 3)
+                        .map(|v| (f, v))
+                })
+                .collect(),
+            codes: codes(&text),
+            words: words(&text),
+            measures: measures(&text),
+            own: format!("{} {}", n.name, n.make.as_deref().unwrap_or_default()),
+            make: n.make.as_deref().map(squash).filter(|m| m.len() >= 2),
+        }
+    }
+}
+
+/// The score of line `p` for thing `n`, with its reasons as `(why, points)`.
+fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     let mut why = Vec::new();
     let mut total = 0.0;
     let mut add = |what: String, points: f64| {
         total += points;
-        why.push(json!({ "why": what, "points": (points * 10.0).round() / 10.0 }));
+        why.push((what, points));
     };
     // 1. A product linked before to a thing of the same name.
-    if let (Some(shop), Some(sku)) = (p["shop"].as_str(), p["shop_sku"].as_str()) {
-        let alias = ids(
-            conn,
-            "SELECT node_id FROM purchase_aliases WHERE shop = ?1 AND shop_sku = ?2",
-            [shop, sku],
-        )?;
-        for a in alias {
-            if a != n.id && fold(&load(conn, a)?.name) == fold(&n.name) {
-                add(format!("bought before for #{a}"), ALIAS);
-                break;
-            }
-        }
+    if let Some((a, _)) = p
+        .aliases
+        .iter()
+        .find(|(a, name)| *a != n.node.id && *name == n.folded_name)
+    {
+        add(format!("bought before for #{a}"), ALIAS);
     }
     // 2. The thing's model or serial written in the line.
-    let squashed = squash(name);
-    for (field, v) in [("model", &n.model), ("serial", &n.serial)] {
-        if let Some(v) = v.as_deref().map(squash).filter(|v| v.len() >= 3)
-            && squashed.contains(&v)
-        {
+    for (field, v) in &n.keys {
+        if p.squashed.contains(v.as_str()) {
             add(format!("{field} {v}"), EXACT_KEY);
         }
     }
     // 3. Model codes both carry.
-    let text = node_text(n);
-    let mut shared: Vec<String> = codes(&text).intersection(&codes(name)).cloned().collect();
+    let mut shared: Vec<&String> = n.codes.intersection(&p.codes).collect();
     shared.sort();
     for c in shared.into_iter().take(2) {
         add(format!("code {c}"), CODE);
@@ -249,33 +328,21 @@ fn score(conn: &Connection, corpus: &Corpus, n: &Node, p: &Value) -> Result<(f64
     // 4. The brand, compared without spaces or marks (`Pro's Kit` is `Pro'sKit`), in the
     //    thing's name or make only (a note says "for Arduino" of every module), never the
     //    shop's own name (a shop's own service names it as the brand).
-    let shop = p["shop"].as_str().map(squash).unwrap_or_default();
-    let brand = p["brand"]
-        .as_str()
-        .map(squash)
-        .filter(|b| b.len() >= 2 && *b != shop);
-    let own = format!("{} {}", n.name, n.make.as_deref().unwrap_or_default());
-    if let Some(b) = brand.filter(|b| has_phrase(&own, b)) {
+    if let Some(b) = p.brand.as_ref().filter(|b| has_phrase(&n.own, b)) {
         add(format!("brand {b}"), BRAND);
-    } else if let Some(m) = n
-        .make
-        .as_deref()
-        .map(squash)
-        .filter(|m| m.len() >= 2 && has_phrase(name, m))
-    {
+    } else if let Some(m) = n.make.as_ref().filter(|m| has_phrase(&p.name, m)) {
         add(format!("brand {m}"), BRAND);
     }
     // 5. Words, weighted by how rare they are among the lines.
-    let line_words = words(name);
     let mut points = 0.0;
-    let mut matched = Vec::new();
-    for (w, stems) in words(&text) {
-        if line_words
+    let mut matched: Vec<&str> = Vec::new();
+    for (w, stems) in &n.words {
+        if p.words
             .iter()
             .any(|(_, ls)| ls.iter().any(|s| stems.contains(s)))
-            && !matched.contains(&w)
+            && !matched.contains(&w.as_str())
         {
-            points += corpus.weight(&stems);
+            points += corpus.weight(stems);
             matched.push(w);
         }
     }
@@ -286,10 +353,10 @@ fn score(conn: &Connection, corpus: &Corpus, n: &Node, p: &Value) -> Result<(f64
         );
     }
     // 6. Numbers of one unit that differ.
-    for d in conflicts(&text, name) {
+    for d in conflicting(&n.measures, &p.measures) {
         add(format!("{d} differs"), CONFLICT);
     }
-    Ok((total, why))
+    (total, why)
 }
 
 impl Inventory {
@@ -301,6 +368,155 @@ impl Inventory {
             json!({ "node": crate::store::brief(&self.conn, id)?, "candidates": candidates_for(&self.conn, id, 0.0, 12)? }),
         )
     }
+
+    /// The back-fill (purchases spec §12.2): every thing in a toured place that no purchase is
+    /// linked to yet, with the one open line that could be it, best first. Only lines scoring
+    /// above `OFFER_AT` are offered, the bar `ev add` uses. A thing counts when the nearest
+    /// reviewed place above it is `toured` (a toured drawer covers the boxes in it, unless a
+    /// box has a review of its own).
+    pub fn buy_backfill(&self) -> Result<Value> {
+        let conn = &self.conn;
+        let nodes = crate::store::live_nodes(conn)?;
+        let mut reviews: HashMap<i64, String> = HashMap::new();
+        {
+            let mut stmt = conn.prepare("SELECT node_id, status FROM reviews")?;
+            for r in stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))? {
+                let (n, s) = r?;
+                reviews.insert(n, s);
+            }
+        }
+        let parent: HashMap<i64, Option<i64>> = nodes.iter().map(|n| (n.id, n.parent_id)).collect();
+        let linked: HashSet<i64> = ids(conn, "SELECT DISTINCT node_id FROM purchase_links", [])?
+            .into_iter()
+            .collect();
+        let toured = |id: i64| {
+            let mut cur = parent.get(&id).copied().flatten();
+            for _ in 0..10_000 {
+                let Some(c) = cur else { break };
+                if let Some(s) = reviews.get(&c) {
+                    return s == "toured";
+                }
+                cur = parent.get(&c).copied().flatten();
+            }
+            false
+        };
+        let things: Vec<&Node> = nodes
+            .iter()
+            .filter(|n| !linked.contains(&n.id) && toured(n.id))
+            .collect();
+        let matcher = Matcher::new(conn, &nodes)?;
+        let mut out = Vec::new();
+        for n in &things {
+            if let Some(c) = matcher.rank(n, OFFER_AT, 1).into_iter().next() {
+                out.push(json!({ "node": crate::store::brief(conn, n.id)?, "candidate": c }));
+            }
+        }
+        out.sort_by(|a, b| {
+            b["candidate"]["score"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .total_cmp(&a["candidate"]["score"].as_f64().unwrap_or(0.0))
+        });
+        Ok(json!({ "backfill": out, "toured_things": things.len() }))
+    }
+}
+
+/// The lines that can still be offered, and how rare each word is among all lines and the
+/// records: built once and used for any number of things.
+struct Matcher {
+    lines: Vec<Line>,
+    corpus: Corpus,
+}
+
+impl Matcher {
+    fn new(conn: &Connection, nodes: &[Node]) -> Result<Matcher> {
+        let all = ids(conn, "SELECT id FROM purchases ORDER BY id", [])?
+            .into_iter()
+            .map(|p| purchase_json(conn, p))
+            .collect::<Result<Vec<_>>>()?;
+        // How rare a word is, among the lines and the records together: "sensör" or "vida" are
+        // rare among purchases but common in a workshop's records, and say little about which.
+        let mut df: HashMap<String, usize> = HashMap::new();
+        let mut count = |text: &str| {
+            let mut seen = HashSet::new();
+            for (_, stems) in words(text) {
+                for s in stems {
+                    if seen.insert(s.clone()) {
+                        *df.entry(s).or_default() += 1;
+                    }
+                }
+            }
+        };
+        for p in &all {
+            count(p["name"].as_str().unwrap_or_default());
+        }
+        for other in nodes {
+            count(&node_text(other));
+        }
+        let corpus = Corpus {
+            df,
+            lines: all.len() + nodes.len(),
+        };
+        // Only a line still open, or linked to something (to show as linked there), is ever
+        // offered.
+        let lines = all
+            .into_iter()
+            .filter(|p| open(p) || p["linked"].as_array().is_some_and(|l| !l.is_empty()))
+            .map(|p| Line::new(conn, p))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Matcher { lines, corpus })
+    }
+
+    /// The lines scoring above `at` for `n`, at most `limit`, best first, and any linked to it.
+    fn rank(&self, n: &Node, at: f64, limit: usize) -> Vec<Value> {
+        let thing = Thing::new(n);
+        let mut out = Vec::new();
+        for line in &self.lines {
+            let p = &line.value;
+            let linked_here = p["linked"]
+                .as_array()
+                .is_some_and(|l| l.iter().any(|x| x["node"]["id"] == n.id));
+            if !(open(p) || linked_here) {
+                continue;
+            }
+            let (s, why) = score(&self.corpus, &thing, line);
+            if s > at || linked_here {
+                let why: Vec<Value> = why
+                    .into_iter()
+                    .map(
+                        |(w, points)| json!({ "why": w, "points": (points * 10.0).round() / 10.0 }),
+                    )
+                    .collect();
+                let mut c = json!({
+                    "purchase": {
+                        "id": p["id"], "name": p["name"], "shop": p["shop"], "brand": p["brand"],
+                        "ordered_at": p["ordered_at"], "delivered_at": p["delivered_at"],
+                        "qty": p["qty"], "open_qty": p["open_qty"], "paid": p["paid"],
+                        "currency": p["currency"],
+                    },
+                    "score": (s * 10.0).round() / 10.0,
+                    "why": why,
+                });
+                if linked_here {
+                    c["linked"] = json!(true);
+                }
+                out.push(c);
+            }
+        }
+        out.sort_by(|a, b| {
+            b["score"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .total_cmp(&a["score"].as_f64().unwrap_or(0.0))
+        });
+        out.truncate(limit);
+        out
+    }
+}
+
+/// Something left to link and not dismissed.
+fn open(p: &Value) -> bool {
+    p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0
 }
 
 /// The lines scoring above `at` for node `id`, at most `limit`, best first.
@@ -311,73 +527,11 @@ pub(crate) fn candidates_for(
     limit: usize,
 ) -> Result<Vec<Value>> {
     let n = load(conn, id)?;
-    let all = ids(conn, "SELECT id FROM purchases ORDER BY id", [])?;
-    if all.is_empty() {
+    if ids(conn, "SELECT id FROM purchases LIMIT 1", [])?.is_empty() {
         return Ok(Vec::new());
     }
-    let lines = all
-        .into_iter()
-        .map(|p| purchase_json(conn, p))
-        .collect::<Result<Vec<_>>>()?;
-    // How rare a word is, among the lines and the records together: "sensör" or "vida" are
-    // rare among purchases but common in a workshop's records, and say little about which.
-    let mut df: HashMap<String, usize> = HashMap::new();
-    let mut count = |text: &str| {
-        let mut seen = HashSet::new();
-        for (_, stems) in words(text) {
-            for s in stems {
-                if seen.insert(s.clone()) {
-                    *df.entry(s).or_default() += 1;
-                }
-            }
-        }
-    };
-    for p in &lines {
-        count(p["name"].as_str().unwrap_or_default());
-    }
     let nodes = crate::store::live_nodes(conn)?;
-    for other in &nodes {
-        count(&node_text(other));
-    }
-    let corpus = Corpus {
-        df,
-        lines: lines.len() + nodes.len(),
-    };
-    let mut out = Vec::new();
-    for p in lines {
-        let linked_here = p["linked"]
-            .as_array()
-            .is_some_and(|l| l.iter().any(|x| x["node"]["id"] == id));
-        let open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
-        if !(open || linked_here) {
-            continue;
-        }
-        let (s, why) = score(conn, &corpus, &n, &p)?;
-        if s > at || linked_here {
-            let mut c = json!({
-                "purchase": {
-                    "id": p["id"], "name": p["name"], "shop": p["shop"], "brand": p["brand"],
-                    "ordered_at": p["ordered_at"], "delivered_at": p["delivered_at"],
-                    "qty": p["qty"], "open_qty": p["open_qty"], "paid": p["paid"],
-                    "currency": p["currency"],
-                },
-                "score": (s * 10.0).round() / 10.0,
-                "why": why,
-            });
-            if linked_here {
-                c["linked"] = json!(true);
-            }
-            out.push(c);
-        }
-    }
-    out.sort_by(|a, b| {
-        b["score"]
-            .as_f64()
-            .unwrap_or(0.0)
-            .total_cmp(&a["score"].as_f64().unwrap_or(0.0))
-    });
-    out.truncate(limit);
-    Ok(out)
+    Ok(Matcher::new(conn, &nodes)?.rank(&n, at, limit))
 }
 
 #[cfg(test)]

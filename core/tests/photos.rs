@@ -130,3 +130,59 @@ fn one_photo_gives_the_same_record_several_crops_in_one_cut() {
     assert_eq!(photos[0]["crop"], "0.0000,0.0000,0.5000,1.0000");
     assert_eq!(photos[1]["crop"], "0.5000,0.0000,0.5000,1.0000");
 }
+
+#[test]
+fn a_cut_numbers_its_crops_on_the_whole_photo_in_the_order_given() {
+    let (dir, mut inv, photo) = setup();
+    for name in ["Pil", "Röle"] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Çekmece".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    let crop = |s: &str| s.parse::<ev_core::Crop>().unwrap();
+    let crops = [
+        ("Röle".to_string(), crop("0.5,0,0.5,1")),
+        ("Pil".to_string(), crop("0,0,0.5,1")),
+    ];
+    // The preview numbers them the same way and attaches nothing.
+    let p = inv
+        .photo_cut_preview(&photo, None, &crops, None, None)
+        .unwrap();
+    assert_eq!(p["legend"][0]["ref"]["name"], "Röle");
+    assert!(std::path::Path::new(p["marked"].as_str().unwrap()).is_file());
+    let v = inv
+        .photo_cut(&photo, Some("Çekmece"), &crops, None, None)
+        .unwrap();
+    let legend = v["legend"].as_array().unwrap();
+    assert_eq!(legend.len(), 2);
+    assert_eq!(legend[0]["n"], 1);
+    assert_eq!(legend[0]["ref"]["name"], "Röle");
+    assert_eq!(legend[0]["crop"], "0.5000,0.0000,0.5000,1.0000");
+    assert_eq!(legend[1]["n"], 2);
+    assert_eq!(legend[1]["ref"]["name"], "Pil");
+    assert_eq!(legend[1]["ref"]["path_text"], "Ev › Çekmece › Pil");
+    // The numbered copy is the whole photo, not a crop.
+    let marked = image::open(v["marked"].as_str().unwrap()).unwrap();
+    assert_eq!((marked.width(), marked.height()), (200, 100));
+    // A cut with only the whole photo has nothing to number.
+    let other = dir.path().join("other.png");
+    RgbImage::from_pixel(50, 50, Rgb([0, 255, 0]))
+        .save(&other)
+        .unwrap();
+    inv.add(NewNode {
+        name: "Kutu".into(),
+        kind: "container".into(),
+        parent: Some("Çekmece".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = inv
+        .photo_cut(&other, Some("Kutu"), &[], None, None)
+        .unwrap();
+    assert_eq!(v["legend"], serde_json::json!([]));
+    assert!(v["marked"].is_null());
+}

@@ -6,6 +6,12 @@ that fixes them.
 
 ## Open
 
+- **The back-fill has no "toured places only" view.** Matching existing records to purchases
+  (spec purchases §12.2) should cover only things in toured places, but `ev buy for` takes one
+  record at a time and nothing lists toured things with a strong candidate; the agent looped
+  over every item with a script and brought untoured records up (2026-10-02). Expected: a verb
+  or a `buy for` mode that ranks open lines against the things of toured places only, best
+  first, so the back-fill and each tour's end ask the same question.
 - **A word that is a root of its own is cut to another root.** `altın` → `alt` (meets
   `altında`), `ünite` → `uni`: the shortest shorter form written somewhere wins, and nothing in
   the inventory's own words tells a root from a suffixed form of another. Expected: a root stays

@@ -232,8 +232,103 @@ fn need_line(n: &Value) -> String {
     format!("#{} {qty}{}{make}{for_}", n["id"], s(n, "text"))
 }
 
+/// An amount in the reader's way of writing it: `1234.56 TRY` in English, `1.234,56 TL` in
+/// Turkish (thousands by dots, decimals by a comma, the lira as TL).
+pub(crate) fn amount(a: &str, currency: &str) -> String {
+    if crate::i18n::lang() == crate::i18n::Lang::En {
+        return format!("{a} {currency}").trim_end().to_string();
+    }
+    let (sign, digits) = a.strip_prefix('-').map_or(("", a), |d| ("-", d));
+    let (whole, cents) = digits.split_once('.').unwrap_or((digits, ""));
+    let mut grouped = String::new();
+    for (i, c) in whole.chars().enumerate() {
+        if i > 0 && (whole.len() - i) % 3 == 0 {
+            grouped.push('.');
+        }
+        grouped.push(c);
+    }
+    let cur = if currency == "TRY" { "TL" } else { currency };
+    let cents = if cents.is_empty() {
+        String::new()
+    } else {
+        format!(",{cents}")
+    };
+    format!("{sign}{grouped}{cents} {cur}")
+        .trim_end()
+        .to_string()
+}
+
+/// A sale's condition in the reader's language.
+pub(crate) fn condition(c: &str) -> &str {
+    match c {
+        "new" => t("new"),
+        "like-new" => t("like new"),
+        "used" => t("used"),
+        other => other,
+    }
+}
+
+/// A coverage's kind in the reader's language.
+pub(crate) fn coverage_kind(k: &str) -> &str {
+    match k {
+        "statutory" => t("statutory warranty"),
+        "manufacturer" => t("manufacturer warranty"),
+        "extended" => t("extended warranty"),
+        "store" => t("store warranty"),
+        "insurance" => t("insurance"),
+        other => other,
+    }
+}
+
+/// `2023-12-06 · AliExpress · ×2 · 734.44 TRY · ≈ 1694.75 TRY today`: a purchase in one line
+/// without the shop's title, for the details pane, which shows the title apart.
+pub(crate) fn purchase_brief(p: &Value) -> String {
+    let mut parts = Vec::new();
+    if let Some(d) = p["delivered_at"].as_str().or(p["ordered_at"].as_str()) {
+        parts.push(d.to_string());
+    }
+    if let Some(sh) = p["shop"].as_str() {
+        parts.push(sh.to_string());
+    }
+    let qty = p["linked_qty"]
+        .as_i64()
+        .unwrap_or(p["qty"].as_i64().unwrap_or(1));
+    parts.push(format!("×{qty}"));
+    if let Some(paid) = p["paid"].as_str() {
+        parts.push(amount(paid, p["currency"].as_str().unwrap_or_default()));
+    }
+    if let Some(today) = p["today"].as_object() {
+        parts.push(tf(
+            "≈ {} in {} money",
+            &[
+                &amount(
+                    today["amount"].as_str().unwrap_or_default(),
+                    today["currency"].as_str().unwrap_or_default(),
+                ),
+                &today["index_month"].as_str().unwrap_or_default(),
+            ],
+        ));
+    }
+    parts.join(" · ")
+}
+
+/// `2500.00 TRY · 2026-09-01 · listing`: the current value in one line.
+pub(crate) fn valuation_brief(x: &Value) -> String {
+    let at = s(x, "at");
+    let at = if x["approximate"] == true {
+        tf("about {}", &[&at])
+    } else {
+        at
+    };
+    let mut parts = vec![amount(&s(x, "amount"), &s(x, "currency")), at];
+    if let Some(src) = x["source"].as_str() {
+        parts.push(src.to_string());
+    }
+    parts.join(" · ")
+}
+
 /// A document's kind in the reader's language.
-fn doc_kind(k: &str) -> &str {
+pub(crate) fn doc_kind(k: &str) -> &str {
     match k {
         "invoice" => t("invoice"),
         "warranty" => t("warranty certificate"),
@@ -273,15 +368,17 @@ pub(crate) fn valuation_line(x: &Value) -> String {
     if x["approximate"] == true {
         parts[1] = tf("about {}", &[&parts[1]]);
     }
-    parts.push(format!("{} {}", s(x, "amount"), s(x, "currency")));
+    parts.push(amount(&s(x, "amount"), &s(x, "currency")));
     if let Some(today) = x["today"].as_object().filter(|_| x["currency"].is_string()) {
         let month = today["index_month"].as_str().unwrap_or_default();
         if !s(x, "at").starts_with(month) {
             parts.push(tf(
-                "≈ {} {} in {} money",
+                "≈ {} in {} money",
                 &[
-                    &today["amount"].as_str().unwrap_or_default(),
-                    &today["currency"].as_str().unwrap_or_default(),
+                    &amount(
+                        today["amount"].as_str().unwrap_or_default(),
+                        today["currency"].as_str().unwrap_or_default(),
+                    ),
                     &month,
                 ],
             ));
@@ -337,15 +434,16 @@ pub(crate) fn purchase_line(p: &Value) -> String {
         .unwrap_or(p["qty"].as_i64().unwrap_or(1));
     parts.push(format!("{} ×{qty}", s(p, "name")));
     if let Some(paid) = p["paid"].as_str() {
-        let cur = p["currency"].as_str().unwrap_or_default();
-        parts.push(format!("{paid} {cur}").trim_end().to_string());
+        parts.push(amount(paid, p["currency"].as_str().unwrap_or_default()));
     }
     if let Some(today) = p["today"].as_object() {
         parts.push(tf(
-            "≈ {} {} in {} money",
+            "≈ {} in {} money",
             &[
-                &today["amount"].as_str().unwrap_or_default(),
-                &today["currency"].as_str().unwrap_or_default(),
+                &amount(
+                    today["amount"].as_str().unwrap_or_default(),
+                    today["currency"].as_str().unwrap_or_default(),
+                ),
                 &today["index_month"].as_str().unwrap_or_default(),
             ],
         ));
@@ -663,14 +761,7 @@ fn coverage_status(cv: &Value) -> String {
 
 /// `#3 manufacturer  Bosch  2 years from delivery  active until 2026-05-03`.
 pub(crate) fn coverage_line(cv: &Value) -> String {
-    let kind = match cv["kind"].as_str().unwrap_or_default() {
-        "statutory" => t("statutory warranty"),
-        "manufacturer" => t("manufacturer warranty"),
-        "extended" => t("extended warranty"),
-        "store" => t("store warranty"),
-        "insurance" => t("insurance"),
-        other => other,
-    };
+    let kind = coverage_kind(cv["kind"].as_str().unwrap_or_default());
     let mut parts = vec![format!("#{} {kind}", cv["id"])];
     for k in ["issuer", "number", "term", "usage"] {
         if let Some(x) = cv[k].as_str() {

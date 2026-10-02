@@ -63,3 +63,29 @@ fn a_photo_marked_out_of_date_is_listed_until_a_newer_one() {
     inv.photo_add("Çekmece", &fresh, None, None).unwrap();
     assert!(needing(&inv).is_empty());
 }
+
+#[test]
+fn an_emptied_place_with_an_older_photo_is_listed_and_one_never_photographed_is_not() {
+    let (_dir, mut inv, photo) = setup();
+    for (name, kind, parent) in [("Pil", "item", "Çekmece"), ("Raf", "container", "Oda")] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: kind.into(),
+            parent: Some(parent.into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    inv.photo_add("Çekmece", &photo, None, None).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.move_to("Pil", "Raf", false).unwrap();
+    let list = needing(&inv);
+    assert!(
+        list.contains(&("Çekmece".into(), "changed".into())),
+        "{list:?}"
+    );
+    // Raf now holds the battery and has no photo, so it is listed for that; an empty place
+    // never photographed is not.
+    inv.move_to("Pil", "Oda", false).unwrap();
+    assert!(!needing(&inv).iter().any(|(n, _)| n == "Raf"));
+}

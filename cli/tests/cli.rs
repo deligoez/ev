@@ -667,3 +667,19 @@ fn settings_are_shown_changed_and_checked_without_a_database() {
     let (code, _, _) = ev.run(&["settings", "resume", "maybe"]);
     assert_eq!(code, 2);
 }
+
+#[test]
+fn a_record_id_is_taken_as_ev_prints_it_with_a_hash_or_bare() {
+    let ev = Ev::new();
+    ev.ok(&["add", "Ev", "--kind", "home"]);
+    let id = ev.ok(&["task", "add", "Say", "--why", "x"])["id"]
+        .as_i64()
+        .unwrap();
+    let v = ev.ok(&["task", "done", &format!("#{id}")]);
+    assert_eq!(v["status"], "done");
+    let v = ev.ok(&["task", "reopen", &id.to_string()]);
+    assert_eq!(v["status"], "open");
+    let (code, _, err) = ev.run(&["task", "done", "#x"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("such as 12 or #12"), "{err}");
+}

@@ -570,9 +570,11 @@ impl Inventory {
         let (l, name) = line_from(&v)?
             .ok_or_else(|| Error::Usage("a manual purchase cannot be cancelled".into()))?;
         let (id, _) = upsert(&tx, &l, &name)?;
+        let pack = v.get("pack").and_then(Value::as_i64).unwrap_or(1);
+        set_pack(&tx, id, pack)?;
         if let Some(r) = for_ref {
             let node = resolve(&tx, r, false)?;
-            link_in(&tx, id, node, l.qty)?;
+            link_in(&tx, id, node, l.qty * pack)?;
         }
         tx.commit()?;
         self.buy_show(id)
@@ -646,6 +648,15 @@ impl Inventory {
             )));
         }
         link_in(&tx, id, node, qty)?;
+        tx.commit()?;
+        self.buy_show(id)
+    }
+
+    /// Sets how many units each bought quantity of a line holds (an 8-pack, a set), so its
+    /// units can be linked to several things.
+    pub fn buy_pack(&mut self, id: i64, pack: i64) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        set_pack(&tx, id, pack)?;
         tx.commit()?;
         self.buy_show(id)
     }
@@ -730,6 +741,32 @@ impl Inventory {
         tx.commit()?;
         self.buy_show(id)
     }
+}
+
+/// A pack below 1, or one that would leave fewer units than are already linked, is refused.
+fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
+    if pack < 1 {
+        return Err(Error::Usage("pack must be at least 1".into()));
+    }
+    let p = purchase_json(conn, id)?;
+    let qty = p["qty"].as_i64().unwrap_or(1);
+    let linked: i64 = p["linked"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|l| l["qty"].as_i64())
+        .sum();
+    if qty * pack < linked {
+        return Err(Error::Usage(format!(
+            "purchase {id} has {linked} units linked; a pack of {pack} leaves {}",
+            qty * pack
+        )));
+    }
+    conn.execute(
+        "UPDATE purchases SET pack = ?1 WHERE id = ?2",
+        params![pack, id],
+    )?;
+    Ok(())
 }
 
 fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {

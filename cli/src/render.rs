@@ -22,9 +22,19 @@ fn disposition(d: &str) -> String {
         "sell" => t("sell"),
         "return" => t("return"),
         "mistake" => t("record error"),
+        "digitize" => t("photograph, then throw out"),
         other => return other.to_string(),
     }
     .to_string()
+}
+
+/// `  (shred)` after a thing that leaves shredded, so the pile shows it.
+fn shred_mark(n: &Value) -> &'static str {
+    if n["shred"].as_bool() == Some(true) {
+        t("  (shred)")
+    } else {
+        ""
+    }
 }
 
 fn kind(k: &str) -> String {
@@ -54,6 +64,7 @@ fn line(n: &Value) -> String {
                 &[&disposition(&s(n, "disposition"))],
             ));
         }
+        "gone" if s(n, "disposition") == "digitize" => out.push_str(t("  (gone, copy kept)")),
         "gone" => {
             out.push_str(&tf("  (gone: {})", &[&disposition(&s(n, "disposition"))]));
         }
@@ -336,6 +347,7 @@ pub(crate) fn doc_kind(k: &str) -> &str {
         "service" => t("service form"),
         "appraisal" => t("appraisal"),
         "policy" => t("policy"),
+        "scan" => t("scan"),
         "other" => t("other document"),
         other => other,
     }
@@ -666,7 +678,13 @@ fn todo(out: &mut String, v: &Value) {
                     ),
                     None => String::new(),
                 };
-                let _ = writeln!(out, "  {}: {}{sale}", disposition(d), line(n));
+                let _ = writeln!(
+                    out,
+                    "  {}: {}{sale}{}",
+                    disposition(d),
+                    line(n),
+                    shred_mark(n)
+                );
             }
         }
     }
@@ -1742,7 +1760,7 @@ pub fn human(v: &Value) -> String {
         for (d, list) in groups {
             let _ = writeln!(out, "{}:", disposition(d));
             for n in list.as_array().into_iter().flatten() {
-                let _ = writeln!(out, "  {}", line(n));
+                let _ = writeln!(out, "  {}{}", line(n), shred_mark(n));
                 for p in n["parts"].as_array().into_iter().flatten() {
                     let _ = writeln!(out, "      + {}", s(p, "name"));
                 }
@@ -1922,6 +1940,13 @@ fn next(out: &mut String, v: &Value) {
 
 /// `ev show`: a node's fields, marks, tasks, kits, contents and grid.
 fn show(out: &mut String, v: &Value, node: &Value) {
+    for w in v["warnings"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf("warning: {}", &[&w.as_str().unwrap_or_default()])
+        );
+    }
     let _ = writeln!(out, "{}", line(node));
     if let Some(k) = node["kind"].as_str() {
         let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
@@ -1990,6 +2015,7 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             "expires" => t("use-by"),
             "sale" => t("sale"),
             "condition" => t("condition"),
+            "shred" => t("shred first"),
             other => other,
         };
         let what = [
@@ -2002,6 +2028,7 @@ fn show(out: &mut String, v: &Value, node: &Value) {
                     "printed" => t("printed"),
                     "listed" => t("listed"),
                     "reserved" => t("reserved"),
+                    "yes" => t("yes"),
                     other => other,
                 }
                 .to_string()

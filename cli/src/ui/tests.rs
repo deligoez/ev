@@ -1294,3 +1294,61 @@ fn a_counted_box_with_nothing_waiting_turns_green_and_its_holders_wait_for_all_o
     term.draw(|f| app.draw(f)).unwrap();
     assert_eq!(fg_of(&term, "D-A1"), Some(done));
 }
+
+#[test]
+fn a_bought_thing_reads_in_sections_and_its_documents_open_from_their_own_tab() {
+    let (dir, mut inv) = home();
+    inv.add(NewNode {
+        name: "Matkap".into(),
+        kind: "item".into(),
+        parent: Some("Ev".into()),
+        note: Some("Şarj aleti ayrı kutuda".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    inv.buy_add(
+        &serde_json::json!({"name": "Bosch GSB 13 RE Darbeli Matkap 600 W", "shop": "Hırdavatçı",
+                            "ordered_at": "2024-05-03", "paid": "1999.5", "currency": "TRY",
+                            "order_url": "https://shop.example/orders/1"}),
+        Some("Matkap"),
+    )
+    .unwrap();
+    let pdf = dir.path().join("fatura.pdf");
+    std::fs::write(&pdf, "%PDF qa").unwrap();
+    inv.doc_add(
+        &pdf,
+        &ev_core::NewDoc {
+            kind: "invoice".into(),
+            ..Default::default()
+        },
+        &["Matkap".into()],
+    )
+    .unwrap();
+    let mut app = app_tr(inv);
+    let s = shown(&mut app, "Matkap", 150, 40);
+    // Sections in the order a person asks; money the Turkish way; no empty tabs.
+    let (money, note) = (s.find("Para ─").unwrap(), s.find("Not ─").unwrap());
+    assert!(money < note, "{s}");
+    assert!(s.contains("1.999,50 TL"), "{s}");
+    assert!(s.contains("Belgeler 2") && !s.contains("Izgara"), "{s}");
+    // The documents and the purchase's order page, the first one picked.
+    app.detail_tab = DetailTab::Documents;
+    let s = shown(&mut app, "Matkap", 150, 40);
+    assert!(s.contains("▶ fatura"), "{s}");
+    assert!(s.contains("↗ sipariş sayfası · Hırdavatçı"), "{s}");
+    press(&mut app, KeyCode::Char(']'));
+    assert_eq!(app.document_targets()[app.doc_idx], super::Target::Link(0));
+    // `E` shows the identity still to fill; `+` widens the details and goes back.
+    app.detail_tab = DetailTab::Summary;
+    press(&mut app, KeyCode::Char('E'));
+    let s = shown(&mut app, "Matkap", 150, 40);
+    assert!(
+        s.lines().any(|l| l.contains("marka") && l.contains("—")),
+        "{s}"
+    );
+    let before = app.split;
+    press(&mut app, KeyCode::Char('+'));
+    assert_eq!(app.split, 20);
+    press(&mut app, KeyCode::Char('+'));
+    assert_eq!(app.split, before);
+}

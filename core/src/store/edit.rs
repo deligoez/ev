@@ -188,7 +188,10 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 Some(old) if !old.trim().is_empty() => format!("{old}\n{added}"),
                 _ => added,
             };
-            conn.execute("UPDATE nodes SET note = ?1 WHERE id = ?2", params![note, n.id])?;
+            conn.execute(
+                "UPDATE nodes SET note = ?1 WHERE id = ?2",
+                params![note, n.id],
+            )?;
         }
         "note" | "theme" | "make" | "model" | "serial" => {
             conn.execute(

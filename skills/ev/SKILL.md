@@ -383,9 +383,9 @@ the place or any placed box in its grid has no photo or one older than its last 
 
 ## Going somewhere
 
-Whenever the person says they are going somewhere or meeting someone ("yarın Annemlera
+Whenever the person says they are going somewhere or meeting someone ("yarın Annemlere
 gidiyorum", "Ayşe gelecek"), run `ev for <place>` with the Turkish case suffix removed
-(`Annemlera` → `Annemler`) and tell them what to take, return and collect, with where each
+(`Annemlere` → `Annemler`) and tell them what to take, return and collect, with where each
 thing is. Record new intentions as they come up: `ev edit X to=<place>` (take it there),
 `ev edit X owner=<place>` (it is theirs), `ev lend X --to <place>` / `ev back X` (lent out).
 Different names for the same household are aliases of one place (`ev place alias`); if two

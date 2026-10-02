@@ -1,8 +1,9 @@
 # ev — what a thing cost, what proves it, what still covers it
 
-Status: **decided, not implemented.** Written 2026-10-01 from a day of design work with the person
-(a purchase-history export across fourteen shops, a review of the Under My Roof data model and
-of inflation sources). Nothing in `ev` has changed yet. Phases are in §9.
+Status: **implemented**, released in v0.17.0 and refined since (pack sizes, declined candidates,
+the toured back-fill). Written 2026-10-01 from a day of design work with the person (a
+purchase-history export across fourteen shops, a review of the Under My Roof data model and of
+inflation sources). Phases are in §9; what changed after the first draft is in §11 and §12.
 
 ## 1. Decision
 

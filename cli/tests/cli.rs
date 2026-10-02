@@ -683,3 +683,42 @@ fn a_record_id_is_taken_as_ev_prints_it_with_a_hash_or_bare() {
     assert_eq!(code, 2);
     assert!(err.contains("such as 12 or #12"), "{err}");
 }
+
+#[test]
+fn a_reader_that_stops_early_is_no_error() {
+    let ev = Ev::new();
+    let mut lines = String::from("{\"name\":\"Ev\",\"kind\":\"home\"}\n");
+    for i in 0..400 {
+        lines.push_str(&format!(
+            "{{\"name\":\"Kutu {i}\",\"kind\":\"container\",\"in\":\"Ev\"}}\n"
+        ));
+    }
+    Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["add", "--stdin"])
+        .write_stdin(lines)
+        .assert()
+        .success();
+    // More than a pipe holds, read a little, then the pipe is closed, as `| head` does.
+    let mut child = std::process::Command::new(assert_cmd::cargo::cargo_bin("ev"))
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .arg("tree")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut first = [0u8; 16];
+    std::io::Read::read_exact(child.stdout.as_mut().unwrap(), &mut first).unwrap();
+    drop(child.stdout.take());
+    let out = child.wait_with_output().unwrap();
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(!err.contains("panicked"), "{err}");
+    assert!(out.status.success(), "{err}");
+}

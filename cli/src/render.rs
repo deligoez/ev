@@ -280,7 +280,7 @@ pub(crate) fn coverage_kind(k: &str) -> &str {
     }
 }
 
-/// `2023-12-06 · AliExpress · ×2 · 734.44 TRY · ≈ 1694.75 TRY today`: a purchase in one line
+/// `2024-05-03 · Shop · ×2 · 500.00 TRY · ≈ 940.14 TRY today`: a purchase in one line
 /// without the shop's title, for the details pane, which shows the title apart.
 pub(crate) fn purchase_brief(p: &Value) -> String {
     let mut parts = Vec::new();

@@ -57,8 +57,8 @@ Draft for the next release.
   unsure, 2 wrong), every known right match still first, and one more right match found.
 - **The History tab says every event in words.** Linking a purchase, adding or removing a
   document or a coverage, a "do not track" decision, lending, breaking and fixing, and a plan
-  import showed as `event purchase_linked {"purchase":636,"qty":2}`; each now reads like the
-  others ("linked to purchase  #636 ×2").
+  import showed as `event purchase_linked {"purchase":12,"qty":2}`; each now reads like the
+  others ("linked to purchase  #12 ×2").
 - **A statutory warranty is no longer proposed after it has ended, or for a purchase from
   abroad.** `ev show` proposed a two-year statutory warranty for a module bought on AliExpress
   three years earlier. A proposal now needs a line sold at home, paid in the home currency and

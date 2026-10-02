@@ -1352,3 +1352,34 @@ fn a_bought_thing_reads_in_sections_and_its_documents_open_from_their_own_tab() 
     press(&mut app, KeyCode::Char('+'));
     assert_eq!(app.split, before);
 }
+
+#[test]
+fn a_thing_in_several_places_shows_them_and_p_goes_from_one_place_to_the_next() {
+    let (_dir, mut inv) = home();
+    for (name, kind, parent, qty) in [
+        ("Kutu", "container", "Ev", None),
+        ("El feneri", "item", "Ev", None),
+        ("Eneloop pil", "item", "Kutu", Some(10)),
+    ] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: kind.into(),
+            parent: Some(parent.into()),
+            qty,
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    inv.move_qty("Eneloop pil", "El feneri", false, Some(3))
+        .unwrap();
+    let mut app = app_tr(inv);
+    let s = shown(&mut app, "#4", 150, 40);
+    assert!(s.contains("×10, 2 yerde"), "{s}");
+    assert!(s.contains("başka yerde"), "{s}");
+    let id = |app: &App| app.details.as_ref().unwrap()["node"]["id"].as_i64();
+    assert_eq!(id(&app), Some(4));
+    press(&mut app, KeyCode::Char('p'));
+    assert_eq!(id(&app), Some(5));
+    press(&mut app, KeyCode::Char('p'));
+    assert_eq!(id(&app), Some(4));
+}

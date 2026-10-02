@@ -23,8 +23,9 @@ Draft for the next release.
 - **Writes at the same moment failed with "database is locked".** A command that read and then
   wrote got the lock refused at once, without the five-second wait, when another write got in
   between. Rare from one terminal, but an MCP client sends calls in parallel: in QA, seven of
-  eight parallel writes failed. Writes now take the lock up front and wait their turn; sixteen
-  parallel writers all succeed.
+  eight parallel writes failed. Writes now take the lock up front and wait their turn, for up
+  to 30 seconds instead of 5: a burst of two MCP servers and the CLI (60 writes among 40 reads)
+  lost 27 writes before and none after.
 - **`ev photo mark`, `ev focus` and `ev money needs` printed JSON as their text.** `photo
   mark` now lists each label and where it is, then the numbered copy; `focus` says what `ev ui`
   was asked to show, or that the request is cleared; `money needs` names the index, the month

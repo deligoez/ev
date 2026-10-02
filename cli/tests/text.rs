@@ -481,3 +481,25 @@ fn value_and_link_show_on_the_thing_with_the_latest_value_first() {
         "{show}"
     );
 }
+
+#[test]
+fn photo_mark_lists_each_label_and_where_the_numbered_copy_is() {
+    let h = Home::new();
+    let file = h.dir.path().join("drawer.png");
+    image::RgbImage::from_pixel(200, 100, image::Rgb([120, 120, 120]))
+        .save(&file)
+        .unwrap();
+    let file = file.to_string_lossy().to_string();
+    let s = h.text(&[
+        "photo",
+        "mark",
+        &file,
+        "1=0.1,0.1,0.3,0.3",
+        "2=0.5,0.5,0.2,0.2",
+    ]);
+    assert!(
+        s.starts_with("1  0.1,0.1,0.3,0.3\n2  0.5,0.5,0.2,0.2\nNumbered photo: "),
+        "{s}"
+    );
+    assert!(!s.contains('{'), "{s}");
+}

@@ -243,3 +243,46 @@ fn audit_leaves_a_spread_thing_alone_and_hints_join_for_the_same_name_recorded_t
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0]["same_name"], serde_json::json!(["Eneloop AA"]));
 }
+
+#[test]
+fn some_units_leave_are_lent_or_go_missing_while_the_rest_stay() {
+    let (_d, mut inv) = setup();
+    // 2 of the 20 are dead: they leave, 18 stay.
+    let gone = inv
+        .gone_qty(
+            "Eneloop AA",
+            Some(ev_core::Disposition::Trash),
+            None,
+            false,
+            Some(2),
+        )
+        .unwrap();
+    assert_eq!(gone["node"]["qty"], 2);
+    assert_eq!(gone["node"]["state"], "gone");
+    assert_eq!(inv.show("#6", false).unwrap()["node"]["qty"], 18);
+    // 3 lent to a neighbour come back and join the rest.
+    let lent = inv.lend_qty("#6", "Komşu", Some(3)).unwrap();
+    assert_eq!(inv.show("#6", false).unwrap()["node"]["qty"], 15);
+    let back = inv.back(&id(&lent)).unwrap();
+    assert_eq!(id(&back), "6");
+    assert_eq!(back["node"]["qty"], 18);
+    // 1 goes missing, then turns up where it was.
+    let lost = inv.mark_lost_qty("#6", Some(1)).unwrap();
+    assert_eq!(lost["node"]["lost"], true);
+    let shown = inv.show("#6", false).unwrap();
+    assert_eq!(shown["thing"]["total"], 17);
+    assert_eq!(shown["thing"]["lost"], 1);
+    let found = inv.found(&id(&lost)).unwrap();
+    assert_eq!(id(&found), "6");
+    assert_eq!(found["node"]["qty"], 18);
+    // A verb that refuses after the split leaves nothing split: gone needs --as here.
+    assert_eq!(
+        inv.gone_qty("#6", None, None, false, Some(2))
+            .unwrap_err()
+            .code(),
+        5
+    );
+    let shown = inv.show("#6", false).unwrap();
+    assert_eq!(shown["node"]["qty"], 18);
+    assert!(shown["thing"].is_null(), "{shown}");
+}

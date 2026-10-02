@@ -36,6 +36,16 @@ Draft for the next release.
 - **`+` widens the details** as far as the list allows, and back.
 ## Fixed
 
+- **Purchase candidates need more than words.** In the toured back-fill, 24 of 30 offers were
+  wrong: lines that shared only what a thing is for or kept with ("USB girişli, korumalı" for a
+  charging module, "banyodaki dolabı için" for screw-cover stickers), a code mentioned in a note
+  (every module noted "for an ESP32" was offered an ESP32 kit), or only a brand (a Pro'sKit
+  pliers line for a Pro'sKit wire stripper). Words alone now offer a line only when it carries
+  most of what the thing is (the head of its name, weighted by rarity); codes are read from the
+  name, make, model and serial, not the note; a brand counts in full only with a word of what the
+  thing is; and amperes are compared (`2,5 A` against `3A`), without reading `Pi 3 A+` as one.
+  On a copy of the real inventory the list went from 30 offers (6 right) to 10 (7 right, 1
+  unsure, 2 wrong), every known right match still first, and one more right match found.
 - **The History tab says every event in words.** Linking a purchase, adding or removing a
   document or a coverage, a "do not track" decision, lending, breaking and fixing, and a plan
   import showed as `event purchase_linked {"purchase":636,"qty":2}`; each now reads like the

@@ -602,3 +602,21 @@ fn find_shows_a_thing_in_several_places_together_under_one_line() {
         "{s}"
     );
 }
+
+#[test]
+fn a_purchase_names_its_dates_the_order_first_then_the_delivery() {
+    let h = Home::new();
+    h.run(
+        &["buy", "import", "--stdin"],
+        Some(
+            "{\"source\":\"s\",\"key\":\"1\",\"name\":\"Etiket makinesi\",\"shop\":\"Dükkan\",\
+             \"ordered_at\":\"2024-12-06\",\"delivered_at\":\"2024-12-09\",\"paid\":\"999\",\
+             \"currency\":\"TRY\"}\n",
+        ),
+    );
+    let s = h.text(&["buy", "show", "1"]);
+    assert!(
+        s.starts_with("#1  ordered 2024-12-06 · delivered 2024-12-09  Dükkan  Etiket makinesi"),
+        "{s}"
+    );
+}

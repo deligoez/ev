@@ -128,14 +128,18 @@ is (`ev review <place> --as counting|toured|kept`; starting a task on a place ma
 being counted), and flags counted ones that changed since. `ev observe` keeps what was
 noticed about a place (`ev unobserve` closes a note once it is dealt with, and the place's
 history keeps what it said); `ev task` is an ordered work list where every entry says why it
-matters; `ev next` hands over the current task with its places, what is planned to arrive
-there and the places no task covers yet. `ev goal organize|track` says whether the household
+matters, and may carry the day it is due (`--due`); `ev next` hands over the current task (one
+due within a day goes first) with its places, what is planned to arrive there, everything
+else waiting in each place to do while it is open (a photo, labels, unclear names, things
+leaving, coverage and value questions), notes on the order it never applies itself, and the
+places no task covers yet. `ev goal organize|track` says whether the household
 wants a tidy-up at all — under `track` ev only keeps the records.
 
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
 uninventoried places, and places whose photo of the current state is missing or older than their
-last change. What is already state on a record is read where it lives and leaves the
+last change (listed where the place is counted; elsewhere the photo is taken on its tour, so
+only their number is shown). What is already state on a record is read where it lives and leaves the
 list by its own verb, so nothing is kept twice. The kinds that had no state get small marks:
 `ev label` (a new or changed code needs its label printed), `ev need add|list|got|drop`,
 `ev broken` / `ev fixed`, `ev expires <x> 2026-07`, `ev sale <x> --listed --price n`

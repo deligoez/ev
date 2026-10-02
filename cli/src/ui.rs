@@ -103,12 +103,13 @@ impl Tab {
     }
 }
 
-/// The tabs of the details pane. Each shows the node's `#id` and path on top; a tab the
-/// selected node has nothing for is dimmed, and choosing it shows the summary instead.
+/// The tabs of the details pane. Each shows the node's `#id` and path on top; only the tabs
+/// the selected node has something for are shown.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum DetailTab {
     Summary,
     Photos,
+    Documents,
     Grid,
     Contents,
     Suggestions,
@@ -116,9 +117,10 @@ enum DetailTab {
 }
 
 impl DetailTab {
-    const ALL: [DetailTab; 6] = [
+    const ALL: [DetailTab; 7] = [
         DetailTab::Summary,
         DetailTab::Photos,
+        DetailTab::Documents,
         DetailTab::Grid,
         DetailTab::Contents,
         DetailTab::Suggestions,
@@ -129,6 +131,7 @@ impl DetailTab {
         match self {
             DetailTab::Summary => t("Summary"),
             DetailTab::Photos => t("Photos"),
+            DetailTab::Documents => t("Documents"),
             DetailTab::Grid => t("Grid"),
             DetailTab::Contents => t("Contents"),
             DetailTab::Suggestions => t("Suggestions"),
@@ -141,6 +144,7 @@ impl DetailTab {
         match self {
             DetailTab::Summary => "summary",
             DetailTab::Photos => "photos",
+            DetailTab::Documents => "documents",
             DetailTab::Grid => "grid",
             DetailTab::Contents => "contents",
             DetailTab::Suggestions => "suggestions",
@@ -154,11 +158,14 @@ impl DetailTab {
 }
 
 /// What a line of the details points at, so a click on it can go there: a node (opened in the
-/// tree) or one of the selected node's photos.
+/// tree), one of the selected node's photos, or one of its documents or links (opened outside,
+/// in the program the system gives that file or address).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Target {
     Node(i64),
     Photo(usize),
+    Document(usize),
+    Link(usize),
 }
 
 /// The list's share of the width, and the photo's share of the right column, in percent.
@@ -635,6 +642,12 @@ struct App {
     last_click: Option<(usize, Instant)>,
     picker: Option<Picker>,
     photo_idx: usize,
+    /// The document or link picked on the Documents tab (`[` `]`), opened with `O`.
+    doc_idx: usize,
+    /// `E`: the summary also lists the identity fields still empty, as “—”, to be filled.
+    show_empty: bool,
+    /// `+`: the list's width before the details were widened, to go back to.
+    split_before: Option<u16>,
     decoded: HashMap<String, Option<image::DynamicImage>>,
     /// The photo on screen, keyed by path, quarter turns and area.
     shown: Option<(String, u8, Rect, Protocol)>,
@@ -777,6 +790,9 @@ impl App {
             last_click: None,
             picker: None,
             photo_idx: 0,
+            doc_idx: 0,
+            show_empty: false,
+            split_before: None,
             decoded: HashMap::new(),
             shown: None,
             rotation: HashMap::new(),
@@ -850,6 +866,57 @@ impl App {
                 self.photo_split = (self.photo_split as i16 + delta).clamp(15, 85) as u16
             }
         }
+    }
+
+    /// `+`: the details take the most room the list allows, and back.
+    fn toggle_wide(&mut self) {
+        match self.split_before.take() {
+            Some(s) => self.split = s,
+            None => {
+                self.split_before = Some(self.split);
+                self.split = 20;
+            }
+        }
+    }
+
+    /// `y`: copies what is picked: a document's file or a link on the Documents tab, else the
+    /// thing's `#id` and name, the way it is named to the agent.
+    fn copy(&mut self) {
+        let Some(v) = &self.details else { return };
+        let text = match (
+            self.shown_detail_tab(),
+            self.document_targets().get(self.doc_idx),
+        ) {
+            (DetailTab::Documents, Some(Target::Document(i))) => {
+                str_of(&v["documents"][*i], "file")
+            }
+            (DetailTab::Documents, Some(Target::Link(i))) => self
+                .detail_links()
+                .get(*i)
+                .map(|l| l.1.clone())
+                .unwrap_or_default(),
+            _ => format!("#{} {}", v["node"]["id"], str_of(&v["node"], "name")),
+        };
+        let (cmd, args): (&str, &[&str]) = if cfg!(target_os = "macos") {
+            ("pbcopy", &[])
+        } else {
+            ("xclip", &["-selection", "clipboard"])
+        };
+        let copied = std::process::Command::new(cmd)
+            .args(args)
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .and_then(|mut c| {
+                use std::io::Write;
+                c.stdin
+                    .take()
+                    .map_or(Ok(()), |mut i| i.write_all(text.as_bytes()))?;
+                c.wait().map(|_| ())
+            });
+        self.status = match copied {
+            Ok(()) => tf("copied: {}", &[&text]),
+            Err(e) => tf("could not copy: {}", &[&e]),
+        };
     }
 
     fn layout_json(&self) -> Value {

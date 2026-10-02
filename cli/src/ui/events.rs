@@ -70,6 +70,9 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.step(-1)?,
             KeyCode::Char('J') => self.scroll_details(3),
             KeyCode::Char('K') => self.scroll_details(-3),
+            KeyCode::Char('+') => self.toggle_wide(),
+            KeyCode::Char('y') => self.copy(),
+            KeyCode::Char('E') => self.show_empty = !self.show_empty,
             KeyCode::Char('H') => self.step_detail_tab(-1),
             KeyCode::Char('L') => self.step_detail_tab(1),
             KeyCode::Char('<') => self.resize(Drag::Columns, -5),
@@ -92,6 +95,16 @@ impl App {
             KeyCode::Char('/') => {
                 self.searching = true;
                 self.query.clear();
+            }
+            // On the Documents tab, [ ] pick a document or link and O opens it outside.
+            KeyCode::Char(']') if self.shown_detail_tab() == DetailTab::Documents => {
+                self.step_document(1)
+            }
+            KeyCode::Char('[') if self.shown_detail_tab() == DetailTab::Documents => {
+                self.step_document(-1)
+            }
+            KeyCode::Char('O' | 'o') if self.shown_detail_tab() == DetailTab::Documents => {
+                self.open_target(self.document_targets().get(self.doc_idx).copied())
             }
             KeyCode::Char(']') => self.step_photo(1),
             KeyCode::Char('[') => self.step_photo(-1),
@@ -250,7 +263,7 @@ impl App {
                 }
             }
             // A box on the grid opens in the tree. The grid's first frame line is
-            // the fifth line of the pane: path, blank, title, column letters.
+            // the sixth line of the pane: name, place, blank, title, column letters.
             MouseEventKind::Down(MouseButton::Left)
                 if inside(self.details_area)
                     && m.row > self.details_area.y
@@ -259,7 +272,7 @@ impl App {
                 let line = (m.row - self.details_area.y - 1) as usize + self.detail_scroll as usize;
                 let x = (m.column - self.details_area.x - 1) as usize;
                 let hit = line
-                    .checked_sub(4)
+                    .checked_sub(5)
                     .and_then(|y| grid_box_at(self.grid_hit.as_deref().unwrap_or_default(), x, y));
                 if let Some(id) = hit {
                     return self.reveal(id);
@@ -284,6 +297,15 @@ impl App {
                     }
                     Some(Target::Photo(i)) => {
                         self.photo_idx = i;
+                        return Ok(());
+                    }
+                    Some(t @ (Target::Document(_) | Target::Link(_))) => {
+                        self.doc_idx = self
+                            .document_targets()
+                            .iter()
+                            .position(|x| *x == t)
+                            .unwrap_or(0);
+                        self.open_target(Some(t));
                         return Ok(());
                     }
                     None => {}

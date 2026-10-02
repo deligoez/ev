@@ -230,7 +230,11 @@ impl App {
             && self.details.is_some()
             && matches!(
                 self.shown_detail_tab(),
-                DetailTab::Photos | DetailTab::Contents | DetailTab::History | DetailTab::Grid
+                DetailTab::Photos
+                    | DetailTab::Documents
+                    | DetailTab::Contents
+                    | DetailTab::History
+                    | DetailTab::Grid
             );
         self.grid_hit = match &self.details {
             Some(v) if clickable && self.shown_detail_tab() == DetailTab::Grid => {
@@ -273,13 +277,16 @@ impl App {
         if self.tab == Tab::Settings || self.details.is_none() {
             block = block.title(t(" Details "));
         } else {
-            // The tabs are the title: the one shown stands out, one with nothing for this
-            // node steps back, and a count says how much each holds.
+            // The tabs are the title: only those this node has something for, the one shown
+            // stands out, and a count says how much each holds.
             let shown = self.shown_detail_tab();
             let mut spans = vec![Span::raw(" ")];
             let mut x = text_area.x + 2;
             let mut hits = Vec::new();
-            for (i, tab) in DetailTab::ALL.into_iter().enumerate() {
+            let open = DetailTab::ALL
+                .into_iter()
+                .filter(|&t| self.tab_available(t));
+            for (i, tab) in open.enumerate() {
                 if i > 0 {
                     spans.push(Span::styled(" · ", Style::new().fg(pal().muted)));
                     x += 3;
@@ -366,11 +373,14 @@ impl App {
         parts.push((2, t("M map")));
         if self.details.is_some() {
             parts.push((2, t("H/L details tabs")));
+            parts.push((4, t("E empty · y copy · + wide")));
             if scrolls {
                 parts.push((3, t("J/K scroll")));
             }
         }
-        if self.photo_count() > 0 {
+        if self.details.is_some() && self.shown_detail_tab() == DetailTab::Documents {
+            parts.push((1, t("[ ] O open a document")));
+        } else if self.photo_count() > 0 {
             parts.push((3, t("[ ] o photos")));
         }
         parts.push((4, t("Tab/1-8 tabs")));

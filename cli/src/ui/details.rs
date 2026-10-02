@@ -2,6 +2,34 @@
 
 use super::*;
 
+/// `text` cut into lines of at most `width` characters at spaces; a word longer than a line
+/// is cut where the line ends.
+fn wrap_words(text: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut out = Vec::new();
+    for para in text.split('\n') {
+        let mut line = String::new();
+        for word in para.split(' ') {
+            let mut word = word.to_string();
+            let fits = line.chars().count() + usize::from(!line.is_empty()) + word.chars().count();
+            if fits > width && !line.is_empty() {
+                out.push(std::mem::take(&mut line));
+            }
+            while word.chars().count() > width {
+                let head: String = word.chars().take(width).collect();
+                word = word.chars().skip(width).collect();
+                out.push(head);
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(&word);
+        }
+        out.push(line);
+    }
+    out
+}
+
 impl App {
     pub(super) fn load_details(&mut self) -> Result<()> {
         let before = self.details.as_ref().map(|d| d["node"]["id"].clone());
@@ -10,6 +38,7 @@ impl App {
             // The newest photo is the one that shows the place as it is now; older ones stay a
             // step back with `[`.
             self.photo_idx = usize::MAX;
+            self.doc_idx = 0;
             self.detail_scroll = 0;
         }
         self.details = match self.selected_id() {
@@ -50,6 +79,7 @@ impl App {
         match tab {
             DetailTab::Summary => true,
             DetailTab::Photos => self.photo_count() > 0,
+            DetailTab::Documents => self.tab_badge(DetailTab::Documents).is_some(),
             DetailTab::Grid => v["grid"].is_object() || v["parent_grid"].is_object(),
             DetailTab::Contents => v["children"].as_array().is_some_and(|c| !c.is_empty()),
             DetailTab::Suggestions => !self.hints.is_empty(),
@@ -61,6 +91,7 @@ impl App {
     pub(super) fn tab_badge(&self, tab: DetailTab) -> Option<usize> {
         let n = match tab {
             DetailTab::Photos => self.photo_count(),
+            DetailTab::Documents => self.document_targets().len(),
             DetailTab::Contents => self.details.as_ref()?["children"].as_array()?.len(),
             DetailTab::Suggestions => self
                 .hints
@@ -225,21 +256,39 @@ impl App {
         lines
     }
 
+    /// The lines above every tab: the `#id` and the name, then the place it is in. The id comes
+    /// first: it is how any node, with or without a label, is named to the agent.
+    fn details_head(n: &Value) -> Vec<Line<'static>> {
+        let path = n["path_text"].as_str().unwrap_or_default();
+        let (place, _) = path.rsplit_once(" › ").unwrap_or(("", path));
+        let mut place = path_spans(place);
+        for s in &mut place {
+            *s = s.clone().patch_style(Style::new().fg(pal().muted));
+        }
+        vec![
+            Line::from(vec![
+                Span::styled(
+                    format!("#{}  ", n["id"]),
+                    Style::new().fg(pal().code).bold(),
+                ),
+                Span::styled(str_of(n, "name"), Style::new().bold()),
+            ]),
+            Line::from(place),
+            Line::raw(""),
+        ]
+    }
+
+    /// The width the details text is laid out for: the pane's inside, as last drawn.
+    fn detail_width(&self) -> usize {
+        (self.details_area.width.saturating_sub(2) as usize).max(30)
+    }
+
     pub(super) fn details_text(&self) -> Text<'static> {
         let Some(v) = &self.details else {
             return Text::from(t("(empty)"));
         };
         let n = &v["node"];
-        // The id first: it is how any node, with or without a label, is named to the agent.
-        let mut title = vec![Span::styled(
-            format!("#{}  ", n["id"]),
-            Style::new().fg(pal().code).bold(),
-        )];
-        title.extend(path_spans(n["path_text"].as_str().unwrap_or_default()));
-        if let Some(last) = title.last_mut() {
-            *last = last.clone().bold();
-        }
-        let mut lines = vec![Line::from(title), Line::raw("")];
+        let mut lines = Self::details_head(n);
         match self.shown_detail_tab() {
             DetailTab::Grid => {
                 if v["grid"].is_object() {
@@ -270,91 +319,111 @@ impl App {
                 lines.extend(self.photo_lines().into_iter().map(|l| l.0));
                 return Text::from(lines);
             }
+            DetailTab::Documents => {
+                lines.extend(self.document_lines().into_iter().map(|l| l.0));
+                return Text::from(lines);
+            }
             DetailTab::Summary => {}
         }
-        let mut fields: Vec<(String, Span<'static>)> = Vec::new();
-        let mut field = |k: &str, val: Span<'static>| fields.push((k.to_string(), val));
-        field(t("kind"), Span::raw(kind_name(&str_of(n, "kind"))));
-        if let Some(c) = n["code"].as_str() {
-            field(
-                t("code"),
-                Span::styled(c.to_string(), Style::new().fg(pal().code)),
-            );
-        }
-        if let Some(s) = n["size"].as_str() {
-            field(t("size"), Span::raw(s.to_string()));
-        }
+        lines.extend(self.summary_lines(v));
+        Text::from(lines)
+    }
+
+    /// The Summary tab, in the order a person asks about a thing: what state it is in, what it
+    /// is, what it cost and what covers it, what proves it, what is waiting on it, and what was
+    /// said about it. Empty fields are not drawn; long values wrap under their own column.
+    fn summary_lines(&self, v: &Value) -> Vec<Line<'static>> {
+        let n = &v["node"];
+        let width = self.detail_width();
+        let mut lines = Vec::new();
+
+        // State first, as badges: only what is true is drawn, and only state has colour.
+        let mut badges: Vec<Span<'static>> = vec![Span::raw(kind_name(&str_of(n, "kind")))];
         if let Some(q) = n["qty"].as_i64() {
-            field(
-                t("qty"),
-                Span::styled(q.to_string(), Style::new().fg(pal().qty)),
-            );
+            badges.push(Span::styled(format!("×{q}"), Style::new().fg(pal().qty)));
         }
         let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
         match n["state"].as_str() {
-            Some("candidate") => field(
-                t("state"),
-                Span::styled(tf("candidate ({})", &[&d]), Style::new().fg(pal().mark)),
-            ),
-            Some("gone") => field(
-                t("state"),
-                Span::styled(tf("gone ({})", &[&d]), Style::new().fg(pal().muted)),
-            ),
+            Some("candidate") => badges.push(Span::styled(
+                tf("candidate ({})", &[&d]),
+                Style::new().fg(pal().mark),
+            )),
+            Some("gone") => badges.push(Span::styled(
+                tf("gone ({})", &[&d]),
+                Style::new().fg(pal().muted),
+            )),
             _ => {}
         }
         if n["lost"] == true {
-            let seen = v["last_seen"]["path_text"]
-                .as_str()
-                .unwrap_or(t("never known"));
-            field(
-                t("lost"),
-                Span::styled(tf("last seen: {}", &[&seen]), Style::new().fg(pal().lost)),
-            );
+            badges.push(Span::styled(t("lost"), Style::new().fg(pal().lost)));
         }
-        if let Some(p) = v["pending"]["path_text"].as_str() {
-            field(
-                t("moving to"),
-                Span::styled(p.to_string(), Style::new().fg(pal().mark)),
-            );
+        let m = &v["marks"];
+        if m["broken"].is_object() {
+            badges.push(Span::styled(t("broken"), Style::new().fg(pal().lost)));
         }
-        for (k, key) in [
-            (t("to take to"), "to"),
-            (t("owner"), "owner"),
-            (t("lent to"), "with"),
-            (t("theme"), "theme"),
-            (t("make"), "make"),
-            (t("model"), "model"),
-            (t("serial"), "serial"),
-            (t("note"), "note"),
-            (t("address"), "address"),
+        if let Some(st) = m["sale"]["value"].as_str() {
+            let st = if st == "listed" {
+                t("listed")
+            } else {
+                t("reserved")
+            };
+            badges.push(Span::styled(st, Style::new().fg(pal().qty)));
+        }
+        if m["label"]["value"] == "needed" {
+            badges.push(Span::styled(
+                t("label to print"),
+                Style::new().fg(pal().code),
+            ));
+        }
+        let mut status = Vec::new();
+        for (i, b) in badges.into_iter().enumerate() {
+            if i > 0 {
+                status.push(Span::styled("  ·  ", Style::new().fg(pal().muted)));
+            }
+            status.push(b);
+        }
+        lines.push(Line::from(status));
+
+        // What it is and where it stands: plain fields, keys in one column.
+        let mut fields: Vec<(String, String, Style)> = Vec::new();
+        let plain = Style::new();
+        let mut field =
+            |k: &str, val: String, style: Style| fields.push((k.to_string(), val, style));
+        if let Some(c) = n["code"].as_str() {
+            field(t("code"), c.to_string(), Style::new().fg(pal().code));
+        }
+        // With `E`, the identity fields still empty show as “—”, so the gaps are in view.
+        let empty = Style::new().fg(pal().muted);
+        for (k, key, identity) in [
+            (t("make"), "make", true),
+            (t("model"), "model", true),
+            (t("serial"), "serial", true),
+            (t("size"), "size", false),
+            (t("theme"), "theme", false),
         ] {
-            if let Some(x) = n[key].as_str() {
-                field(k, Span::raw(x.to_string()));
+            match n[key].as_str() {
+                Some(x) => field(k, x.to_string(), plain),
+                None if identity && self.show_empty => field(k, "—".into(), empty),
+                None => {}
             }
         }
+        if let Some(c) = v["cells"].as_str() {
+            field(t("cells"), c.to_string(), Style::new().fg(pal().code));
+        }
         if let Some(fill) = n["fill"].as_i64() {
-            let stale = v["room"]["stale"] == true;
-            let style = if stale {
+            let style = if v["room"]["stale"] == true {
                 Style::new().fg(pal().muted)
             } else {
                 Style::new().fg(fill_color(fill))
             };
             field(
                 t("fill"),
-                Span::styled(
-                    format!(
-                        "{}  {}",
-                        fill_bar(fill),
-                        crate::render::room_text(&v["room"])
-                    ),
-                    style,
+                format!(
+                    "{}  {}",
+                    fill_bar(fill),
+                    crate::render::room_text(&v["room"])
                 ),
-            );
-        }
-        if let Some(c) = v["cells"].as_str() {
-            field(
-                t("cells"),
-                Span::styled(c.to_string(), Style::new().fg(pal().code)),
+                style,
             );
         }
         let tags: Vec<&str> = n["tags"]
@@ -364,126 +433,419 @@ impl App {
             .filter_map(Value::as_str)
             .collect();
         if !tags.is_empty() {
-            field(t("tags"), Span::raw(tags.join(", ")));
+            field(t("tags"), tags.join(", "), plain);
         }
-        // The photos themselves are on the panel above; their file paths only push the rest
-        // of the details out of view.
-        let photos = n["photos"].as_array().map_or(0, Vec::len);
-        if photos > 0 {
-            field(t("photos"), Span::raw(photos.to_string()));
-        }
-        let m = &v["marks"];
-        if m["label"]["value"] == "needed" {
+        if n["lost"] == true {
+            let seen = v["last_seen"]["path_text"]
+                .as_str()
+                .unwrap_or(t("never known"));
             field(
-                t("label"),
-                Span::styled(t("to print"), Style::new().fg(pal().code).bold()),
+                t("last seen"),
+                seen.to_string(),
+                Style::new().fg(pal().lost),
             );
         }
-        if m["broken"].is_object() {
-            let note = m["broken"]["note"].as_str().unwrap_or("");
-            field(
-                t("broken"),
-                Span::styled(
-                    tf("awaiting repair {}", &[&note]),
-                    Style::new().fg(pal().lost),
-                ),
-            );
+        if let Some(p) = v["pending"]["path_text"].as_str() {
+            field(t("moving to"), p.to_string(), Style::new().fg(pal().mark));
+        }
+        for (k, key) in [
+            (t("to take to"), "to"),
+            (t("owner"), "owner"),
+            (t("lent to"), "with"),
+            (t("address"), "address"),
+        ] {
+            if let Some(x) = n[key].as_str() {
+                field(k, x.to_string(), plain);
+            }
+        }
+        if let Some(note) = m["broken"]["note"].as_str() {
+            field(t("broken"), note.to_string(), Style::new().fg(pal().lost));
         }
         if let Some(d) = m["expires"]["value"].as_str() {
-            field(
-                t("use-by"),
-                Span::styled(d.to_string(), Style::new().fg(pal().furniture)),
-            );
+            field(t("use-by"), d.to_string(), Style::new().fg(pal().furniture));
         }
-        if let Some(st) = m["sale"]["value"].as_str() {
-            let st = if st == "listed" {
-                t("listed")
-            } else {
-                t("reserved")
-            };
+        if m["sale"].is_object() {
             let price = m["sale"]["amount"]
                 .as_i64()
-                .map(|a| format!(" · {a} TL"))
-                .unwrap_or_default();
-            let at = m["sale"]["note"]
-                .as_str()
-                .map(|w| format!(" · {w}"))
-                .unwrap_or_default();
-            field(
-                t("sale"),
-                Span::styled(format!("{st}{price}{at}"), Style::new().fg(pal().qty)),
+                .map(|a| crate::render::amount(&format!("{a}.00"), "TRY"));
+            let sale = [price, m["sale"]["note"].as_str().map(str::to_string)]
+                .into_iter()
+                .flatten()
+                .chain(
+                    m["condition"]["value"]
+                        .as_str()
+                        .map(|c| crate::render::condition(c).to_string()),
+                )
+                .collect::<Vec<_>>()
+                .join(" · ");
+            if !sale.is_empty() {
+                field(t("sale"), sale, Style::new().fg(pal().qty));
+            }
+        }
+        Self::push_fields(&mut lines, fields, width);
+
+        // What it cost and what it is worth: one compact line per purchase, the shop's own
+        // long title dimmed under it, cut to one line.
+        let purchases = v["purchases"].as_array().cloned().unwrap_or_default();
+        let value = v["valuations"].as_array().and_then(|l| l.first()).cloned();
+        if !purchases.is_empty() || value.is_some() {
+            Self::section(&mut lines, t("Money").to_string(), width);
+            let mut fields = Vec::new();
+            for p in &purchases {
+                fields.push((
+                    t("bought").to_string(),
+                    crate::render::purchase_brief(p),
+                    plain,
+                ));
+            }
+            if let Some(x) = &value {
+                fields.push((
+                    t("value").to_string(),
+                    crate::render::valuation_brief(x),
+                    plain,
+                ));
+            }
+            Self::push_fields(&mut lines, fields, width);
+            for p in &purchases {
+                let title = format!("  {}", str_of(p, "name"));
+                lines.push(Line::from(fit(
+                    vec![Span::styled(title, Style::new().fg(pal().muted))],
+                    width,
+                )));
+            }
+        }
+
+        // What still covers it, its status in colour; a proposal is only a proposal.
+        let coverages = v["coverages"].as_array().cloned().unwrap_or_default();
+        let proposal = v["coverage_proposal"].as_object().cloned();
+        if !coverages.is_empty() || proposal.is_some() {
+            Self::section(&mut lines, t("Coverage").to_string(), width);
+            for cv in &coverages {
+                let color = match cv["status"].as_str() {
+                    Some("active") => pal().code,
+                    Some("ending") => pal().mark,
+                    Some("ended") => pal().muted,
+                    _ => pal().furniture,
+                };
+                lines.push(Line::from(Span::styled(
+                    crate::render::coverage_line(cv),
+                    Style::new().fg(color),
+                )));
+            }
+            if let Some(p) = proposal {
+                let p = Value::Object(p);
+                lines.push(Line::from(Span::styled(
+                    tf(
+                        "proposed: statutory warranty until {} (2 years from delivery {}), not recorded",
+                        &[&str_of(&p, "end"), &str_of(&p, "start")],
+                    ),
+                    Style::new().fg(pal().muted),
+                )));
+            }
+        }
+
+        // What proves it: counts and kinds here, the files themselves on the Documents tab.
+        let docs = v["documents"].as_array().cloned().unwrap_or_default();
+        let links = self.detail_links();
+        if !docs.is_empty() || !links.is_empty() {
+            Self::section(
+                &mut lines,
+                tf("Documents ({}) · Links ({})", &[&docs.len(), &links.len()]),
+                width,
             );
+            let mut kinds: Vec<String> = Vec::new();
+            for d in &docs {
+                let k = crate::render::doc_kind(&str_of(d, "kind")).to_string();
+                if !kinds.contains(&k) {
+                    kinds.push(k);
+                }
+            }
+            let mut spans = Vec::new();
+            if !kinds.is_empty() {
+                spans.push(Span::raw(kinds.join(", ")));
+                spans.push(Span::raw("  "));
+            }
+            spans.push(Span::styled(
+                t("→ Documents tab (H/L), O opens"),
+                Style::new().fg(pal().muted),
+            ));
+            lines.push(Line::from(spans));
         }
-        for nd in v["needs"].as_array().into_iter().flatten() {
-            let q = nd["qty"]
-                .as_i64()
-                .map(|q| format!("{q} × "))
-                .unwrap_or_default();
-            field(
-                t("to get"),
-                Span::styled(
-                    format!("{q}{}", str_of(nd, "text")),
-                    Style::new().fg(pal().qty),
-                ),
-            );
-        }
-        for p in v["purchases"].as_array().into_iter().flatten() {
-            field(t("bought"), Span::raw(crate::render::purchase_line(p)));
-        }
-        if let Some(x) = v["valuations"].as_array().and_then(|l| l.first()) {
-            field(t("value"), Span::raw(crate::render::valuation_line(x)));
-        }
-        for l in v["links"].as_array().into_iter().flatten() {
-            field(t("link"), Span::raw(crate::render::link_line(l)));
-        }
-        for d in v["documents"].as_array().into_iter().flatten() {
-            field(t("document"), Span::raw(crate::render::doc_line(d)));
-        }
-        for cv in v["coverages"].as_array().into_iter().flatten() {
-            field(t("coverage"), Span::raw(crate::render::coverage_line(cv)));
-        }
-        for task in v["tasks"].as_array().into_iter().flatten() {
-            let via = if task["via"] == n["id"] {
-                String::new()
-            } else {
-                let place = task["via"]
-                    .as_i64()
-                    .and_then(|i| self.snap.label.get(&i).cloned())
-                    .unwrap_or_default();
-                tf("  (via {})", &[&place])
-            };
-            field(
-                t("task"),
-                Span::styled(
-                    format!("{}. {}{via}", task["position"], str_of(task, "title")),
+
+        // What is waiting on it: its own tasks and needs in full, those of the places it is in
+        // only counted, since every thing in a drawer would repeat them.
+        let own_id = n["id"].clone();
+        let tasks = v["tasks"].as_array().cloned().unwrap_or_default();
+        let (own, inherited): (Vec<_>, Vec<_>) = tasks.iter().partition(|t| t["via"] == own_id);
+        let needs = v["needs"].as_array().cloned().unwrap_or_default();
+        if !own.is_empty() || !inherited.is_empty() || !needs.is_empty() {
+            Self::section(&mut lines, t("To do").to_string(), width);
+            for task in &own {
+                Self::push_wrapped(
+                    &mut lines,
+                    &format!("□ {}. {}", task["position"], str_of(task, "title")),
+                    "  ",
                     Style::new().fg(pal().mark),
-                ),
-            );
+                    width,
+                );
+            }
+            for nd in &needs {
+                let q = nd["qty"]
+                    .as_i64()
+                    .map(|q| format!("{q} × "))
+                    .unwrap_or_default();
+                Self::push_wrapped(
+                    &mut lines,
+                    &format!("{}: {q}{}", t("to get"), str_of(nd, "text")),
+                    "  ",
+                    Style::new().fg(pal().qty),
+                    width,
+                );
+            }
+            if !inherited.is_empty() {
+                lines.push(Line::from(Span::styled(
+                    tf("{} more on the places it is in", &[&inherited.len()]),
+                    Style::new().fg(pal().muted),
+                )));
+            }
         }
-        field(
-            t("updated"),
+
+        // What was said about it, in full: the reason a decision can be made later.
+        if let Some(note) = n["note"].as_str() {
+            Self::section(&mut lines, t("Note").to_string(), width);
+            Self::push_wrapped(&mut lines, note, "", Style::new(), width);
+        }
+
+        lines.push(Line::raw(""));
+        lines.push(Line::from(Span::styled(
+            tf(
+                "updated {}",
+                &[&when(
+                    &str_of(n, "updated_at"),
+                    chrono::Utc::now().timestamp(),
+                )],
+            ),
+            Style::new().fg(pal().muted),
+        )));
+        lines
+    }
+
+    /// A section heading: its title, then a rule to the edge.
+    fn section(lines: &mut Vec<Line<'static>>, title: String, width: usize) {
+        let rule = width.saturating_sub(title.chars().count() + 1);
+        lines.push(Line::raw(""));
+        lines.push(Line::from(vec![
+            Span::styled(title, Style::new().bold()),
             Span::styled(
-                when(&str_of(n, "updated_at"), chrono::Utc::now().timestamp()),
+                format!(" {}", "─".repeat(rule)),
                 Style::new().fg(pal().muted),
             ),
-        );
-        // Labels padded to one width, so the values line up in a column.
-        let width = fields
+        ]));
+    }
+
+    /// Key–value lines, keys padded to one column; a long value wraps under its own column.
+    fn push_fields(
+        lines: &mut Vec<Line<'static>>,
+        fields: Vec<(String, String, Style)>,
+        width: usize,
+    ) {
+        let keys = fields
             .iter()
-            .map(|(k, _)| k.chars().count())
+            .map(|(k, _, _)| k.chars().count())
             .max()
             .unwrap_or(0);
-        for (k, val) in fields {
-            let pad = width - k.chars().count();
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{k}{}  ", " ".repeat(pad)),
-                    Style::new().fg(pal().muted),
-                ),
-                val,
-            ]));
+        let room = width.saturating_sub(keys + 2).max(10);
+        for (k, val, style) in fields {
+            let pad = keys - k.chars().count();
+            for (i, chunk) in wrap_words(&val, room).into_iter().enumerate() {
+                let key = if i == 0 {
+                    format!("{k}{}  ", " ".repeat(pad))
+                } else {
+                    " ".repeat(keys + 2)
+                };
+                lines.push(Line::from(vec![
+                    Span::styled(key, Style::new().fg(pal().muted)),
+                    Span::styled(chunk, style),
+                ]));
+            }
         }
-        Text::from(lines)
+    }
+
+    /// A paragraph wrapped to the width, each line after the first indented by `indent`.
+    fn push_wrapped(
+        lines: &mut Vec<Line<'static>>,
+        text: &str,
+        indent: &str,
+        style: Style,
+        width: usize,
+    ) {
+        let room = width.saturating_sub(indent.chars().count()).max(10);
+        for (i, chunk) in wrap_words(text, room).into_iter().enumerate() {
+            let lead = if i == 0 {
+                String::new()
+            } else {
+                indent.to_string()
+            };
+            lines.push(Line::from(Span::styled(format!("{lead}{chunk}"), style)));
+        }
+    }
+
+    /// Everything the Documents tab can open: the thing's own links, then the order and
+    /// product pages of its purchases, each with a label to show.
+    pub(super) fn detail_links(&self) -> Vec<(String, String, Option<String>)> {
+        let Some(v) = &self.details else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for l in v["links"].as_array().into_iter().flatten() {
+            let kind = match l["kind"].as_str() {
+                Some("info") => t("info page"),
+                Some("manual") => t("manual"),
+                Some("support") => t("support"),
+                Some("driver") => t("driver"),
+                _ => t("other"),
+            };
+            out.push((
+                kind.to_string(),
+                str_of(l, "url"),
+                l["archive"].as_str().map(str::to_string),
+            ));
+        }
+        for p in v["purchases"].as_array().into_iter().flatten() {
+            let shop = p["shop"].as_str().unwrap_or_default();
+            for (key, label) in [
+                ("order_url", t("order page")),
+                ("product_url", t("product page")),
+            ] {
+                if let Some(u) = p[key].as_str() {
+                    out.push((format!("{label} · {shop}"), u.to_string(), None));
+                }
+            }
+        }
+        out
+    }
+
+    /// What `[` `]` step through and `O` opens on the Documents tab, in the order drawn.
+    pub(super) fn document_targets(&self) -> Vec<Target> {
+        let docs = self
+            .details
+            .as_ref()
+            .and_then(|v| v["documents"].as_array())
+            .map_or(0, Vec::len);
+        (0..docs)
+            .map(Target::Document)
+            .chain((0..self.detail_links().len()).map(Target::Link))
+            .collect()
+    }
+
+    pub(super) fn step_document(&mut self, delta: isize) {
+        let n = self.document_targets().len();
+        if n > 0 {
+            self.doc_idx = (self.doc_idx as isize + delta).clamp(0, n as isize - 1) as usize;
+        }
+    }
+
+    /// Opens a document or a link in the program the system gives it.
+    pub(super) fn open_target(&mut self, target: Option<Target>) {
+        let what = match target {
+            Some(Target::Document(i)) => self
+                .details
+                .as_ref()
+                .and_then(|v| v["documents"][i]["file"].as_str().map(str::to_string)),
+            Some(Target::Link(i)) => self.detail_links().get(i).map(|l| l.1.clone()),
+            _ => None,
+        };
+        let Some(what) = what else { return };
+        let opener = if cfg!(target_os = "macos") {
+            "open"
+        } else {
+            "xdg-open"
+        };
+        self.status = match std::process::Command::new(opener).arg(&what).spawn() {
+            Ok(_) => tf("opened {}", &[&what]),
+            Err(e) => tf("could not open {}: {}", &[&what, &e]),
+        };
+    }
+
+    /// The Documents tab: the documents, newest first, then the links; the picked one is
+    /// marked, a click or `O` opens it.
+    pub(super) fn document_lines(&self) -> Vec<(Line<'static>, Option<Target>)> {
+        let Some(v) = &self.details else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        let mut k = 0;
+        let mark = |k: usize| {
+            if k == self.doc_idx {
+                Span::styled("▶ ", Style::new().fg(pal().code).bold())
+            } else {
+                Span::raw("  ")
+            }
+        };
+        let docs = v["documents"].as_array().cloned().unwrap_or_default();
+        if !docs.is_empty() {
+            out.push((
+                Line::from(tf("Documents ({})", &[&docs.len()])).bold(),
+                None,
+            ));
+            for (i, d) in docs.iter().enumerate() {
+                let mut what = vec![crate::render::doc_kind(&str_of(d, "kind")).to_string()];
+                for key in ["issuer", "issued_at"] {
+                    if let Some(x) = d[key].as_str() {
+                        what.push(x.to_string());
+                    }
+                }
+                if let Some(no) = d["number"].as_str() {
+                    what.push(tf("no {}", &[&no]));
+                }
+                let mut spans = vec![mark(k), Span::raw(what.join(" · "))];
+                if let Some(p) = d["via_purchase"].as_i64() {
+                    spans.push(Span::styled(
+                        tf("  (purchase #{})", &[&p]),
+                        Style::new().fg(pal().muted),
+                    ));
+                }
+                if let Some(name) = d["original_name"].as_str() {
+                    spans.push(Span::styled(
+                        format!("  {name}"),
+                        Style::new().fg(pal().muted),
+                    ));
+                }
+                out.push((Line::from(spans), Some(Target::Document(i))));
+                k += 1;
+            }
+        }
+        let links = self.detail_links();
+        if !links.is_empty() {
+            if !out.is_empty() {
+                out.push((Line::raw(""), None));
+            }
+            out.push((Line::from(tf("Links ({})", &[&links.len()])).bold(), None));
+            for (i, (label, url, archive)) in links.iter().enumerate() {
+                let mut spans = vec![
+                    mark(k),
+                    Span::raw(format!("↗ {label}  ")),
+                    Span::styled(url.clone(), Style::new().fg(pal().muted)),
+                ];
+                if archive.is_some() {
+                    spans.push(Span::styled(
+                        t("  · archived"),
+                        Style::new().fg(pal().muted),
+                    ));
+                }
+                out.push((Line::from(spans), Some(Target::Link(i))));
+                k += 1;
+            }
+        }
+        out.push((Line::raw(""), None));
+        out.push((
+            Line::from(Span::styled(
+                t("[ ] pick · O or a click opens it"),
+                Style::new().fg(pal().muted),
+            )),
+            None,
+        ));
+        out
     }
 
     /// The History tab: newest first, under a heading per day, each event in words. A place's
@@ -674,6 +1036,71 @@ impl App {
                     "lost" => own("lost", String::new()),
                     "found" => own("found", place(&d["at"])),
                     "back" => own("returned", place(&d["from"])),
+                    "lend" => own("lent", place(&d["to"])),
+                    "sketch_import" => own(
+                        "plan imported",
+                        tf(
+                            "{} · {} rooms",
+                            &[&str_of(d, "file"), &d["rooms"].as_i64().unwrap_or(0)],
+                        ),
+                    ),
+                    "broken" => own("broken", str_of(d, "note")),
+                    "fixed" => own("fixed", String::new()),
+                    "purchase_linked" => own(
+                        "linked to purchase",
+                        tf("#{} ×{}", &[&d["purchase"], &d["qty"]]),
+                    ),
+                    "purchase_unlinked" => {
+                        own("unlinked from purchase", format!("#{}", d["purchase"]))
+                    }
+                    "doc_linked" => own(
+                        "document added",
+                        format!(
+                            "#{} {}",
+                            d["document"],
+                            crate::render::doc_kind(&str_of(d, "kind"))
+                        ),
+                    ),
+                    "doc_unlinked" => own(
+                        "document removed",
+                        format!(
+                            "#{} {}",
+                            d["document"],
+                            crate::render::doc_kind(&str_of(d, "kind"))
+                        ),
+                    ),
+                    "coverage_added" => own(
+                        "coverage added",
+                        format!(
+                            "#{} {}",
+                            d["coverage"],
+                            crate::render::coverage_kind(&str_of(d, "kind"))
+                        ),
+                    ),
+                    "coverage_removed" => own(
+                        "coverage removed",
+                        format!(
+                            "#{} {}",
+                            d["coverage"],
+                            crate::render::coverage_kind(&str_of(d, "kind"))
+                        ),
+                    ),
+                    "track" => own("decided", {
+                        let subject = if d["subject"] == "value" {
+                            t("value")
+                        } else {
+                            t("coverage")
+                        };
+                        let decision = match d["decision"].as_str() {
+                            Some("later") => t("not now"),
+                            Some("yes") => t("tracked again"),
+                            _ => t("not tracked"),
+                        };
+                        let why = str_of(d, "why");
+                        format!("{subject}: {decision}  {why}")
+                            .trim_end()
+                            .to_string()
+                    }),
                     other => (t("event"), format!("{other} {d}"), pal().muted),
                 }
             };
@@ -734,9 +1161,11 @@ impl App {
         let Some(v) = &self.details else {
             return Vec::new();
         };
-        let mut out = vec![None, None];
+        // The head: the id and name, the place, a blank line.
+        let mut out = vec![None, None, None];
         match self.shown_detail_tab() {
             DetailTab::Photos => out.extend(self.photo_lines().into_iter().map(|l| l.1)),
+            DetailTab::Documents => out.extend(self.document_lines().into_iter().map(|l| l.1)),
             DetailTab::Contents => out.extend(
                 v["children"]
                     .as_array()

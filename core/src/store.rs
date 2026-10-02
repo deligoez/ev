@@ -52,7 +52,10 @@ impl Inventory {
                 .map_err(|e| Error::Internal(format!("cannot create {}: {e}", dir.display())))?;
         }
         let mut conn = Connection::open(path)?;
-        conn.busy_timeout(Duration::from_secs(5))?;
+        // Waiting beats failing: under a burst of parallel calls (measured: two MCP servers and
+        // the CLI, 60 writes among 40 reads) a writer waited past 5 s for the readers' shared
+        // locks; 30 s took all 60.
+        conn.busy_timeout(Duration::from_secs(30))?;
         // A deferred transaction that reads and then writes gets SQLITE_BUSY at once, without
         // waiting, when another writer got in between; taking the write lock up front lets the
         // busy timeout queue concurrent writers (an MCP client's parallel calls, the CLI).

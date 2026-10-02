@@ -560,8 +560,8 @@ impl Inventory {
     /// its own verb (`done`, `gone`, `back`, `found`, `task done`, `need got`, …), and leaves
     /// this list by itself.
     pub fn todo(&self) -> Result<Value> {
-        let next = self.next()?;
-        let goal = next["goal"].as_str().map(str::to_string);
+        // Read directly, not through `next`, which bundles this list by place.
+        let goal = crate::plan::get_setting(&self.conn, "goal")?;
         let organize = goal.as_deref() != Some("track");
         let tasks = self.task_list(false)?["tasks"].clone();
         let moves = self.pending()?["pending"].clone();
@@ -656,11 +656,12 @@ impl Inventory {
             coverage,
             values,
             purchases,
+            ..
         } = crate::coverage::todo_parts(&self.conn)?;
         let photos_now = photos.iter().filter(|p| p["when"] == "now").count();
         Ok(json!({
             "goal": goal,
-            "progress": next["progress"],
+            "progress": crate::plan::progress_summary(&progress),
             "counts": {
                 "tasks": count(&tasks),
                 "moves": count(&moves),

@@ -555,8 +555,15 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
         }
         Ok(v)
     };
+    let dearest_first = |open: &[(f64, i64)]| {
+        let mut o = open.to_vec();
+        o.sort_by(|a, b| b.0.total_cmp(&a.0));
+        o.into_iter().map(|(_, n)| n).collect::<Vec<_>>()
+    };
     Ok(TodoParts {
         ending,
+        uncovered: dearest_first(&uncovered),
+        unvalued: dearest_first(&unvalued),
         coverage: summary(uncovered, json!({ "threshold": money(at) }))?,
         values: summary(unvalued, json!({}))?,
         purchases: open_purchases(conn)?,
@@ -579,6 +586,10 @@ fn open_purchases(conn: &Connection) -> Result<i64> {
 /// What the coverage and value subjects add to `ev todo`.
 pub(crate) struct TodoParts {
     pub ending: Vec<Value>,
+    /// Every thing to ask about coverage, and about value, dearest first; `coverage` and
+    /// `values` carry only their count and the top few.
+    pub uncovered: Vec<i64>,
+    pub unvalued: Vec<i64>,
     pub coverage: Value,
     pub values: Value,
     pub purchases: i64,

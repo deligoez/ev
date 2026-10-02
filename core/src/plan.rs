@@ -246,7 +246,7 @@ fn last_change(id: i64, kids: &HashMap<i64, Vec<&Node>>, by_id: &HashMap<i64, &N
     latest
 }
 
-fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
+pub(crate) fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
         .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
             r.get(0)
@@ -262,18 +262,23 @@ fn task_nodes(conn: &Connection, task: i64) -> Result<Vec<i64>> {
     )
 }
 
+/// A `tasks` row: title, why, status, note, created, updated, closed, due.
+type TaskRow = (
+    String,
+    String,
+    String,
+    Option<String>,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+);
+
 fn task_json(conn: &Connection, id: i64) -> Result<Value> {
-    let (title, why, status, note, created, updated, closed): (
-        String,
-        String,
-        String,
-        Option<String>,
-        String,
-        String,
-        Option<String>,
-    ) = conn
+    let (title, why, status, note, created, updated, closed, due): TaskRow = conn
         .query_row(
-            "SELECT title, why, status, note, created_at, updated_at, closed_at FROM tasks WHERE id = ?1",
+            "SELECT title, why, status, note, created_at, updated_at, closed_at, due
+               FROM tasks WHERE id = ?1",
             [id],
             |r| {
                 Ok((
@@ -284,6 +289,7 @@ fn task_json(conn: &Connection, id: i64) -> Result<Value> {
                     r.get(4)?,
                     r.get(5)?,
                     r.get(6)?,
+                    r.get(7)?,
                 ))
             },
         )
@@ -309,6 +315,7 @@ fn task_json(conn: &Connection, id: i64) -> Result<Value> {
     } else {
         None
     };
+    let days_left = due.as_deref().and_then(days_left);
     Ok(json!({
         "id": id,
         "position": position,
@@ -316,11 +323,130 @@ fn task_json(conn: &Connection, id: i64) -> Result<Value> {
         "why": why,
         "status": status,
         "note": note,
+        "due": due,
+        "days_left": days_left,
         "nodes": nodes,
         "created_at": created,
         "updated_at": updated,
         "closed_at": closed,
     }))
+}
+
+/// A due date this close (or past) puts its task ahead of the order in `next`.
+const DUE_SOON_DAYS: i64 = 1;
+
+/// A due date as given: `YYYY-MM-DD`, or nothing for an empty text or `none`.
+fn parse_due(due: Option<&str>) -> Result<Option<String>> {
+    match due.map(str::trim).filter(|d| !d.is_empty() && *d != "none") {
+        None => Ok(None),
+        Some(d) => chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+            .map(|d| Some(d.to_string()))
+            .map_err(|_| Error::Usage(format!("due is YYYY-MM-DD, got `{d}`"))),
+    }
+}
+
+/// Days from today to a `YYYY-MM-DD` date; negative when it is past.
+fn days_left(due: &str) -> Option<i64> {
+    chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d")
+        .ok()
+        .map(|d| (d - chrono::Utc::now().date_naive()).num_days())
+}
+
+/// The counts of `progress` without its list of places, as `next` and `todo` show them.
+pub(crate) fn progress_summary(p: &Value) -> Value {
+    json!({
+        "units": p["units"],
+        "toured": p["toured"],
+        "kept": p["kept"],
+        "counting": p["counting"],
+        "raw": p["raw"],
+        "changed_since_tour": p["changed_since_tour"],
+    })
+}
+
+/// Whether a `todo` entry (a brief node, or one wrapped as `{node}`) is `place` or inside it.
+fn inside(entry: &Value, place: i64) -> bool {
+    let node = if entry["path"].is_array() {
+        entry
+    } else {
+        &entry["node"]
+    };
+    node["path"]
+        .as_array()
+        .is_some_and(|p| p.iter().any(|s| s["id"].as_i64() == Some(place)))
+}
+
+/// Everything `todo` lists that sits in `place`: the small jobs done while it is open anyway,
+/// so they ride with the tour instead of being ranked on their own. Empty lists are left out.
+fn while_there(
+    conn: &Connection,
+    place: i64,
+    todo: &Value,
+    uncovered: &[i64],
+    unvalued: &[i64],
+) -> Result<Value> {
+    let pick = |list: &Value| -> Vec<Value> {
+        list.as_array()
+            .into_iter()
+            .flatten()
+            .filter(|e| inside(e, place))
+            .cloned()
+            .collect()
+    };
+    let mut out = serde_json::Map::new();
+    for key in ["photos", "labels", "unclear", "parked"] {
+        let found = pick(&todo[key]);
+        if !found.is_empty() {
+            out.insert(key.into(), json!(found));
+        }
+    }
+    // A planned move out of the place: the thing goes along when the person leaves.
+    let leaving: Vec<Value> = todo["moves"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|m| inside(&m["node"], place) && !inside(&m["to"], place))
+        .cloned()
+        .collect();
+    if !leaving.is_empty() {
+        out.insert("leaving".into(), json!(leaving));
+    }
+    let mut disposals = Vec::new();
+    for (as_, list) in todo["disposals"].as_object().into_iter().flatten() {
+        for e in pick(list) {
+            let mut e = e;
+            e["as"] = json!(as_);
+            disposals.push(e);
+        }
+    }
+    if !disposals.is_empty() {
+        out.insert("disposals".into(), json!(disposals));
+    }
+    // A lost thing last seen here is worth a look while the place is open.
+    let lost: Vec<Value> = todo["lost"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|l| l["last_seen"].is_object() && inside(&l["last_seen"], place))
+        .cloned()
+        .collect();
+    if !lost.is_empty() {
+        out.insert("lost".into(), json!(lost));
+    }
+    for (key, list) in [("coverage", uncovered), ("values", unvalued)] {
+        let mut found = Vec::new();
+        for n in list {
+            let b = serde_json::to_value(brief(conn, *n)?)
+                .map_err(|e| Error::Internal(e.to_string()))?;
+            if inside(&b, place) {
+                found.push(b);
+            }
+        }
+        if !found.is_empty() {
+            out.insert(key.into(), json!(found));
+        }
+    }
+    Ok(Value::Object(out))
 }
 
 fn non_empty<'a>(what: &str, s: &'a str) -> Result<&'a str> {
@@ -634,8 +760,21 @@ impl Inventory {
         on: &[String],
         at: Option<usize>,
     ) -> Result<Value> {
+        self.task_add_with(title, why, on, at, None)
+    }
+
+    /// `task_add` with a due date (`YYYY-MM-DD`), checked before anything is written.
+    pub fn task_add_with(
+        &mut self,
+        title: &str,
+        why: &str,
+        on: &[String],
+        at: Option<usize>,
+        due: Option<&str>,
+    ) -> Result<Value> {
         let title = non_empty("title", title)?;
         let why = non_empty("why", why)?;
+        let due = parse_due(due)?;
         let tx = self.conn.transaction()?;
         let nodes = on
             .iter()
@@ -643,9 +782,9 @@ impl Inventory {
             .collect::<Result<Vec<_>>>()?;
         let t = now();
         tx.execute(
-            "INSERT INTO tasks (title, why, rank, status, created_at, updated_at)
-             VALUES (?1, ?2, 1000000, 'open', ?3, ?3)",
-            params![title, why, t],
+            "INSERT INTO tasks (title, why, rank, status, created_at, updated_at, due)
+             VALUES (?1, ?2, 1000000, 'open', ?3, ?3, ?4)",
+            params![title, why, t, due],
         )?;
         let id = tx.last_insert_rowid();
         for n in nodes {
@@ -794,37 +933,85 @@ impl Inventory {
         task_json(&self.conn, id)
     }
 
-    /// Where to pick up: the task in progress (or the first open one) with everything needed
-    /// to work on it — each of its places as `show` gives it, what is planned to move in or
-    /// out of them, and the rules — plus progress, and under `organize` the untoured places no
-    /// task covers yet, so gaps in the plan are visible.
+    /// Where to pick up: the task in progress, else one due within a day (or overdue), else the
+    /// first open one — with why it was picked, each of its places as `show` gives it, what is
+    /// planned to move in, and `while_there`: everything else waiting in that place, done while
+    /// it is open. Also `hints` on the order (a task due soon, one whose places are all counted,
+    /// one that settles planned moves), progress, the rules, and under `organize` the untoured
+    /// places no task covers yet. It only informs the order; it never changes it.
     pub fn next(&self) -> Result<Value> {
         let goal = get_setting(&self.conn, "goal")?;
-        let current = ids(
-            &self.conn,
-            "SELECT id FROM tasks WHERE status IN ('open','doing')
-              ORDER BY CASE status WHEN 'doing' THEN 0 ELSE 1 END, rank, id LIMIT 1",
-            [],
-        )?;
-        let open_count: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status IN ('open','doing')",
-            [],
-            |r| r.get(0),
-        )?;
-        let task = match current.first() {
+        let open: Vec<(i64, String, Option<String>)> = {
+            let mut stmt = self.conn.prepare(
+                "SELECT id, status, due FROM tasks WHERE status IN ('open','doing')
+                  ORDER BY rank, id",
+            )?;
+            stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+                .collect::<rusqlite::Result<_>>()?
+        };
+        let due_soon = |d: &Option<String>| {
+            d.as_deref()
+                .and_then(days_left)
+                .is_some_and(|n| n <= DUE_SOON_DAYS)
+        };
+        let doing = open.iter().find(|t| t.1 == "doing");
+        let urgent = open
+            .iter()
+            .filter(|t| due_soon(&t.2))
+            .min_by(|a, b| a.2.cmp(&b.2));
+        let (current, picked) = match (doing, urgent, open.first()) {
+            (Some(t), _, _) => (Some(t.0), "doing"),
+            (None, Some(t), _) => (Some(t.0), "due"),
+            (None, None, Some(t)) => (Some(t.0), "order"),
+            _ => (None, "none"),
+        };
+        let todo = self.todo()?;
+        let crate::coverage::TodoParts {
+            uncovered,
+            unvalued,
+            ..
+        } = crate::coverage::todo_parts(&self.conn)?;
+        let task = match current {
             None => Value::Null,
             Some(t) => {
-                let mut v = task_json(&self.conn, *t)?;
+                let mut v = task_json(&self.conn, t)?;
                 let mut places = Vec::new();
-                for n in task_nodes(&self.conn, *t)? {
+                for n in task_nodes(&self.conn, t)? {
                     let mut p = show(&self.conn, n)?;
                     p["arriving"] = json!(self.pending_into(n)?);
+                    p["while_there"] = while_there(&self.conn, n, &todo, &uncovered, &unvalued)?;
                     places.push(p);
                 }
                 v["places"] = json!(places);
+                v["picked"] = json!(picked);
                 v
             }
         };
+        let mut hints = Vec::new();
+        for (id, _, due) in &open {
+            if let Some(d) = due.as_deref().filter(|_| due_soon(due)) {
+                hints.push(
+                    json!({ "task": id, "kind": "due", "due": d, "days_left": days_left(d) }),
+                );
+            }
+            let nodes = task_nodes(&self.conn, *id)?;
+            let mut counted = !nodes.is_empty();
+            let mut arriving = 0;
+            for n in &nodes {
+                let status = review_inherited(&self.conn, *n)?["status"]
+                    .as_str()
+                    .unwrap_or("raw")
+                    .to_string();
+                counted &= matches!(status.as_str(), "toured" | "kept");
+                arriving += self.pending_into(*n)?.len();
+            }
+            if counted {
+                hints.push(json!({ "task": id, "kind": "places_counted" }));
+            }
+            if arriving > 0 {
+                hints.push(json!({ "task": id, "kind": "settles_moves", "moves": arriving }));
+            }
+        }
         let progress = self.progress()?;
         let unplanned: Vec<Value> = if goal.as_deref() == Some("track") {
             Vec::new()
@@ -840,18 +1027,24 @@ impl Inventory {
         Ok(json!({
             "goal": goal,
             "task": task,
-            "open_tasks": open_count,
-            "progress": {
-                "units": progress["units"],
-                "toured": progress["toured"],
-                "kept": progress["kept"],
-                "counting": progress["counting"],
-                "raw": progress["raw"],
-                "changed_since_tour": progress["changed_since_tour"],
-            },
+            "open_tasks": open.len(),
+            "hints": hints,
+            "progress": progress_summary(&progress),
             "unplanned": unplanned,
             "rules": rules_json(&self.conn)?,
         }))
+    }
+
+    /// Sets a task's due date (`YYYY-MM-DD`), or clears it with `None`, an empty text or
+    /// `none`: a day the person said they want it done by.
+    pub fn task_due(&mut self, id: i64, due: Option<&str>) -> Result<Value> {
+        task_json(&self.conn, id)?;
+        let due = parse_due(due)?;
+        self.conn.execute(
+            "UPDATE tasks SET due = ?1, updated_at = ?2 WHERE id = ?3",
+            params![due, now(), id],
+        )?;
+        task_json(&self.conn, id)
     }
 
     /// Nodes planned to move into `id` or anywhere below it.

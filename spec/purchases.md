@@ -356,3 +356,12 @@ Each phase ends with the gate green and one measured check.
    - When the name lacks the make and model, the same question offers that name.
    - A shop's long title ("Bosch Professional GSB 13 RE Darbeli Matkap (600 W, Mandren Çapı …)")
      never becomes the name. It stays on the purchase line.
+
+## 12. Decided while back-filling (2026-10-02)
+
+1. **Under My Roof is not imported.** It is not a shop: its records were typed by the person,
+   so they confirm a match, they are not purchases of their own. `tools/purchases/umr.py`
+   stays as a reader; what it gives is used to confirm a shop line, never imported as lines.
+2. **Back-fill only toured places.** A record in a place not toured yet is still a guess; it
+   is matched to a purchase during that place's tour, not before. The one-off back-fill of
+   §11.3 covers things whose place has been toured.

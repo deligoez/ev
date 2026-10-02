@@ -6,17 +6,13 @@ that fixes them.
 
 ## Open
 
-- **The back-fill has no "toured places only" view.** Matching existing records to purchases
-  (spec purchases §12.2) should cover only things in toured places, but `ev buy for` takes one
-  record at a time and nothing lists toured things with a strong candidate; the agent looped
-  over every item with a script and brought untoured records up (2026-10-02). Expected: a verb
-  or a `buy for` mode that ranks open lines against the things of toured places only, best
-  first, so the back-fill and each tour's end ask the same question.
-- **A statutory warranty is proposed after it has ended, and for any shop.** `ev show` on a
-  module bought on AliExpress in 2023 proposes "statutory warranty until 2025-12-06, not
-  recorded" (2026-10-02). A proposal whose end has passed asks nothing, and the Turkish legal
-  minimum binds sellers in Türkiye, not a foreign marketplace seller. Expected: no proposal once
-  it would have ended, and none for lines from shops outside the home country.
+- **Words alone can reach the top of `ev buy for --toured`.** Shared words are capped at 30
+  points, twice the bar of 15, so a line that only shares a few rare words with a thing ranks
+  above real matches: a Belkin extension cord was offered for a TP4056 charging module, a
+  bathroom cabinet for vinyl screw-cover stickers "for the bathroom cabinet" (2026-10-02, on a
+  copy of the real inventory). Expected: a line with no shared code, brand or model needs more
+  than words to be offered first, or the toured list sorts code and brand matches above word
+  matches.
 - **A word that is a root of its own is cut to another root.** `altın` → `alt` (meets
   `altında`), `ünite` → `uni`: the shortest shorter form written somewhere wins, and nothing in
   the inventory's own words tells a root from a suffixed form of another. Expected: a root stays

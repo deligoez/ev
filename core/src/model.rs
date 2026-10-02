@@ -140,7 +140,10 @@ pub struct NodeRef {
 pub struct NewNode {
     #[serde(default)]
     pub key: Option<String>,
+    /// Empty with `of`, which names the thing.
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub kind: String,
     #[serde(default, rename = "in")]
     pub parent: Option<String>,
@@ -176,4 +179,8 @@ pub struct NewNode {
     pub model: Option<String>,
     #[serde(default)]
     pub serial: Option<String>,
+    /// More of a thing already recorded (spec/portions.md §4.3): its name, kind, make, model,
+    /// size and tags come from this record, and the new units are a portion of the same thing.
+    #[serde(default)]
+    pub of: Option<String>,
 }

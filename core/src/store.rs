@@ -1575,6 +1575,9 @@ fn non_empty(v: &Option<String>) -> Option<String> {
 }
 
 fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64> {
+    if let Some(of) = non_empty(&new.of) {
+        return add_of(conn, new, &of, parent);
+    }
     let kind: Kind = new.kind.parse()?;
     let name = new.name.trim();
     if name.is_empty() {
@@ -1673,6 +1676,43 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         json!({ "name": name, "kind": kind, "parent": parent, "code": code, "lost": new.lost }),
     )?;
     Ok(id)
+}
+
+/// `ev add --of`: more units of a thing already recorded, in `parent`. What the thing is comes
+/// from it; what is said of these units (count, note, photos) from `new`. They are a portion of
+/// the same thing, and join a portion already in that place. Returns the record that holds them.
+fn add_of(conn: &Connection, new: &NewNode, of: &str, parent: Option<i64>) -> Result<i64> {
+    let src = load(conn, resolve(conn, of, false)?)?;
+    if src.kind != Kind::Item || src.serial.is_some() {
+        return Err(refused(
+            format!(
+                "{}: only items without a serial are kept in several places",
+                label(&src)
+            ),
+            Value::Null,
+        ));
+    }
+    if parent.is_none() {
+        return Err(Error::Usage("say where they are with --in".into()));
+    }
+    let made = NewNode {
+        name: src.name.clone(),
+        kind: Kind::Item.to_string(),
+        make: src.make.clone(),
+        model: src.model.clone(),
+        size: src.size.clone(),
+        tags: src.tags.clone(),
+        of: None,
+        ..new.clone()
+    };
+    let id = add_one(conn, &made, parent)?;
+    let thing = src.thing.unwrap_or(src.id);
+    conn.execute(
+        "UPDATE nodes SET thing = ?1 WHERE id IN (?2, ?3)",
+        params![thing, src.id, id],
+    )?;
+    event(conn, id, "more_of", json!({ "of": src.id }))?;
+    crate::portions::join_here(conn, id)
 }
 
 fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result<()> {

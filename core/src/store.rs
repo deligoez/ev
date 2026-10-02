@@ -1911,8 +1911,20 @@ fn sets_identity(assignments: &[String]) -> bool {
 /// Adds the purchase lines a node could be (purchases spec §5) to a result, when there are any:
 /// asked while the thing is in hand, after `add`, `split`, `found` and a new make or model.
 fn offer_purchases(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
-    let offered =
-        crate::purchase_match::candidates_for(conn, id, crate::purchase_match::OFFER_AT, 3)?;
+    // A portion of a thing its purchases already account for asks nothing (spec/portions.md
+    // §6); a line linked to the thing is no question either.
+    let n = load(conn, id)?;
+    if n.thing.is_some()
+        && let Some(bought) = crate::portions::bought(conn, &n)?
+        && crate::portions::here(conn, &n)? <= bought
+    {
+        return Ok(v);
+    }
+    let offered: Vec<Value> =
+        crate::purchase_match::candidates_for(conn, id, crate::purchase_match::OFFER_AT, 3)?
+            .into_iter()
+            .filter(|c| c["linked"] != true)
+            .collect();
     if !offered.is_empty() {
         v["purchase_candidates"] = json!(offered);
     }

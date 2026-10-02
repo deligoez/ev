@@ -472,14 +472,18 @@ impl Inventory {
             }
             false
         };
-        let things: Vec<&Node> = nodes
-            .iter()
-            .filter(|n| !linked.contains(&n.id) && toured(n.id))
-            .collect();
+        // A thing kept in several places is linked when any of its records is.
+        let mut things: Vec<(&Node, Vec<i64>)> = Vec::new();
+        for n in nodes.iter().filter(|n| toured(n.id)) {
+            let members = crate::portions::members(conn, n)?;
+            if !members.iter().any(|m| linked.contains(m)) {
+                things.push((n, members));
+            }
+        }
         let matcher = Matcher::new(conn, &nodes)?;
         let mut out = Vec::new();
-        for n in &things {
-            if let Some(c) = matcher.rank(n, OFFER_AT, 1).into_iter().next() {
+        for (n, members) in &things {
+            if let Some(c) = matcher.rank(n, members, OFFER_AT, 1).into_iter().next() {
                 out.push(json!({ "node": crate::store::brief(conn, n.id)?, "candidate": c }));
             }
         }
@@ -550,17 +554,23 @@ impl Matcher {
     }
 
     /// The lines scoring above `at` for `n`, at most `limit`, best first, and any linked to it.
-    fn rank(&self, n: &Node, at: f64, limit: usize) -> Vec<Value> {
+    /// `members` are the records of `n`'s thing (spec/portions.md §6): a line linked to any of
+    /// them is linked to it, and a "not this one" said of any of them holds for it.
+    fn rank(&self, n: &Node, members: &[i64], at: f64, limit: usize) -> Vec<Value> {
         let thing = Thing::new(n);
         let mut out = Vec::new();
         for line in &self.lines {
             let p = &line.value;
-            let linked_here = p["linked"]
-                .as_array()
-                .is_some_and(|l| l.iter().any(|x| x["node"]["id"] == n.id));
+            let linked_here = p["linked"].as_array().is_some_and(|l| {
+                l.iter().any(|x| {
+                    x["node"]["id"]
+                        .as_i64()
+                        .is_some_and(|i| members.contains(&i))
+                })
+            });
             let declined = p["id"]
                 .as_i64()
-                .is_some_and(|id| self.declined.contains(&(id, n.id)));
+                .is_some_and(|id| members.iter().any(|m| self.declined.contains(&(id, *m))));
             if !(open(p) || linked_here) || declined && !linked_here {
                 continue;
             }
@@ -616,7 +626,8 @@ pub(crate) fn candidates_for(
         return Ok(Vec::new());
     }
     let nodes = crate::store::live_nodes(conn)?;
-    Ok(Matcher::new(conn, &nodes)?.rank(&n, at, limit))
+    let members = crate::portions::members(conn, &n)?;
+    Ok(Matcher::new(conn, &nodes)?.rank(&n, &members, at, limit))
 }
 
 #[cfg(test)]

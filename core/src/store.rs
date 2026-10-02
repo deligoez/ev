@@ -716,6 +716,12 @@ impl Inventory {
     ) -> Result<Value> {
         check_shred(disposition, shred)?;
         not_merged(Some(disposition))?;
+        if disposition == Disposition::Used {
+            return Err(Error::Usage(
+                "nothing waits to be used up; when it is, record it with `ev gone --as used`"
+                    .into(),
+            ));
+        }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         let node = crate::portions::take(&tx, node, qty)?;
@@ -816,7 +822,7 @@ impl Inventory {
         if node.state == State::Active && disposition.is_none() {
             return Err(refused(
                 format!(
-                    "{} is active; say how it left with --as trash|give|sell|digitize",
+                    "{} is active; say how it left with --as trash|give|sell|used|digitize",
                     label(&node)
                 ),
                 Value::Null,

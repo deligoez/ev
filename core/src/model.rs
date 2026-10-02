@@ -64,6 +64,9 @@ label_enum!(Disposition, "disposition", {
     // Closing a record that should never have existed (a misreading, a duplicate): it keeps its
     // history but nothing actually left the home.
     Mistake => "mistake",
+    // Used up: a tape run out, a dead cell, a consumable spent. It left by being used, which is
+    // neither throwing a good thing away nor giving it; only `gone` takes it.
+    Used => "used",
     // A portion that joined another portion of the same thing in its place (spec/portions.md
     // §4.2): its units live on in the other record. ev's own; never given on the command line.
     Merged => "merged",

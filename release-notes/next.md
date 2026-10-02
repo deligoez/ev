@@ -11,6 +11,14 @@ Draft for the next release.
   cuts a photo among records shows the person what it read in the same command, instead of
   having to remember a separate `ev photo mark` and `ev focus`. Sending stays opt-in: a cut can
   come from a script, and a request replaces the picture the person may be looking at.
+- **A pack or set bought as one line can be linked to every record it went into**
+  (`ev buy pack <id> <n>`, `ev buy add --pack n`). A line now has a pack size, the units in
+  each bought quantity: an 8-pack of cells, a charger set with four AA and four AAA cells. Its
+  `units` (qty × pack) are what links take, so `ev buy link <id> <ref> --qty n` spreads one
+  pack over the boxes and kinds its units were split into, and each thing's share of the price
+  is by units. Before, a line of one pack was used up by its first link and the second record
+  got the purchase only as prose in its note. Schema 27 adds the column; every existing line
+  keeps a pack of 1.
 
 ## Fixed
 

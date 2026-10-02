@@ -25,8 +25,14 @@ const ALIAS: f64 = 80.0;
 const EXACT_KEY: f64 = 60.0;
 const CODE: f64 = 25.0;
 const BRAND: f64 = 12.0;
+/// The brand when the line shares nothing of what the thing is: a Pro'sKit pliers line for a
+/// Pro'sKit wire stripper.
+const BRAND_ASIDE: f64 = 5.0;
 const WORDS_CAP: f64 = 30.0;
 const CONFLICT: f64 = -40.0;
+/// The most words alone can give when none of them is in what the thing is (the head of its
+/// name): below `OFFER_AT`, so such a line is ranked but never offered on words alone.
+const ASIDE_CAP: f64 = 10.0;
 
 /// Letters and digits only, lowercased: `GSB 13-RE` and `gsb13re` read alike.
 fn squash(s: &str) -> String {
@@ -116,6 +122,10 @@ fn measures(text: &str) -> Vec<(&'static str, f64)> {
             j += 1;
         }
         let unit: String = chars[unit_start..j].iter().collect();
+        // A lone `A` is an ampere only when it is written as one: against the number (`3A`) or
+        // after a decimal (`2,5 A`). `Pi 3 A+` is a model.
+        let ampere_like = unit_start == i
+            || number.contains([',', '.']) && chars.get(j).is_none_or(|c| *c != '+');
         let base = match unit.as_str() {
             "mm" => Some(("length", 1.0)),
             "cm" => Some(("length", 10.0)),
@@ -133,6 +143,8 @@ fn measures(text: &str) -> Vec<(&'static str, f64)> {
             "l" | "lt" => Some(("volume", 1000.0)),
             "v" => Some(("voltage", 1.0)),
             "w" => Some(("power", 1.0)),
+            "a" if ampere_like => Some(("current", 1000.0)),
+            "ma" => Some(("current", 1.0)),
             "mah" => Some(("charge", 1.0)),
             _ => None,
         };
@@ -196,6 +208,28 @@ impl Corpus {
             .unwrap_or(0);
         (1.0 + self.lines as f64 / (1.0 + df as f64)).ln()
     }
+}
+
+/// What a thing is, from its name: the part before the first comma or dash, without what is
+/// in brackets. "Kombine pense, Pro'sKit (yeşil-gri saplı)" is a `kombine pense`; "TP4056 Li-ion
+/// şarj modülü, USB-C girişli" is a `şarj modülü`, whatever it is for or made of.
+fn head(name: &str) -> String {
+    let mut plain = String::new();
+    let mut depth = 0;
+    for c in name.chars() {
+        match c {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = (depth - 1).max(0),
+            _ if depth == 0 => plain.push(c),
+            _ => {}
+        }
+    }
+    let cut = [",", " — ", " – ", " - ", ";"]
+        .iter()
+        .filter_map(|s| plain.find(s))
+        .min()
+        .unwrap_or(plain.len());
+    plain[..cut].to_string()
 }
 
 /// The node's own text: name, make, model, note and tags.
@@ -267,6 +301,8 @@ struct Thing<'a> {
     keys: Vec<(&'static str, String)>,
     codes: HashSet<String>,
     words: Vec<(String, Vec<String>)>,
+    /// The words of what it is, the head of its name, each with its stems.
+    head: Vec<(String, Vec<String>)>,
     measures: Vec<(&'static str, f64)>,
     /// Name and make: where a line's brand is looked for.
     own: String,
@@ -288,8 +324,17 @@ impl<'a> Thing<'a> {
                         .map(|v| (f, v))
                 })
                 .collect(),
-            codes: codes(&text),
+            // Codes from what names it, never from the note: a note says what a module is used
+            // with ("for an ESP32"), which is not what it is.
+            codes: codes(&format!(
+                "{} {} {} {}",
+                n.name,
+                n.make.as_deref().unwrap_or_default(),
+                n.model.as_deref().unwrap_or_default(),
+                n.serial.as_deref().unwrap_or_default()
+            )),
             words: words(&text),
+            head: words(&head(&n.name)),
             measures: measures(&text),
             own: format!("{} {}", n.name, n.make.as_deref().unwrap_or_default()),
             make: n.make.as_deref().map(squash).filter(|m| m.len() >= 2),
@@ -305,6 +350,8 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         total += points;
         why.push((what, points));
     };
+    // Whether anything stronger than words says it: an alias, a key, a code, the brand.
+    let mut strong = false;
     // 1. A product linked before to a thing of the same name.
     if let Some((a, _)) = p
         .aliases
@@ -312,11 +359,13 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         .find(|(a, name)| *a != n.node.id && *name == n.folded_name)
     {
         add(format!("bought before for #{a}"), ALIAS);
+        strong = true;
     }
     // 2. The thing's model or serial written in the line.
     for (field, v) in &n.keys {
         if p.squashed.contains(v.as_str()) {
             add(format!("{field} {v}"), EXACT_KEY);
+            strong = true;
         }
     }
     // 3. Model codes both carry.
@@ -324,33 +373,56 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     shared.sort();
     for c in shared.into_iter().take(2) {
         add(format!("code {c}"), CODE);
+        strong = true;
     }
+    // Whether the line shares any word of what the thing is (the head of its name).
+    let shares_head = n.head.iter().any(|(_, stems)| {
+        p.words
+            .iter()
+            .any(|(_, ls)| ls.iter().any(|s| stems.contains(s)))
+    });
+    let brand = if shares_head { BRAND } else { BRAND_ASIDE };
     // 4. The brand, compared without spaces or marks (`Pro's Kit` is `Pro'sKit`), in the
     //    thing's name or make only (a note says "for Arduino" of every module), never the
     //    shop's own name (a shop's own service names it as the brand).
     if let Some(b) = p.brand.as_ref().filter(|b| has_phrase(&n.own, b)) {
-        add(format!("brand {b}"), BRAND);
+        add(format!("brand {b}"), brand);
+        strong |= shares_head;
     } else if let Some(m) = n.make.as_ref().filter(|m| has_phrase(&p.name, m)) {
-        add(format!("brand {m}"), BRAND);
+        add(format!("brand {m}"), brand);
+        strong |= shares_head;
     }
-    // 5. Words, weighted by how rare they are among the lines.
+    // 5. Words, weighted by how rare they are among the lines. On their own they must name
+    //    what the thing is: words shared only with what it is for, made of or kept with ("USB-C
+    //    girişli", "banyodaki dolabı için") stay below the bar.
+    let shares = |stems: &[String]| {
+        p.words
+            .iter()
+            .any(|(_, ls)| ls.iter().any(|s| stems.contains(s)))
+    };
     let mut points = 0.0;
     let mut matched: Vec<&str> = Vec::new();
     for (w, stems) in &n.words {
-        if p.words
-            .iter()
-            .any(|(_, ls)| ls.iter().any(|s| stems.contains(s)))
-            && !matched.contains(&w.as_str())
-        {
+        if shares(stems) && !matched.contains(&w.as_str()) {
             points += corpus.weight(stems);
             matched.push(w);
         }
     }
+    // The line names what the thing is when it carries more than half of the head of its name,
+    // each word weighted by how rare it is: "RFID okuyucu kartı" is not named by a card reader
+    // hub that shares only "okuyucu kartı".
+    let (named, all) = n.head.iter().fold((0.0, 0.0), |(named, all), (_, stems)| {
+        let w = corpus.weight(stems);
+        (named + if shares(stems) { w } else { 0.0 }, all + w)
+    });
+    let names_it = all > 0.0 && named * 2.0 > all;
     if !matched.is_empty() {
-        add(
-            format!("words {}", matched.join(", ")),
-            points.min(WORDS_CAP),
-        );
+        let (cap, what) = if strong || names_it {
+            (WORDS_CAP, "words")
+        } else {
+            (ASIDE_CAP, "words aside")
+        };
+        add(format!("{what} {}", matched.join(", ")), points.min(cap));
     }
     // 6. Numbers of one unit that differ.
     for d in conflicting(&n.measures, &p.measures) {

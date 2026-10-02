@@ -330,28 +330,85 @@ pub(crate) fn coverages_of(conn: &Connection, node: i64) -> Result<(Vec<Value>, 
     let proposal = if has_statutory || decision(conn, node, "coverage")?.is_some() {
         None
     } else {
-        let durable: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM purchases p JOIN purchase_links l ON l.purchase_id = p.id
-              WHERE l.node_id = ?1 AND p.bucket = 'durable' AND p.status = 'delivered'",
-            [node],
-            |r| r.get(0),
-        )?;
-        let start = delivery(conn, &[node])?;
-        match (durable, start) {
-            (n, Some(s)) if n > 0 => {
-                let end = add_term(s, STATUTORY_YEARS.into(), "year");
-                Some(json!({
-                    "kind": "statutory",
-                    "term": "2 years",
-                    "start": s.to_string(),
-                    "end": end.map(|e| e.to_string()),
-                    "why": "a durable purchase is linked; goods sold with a warranty certificate carry at least two years from delivery",
-                }))
-            }
-            _ => None,
-        }
+        statutory_proposal(conn, node)?
     };
     Ok((list, proposal))
+}
+
+/// Marketplaces whose sellers are abroad, by the shop name an adapter writes (folded to lower
+/// case), with the country they sell from. A line from one of them is foreign unless that
+/// country is the inventory's `home_country`: for a home in Germany, Amazon.de is at home.
+/// A shop not listed is taken to sell in the home country; its currency still tells.
+const FOREIGN_SHOPS: [(&str, &str); 9] = [
+    ("aliexpress", "CN"),
+    ("temu", "CN"),
+    ("banggood", "CN"),
+    ("amazon.com", "US"),
+    ("amazon.co.uk", "GB"),
+    ("amazon.de", "DE"),
+    ("amazon.fr", "FR"),
+    ("amazon.it", "IT"),
+    ("amazon.es", "ES"),
+];
+
+/// Whether a line was sold under the home country's rules: paid in the home currency (or no
+/// currency given) and not from a marketplace abroad. The currency alone is not enough: a
+/// foreign marketplace may charge in the home currency.
+fn sold_at_home(shop: Option<&str>, currency: Option<&str>, country: &str, home: &str) -> bool {
+    let shop = shop.map(|s| s.trim().to_lowercase()).unwrap_or_default();
+    currency.is_none_or(|c| c.eq_ignore_ascii_case(home))
+        && FOREIGN_SHOPS
+            .iter()
+            .find(|(s, _)| *s == shop)
+            .is_none_or(|(_, c)| c.eq_ignore_ascii_case(country))
+}
+
+/// The statutory coverage a node's linked durable purchases propose (spec §3.6): two years from
+/// the earliest delivery of a line sold in the home country. None when every such line was
+/// bought abroad (the Turkish minimum binds a seller in Türkiye, not a foreign marketplace's)
+/// or when the two years, with any time in repair, have already passed: a proposal that has
+/// ended asks nothing.
+fn statutory_proposal(conn: &Connection, node: i64) -> Result<Option<Value>> {
+    let country = crate::money::home_country(conn)?;
+    let home = crate::money::home_currency(conn)?;
+    let mut stmt = conn.prepare(
+        "SELECT p.shop, p.currency, COALESCE(p.delivered_at, p.ordered_at)
+           FROM purchases p JOIN purchase_links l ON l.purchase_id = p.id
+          WHERE l.node_id = ?1 AND p.bucket = 'durable' AND p.status = 'delivered'",
+    )?;
+    let rows = stmt
+        .query_map([node], |r| {
+            Ok((
+                r.get::<_, Option<String>>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let start = rows
+        .into_iter()
+        .filter(|(shop, cur, _)| sold_at_home(shop.as_deref(), cur.as_deref(), &country, &home))
+        .filter_map(|(_, _, d)| d.and_then(|d| parse_day(&d).ok()))
+        .min();
+    let Some(s) = start else {
+        return Ok(None);
+    };
+    let today = chrono::Utc::now().date_naive();
+    let end = add_term(s, STATUTORY_YEARS.into(), "year");
+    let repair = repair_days(conn, node, s, today)?;
+    if end
+        .and_then(|e| e.checked_add_days(Days::new(repair as u64)))
+        .is_some_and(|e| e < today)
+    {
+        return Ok(None);
+    }
+    Ok(Some(json!({
+        "kind": "statutory",
+        "term": "2 years",
+        "start": s.to_string(),
+        "end": end.map(|e| e.to_string()),
+        "why": "a durable purchase is linked; goods sold with a warranty certificate carry at least two years from delivery",
+    })))
 }
 
 /// The person's standing decision on a tracked subject (`value` or `coverage`) for a node,

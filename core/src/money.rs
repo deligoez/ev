@@ -30,6 +30,10 @@ pub(crate) fn home_currency(conn: &Connection) -> Result<String> {
     setting(conn, "home_currency", "TRY")
 }
 
+pub(crate) fn home_country(conn: &Connection) -> Result<String> {
+    setting(conn, "home_country", "TR")
+}
+
 fn series(conn: &Connection) -> Result<String> {
     setting(conn, "price_index", "eurostat:TR")
 }

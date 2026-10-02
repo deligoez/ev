@@ -479,6 +479,7 @@ static TR: &[(&str, &str)] = &[
     ("[{} open]", "[{} açık]"),
     ("[linked]", "[bağlı]"),
     ("[returned]", "[iade]"),
+    ("({} units each)", "(her biri {} adet)"),
     ("seller", "satıcı"),
     ("order", "sipariş"),
     ("order page", "sipariş sayfası"),

@@ -433,6 +433,11 @@ pub(crate) fn purchase_line(p: &Value) -> String {
         .as_i64()
         .unwrap_or(p["qty"].as_i64().unwrap_or(1));
     parts.push(format!("{} ×{qty}", s(p, "name")));
+    if let Some(pack) = p["pack"].as_i64().filter(|n| *n > 1)
+        && p["linked_qty"].is_null()
+    {
+        parts.push(tf("({} units each)", &[&pack]));
+    }
     if let Some(paid) = p["paid"].as_str() {
         parts.push(amount(paid, p["currency"].as_str().unwrap_or_default()));
     }

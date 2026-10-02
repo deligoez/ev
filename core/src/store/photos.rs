@@ -520,8 +520,21 @@ impl Inventory {
             "photo_remove",
             json!({ "path": path, "crop": crop, "note": note, "n": n }),
         )?;
+        // A crop no record uses any more is a file nobody can reach: cut again from its source
+        // when needed. A whole photo stays, since it may be the only copy of what was taken.
+        let unused = crop.is_some()
+            && Path::new(&path).starts_with(&self.photo_dir)
+            && tx.query_row(
+                "SELECT COUNT(*) FROM photos WHERE path = ev_store(?1) OR source = ev_store(?1)",
+                [&path],
+                |r| r.get::<_, i64>(0),
+            )? == 0;
         tx.commit()?;
-        self.photo_list(&id.to_string())
+        let mut v = self.photo_list(&id.to_string())?;
+        if unused && std::fs::remove_file(&path).is_ok() {
+            v["deleted_file"] = json!(path);
+        }
+        Ok(v)
     }
 
     /// Copies every photo still referenced outside the store into it.

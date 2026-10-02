@@ -63,8 +63,9 @@ language`. See `spec/mcp.md` for the reasons.
 | `photo` | `ref`, `n?` | a node's n-th photo (the newest by default) as an image | read-only |
 
 - `format`: `text` (default) is the readable output with `#id`s; `json` is the JSON as text
-  and as `structuredContent`. A result over 50,000 characters is cut there, with a note on how
-  to narrow the call.
+  and as `structuredContent`. A text result over 50,000 characters is cut there, with a note on
+  how to narrow the call; a JSON result that long is refused with the same advice, since cut
+  JSON does not parse.
 - A failed command is a result with `isError: true` and the CLI's error message (in JSON with
   `format: json`). Refused through `ev`: `ui`, `mcp`, and any `--db`. A command reading
   `--stdin` with no `input` is refused (the server's own stdin is the protocol).

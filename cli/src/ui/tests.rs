@@ -49,12 +49,9 @@ fn english_is_shown_when_english_is_chosen() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(s.contains("1 Layout") && s.contains("8 Settings"), "{s}");
-    assert!(s.contains("Summary · Photos · Grid"), "{s}");
-    assert!(
-        s.lines()
-            .any(|l| l.contains("kind ") && l.contains(" home")),
-        "{s}"
-    );
+    // Only the tabs the node has something for: a bare home has its summary alone.
+    assert!(s.contains("Summary") && !s.contains("Grid"), "{s}");
+    assert!(s.contains("│home"), "{s}");
     assert!(!s.contains("Ayrıntı"), "{s}");
 }
 
@@ -254,7 +251,7 @@ fn a_grid_holder_shows_its_map_and_a_box_its_cells() {
 
     // On the drawer's own grid a box opens with a click, on its cells or on the frame
     // inside it; a free cell does nothing.
-    let (x0, y0) = (app.details_area.x + 1, app.details_area.y + 1 + 4);
+    let (x0, y0) = (app.details_area.x + 1, app.details_area.y + 1 + 5);
     let cell = |col: u16, line: u16| (x0 + 3 + col * 6 + 2, y0 + line);
     let (x, y) = cell(0, 1);
     click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
@@ -578,7 +575,7 @@ fn a_box_shows_its_drawer_map_size_room_and_what_would_fit_better_elsewhere() {
     assert!(s.contains("2×1 grid, row 1 at the back"), "{s}");
     assert!(s.contains(" 1 │ A1  │ B1  │"), "{s}");
     // A neighbour on it opens with a click, from the box as from the drawer.
-    let (x, y) = (app.details_area.x + 1 + 5, app.details_area.y + 1 + 5);
+    let (x, y) = (app.details_area.x + 1 + 5, app.details_area.y + 1 + 6);
     click(&mut app, MouseEventKind::Down(MouseButton::Left), x, y);
     let a1 = app.inv.resolve("D-A1", false).unwrap();
     assert_eq!(app.selected_id(), Some(a1));
@@ -685,7 +682,7 @@ fn photos_history_and_contents_lines_open_what_they_name_with_a_click() {
     // Newest first, the one shown marked; a click on the older shows it.
     let (new, old) = (s.find("yeni").unwrap(), s.find("eski").unwrap());
     assert!(new < old && s.contains("▶  2"), "{s}");
-    let (x, first) = (app.details_area.x + 5, app.details_area.y + 1 + 2);
+    let (x, first) = (app.details_area.x + 5, app.details_area.y + 1 + 3);
     click(
         &mut app,
         MouseEventKind::Down(MouseButton::Left),
@@ -945,7 +942,10 @@ fn the_selected_node_shows_its_photo_panel() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(s.contains("Fotoğraf 1/1"), "{s}");
-    assert!(s.contains("Özet · Fotoğraflar 1 · Izgara"), "{s}");
+    assert!(
+        s.contains("Özet · Fotoğraflar 1") && !s.contains("Izgara"),
+        "{s}"
+    );
 }
 
 #[test]
@@ -1087,8 +1087,8 @@ fn the_plan_tab_lists_tasks_with_progress() {
     assert!(s.contains("▸ HENÜZ SAYILMADI"), "{s}");
     assert!(s.contains("İŞLER"), "{s}");
     assert!(s.contains("1. Kutuyu aç"), "{s}");
-    // The task's place is shown on the right.
-    assert!(s.contains("Ev › Oda › Kutu"), "{s}");
+    // The task's place is shown on the right: its name, and the place it is in.
+    assert!(s.contains("Kutu") && s.contains("Ev › Oda"), "{s}");
 }
 
 #[test]

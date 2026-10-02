@@ -844,6 +844,8 @@ static TR: &[(&str, &str)] = &[
     ("Numbered photo: {}", "Numaralı fotoğraf: {}"),
     ("Contact sheet: {}", "Kesit sayfası: {}"),
     ("Sent to ev ui.", "ev ui'a gönderildi."),
+    ("task #{}: {}", "görev #{}: {}"),
+    ("(order {})", "(sıra {})"),
     (
         "{} index from {}; home currency {}, country {}",
         "{} endeksi, {} itibarıyla; ev para birimi {}, ülke {}",

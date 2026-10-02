@@ -2254,14 +2254,13 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         } else {
             tf("  (via #{})", &[&t_["via"]])
         };
-        let _ = writeln!(
-            out,
-            "  {} {}. #{} {}{via}",
-            t("task"),
-            t_["position"],
-            t_["id"],
-            s(t_, "title")
-        );
+        // `task #16` together: with the position between them, an agent read `#16` as a node.
+        let task = tf("task #{}: {}", &[&t_["id"], &s(t_, "title")]);
+        let order = t_["position"]
+            .as_i64()
+            .map(|p| format!(" {}", tf("(order {})", &[&p])))
+            .unwrap_or_default();
+        let _ = writeln!(out, "  {task}{order}{via}");
     }
     for k in v["kits"].as_array().into_iter().flatten() {
         let _ = writeln!(

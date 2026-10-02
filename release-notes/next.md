@@ -29,3 +29,7 @@ Draft for the next release.
   the photo's size, and broken onto up to three lines at spaces. It goes above its frame, else
   below it, else inside it, at the first place that stays in the photo and off every other label
   and frame, and all frames are drawn before any label, so no frame line crosses a label.
+- **`ev edit <x> note=+text` replaced the whole note with `+text`.** `tags=+x` and
+  `photos=+p` add, so `note=+…` read as "append", but the note took the value literally and
+  the old one survived only in the history. `note=+text` now appends on a new line, since the
+  note is a log the person adds to; `note=text` still replaces it.

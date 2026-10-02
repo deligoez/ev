@@ -644,6 +644,9 @@ enum BuyCmd {
         currency: Option<String>,
         #[arg(long, default_value_t = 1)]
         qty: i64,
+        /// Units in each bought quantity (an 8-pack, a set), for linking them to several things.
+        #[arg(long, default_value_t = 1)]
+        pack: i64,
         /// The order number, for customer service.
         #[arg(long)]
         order: Option<String>,
@@ -688,6 +691,9 @@ enum BuyCmd {
         #[arg(long)]
         qty: Option<i64>,
     },
+    /// Units in each bought quantity of a line (an 8-pack, a set), so its units can be linked
+    /// to several things.
+    Pack { id: i64, pack: i64 },
     /// Undo a link.
     Unlink { id: i64, reference: String },
     /// Settle a line that will never be a thing: consumed, given, returned, elsewhere,
@@ -1501,6 +1507,7 @@ fn run(cli: Cli) -> Result<Value> {
             paid,
             currency,
             qty,
+            pack,
             order,
             order_url,
             url,
@@ -1509,7 +1516,7 @@ fn run(cli: Cli) -> Result<Value> {
         }) => inv.buy_add(
             &serde_json::json!({
                 "name": name, "shop": shop, "ordered_at": date, "paid": paid,
-                "currency": currency, "qty": qty, "order": order, "order_url": order_url,
+                "currency": currency, "qty": qty, "pack": pack, "order": order, "order_url": order_url,
                 "product_url": url, "brand": brand,
             }),
             for_ref.as_deref(),
@@ -1603,6 +1610,7 @@ fn run(cli: Cli) -> Result<Value> {
             None => inv.buy_backfill(),
         },
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
+        Cmd::Buy(BuyCmd::Pack { id, pack }) => inv.buy_pack(id, pack),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
         Cmd::Buy(BuyCmd::Decline {
             id,

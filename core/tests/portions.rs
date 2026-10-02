@@ -330,3 +330,62 @@ fn a_purchase_linked_on_one_portion_is_the_things_and_accounts_for_its_units() {
         .unwrap();
     assert_eq!(more["thing"]["unaccounted"], -4);
 }
+
+#[test]
+fn a_thing_its_purchases_account_for_asks_nothing_and_more_than_bought_asks_again() {
+    let (_d, mut inv) = setup();
+    inv.edit("Eneloop AA", &["model=BK-3MCCE".into()]).unwrap();
+    let line = |name: &str, pack: i64| {
+        serde_json::json!({
+            "name": name, "shop": "Dükkan", "ordered_at": "2026-01-05", "paid": "1999",
+            "currency": "TRY", "qty": 1, "pack": pack,
+        })
+    };
+    inv.buy_add(&line("Eneloop AA BK-3MCCE 20'li", 20), Some("Eneloop AA"))
+        .unwrap();
+    inv.buy_add(&line("Eneloop AA BK-3MCCE 4'lü", 4), None)
+        .unwrap();
+    // The flashlight's 2 are the 20-pack's, linked on the drawer's record.
+    let lamp = inv
+        .move_qty("Eneloop AA", "El feneri", false, Some(2))
+        .unwrap();
+    let ranked = inv.buy_for(&id(&lamp)).unwrap()["candidates"].clone();
+    let twenty = ranked
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["purchase"]["name"] == "Eneloop AA BK-3MCCE 20'li")
+        .cloned()
+        .unwrap();
+    assert_eq!(twenty["linked"], true);
+    // 2 used up, 2 more found: still 20 here, all bought; nothing to ask.
+    inv.gone_qty(
+        &id(&lamp),
+        Some(ev_core::Disposition::Used),
+        None,
+        false,
+        Some(2),
+    )
+    .unwrap();
+    let v = inv
+        .add(NewNode {
+            of: Some("#6".into()),
+            parent: Some("Oyuncak".into()),
+            qty: Some(2),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+    // 4 more than were bought: which purchase were they?
+    let v = inv
+        .add(NewNode {
+            of: Some("#6".into()),
+            parent: Some("Oyuncak".into()),
+            qty: Some(4),
+            ..Default::default()
+        })
+        .unwrap();
+    let offered = v["purchase_candidates"].as_array().expect("offered");
+    assert_eq!(offered[0]["purchase"]["name"], "Eneloop AA BK-3MCCE 4'lü");
+    assert!(offered.iter().all(|c| c["linked"] != true));
+}

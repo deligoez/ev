@@ -260,6 +260,9 @@ thing is in hand** ("is this the one bought from <shop> on <date>?"); on a yes, 
 and offer the line's make and model when the record has none. `ev buy for <ref>` ranks lines
 for a record added earlier; ask about a record only once its place has been toured (in a
 place not toured yet, the record is still a guess: bring its candidates up during that tour).
+For the back-fill and at the end of each tour, `ev buy for --toured` lists every unlinked thing
+in a toured place with its one best line, numbered and best first: ask down that list by number
+instead of looping over records yourself.
 Under My Roof is never imported; use it only to confirm a match. The reasons say why: a shared model code is strong, shared words
 are weak.
 **After a link, offer what came with the line in one question.** `ev buy link` shows the line's

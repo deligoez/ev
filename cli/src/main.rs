@@ -236,7 +236,10 @@ enum Cmd {
         photo: Option<usize>,
     },
     /// Remove an observation by id.
-    Unobserve { id: i64 },
+    Unobserve {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Mark how far a place has been counted: counting (its tour has begun), toured (counted),
     /// kept (left as it is) or raw (not counted, the default).
     Review {
@@ -340,7 +343,7 @@ enum Cmd {
         #[arg(long, requires = "amount")]
         approximate: bool,
         /// Remove an observation recorded by mistake, by its id.
-        #[arg(long, conflicts_with = "amount")]
+        #[arg(long, conflicts_with = "amount", value_parser = record_id)]
         remove: Option<i64>,
     },
     /// A thing's links: its product page, manual, support or driver page, with an archive copy
@@ -444,7 +447,10 @@ enum SynonymCmd {
     /// Every synonym group.
     List,
     /// Drop a group by id.
-    Remove { id: i64 },
+    Remove {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -609,9 +615,15 @@ enum CoverCmd {
         ending: bool,
     },
     /// One coverage with its things, documents and status.
-    Show { id: i64 },
+    Show {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Remove a coverage recorded by mistake; its documents stay.
-    Remove { id: i64 },
+    Remove {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -686,7 +698,10 @@ enum BuyCmd {
         since: Option<String>,
     },
     /// One line with what it is linked to and its documents.
-    Show { id: i64 },
+    Show {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Purchase lines that could be this thing, best first, with the reasons; `--toured`: every
     /// unlinked thing in a toured place with the one line that could be it (the back-fill).
     For {
@@ -697,6 +712,7 @@ enum BuyCmd {
     },
     /// Link a line to a thing on the person's word (all that is left of it by default).
     Link {
+        #[arg(value_parser = record_id)]
         id: i64,
         reference: String,
         #[arg(long)]
@@ -704,12 +720,21 @@ enum BuyCmd {
     },
     /// Units in each bought quantity of a line (an 8-pack, a set), so its units can be linked
     /// to several things.
-    Pack { id: i64, pack: i64 },
+    Pack {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        pack: i64,
+    },
     /// Undo a link.
-    Unlink { id: i64, reference: String },
+    Unlink {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        reference: String,
+    },
     /// Settle a line that will never be a thing: consumed, given, returned, elsewhere,
     /// not-mine, duplicate; `--clear` takes that back.
     Dismiss {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long = "as", required_unless_present = "clear")]
         reason: Option<String>,
@@ -721,6 +746,7 @@ enum BuyCmd {
     /// The person's "not this one": the line is not this thing. It stays open for others and is
     /// no longer offered to this one; `--clear` takes that back.
     Decline {
+        #[arg(value_parser = record_id)]
         id: i64,
         reference: String,
         #[arg(long)]
@@ -730,10 +756,11 @@ enum BuyCmd {
     },
     /// Bring what came with a line (a link, a value, a warranty) to a thing it is linked to.
     Bring {
+        #[arg(value_parser = record_id)]
         id: i64,
         reference: String,
         /// Only these attachments, by id (repeatable); all not yet brought by default.
-        #[arg(long)]
+        #[arg(long, value_parser = record_id)]
         only: Vec<i64>,
     },
 }
@@ -756,7 +783,10 @@ enum LinkCmd {
     /// A thing's links.
     List { reference: String },
     /// Remove a link by its id.
-    Remove { id: i64 },
+    Remove {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -787,17 +817,28 @@ enum DocCmd {
         #[arg(long)]
         note: Option<String>,
         /// The coverage it proves (a warranty certificate, a policy).
-        #[arg(long)]
+        #[arg(long, value_parser = record_id)]
         coverage: Option<i64>,
     },
     /// Every document, or those of one thing.
     List { reference: Option<String> },
     /// One document with what it belongs to.
-    Show { id: i64 },
+    Show {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Link a stored document to one more thing.
-    Link { id: i64, reference: String },
+    Link {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        reference: String,
+    },
     /// Take a document off a thing; it stays in the store.
-    Unlink { id: i64, reference: String },
+    Unlink {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        reference: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -821,12 +862,14 @@ enum NeedCmd {
     },
     /// It was bought or made.
     Got {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long)]
         note: Option<String>,
     },
     /// It is no longer needed.
     Drop {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long)]
         note: Option<String>,
@@ -856,25 +899,37 @@ enum TaskCmd {
         all: bool,
     },
     /// One task.
-    Show { id: i64 },
+    Show {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Start working on a task (one at a time).
-    Start { id: i64 },
+    Start {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Close a task as done; only when the person says so.
     Done {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long)]
         note: Option<String>,
     },
     /// Close a task without doing it.
     Drop {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long)]
         note: Option<String>,
     },
     /// Reopen a closed task.
-    Reopen { id: i64 },
+    Reopen {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
     /// Change title, reason, position, due date (--due none clears it) or places (--on / --off).
     Edit {
+        #[arg(value_parser = record_id)]
         id: i64,
         #[arg(long)]
         title: Option<String>,
@@ -972,7 +1027,10 @@ enum RuleCmd {
     /// Every rule with its id.
     List,
     /// Remove a rule by id.
-    Remove { id: i64 },
+    Remove {
+        #[arg(value_parser = record_id)]
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1043,6 +1101,15 @@ struct AddArgs {
     /// Read NDJSON lines from stdin.
     #[arg(long)]
     stdin: bool,
+}
+
+/// A record's id as ev prints it (`#12`) or bare (`12`): a purchase line, a task, a document,
+/// an observation. Node references are not ids here; they resolve through the inventory.
+fn record_id(s: &str) -> std::result::Result<i64, String> {
+    s.strip_prefix('#')
+        .unwrap_or(s)
+        .parse()
+        .map_err(|_| "expected a record id such as 12 or #12".to_string())
 }
 
 fn main() -> ExitCode {

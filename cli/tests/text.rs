@@ -522,3 +522,31 @@ fn focus_says_what_ev_ui_was_asked_to_show_or_that_the_request_is_cleared() {
         "The request to ev ui is cleared.\n"
     );
 }
+
+#[test]
+fn money_needs_says_the_index_and_lists_the_missing_rates() {
+    let h = Home::new();
+    assert_eq!(
+        h.text(&["money", "needs"]),
+        "eurostat:TR index from -; home currency TRY, country TR\nNo exchange rate missing.\n"
+    );
+    h.run(
+        &[
+            "buy",
+            "add",
+            "Aktif buzzer 5V",
+            "--date",
+            "2026-03-04",
+            "--paid",
+            "10",
+            "--currency",
+            "USD",
+        ],
+        None,
+    );
+    assert_eq!(
+        h.text(&["money", "needs"]),
+        "eurostat:TR index from 2026-03; home currency TRY, country TR\n\
+         Exchange rates missing (1):\n  USD 2026-03-04\n"
+    );
+}

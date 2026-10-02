@@ -330,6 +330,7 @@ digits is refused, not guessed).
 | `ev buy list [--open] [--bucket b] [--shop s] [--since d]` | `purchases`, newest first; `--open`: something left to link and not dismissed |
 | `ev buy show <id>` | `purchase`: `id`, `source`, `source_key`, `shop`, `merchant`, `order_no`, `order_url`, `product_url`, `shop_sku`, `name`, `brand`, `category`, `ordered_at`, `delivered_at`, `qty`, `paid`, `currency`, `billed_to`, `status` (`delivered`, `returned`), `bucket` (`durable`, `clothing`, `digital`), `dismissed`, `why`, `raw`, `same_as`, `imported_at`, `linked` (`[{node, qty}]`), `open_qty` (0 for a joined line), `joined` (the ids of lines that are the same purchase), `attachments` (its own and its joined lines': `id`, `purchase`, `type`, the fields given, `brought_to`), `documents` (also those of its joined lines), `today` (see **Money over time**) |
 | `ev buy for <ref>` | `node`, `candidates` (up to 12, best first): `purchase` (`id`, `name`, `shop`, `brand`, dates, `qty`, `open_qty`, `paid`, `currency`), `score`, `why` (`[{why, points}]`), `linked` when already linked to it. Open, undismissed lines scoring above zero, and any linked to it. Points: a product linked before to a thing of the same name 80; the thing's `model` or `serial` in the line 60; each shared model code (letters and digits, four or more, not a size like `64gb` or `3x3`) 25, at most two; the line's brand as whole words in the thing's name or make (never the shop's own name) 12; shared words weighted by how rare they are among lines and records, at most 30; each unit whose numbers all differ (`125 kHz` against `13,56 MHz`, units converted) −40 |
+| `ev buy for --toured` | The back-fill (spec §12.2): `backfill`, best first, `[{node, candidate}]` with `candidate` shaped as above; `toured_things`, how many things were looked at. Every thing no purchase is linked to whose nearest reviewed place above it is `toured` (a toured drawer covers its boxes unless a box has a review of its own), each with its one best open line, only when that line scores above 15 (the bar `ev add` offers at). One line may be offered to several things |
 | `ev buy link <id> <ref> [--qty n]` / `ev buy unlink <id> <ref>` | `purchase`; a link takes all that is left of the line by default, never more; it remembers the shop's product key for the next purchase of it |
 | `ev buy dismiss <id> --as <reason> [--why t]` / `--clear` | `purchase`; reasons: `consumed`, `given`, `returned`, `elsewhere`, `not-mine`, `duplicate`. A dismissed line cannot be linked |
 | `ev buy bring <id> <ref> [--only <attachment>]…` | the thing, as `ev show`, plus `brought` (attachment ids). The line's attachments not brought yet (all, or `--only` these) become the thing's own: a link, a value, a coverage. The line must be linked to the thing first |
@@ -393,6 +394,13 @@ purchase and no statutory coverage nor decision: `kind`, `term`, `start`, `end`,
 proposal, never a record) and `tracking` (`value`, `coverage`: `decision`, `why`, `on`, the node
 the decision was made on). Events: `coverage_added`, `coverage_removed` (`coverage`, `kind`),
 `track` (`subject`, `decision`, `why`).
+
+The statutory proposal counts only lines sold at home: paid in the `home_currency` (or with no
+currency) and not from a marketplace abroad. The marketplaces abroad are a fixed list by shop
+name, each with the country it sells from: AliExpress, Temu, Banggood (CN), Amazon.com (US),
+Amazon.co.uk (GB), Amazon.de, Amazon.fr, Amazon.it, Amazon.es; one whose country is the
+`home_country` is at home. The start is the earliest delivery of such a line, and there is no
+proposal once its two years (plus any time in repair) have passed.
 
 ## Values and links
 

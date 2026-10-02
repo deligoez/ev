@@ -46,5 +46,13 @@ Draft for the next release.
   position between the word and the id, an agent read `#16` as a node and opened a book. The
   line now reads `task #16: Samla … (order 14)`, and the skill says that `#N` after a record's
   word (task, purchase line, doc, need, cover) is that record's number.
+- **A data directory that moved still pointed at the old one.** Photos and documents in the
+  store were kept as absolute paths, so a copy of the inventory elsewhere (another machine,
+  another user name, a copy opened with `--db`) showed and marked the original's photos, or
+  none. They are now kept relative to the database (`photos/…`, `docs/…`) and output as full
+  paths as before; paths outside the store stay as they are. Schema 29 rewrites the existing
+  rows the first time this version opens the file (one household's 740 photo paths, 517 crop
+  sources and 287 documents, all found afterwards). A relative `--db` no longer stores paths
+  relative to the directory ev was started in.
 - **`ev … | head` panicked** with "failed printing to stdout: Broken pipe" when the reader
   stopped before ev finished writing. A closed pipe is now ignored.

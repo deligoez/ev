@@ -69,8 +69,11 @@ Every tool takes `format`: `text` (default) or `json`.
   can act on it.
 - `json`: one text block with the JSON, and the same JSON as `structuredContent`.
 
-A result longer than 50,000 characters is cut there, and the cut says so and suggests how to
-narrow the call (`--depth`, a reference, a tag).
+A text result longer than 50,000 characters is cut there, and the cut says so and suggests how
+to narrow the call (`--depth`, a reference, a tag). A JSON result that long is refused instead
+(`isError: true`, no `structuredContent`): cut JSON does not parse, and sending it whole as
+`structuredContent` would put the full size back in the reply (QA measured 143 KB for one home's
+`tree`).
 
 **Errors.** A refused or failed command is a tool result with `isError: true` and the message of
 the CLI's error output: usage (CLI exit 2), not found (3), ambiguous with its candidates (4),

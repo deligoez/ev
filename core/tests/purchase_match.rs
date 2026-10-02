@@ -236,3 +236,75 @@ fn the_back_fill_offers_one_line_for_each_unlinked_thing_in_a_toured_place_best_
     let v = inv.buy_backfill().unwrap();
     assert_eq!(v["toured_things"], 5, "{v}");
 }
+
+/// Lines that share only what a thing is for, made of or used with.
+fn import(inv: &mut Inventory, lines: &[Value]) {
+    inv.buy_import(
+        &lines
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+    .unwrap();
+}
+
+#[test]
+fn words_shared_only_with_what_it_is_for_are_never_offered() {
+    let (_d, mut inv) = setup();
+    import(
+        &mut inv,
+        &[json!({"source": "t", "key": "1", "shop": "Shop",
+                 "name": "Akım Korumalı Uzatma Priz, USB Girişli, Korumalı Kablo"})],
+    );
+    let v = item(
+        &mut inv,
+        "TP4056 Li-ion şarj modülü, USB girişli, korumalı",
+        None,
+    );
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+}
+
+#[test]
+fn a_code_in_the_note_is_not_what_the_thing_is() {
+    let (_d, mut inv) = setup();
+    import(
+        &mut inv,
+        &[json!({"source": "t", "key": "1", "shop": "Shop",
+                 "name": "M5Stack StickC Plus2 ESP32 IoT kit"})],
+    );
+    let v = item(
+        &mut inv,
+        "MQ-2 gaz sensörü modülü",
+        Some("ESP32 ile kullanılıyor"),
+    );
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+}
+
+#[test]
+fn a_brand_alone_does_not_offer_another_product_of_it() {
+    let (_d, mut inv) = setup();
+    let v = item(&mut inv, "Otomatik kablo sıyırıcı, Pro'sKit CP-367A", None);
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+    // Its own kind of thing from the brand still comes first, with the brand counted in full.
+    item(&mut inv, "Pense, Pro'sKit (yeşil saplı)", None);
+    let c = first(&inv, "Pense, Pro'sKit (yeşil saplı)");
+    assert_eq!(c["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
+    assert_eq!(c["why"][0]["points"], 12.0, "{c}");
+}
+
+#[test]
+fn an_ampere_is_read_only_where_it_is_written_as_one() {
+    let (_d, mut inv) = setup();
+    import(
+        &mut inv,
+        &[json!({"source": "t", "key": "1", "shop": "Shop",
+                 "name": "Raspberry Pi resmi güç kaynağı USB-C 5.1V 3A"})],
+    );
+    let v = item(
+        &mut inv,
+        "Raspberry Pi resmi micro-USB güç kaynağı (5,1 V 2,5 A)",
+        Some("Pi 3 A+ gibi micro-USB girişli kartlar için"),
+    );
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+}

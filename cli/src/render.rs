@@ -1692,6 +1692,13 @@ pub fn human(v: &Value) -> String {
             };
             let _ = writeln!(out, "{}  ({what})", line(n));
         }
+        legend(&mut out, v);
+        return out;
+    }
+    // `ev photo cut --preview`: nothing attached, what each number would be.
+    if v.get("preview").is_some() && v.get("legend").is_some() {
+        legend(&mut out, v);
+        let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
     if let Some(list) = v.get("recoded").and_then(Value::as_array) {
@@ -2256,6 +2263,23 @@ fn tree_and_lost(out: &mut String, v: &Value, tr: &[Value]) {
                 tree(out, c, 2);
             }
         }
+    }
+}
+
+/// `ev photo cut`: what each number on the numbered photo is, then where that photo and the
+/// contact sheet are, and whether `ev ui` was asked to show it.
+fn legend(out: &mut String, v: &Value) {
+    for e in v["legend"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "{:<2} {}", e["n"], line(&e["ref"]));
+    }
+    if let Some(p) = v["marked"].as_str() {
+        let _ = writeln!(out, "{}", tf("Numbered photo: {}", &[&p]));
+    }
+    if let Some(p) = v["sheet"].as_str() {
+        let _ = writeln!(out, "{}", tf("Contact sheet: {}", &[&p]));
+    }
+    if v["shown"].is_object() {
+        let _ = writeln!(out, "{}", t("Sent to ev ui."));
     }
 }
 

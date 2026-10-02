@@ -900,6 +900,10 @@ enum PhotoCmd {
         /// `ev ui`.
         #[arg(long, num_args = 0..=1)]
         preview: Option<Option<String>>,
+        /// Also show the photo with a numbered frame on each crop full screen in a running
+        /// `ev ui`, titled with --note (else with what each number is).
+        #[arg(long)]
+        show: bool,
     },
     /// Draw numbered marks on a copy of a photo, to show which thing is meant and where it goes:
     /// `<label>=x,y,w,h` (fractions of the upright photo) or `<label>=A6` (cells of the grid,
@@ -1688,6 +1692,7 @@ fn run(cli: Cli) -> Result<Value> {
             note,
             grid,
             preview,
+            show,
         }) => {
             let grid = grid
                 .as_deref()
@@ -1702,29 +1707,60 @@ fn run(cli: Cli) -> Result<Value> {
                     Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            if preview.is_some() {
-                let mut v =
-                    inv.photo_cut_preview(&file, place.as_deref(), &crops, grid.as_ref(), None)?;
-                if let (Some(Some(n)), Some(path)) =
-                    (preview, v["preview"].as_str().map(PathBuf::from))
-                {
-                    v["shown"] = inv.focus_file(&[path], Some(&n))?["focus"].clone();
-                }
-                return Ok(v);
+            let (mut v, title) = match &preview {
+                Some(title) => (
+                    inv.photo_cut_preview(&file, place.as_deref(), &crops, grid.as_ref(), None)?,
+                    title.clone(),
+                ),
+                None => (
+                    inv.photo_cut(
+                        &file,
+                        place.as_deref(),
+                        &crops,
+                        note.as_deref(),
+                        grid.as_ref(),
+                    )?,
+                    None,
+                ),
+            };
+            // A preview's note shows the preview; --show adds the numbered photo, both stepped
+            // through with `[` `]` in one request.
+            let path = |k: &str| v[k].as_str().map(PathBuf::from);
+            let mut files: Vec<PathBuf> = Vec::new();
+            if title.is_some() {
+                files.extend(path("preview"));
             }
-            inv.photo_cut(
-                &file,
-                place.as_deref(),
-                &crops,
-                note.as_deref(),
-                grid.as_ref(),
-            )
+            if show {
+                files.extend(path("marked"));
+            }
+            if !files.is_empty() {
+                let note = title.or(note).unwrap_or_else(|| legend_note(&v["legend"]));
+                v["shown"] = inv.focus_file(&files, Some(&note))?["focus"].clone();
+            }
+            Ok(v)
         }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
         Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),
         Cmd::Photo(PhotoCmd::Current { reference }) => inv.photo_current(&reference),
     }
+}
+
+/// The title of a numbered photo shown without a note: what each number is, by code or else by
+/// name, so the person reads the numbers on the photo without the agent's table
+/// (`1 Düğme pil · 2 D-A1`).
+fn legend_note(legend: &Value) -> String {
+    legend
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|e| {
+            let r = &e["ref"];
+            let what = r["code"].as_str().or(r["name"].as_str()).unwrap_or("?");
+            format!("{} {what}", e["n"])
+        })
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {

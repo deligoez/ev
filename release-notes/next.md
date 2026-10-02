@@ -18,6 +18,15 @@ Draft for the next release.
   skill is also the prompt `ev` and the resource `ev://skill`, and the reference
   `ev://reference`. Nine tools take about 9 KB of definitions.
 
+- **The inventory runs in write-ahead-log mode.** Readers (`ev ui`, an agent's reads) and the
+  writer no longer wait for each other; only writers queue. Under a burst of two MCP servers and
+  the CLI (60 writes among 40 reads) every write is recorded, in about 7 seconds against 11 in
+  the old mode. After every command that writes, ev folds the log back into `ev.db`, so the file
+  a data repository commits holds every change, even with `ev ui` open. `ev.db-wal` and
+  `ev.db-shm` appear beside the file while it is open: keep them out of version control. Back up
+  with `sqlite3 ev.db ".backup '<target>'"`, not `cp`. The first command of this version
+  switches the file; the schema does not change.
+
 ## Fixed
 
 - **Writes at the same moment failed with "database is locked".** A command that read and then

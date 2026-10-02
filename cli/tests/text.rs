@@ -83,7 +83,7 @@ fn show_names_a_box_by_id_and_path_with_its_theme_cells_task_and_contents() {
     assert!(s.contains("\n  cells: B1\n"), "{s}");
     // The task is on the drawer; the box shows it through the drawer.
     assert!(
-        s.contains("\n  task 1. #1 Çekmeceyi say  (via #3)\n"),
+        s.contains("\n  task #1: Çekmeceyi say (order 1)  (via #3)\n"),
         "{s}"
     );
     assert!(

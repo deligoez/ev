@@ -2524,7 +2524,7 @@ mod tests {
         });
         let out = super::human(&v);
         assert!(out.starts_with("#5"), "{out}");
-        assert!(out.contains("task 2. #1 Sort it"), "{out}");
+        assert!(out.contains("task #1: Sort it (order 2)"), "{out}");
         assert!(out.contains("label: to print"), "{out}");
         set_lang(Lang::Tr);
         let out = super::human(&v);

@@ -325,6 +325,61 @@ fn a_grid_cut_previews_then_cuts_every_box_and_keeps_its_corners() {
 }
 
 #[test]
+fn a_cut_numbers_what_it_recognised_and_show_sends_it_to_ev_ui() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    // A crop named by hand is 1; the grid's boxes follow.
+    let pieces = [
+        "photo",
+        "cut",
+        p,
+        "Röle=0.1,0.1,0.2,0.2",
+        "--place",
+        "D",
+        "--grid",
+        CORNERS,
+    ];
+    let v = ev.ok(&[&pieces[..], &["--preview", "bak", "--show"]].concat());
+    let legend = v["legend"].as_array().unwrap();
+    assert_eq!(legend.len(), 3);
+    assert_eq!(legend[0]["n"], 1);
+    assert_eq!(legend[0]["ref"]["name"], "Röle");
+    assert_eq!(legend[0]["crop"], "0.1000,0.1000,0.2000,0.2000");
+    assert_eq!(legend[1]["ref"]["code"], "D-A1");
+    assert_eq!(legend[2]["ref"]["code"], "D-B1");
+    // A preview's note shows the preview and the numbered photo together.
+    assert_eq!(v["shown"]["note"], "bak");
+    assert_eq!(v["shown"]["files"].as_array().unwrap().len(), 2);
+    // Without --show nothing is sent; the numbered photo is there all the same.
+    let v = ev.ok(&pieces);
+    assert!(v["shown"].is_null());
+    assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
+    assert_eq!(v["legend"][2]["ref"]["code"], "D-B1");
+    // --show titles it with --note, else with what each number is.
+    let other = ev._dir.path().join("other.png");
+    std::fs::copy(&photo, &other).unwrap();
+    let o = other.to_str().unwrap();
+    let v = ev.ok(&["photo", "cut", o, "Röle=0.5,0.5,0.2,0.2", "--show"]);
+    assert_eq!(v["shown"]["note"], "1 Röle");
+    let files = v["shown"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 1);
+    assert_eq!(
+        std::fs::canonicalize(files[0].as_str().unwrap()).unwrap(),
+        std::fs::canonicalize(v["marked"].as_str().unwrap()).unwrap()
+    );
+    let v = ev.ok(&[
+        "photo",
+        "cut",
+        o,
+        "Röle=0,0,0.2,0.2",
+        "--note",
+        "röleler",
+        "--show",
+    ]);
+    assert_eq!(v["shown"]["note"], "röleler");
+}
+
+#[test]
 fn marked_pictures_go_to_ev_ui_together_with_a_note() {
     let (ev, photo) = drawer();
     let p = photo.to_str().unwrap();

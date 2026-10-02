@@ -299,6 +299,13 @@ thing's resale price.
 
 ## Photos
 
+**Show what you read from every photo before you talk about it.** For each photo the person
+sends of a place or a batch of things, frame each group you recognise with a numbered red frame
+(`ev photo mark <file> 1=x,y,w,h 2=…`; numbers only as labels, the meaning goes in your text)
+and put it on their screen with `ev focus --file <marked> --note "<what this is>"`, then talk
+in those numbers in a table. A group is what the person handles as one (a stack of LR44 cards
+of two makes is one group); records may still be per make. Open the marked file and check every
+frame before sending. The person then answers by number and corrects a misread at a glance.
 **Name every part by where it is in the photo, every time.** "The transistors" or "the
 temperature sensors" is not enough, and neither is having described the position once further
 up: the person matches your words to the picture, so each mention carries its place in that

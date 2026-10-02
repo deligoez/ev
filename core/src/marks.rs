@@ -57,6 +57,7 @@ pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {
         "sale",
         "condition",
         "photo_ok",
+        "shred",
     ] {
         let m = mark(conn, id, kind)?;
         if !m.is_null() {
@@ -96,6 +97,16 @@ fn clear_mark(conn: &Connection, id: i64, kind: &str) -> Result<()> {
         params![id, kind],
     )?;
     Ok(())
+}
+
+/// A thing leaving in the bin is shredded first: it carries a name, a number or a barcode.
+pub(crate) fn mark_shred(conn: &Connection, id: i64) -> Result<()> {
+    set_mark(conn, id, "shred", Some("yes"), None, None)
+}
+
+/// A thing taken back from the bin is no longer to be shredded.
+pub(crate) fn clear_shred(conn: &Connection, id: i64) -> Result<()> {
+    clear_mark(conn, id, "shred")
 }
 
 /// A new or changed code needs a new label; a removed code needs none.

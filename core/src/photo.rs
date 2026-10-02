@@ -79,6 +79,12 @@ pub(crate) fn store_file(dir: &Path, file: &Path) -> Result<PathBuf> {
     store_bytes(dir, &bytes, &extension(file))
 }
 
+/// The shorter side of an image in pixels, read from its header; `None` for a file that is not
+/// an image ev can read (a PDF).
+pub(crate) fn short_side(file: &Path) -> Option<u32> {
+    image::image_dimensions(file).ok().map(|(w, h)| w.min(h))
+}
+
 /// Decodes a photo the right way up, honouring its EXIF orientation.
 pub fn open_upright(file: &Path) -> Result<DynamicImage> {
     let bad = |e: image::ImageError| Error::Usage(format!("{}: {e}", file.display()));

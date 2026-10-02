@@ -58,6 +58,9 @@ label_enum!(Disposition, "disposition", {
     Give => "give",
     Sell => "sell",
     Return => "return",
+    // Photographed, then thrown out: the paper leaves, its copy stays on the record, which
+    // `ev find` keeps listing. `gone` refuses it while the record has no photo or document.
+    Digitize => "digitize",
     // Closing a record that should never have existed (a misreading, a duplicate): it keeps its
     // history but nothing actually left the home.
     Mistake => "mistake",

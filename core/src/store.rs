@@ -292,7 +292,9 @@ impl Inventory {
         let mut nodes = Vec::new();
         for id in ids(&self.conn, "SELECT id FROM nodes ORDER BY id", [])? {
             let n = load(&self.conn, id)?;
-            if (n.state == State::Gone && !include_gone)
+            // A digitized thing left as paper but stays findable: its copy is why it was kept.
+            let archived = n.disposition == Some(Disposition::Digitize);
+            if (n.state == State::Gone && !include_gone && !archived)
                 || kind.is_some_and(|k| k != n.kind)
                 || tag.as_ref().is_some_and(|t| !n.tags.contains(t))
             {
@@ -565,6 +567,18 @@ impl Inventory {
     }
 
     pub fn dispose(&mut self, reference: &str, disposition: Disposition) -> Result<Value> {
+        self.dispose_with(reference, disposition, false)
+    }
+
+    /// `dispose` that can also say the thing is shredded rather than thrown out whole: an old
+    /// ID card, a boarding pass, a bank statement. Only what goes in the bin can be.
+    pub fn dispose_with(
+        &mut self,
+        reference: &str,
+        disposition: Disposition,
+        shred: bool,
+    ) -> Result<Value> {
+        check_shred(disposition, shred)?;
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if disposition == Disposition::Mistake {
@@ -584,6 +598,9 @@ impl Inventory {
         }
         require_no_active_inside(&tx, &node)?;
         set_candidate(&tx, node.id, disposition)?;
+        if shred {
+            crate::marks::mark_shred(&tx, node.id)?;
+        }
         tx.commit()?;
         show(&self.conn, node.id)
     }
@@ -601,6 +618,7 @@ impl Inventory {
             "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
             [node.id],
         )?;
+        crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(&tx, node.id, "restore", json!({ "was": node.disposition }))?;
         tx.commit()?;
@@ -620,6 +638,20 @@ impl Inventory {
         disposition: Option<Disposition>,
         why: Option<&str>,
     ) -> Result<Value> {
+        self.gone_with(reference, disposition, why, false)
+    }
+
+    /// `gone_because` that can also say the thing was shredded (see `dispose_with`). A
+    /// digitized thing leaves only with its copy: a photo or a document on its own record. When
+    /// every copy is an image too small to read a ticket from, it still leaves, with a
+    /// `warning` in the result, since only the person can tell whether the copy reads.
+    pub fn gone_with(
+        &mut self,
+        reference: &str,
+        disposition: Option<Disposition>,
+        why: Option<&str>,
+        shred: bool,
+    ) -> Result<Value> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
         if disposition == Some(Disposition::Mistake) && why.is_none() {
             return Err(Error::Usage(
@@ -631,21 +663,41 @@ impl Inventory {
         if node.state == State::Active && disposition.is_none() {
             return Err(refused(
                 format!(
-                    "{} is active; say how it left with --as trash|give|sell",
+                    "{} is active; say how it left with --as trash|give|sell|digitize",
                     label(&node)
                 ),
                 Value::Null,
             ));
         }
         let inside = require_no_active_inside(&tx, &node)?;
+        let leaving = disposition
+            .or(node.disposition)
+            .unwrap_or(Disposition::Trash);
+        if shred {
+            check_shred(leaving, true)?;
+        }
+        let mut warnings = Vec::new();
+        for n in std::iter::once(&node).chain(&inside) {
+            let d = if n.id == node.id {
+                Some(leaving)
+            } else {
+                n.disposition
+            };
+            if d == Some(Disposition::Digitize) {
+                warnings.extend(require_copy(&tx, n)?);
+            }
+        }
         let final_disposition = match (node.state, disposition) {
             (State::Active, Some(d)) => {
                 set_candidate(&tx, node.id, d)?;
                 d
             }
             (_, Some(d)) => d,
-            (_, None) => node.disposition.unwrap_or(Disposition::Trash),
+            (_, None) => leaving,
         };
+        if shred {
+            crate::marks::mark_shred(&tx, node.id)?;
+        }
         tx.execute(
             "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
             params![final_disposition.as_str(), node.id],
@@ -682,14 +734,23 @@ impl Inventory {
             )?;
         }
         tx.commit()?;
-        show(&self.conn, node.id)
+        let mut v = show(&self.conn, node.id)?;
+        if !warnings.is_empty() {
+            v["warnings"] = json!(warnings);
+        }
+        Ok(v)
     }
 
     /// Every candidate grouped by disposition. A candidate held by another candidate leaves
     /// with it (spec §12.1), so it is listed under its outermost candidate as a part.
     pub fn disposals(&self, filter: Option<Disposition>) -> Result<Value> {
         let mut groups = serde_json::Map::new();
-        for d in [Disposition::Trash, Disposition::Give, Disposition::Sell] {
+        for d in [
+            Disposition::Trash,
+            Disposition::Digitize,
+            Disposition::Give,
+            Disposition::Sell,
+        ] {
             if filter.is_some_and(|f| f != d) {
                 continue;
             }
@@ -711,6 +772,7 @@ impl Inventory {
                     .collect::<Result<Vec<_>>>()?;
                 entry["parts"] = json!(parts);
                 entry["sale"] = crate::marks::mark(&self.conn, id, "sale")?;
+                entry["shred"] = json!(!crate::marks::mark(&self.conn, id, "shred")?.is_null());
                 entries.push(entry);
             }
             groups.insert(d.as_str().into(), json!(entries));
@@ -1599,6 +1661,61 @@ fn require_no_active_inside(conn: &Connection, node: &Node) -> Result<Vec<Node>>
     ))
 }
 
+/// Only what goes in the bin is shredded; a thing given away or sold leaves whole.
+fn check_shred(d: Disposition, shred: bool) -> Result<()> {
+    if shred && !matches!(d, Disposition::Trash | Disposition::Digitize) {
+        return Err(Error::Usage(format!(
+            "--shred is for what goes in the bin (trash, digitize), not `{d}`"
+        )));
+    }
+    Ok(())
+}
+
+/// The short side, in pixels, below which a copy may not read: a ticket's small print needs
+/// about this much. A guess to warn on, never to refuse on.
+const COPY_SHORT_SIDE: u32 = 800;
+
+/// A digitized thing leaves only with a copy on its own record: a photo, or a document linked
+/// to it. Refuses when there is none; returns a warning when every copy is an image too small
+/// to be sure it reads (a PDF or any other file counts as readable).
+fn require_copy(conn: &Connection, node: &Node) -> Result<Option<String>> {
+    let files: Vec<String> = {
+        let mut stmt = conn.prepare(
+            "SELECT path FROM photos WHERE node_id = ?1
+             UNION ALL
+             SELECT d.file FROM documents d JOIN document_links l ON l.document_id = d.id
+              WHERE l.target = 'node' AND l.target_id = ?1",
+        )?;
+        stmt.query_map([node.id], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?
+    };
+    if files.is_empty() {
+        return Err(refused(
+            format!(
+                "{} has no copy yet; attach one with `ev photo add` or `ev doc add --for` before \
+                 it leaves as digitized",
+                label(node)
+            ),
+            Value::Null,
+        ));
+    }
+    let sides: Vec<Option<u32>> = files
+        .iter()
+        .map(|f| crate::photo::short_side(std::path::Path::new(f)))
+        .collect();
+    if sides.iter().any(Option::is_none) {
+        return Ok(None);
+    }
+    let best = sides.into_iter().flatten().max().unwrap_or(0);
+    Ok((best < COPY_SHORT_SIDE).then(|| {
+        format!(
+            "the sharpest copy of {} is {best} px on its short side; check that it reads \
+             before the paper is thrown out",
+            label(node)
+        )
+    }))
+}
+
 fn set_candidate(conn: &Connection, id: i64, d: Disposition) -> Result<()> {
     conn.execute(
         "UPDATE nodes SET state = 'candidate', disposition = ?1 WHERE id = ?2",
@@ -1644,6 +1761,7 @@ impl Inventory {
             "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
             [node.id],
         )?;
+        crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(
             &tx,

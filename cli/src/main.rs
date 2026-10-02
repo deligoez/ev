@@ -701,6 +701,16 @@ enum BuyCmd {
         #[arg(long, conflicts_with = "reason")]
         clear: bool,
     },
+    /// The person's "not this one": the line is not this thing. It stays open for others and is
+    /// no longer offered to this one; `--clear` takes that back.
+    Decline {
+        id: i64,
+        reference: String,
+        #[arg(long)]
+        why: Option<String>,
+        #[arg(long, conflicts_with = "why")]
+        clear: bool,
+    },
     /// Bring what came with a line (a link, a value, a warranty) to a thing it is linked to.
     Bring {
         id: i64,
@@ -1590,6 +1600,12 @@ fn run(cli: Cli) -> Result<Value> {
         },
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
+        Cmd::Buy(BuyCmd::Decline {
+            id,
+            reference,
+            why,
+            clear,
+        }) => inv.buy_decline(id, &reference, why.as_deref(), clear),
         Cmd::Buy(BuyCmd::Bring {
             id,
             reference,

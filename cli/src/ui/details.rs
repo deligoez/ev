@@ -1050,6 +1050,15 @@ impl App {
                         "linked to purchase",
                         tf("#{} ×{}", &[&d["purchase"], &d["qty"]]),
                     ),
+                    "purchase_declined" => own(
+                        "not this purchase",
+                        format!("#{}  {}", d["purchase"], str_of(d, "why"))
+                            .trim_end()
+                            .to_string(),
+                    ),
+                    "purchase_decline_cleared" => {
+                        own("purchase offered again", format!("#{}", d["purchase"]))
+                    }
                     "purchase_unlinked" => {
                         own("unlinked from purchase", format!("#{}", d["purchase"]))
                     }

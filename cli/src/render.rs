@@ -498,6 +498,19 @@ fn purchase(out: &mut String, p: &Value) {
     if let Some(of) = p["same_as"].as_i64() {
         let _ = writeln!(out, "  {}", tf("the same purchase as #{}", &[&of]));
     }
+    for d in p["declined"].as_array().into_iter().flatten() {
+        let why = d["why"]
+            .as_str()
+            .map(|w| format!(" — {w}"))
+            .unwrap_or_default();
+        let _ = writeln!(
+            out,
+            "  {}: #{} {}{why}",
+            t("not"),
+            d["node"]["id"],
+            s(&d["node"], "path_text")
+        );
+    }
     for j in p["joined"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}", tf("also seen as #{}", &[j]));
     }

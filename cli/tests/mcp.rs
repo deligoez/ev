@@ -106,3 +106,68 @@ async fn the_ev_tool_runs_a_command_takes_input_and_says_why_it_refuses() {
     assert!(text(&r).contains("Usage: ev find"), "{}", text(&r));
     client.cancel().await.unwrap();
 }
+
+#[tokio::test]
+async fn each_read_tool_answers_as_the_command_it_stands_for() {
+    let (_d, client) = start().await;
+    let seed = "{\"name\":\"Ev\",\"kind\":\"home\"}\n\
+{\"name\":\"Oda\",\"kind\":\"room\",\"in\":\"Ev\"}\n\
+{\"name\":\"Çekmece\",\"kind\":\"container\",\"in\":\"Oda\",\"code\":\"D\"}\n\
+{\"name\":\"Kırmızı LED 5 mm\",\"kind\":\"item\",\"in\":\"D\",\"tags\":[\"led\"]}\n";
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["add", "--stdin"], "input": seed }),
+    )
+    .await;
+    let tools = client.list_all_tools().await.unwrap();
+    for (tool, args, same) in [
+        ("next", json!({}), json!(["next"])),
+        ("todo", json!({}), json!(["todo"])),
+        (
+            "find",
+            json!({ "text": "led", "kind": "item" }),
+            json!(["find", "--kind", "item", "led"]),
+        ),
+        (
+            "find",
+            json!({ "tag": "led" }),
+            json!(["find", "--tag", "led"]),
+        ),
+        ("show", json!({ "ref": "D" }), json!(["show", "D"])),
+        (
+            "suggest",
+            json!({ "text": "kırmızı led" }),
+            json!(["suggest", "kırmızı", "led"]),
+        ),
+        (
+            "suggest",
+            json!({ "for": "#4" }),
+            json!(["suggest", "--for", "#4"]),
+        ),
+        (
+            "history",
+            json!({ "ref": "D", "contents": true }),
+            json!(["history", "D", "--contents"]),
+        ),
+        (
+            "tree",
+            json!({ "ref": "Oda", "depth": 1 }),
+            json!(["tree", "Oda", "--depth", "1"]),
+        ),
+    ] {
+        let hints = tools
+            .iter()
+            .find(|t| t.name == tool)
+            .unwrap()
+            .annotations
+            .clone()
+            .unwrap();
+        assert_eq!(hints.read_only_hint, Some(true), "{tool}");
+        let got = call(&client, tool, args.clone()).await;
+        let want = call(&client, "ev", json!({ "args": same })).await;
+        assert_ne!(got.is_error, Some(true), "{tool} {args}: {}", text(&got));
+        assert_eq!(text(&got), text(&want), "{tool} {args}");
+    }
+    client.cancel().await.unwrap();
+}

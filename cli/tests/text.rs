@@ -550,3 +550,28 @@ fn money_needs_says_the_index_and_lists_the_missing_rates() {
          Exchange rates missing (1):\n  USD 2026-03-04\n"
     );
 }
+
+#[test]
+fn a_thing_in_several_places_shows_its_units_in_all_and_where_the_rest_are() {
+    let h = Home::new();
+    h.run(&["edit", "Kırmızı LED 5 mm", "qty=10"], None);
+    h.run(
+        &[
+            "move",
+            "Kırmızı LED 5 mm",
+            "--qty",
+            "3",
+            "--to",
+            "Aktif buzzer",
+        ],
+        None,
+    );
+    let s = h.text(&["show", "#6"]);
+    assert!(
+        s.contains(
+            "\n  thing: ×10 in 2 places · in use 3 · spare 7\n    elsewhere: #9 Ev › Oda › D › \
+             D-B1 › Aktif buzzer › Kırmızı LED 5 mm ×3 (in use)\n"
+        ),
+        "{s}"
+    );
+}

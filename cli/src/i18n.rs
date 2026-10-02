@@ -845,6 +845,12 @@ static TR: &[(&str, &str)] = &[
     ("Contact sheet: {}", "Kesit sayfası: {}"),
     ("Sent to ev ui.", "ev ui'a gönderildi."),
     (
+        "{} index from {}; home currency {}, country {}",
+        "{} endeksi, {} itibarıyla; ev para birimi {}, ülke {}",
+    ),
+    ("No exchange rate missing.", "Eksik döviz kuru yok."),
+    ("Exchange rates missing ({}):", "Eksik döviz kurları ({}):"),
+    (
         "Sent to ev ui: #{}, photo {}",
         "ev ui'a gönderildi: #{}, {}. fotoğraf",
     ),

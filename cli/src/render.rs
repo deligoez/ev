@@ -1459,6 +1459,37 @@ pub fn human(v: &Value) -> String {
         );
         return out;
     }
+    // `ev money needs`: what tools/money should fetch (it reads the JSON; this is for a person).
+    if let Some(m) = v.get("money_needs") {
+        let from = m["from_month"].as_str().unwrap_or("-");
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "{} index from {}; home currency {}, country {}",
+                &[
+                    &s(m, "index"),
+                    &from,
+                    &s(m, "home_currency"),
+                    &s(m, "home_country")
+                ]
+            )
+        );
+        let rates = m["rates"].as_array().cloned().unwrap_or_default();
+        if rates.is_empty() {
+            let _ = writeln!(out, "{}", t("No exchange rate missing."));
+        } else {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("Exchange rates missing ({}):", &[&rates.len()])
+            );
+            for r in &rates {
+                let _ = writeln!(out, "  {} {}", s(r, "currency"), s(r, "day"));
+            }
+        }
+        return out;
+    }
     if let Some(m) = v.get("money_imported") {
         let _ = writeln!(
             out,

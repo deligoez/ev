@@ -472,6 +472,9 @@ pub(crate) fn run_args(
     input: Option<String>,
     format: Format,
 ) -> CallToolResult {
+    // The language is per thread and each call runs on a blocking thread of its own; reading
+    // the settings here also follows a change made while the server runs.
+    crate::ui::set_language_from_settings();
     let argv = std::iter::once("ev".to_string()).chain(args.iter().cloned());
     let mut cli = match Cli::try_parse_from(argv) {
         Ok(cli) => cli,

@@ -1048,8 +1048,7 @@ struct AddArgs {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     if let Cmd::Mcp = cli.cmd {
-        // Text results follow the person's language, as in a terminal.
-        ui::set_language_from_settings();
+        // Each call sets the person's language on the thread it runs on (mcp::run_args).
         return match mcp::serve(cli.db) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {

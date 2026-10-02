@@ -67,10 +67,13 @@ CARGO_TARGET_DIR=$PWD/target/install cargo install --locked --path cli --force
 (Stale `ev-core` "method not found": `cargo clean --target-dir target/install`.)
 
 **A schema change migrates the real inventory the moment the new binary opens it.** Before
-installing a build with a new schema version:
-1. make sure `~/.ev` has nothing uncommitted (it is a git repository; the inventory agent commits
-   every change), and
-2. copy the database: `cp ~/.ev/ev.db ~/.ev/ev.db.bak-<date>-v<old version>`.
+installing a build with a new schema version (or a change to how the file is opened):
+1. ask the inventory agent to stop writing and commit; make sure `~/.ev` has nothing uncommitted
+   (it is a git repository; the inventory agent commits every change), and
+2. copy the database with SQLite, not `cp`:
+   `sqlite3 ~/.ev/ev.db ".backup '$HOME/.ev/ev.db.bak-<date>-v<old version>'"`. The inventory runs
+   in write-ahead-log mode: a write may sit in `ev.db-wal` until its command ends, and `.backup`
+   copies a consistent whole while `cp` of the file alone may not.
 
 Never run tests, measurements or experiments against `~/.ev/ev.db`: use a copy or a temporary
 database (`--db`, `EV_DB`). Never import shop data into the real database on your own.

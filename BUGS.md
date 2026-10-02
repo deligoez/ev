@@ -20,3 +20,14 @@ that fixes them.
   for "N more of this, there": `ev add --like <ref>` (name, make, model, tags, kind; perhaps the
   photo references), the reverse of `ev split`. Propose first. (Reported by the inventory
   agent.)
+- **A purchase's date does not say which date it is.** `ev buy show --text`, `ev buy for` and
+  the `bought:` line of `ev show` print one bare date, the delivery (`delivered_at`); the order
+  date (`ordered_at`) is only in the JSON. An agent told the person a thing was bought on the
+  delivery day, and the person, looking at the shop's order page, saw another date. Expected:
+  the text labels the date it shows, or shows both (`ordered … · delivered …`). (Reported by the
+  inventory agent.)
+- **A shop's product image is not imported.** A shop's raw order data carries the product
+  image (a URL with a size placeholder), but the imported line has no attachment, so `ev buy
+  link` cannot offer to bring it. Expected: an adapter emits the product image as an attachment
+  and the bring offer includes it; check every adapter, not only the one it was seen in.
+  (Reported by the inventory agent.)

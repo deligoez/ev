@@ -1106,6 +1106,11 @@ struct AddArgs {
     /// Serial number, as on the label.
     #[arg(long)]
     serial: Option<String>,
+    /// More of a thing already recorded: its name, kind, make, model, size and tags come from
+    /// this record, and the new units are a portion of the same thing (joining one already in
+    /// the --in place).
+    #[arg(long, conflicts_with_all = ["name", "kind", "make", "model", "serial"])]
+    of: Option<String>,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,
@@ -1956,12 +1961,16 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         );
         return inv.add_batch(lines);
     }
-    let name = a
-        .name
-        .ok_or_else(|| Error::Usage("a name is required".into()))?;
-    let kind = a
-        .kind
-        .ok_or_else(|| Error::Usage("--kind is required".into()))?;
+    // With --of the thing names itself.
+    let (name, kind) = match a.of {
+        Some(_) => (String::new(), String::new()),
+        None => (
+            a.name
+                .ok_or_else(|| Error::Usage("a name is required".into()))?,
+            a.kind
+                .ok_or_else(|| Error::Usage("--kind is required".into()))?,
+        ),
+    };
     warn_missing_photos(a.photos.iter().map(String::as_str));
     inv.add(NewNode {
         key: None,
@@ -1984,6 +1993,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         make: a.make,
         model: a.model,
         serial: a.serial,
+        of: a.of,
     })
 }
 

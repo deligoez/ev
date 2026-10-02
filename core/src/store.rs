@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 
 use crate::error::refused;
@@ -51,8 +51,12 @@ impl Inventory {
             std::fs::create_dir_all(dir)
                 .map_err(|e| Error::Internal(format!("cannot create {}: {e}", dir.display())))?;
         }
-        let conn = Connection::open(path)?;
+        let mut conn = Connection::open(path)?;
         conn.busy_timeout(Duration::from_secs(5))?;
+        // A deferred transaction that reads and then writes gets SQLITE_BUSY at once, without
+        // waiting, when another writer got in between; taking the write lock up front lets the
+        // busy timeout queue concurrent writers (an MCP client's parallel calls, the CLI).
+        conn.set_transaction_behavior(TransactionBehavior::Immediate);
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if version > SCHEMA_VERSION {
             return Err(Error::NewerSchema {

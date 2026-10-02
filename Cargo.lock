@@ -620,6 +620,7 @@ name = "ev-cli"
 version = "0.20.0"
 dependencies = [
  "assert_cmd",
+ "base64 0.23.1",
  "chrono",
  "clap",
  "ev-core",

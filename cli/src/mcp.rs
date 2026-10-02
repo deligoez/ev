@@ -3,7 +3,7 @@
 //! Every tool goes through the CLI's own parser and dispatcher, so a command behaves the same
 //! from a terminal and from an agent. Nothing but MCP messages may reach stdout.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use rmcp::handler::server::wrapper::Parameters;
@@ -130,6 +130,15 @@ pub(crate) struct TreeArgs {
     depth: Option<usize>,
     #[serde(default)]
     format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct PhotoArgs {
+    /// A code, an exact name or `#id`.
+    #[serde(rename = "ref")]
+    reference: String,
+    /// Which photo, from 1 (the oldest); the newest when left out.
+    n: Option<usize>,
 }
 
 /// `["--flag", value]` when the value is given.
@@ -302,6 +311,21 @@ went out or was added there.",
     }
 
     #[tool(
+        description = "A node's photo as an image: the newest by default, or the n-th from the \
+oldest. For agents that cannot open the photo files themselves.",
+        annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn photo(
+        &self,
+        Parameters(p): Parameters<PhotoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let db = self.db.clone();
+        tokio::task::spawn_blocking(move || photo_result(db, p.reference, p.n))
+            .await
+            .map_err(|e| McpError::internal_error(format!("the photo panicked: {e}"), None))
+    }
+
+    #[tool(
         description = "The tree under a node, or every home; `depth` limits how far down. On a \
 whole home this is long: start from a room or a piece of furniture.",
         annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
@@ -380,7 +404,7 @@ pub(crate) fn run_args(
     }
     match crate::with_input(input, || crate::run(cli)) {
         Ok(Value::Null) => CallToolResult::success(vec![ContentBlock::text("done")]),
-        Ok(v) => shaped(&v, format, false),
+        Ok(v) => shaped(&v, format),
         Err(e) => {
             let text = match format {
                 Format::Text => crate::render::error(&e),
@@ -391,20 +415,100 @@ pub(crate) fn run_args(
     }
 }
 
-/// A result as text or as JSON (then also as structured content).
-fn shaped(v: &Value, format: Format, _images: bool) -> CallToolResult {
-    match format {
-        Format::Text => {
-            CallToolResult::success(vec![ContentBlock::text(cut(crate::render::human(v)))])
-        }
-        Format::Json => {
-            let mut r = CallToolResult::success(vec![ContentBlock::text(cut(
-                serde_json::to_string_pretty(v).unwrap_or_default(),
-            ))]);
-            r.structured_content = Some(v.clone());
-            r
+/// A result as text or as JSON (then also as structured content), followed by the pictures it
+/// made: a numbered photo (`marked`) and a contact sheet of crops (`sheet`), so the person sees
+/// them in the conversation even with no `ev ui` open.
+fn shaped(v: &Value, format: Format) -> CallToolResult {
+    let body = match format {
+        Format::Text => crate::render::human(v),
+        Format::Json => serde_json::to_string_pretty(v).unwrap_or_default(),
+    };
+    let mut content = vec![ContentBlock::text(cut(body))];
+    for key in ["marked", "sheet"] {
+        if let Some(block) = v[key].as_str().and_then(|p| image_block(Path::new(p))) {
+            content.push(block);
         }
     }
+    let mut r = CallToolResult::success(content);
+    if let Format::Json = format {
+        r.structured_content = Some(v.clone());
+    }
+    r
+}
+
+/// The long side of a picture sent to an agent: about what a model reads at full detail.
+const LONG_SIDE: u32 = 1568;
+
+/// A picture as an image block: upright, JPEG, its long side at most `LONG_SIDE` pixels.
+/// `None` when the file is missing or not a picture.
+fn image_block(path: &Path) -> Option<ContentBlock> {
+    let img = ev_core::open_upright(path).ok()?;
+    let img = if img.width().max(img.height()) > LONG_SIDE {
+        img.resize(LONG_SIDE, LONG_SIDE, image::imageops::FilterType::Triangle)
+    } else {
+        img
+    };
+    let mut buf = std::io::Cursor::new(Vec::new());
+    img.to_rgb8()
+        .write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(
+            &mut buf, 85,
+        ))
+        .ok()?;
+    Some(ContentBlock::image(
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, buf.into_inner()),
+        "image/jpeg",
+    ))
+}
+
+/// The `photo` tool: a node's n-th photo (the newest by default) as an image, with a line
+/// saying which node and which photo.
+fn photo_result(db: Option<PathBuf>, reference: String, n: Option<usize>) -> CallToolResult {
+    let listed = run_args(
+        db,
+        &["photo".into(), "list".into(), "--".into(), reference],
+        None,
+        Format::Json,
+    );
+    let Some(v) = listed
+        .structured_content
+        .clone()
+        .filter(|_| listed.is_error != Some(true))
+    else {
+        return listed;
+    };
+    let photos = v["photos"].as_array().cloned().unwrap_or_default();
+    let node = &v["node"];
+    let name = format!(
+        "#{} {}",
+        node["id"],
+        node["name"].as_str().unwrap_or_default()
+    );
+    let refuse = |why: String| CallToolResult::error(vec![ContentBlock::text(why)]);
+    if photos.is_empty() {
+        return refuse(format!("{name} has no photo"));
+    }
+    let n = n.unwrap_or(photos.len());
+    let Some(p) = photos.get(n.wrapping_sub(1)) else {
+        return refuse(format!(
+            "{name} has {} photo(s); ask for 1 to {}",
+            photos.len(),
+            photos.len()
+        ));
+    };
+    let path = p["path"].as_str().unwrap_or_default();
+    let Some(block) = image_block(Path::new(path)) else {
+        return refuse(format!(
+            "the file of photo {n} of {name} cannot be read: {path}"
+        ));
+    };
+    let note = p["note"]
+        .as_str()
+        .map(|t| format!(" — {t}"))
+        .unwrap_or_default();
+    CallToolResult::success(vec![
+        ContentBlock::text(format!("{name}: photo {n} of {}{note}", photos.len())),
+        block,
+    ])
 }
 
 /// Cuts a long result at `MAX_CHARS`, on a character boundary, and says so.

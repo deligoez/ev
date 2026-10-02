@@ -6,12 +6,13 @@ that fixes them.
 
 ## Open
 
-- **A word that is a root of its own is cut to another root.** `altın` → `alt` (meets
-  `altında`), `ünite` → `uni`: the shortest shorter form written somewhere wins, and nothing in
-  the inventory's own words tells a root from a suffixed form of another. Expected: a root stays
-  whole. Left from the "one noun gets two keys" entry, whose ending cases (`bağı`/`bağları`,
-  `bacaklarında`, `bloğu`) are fixed for the next release; this part needs a dictionary and
-  waits for Çözgü's embeddable core. Measure with `tools/measure/stems.py`.
+- **A root the inventory never inflects is still cut to a shorter written word.** `kapı` →
+  `kap`, `veri` → `ver`, `mini` → `min`, `yani` → `yan`, `boya` → `boy`, `powerline` →
+  `power`: the word reads as that word plus a valid ending (`kap`+`ı`), and no other written
+  form of it shows it is a root. The cases the inventory does show (`altın`, `ünite`, `pense`,
+  `cıvata`) and those an ending cannot follow (`varta`, `sabun`, `güneş`, `türkiye`) are fixed
+  for the next release. Expected: a root stays whole. The rest needs a dictionary and waits for
+  Çözgü's embeddable core. Measure with `tools/measure/stems.py` (1,736/1,919 after the fix).
 - **nextest now and then calls a CLI test leaky.** Over 25 full runs (2026-09-30), 7 runs
   showed one `LEAK`, each time a different test of `cli/tests/cli.rs` (five tests in all), all
   of them spawning the `ev` binary: the child's output pipe closed after nextest's leak

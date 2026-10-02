@@ -86,3 +86,21 @@ fn what_the_thing_is_set_on_one_portion_is_set_on_all_and_a_kind_is_refused() {
         .unwrap_err();
     assert_eq!(e.code(), 5);
 }
+
+#[test]
+fn a_planned_move_of_some_sets_them_apart_and_done_joins_them_on_arrival() {
+    let (_d, mut inv) = setup();
+    inv.move_qty("Eneloop AA", "El feneri", false, Some(2))
+        .unwrap();
+    // 3 of the drawer's 18 are to go to the flashlight: set apart in the drawer for now.
+    let planned = inv.move_qty("#6", "El feneri", true, Some(3)).unwrap();
+    assert_eq!(planned["node"]["qty"], 3);
+    assert_eq!(planned["node"]["path_text"], "Ev › Oda › D1 › Eneloop AA");
+    assert_eq!(planned["pending"]["name"], "El feneri");
+    assert_eq!(inv.show("#6", false).unwrap()["node"]["qty"], 15);
+    // Done: they join the two already in the flashlight.
+    let done = inv.done(&id(&planned)).unwrap();
+    assert_eq!(id(&done), "7");
+    assert_eq!(done["node"]["qty"], 5);
+    assert_eq!(done["thing"]["total"], 20);
+}

@@ -712,6 +712,38 @@ static TR: &[(&str, &str)] = &[
         "  (photo marked out of date)",
         "  (fotoğrafı eski olarak işaretli)",
     ),
+    (
+        "{} more places get their photo on their tour",
+        "{} yer daha fotoğrafını kendi turunda alacak",
+    ),
+    // `ev next`: due dates, what else to do in a place, notes on the order
+    ("today", "bugün"),
+    ("{} days overdue", "{} gün gecikti"),
+    ("in {} days", "{} gün kaldı"),
+    ("due {} ({})", "son tarih {} ({})"),
+    (
+        "(first because it is due)",
+        "(son tarihi geldiği için önde)",
+    ),
+    ("On the order:", "Sıra üzerine:"),
+    (
+        "all its places are counted; close it?",
+        "bütün yerleri sayıldı; kapatılsın mı?",
+    ),
+    ("settles {} planned moves", "{} planlı taşımayı tamamlar"),
+    ("while there:", "oradayken:"),
+    ("photo: {}", "fotoğraf: {}"),
+    ("label: {}", "etiket: {}"),
+    ("unclear: {}", "belirsiz: {}"),
+    ("waiting for its place: {}", "yerini bekliyor: {}"),
+    ("take along: {} → {}", "yanında götür: {} → {}"),
+    ("leaving the home ({}): {}", "evden çıkıyor ({}): {}"),
+    (
+        "lost, last seen here: {}",
+        "kayıp, en son burada görüldü: {}",
+    ),
+    ("ask about its warranty: {}", "garantisini sor: {}"),
+    ("ask its value: {}", "değerini sor: {}"),
     ("  (changed {})", "  (değişti {})"),
     (
         "Whole photo shared by several records",

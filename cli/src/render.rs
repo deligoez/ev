@@ -188,6 +188,17 @@ fn review_mark(r: &Value) -> &'static str {
     }
 }
 
+/// `due 2026-10-04 (in 2 days)`, `(today)` or `(3 days overdue)`.
+fn due_text(due: &str, days: &Value) -> String {
+    let when = match days.as_i64() {
+        Some(0) => t("today").to_string(),
+        Some(n) if n < 0 => tf("{} days overdue", &[&-n]),
+        Some(n) => tf("in {} days", &[&n]),
+        None => String::new(),
+    };
+    tf("due {} ({})", &[&due, &when])
+}
+
 fn task_line(out: &mut String, t_: &Value) {
     let pos = t_["position"]
         .as_i64()
@@ -200,9 +211,21 @@ fn task_line(out: &mut String, t_: &Value) {
         _ => "",
     };
     let _ = writeln!(out, "{pos} #{} {}{state}", t_["id"], s(t_, "title"));
+    if let Some(d) = t_["due"].as_str() {
+        let _ = writeln!(out, "     {}", due_text(d, &t_["days_left"]));
+    }
     let _ = writeln!(out, "     {}", tf("why: {}", &[&s(t_, "why")]));
     for n in t_["nodes"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "     • {}", s(n, "path_text"));
+    }
+}
+
+/// Why a place needs a new photo, as a suffix.
+fn photo_reason(n: &Value) -> String {
+    match n["photo_reason"].as_str() {
+        Some("none") => t("  (no photo)").into(),
+        Some("marked") => t("  (photo marked out of date)").into(),
+        _ => tf("  (changed {})", &[&s(n, "changed_at")]),
     }
 }
 
@@ -696,18 +719,12 @@ fn todo(out: &mut String, v: &Value) {
         ("parked", t("Waiting for a final place")),
         ("stale", t("Changed since counted")),
         ("unclear", t("Unclear records")),
-        ("photos", t("Photo of the current state needed")),
     ] {
         if head(out, title, &c[key]) {
             for n in v[key].as_array().into_iter().flatten() {
                 let extra = match key {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
-                    "photos" if n["photo_reason"] == "none" => Some(t("  (no photo)").into()),
-                    "photos" if n["photo_reason"] == "marked" => {
-                        Some(t("  (photo marked out of date)").into())
-                    }
-                    "photos" => Some(tf("  (changed {})", &[&s(n, "changed_at")])),
                     "parked" => Some(tf(
                         "  (parked in {})",
                         &[&n["in"]["code"]
@@ -720,6 +737,26 @@ fn todo(out: &mut String, v: &Value) {
                 let _ = writeln!(out, "  {}{extra}", s(n, "path_text"));
             }
         }
+    }
+    // Only a photo needed now is listed; a place not counted yet gets its photo on its tour.
+    if head(
+        out,
+        t("Photo of the current state needed"),
+        &c["photos_now"],
+    ) {
+        for n in v["photos"].as_array().into_iter().flatten() {
+            if n["when"] == "now" {
+                let _ = writeln!(out, "  {}{}", s(n, "path_text"), photo_reason(n));
+            }
+        }
+    }
+    let later = c["photos"].as_u64().unwrap_or(0) - c["photos_now"].as_u64().unwrap_or(0);
+    if later > 0 {
+        let _ = writeln!(
+            out,
+            "\n{}",
+            tf("{} more places get their photo on their tour", &[&later])
+        );
     }
     if head(
         out,
@@ -1904,6 +1941,41 @@ fn sketch(out: &mut String, v: &Value) {
     let _ = writeln!(out, "{}  {text}", line(&v["node"]));
 }
 
+/// What else waits in a place while it is open: one line per job, named by kind.
+fn while_there(out: &mut String, w: &Value) {
+    let Some(w) = w.as_object().filter(|w| !w.is_empty()) else {
+        return;
+    };
+    let _ = writeln!(out, "    {}", t("while there:"));
+    for (key, list) in w {
+        for n in list.as_array().into_iter().flatten() {
+            let text = match key.as_str() {
+                "photos" => format!(
+                    "{}{}",
+                    tf("photo: {}", &[&s(n, "path_text")]),
+                    photo_reason(n)
+                ),
+                "labels" => tf("label: {}", &[&s(n, "code")]),
+                "unclear" => tf("unclear: {}", &[&s(n, "name")]),
+                "parked" => tf("waiting for its place: {}", &[&s(n, "name")]),
+                "leaving" => tf(
+                    "take along: {} → {}",
+                    &[&s(&n["node"], "name"), &s(&n["to"], "path_text")],
+                ),
+                "disposals" => tf(
+                    "leaving the home ({}): {}",
+                    &[&disposition(&s(n, "as")), &s(n, "name")],
+                ),
+                "lost" => tf("lost, last seen here: {}", &[&s(&n["node"], "name")]),
+                "coverage" => tf("ask about its warranty: {}", &[&s(n, "name")]),
+                "values" => tf("ask its value: {}", &[&s(n, "name")]),
+                _ => continue,
+            };
+            let _ = writeln!(out, "      · {text}");
+        }
+    }
+}
+
 /// `ev next`: the goal, how far the home is counted, the next task with its places, and the
 /// raw places no task covers.
 fn next(out: &mut String, v: &Value) {
@@ -1912,6 +1984,9 @@ fn next(out: &mut String, v: &Value) {
     if v["task"].is_object() {
         let _ = writeln!(out, "\n{}", tf("Next task ({} open):", &[&v["open_tasks"]]));
         task_line(out, &v["task"]);
+        if v["task"]["picked"] == "due" {
+            let _ = writeln!(out, "     {}", t("(first because it is due)"));
+        }
         for p in v["task"]["places"].as_array().into_iter().flatten() {
             let _ = writeln!(
                 out,
@@ -1928,9 +2003,23 @@ fn next(out: &mut String, v: &Value) {
             for a in p["arriving"].as_array().into_iter().flatten() {
                 let _ = writeln!(out, "    → {}", tf("arriving: {}", &[&s(a, "path_text")]));
             }
+            while_there(out, &p["while_there"]);
         }
     } else {
         let _ = writeln!(out, "\n{}", t("(no open task)"));
+    }
+    let hints = v["hints"].as_array().map_or(0, Vec::len);
+    if hints > 0 {
+        let _ = writeln!(out, "\n{}", t("On the order:"));
+        for h in v["hints"].as_array().into_iter().flatten() {
+            let text = match h["kind"].as_str() {
+                Some("due") => due_text(&s(h, "due"), &h["days_left"]),
+                Some("places_counted") => t("all its places are counted; close it?").to_string(),
+                Some("settles_moves") => tf("settles {} planned moves", &[&h["moves"]]),
+                _ => continue,
+            };
+            let _ = writeln!(out, "  #{}  {text}", h["task"]);
+        }
     }
     let un = v["unplanned"].as_array().map_or(0, Vec::len);
     if un > 0 {

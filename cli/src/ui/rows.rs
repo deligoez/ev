@@ -361,6 +361,14 @@ impl App {
             pal().furniture,
             plain("stale", &|_| None),
         ));
+        // Only a photo needed now: a place not counted yet gets its photo on its tour.
+        let now: std::collections::HashSet<i64> = v["photos"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|p| p["when"] == "now")
+            .filter_map(|p| p["id"].as_i64())
+            .collect();
         sections.push((
             t("PHOTO NEEDED"),
             pal().code,
@@ -380,7 +388,10 @@ impl App {
                     )
                 };
                 Some(Span::styled(text, Style::new().fg(pal().code)))
-            }),
+            })
+            .into_iter()
+            .filter(|r| now.contains(&r.id))
+            .collect(),
         ));
         let mut shared = Vec::new();
         for s in v["shared_photos"].as_array().into_iter().flatten() {

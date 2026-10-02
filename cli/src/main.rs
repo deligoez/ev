@@ -1073,6 +1073,30 @@ fn main() -> ExitCode {
     }
 }
 
+thread_local! {
+    /// Standard input as a command sees it. `None`: the process's own (the CLI). `Some(text)`:
+    /// the text an MCP call gave, or `Some(None)` when it gave none — the MCP server's own stdin
+    /// is the protocol stream, and reading it would corrupt the session.
+    static INPUT: std::cell::RefCell<Option<Option<String>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// What a command reads as standard input: the process's, or the text set by `with_input`.
+fn read_input() -> Result<String> {
+    match INPUT.with(|i| i.borrow_mut().as_mut().map(Option::take)) {
+        Some(Some(text)) => Ok(text),
+        Some(None) => Err(Error::Usage(
+            "this command reads lines from standard input; pass them as the call's `input`".into(),
+        )),
+        None => {
+            let mut s = String::new();
+            std::io::stdin()
+                .read_to_string(&mut s)
+                .map_err(|e| Error::Usage(format!("cannot read stdin: {e}")))?;
+            Ok(s)
+        }
+    }
+}
+
 fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(p) = flag {
         return Ok(p);
@@ -1194,10 +1218,7 @@ fn run(cli: Cli) -> Result<Value> {
             stdin,
         } => {
             if stdin {
-                let mut text = String::new();
-                std::io::stdin()
-                    .read_to_string(&mut text)
-                    .map_err(|e| Error::Internal(format!("cannot read stdin: {e}")))?;
+                let text = read_input()?;
                 return inv.sketch_many(&text);
             }
             let reference = reference.unwrap_or_default();
@@ -1262,10 +1283,7 @@ fn run(cli: Cli) -> Result<Value> {
             inv.find(&text, tag.as_deref(), kind, include_gone)
         }
         Cmd::Edit { stdin: true, .. } => {
-            let mut text = String::new();
-            std::io::stdin()
-                .read_to_string(&mut text)
-                .map_err(|e| Error::Internal(format!("cannot read stdin: {e}")))?;
+            let text = read_input()?;
             inv.edit_batch(&edit_lines(&text)?)
         }
         Cmd::Edit {
@@ -1516,12 +1534,7 @@ fn run(cli: Cli) -> Result<Value> {
             let text = match (file, stdin) {
                 (Some(f), false) => std::fs::read_to_string(&f)
                     .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
-                (None, true) => {
-                    let mut s = String::new();
-                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut s)
-                        .map_err(|e| Error::Usage(format!("stdin: {e}")))?;
-                    s
-                }
+                (None, true) => read_input()?,
                 _ => return Err(Error::Usage("give a file or --stdin".into())),
             };
             inv.buy_import(&text)
@@ -1580,12 +1593,7 @@ fn run(cli: Cli) -> Result<Value> {
             let text = match (file, stdin) {
                 (Some(f), false) => std::fs::read_to_string(&f)
                     .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
-                (None, true) => {
-                    let mut s = String::new();
-                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut s)
-                        .map_err(|e| Error::Usage(format!("stdin: {e}")))?;
-                    s
-                }
+                (None, true) => read_input()?,
                 _ => return Err(Error::Usage("give a file or --stdin".into())),
             };
             inv.money_import(&text)
@@ -1823,13 +1831,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         let text = match &a.batch {
             Some(path) => std::fs::read_to_string(path)
                 .map_err(|e| Error::Usage(format!("cannot read {}: {e}", path.display())))?,
-            None => {
-                let mut s = String::new();
-                std::io::stdin()
-                    .read_to_string(&mut s)
-                    .map_err(|e| Error::Usage(format!("cannot read stdin: {e}")))?;
-                s
-            }
+            None => read_input()?,
         };
         let mut lines = Vec::new();
         for (i, line) in text.lines().enumerate() {

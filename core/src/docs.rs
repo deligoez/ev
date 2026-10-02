@@ -11,13 +11,15 @@ use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
 
 /// The kinds of document, in the order a list shows them.
-pub const DOC_KINDS: [&str; 7] = [
+pub const DOC_KINDS: [&str; 8] = [
     "invoice",
     "warranty",
     "manual",
     "service",
     "appraisal",
     "policy",
+    // A copy of a paper that is thrown out once copied: a ticket, a letter, an old statement.
+    "scan",
     "other",
 ];
 

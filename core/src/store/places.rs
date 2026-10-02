@@ -188,8 +188,15 @@ impl Inventory {
 
     /// Lends a node of ours to a place; it stays in the tree where it returns to.
     pub fn lend(&mut self, reference: &str, to: &str) -> Result<Value> {
+        self.lend_qty(reference, to, None)
+    }
+
+    /// `lend` for `qty` of a record's units: they go as a portion of their own (spec/
+    /// portions.md §4.1), and come back to join the rest with `back`.
+    pub fn lend_qty(&mut self, reference: &str, to: &str, qty: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let node = crate::portions::take(&tx, node, qty)?;
         if node.owner.is_some() {
             return Err(refused(
                 format!("{} is not ours; it cannot be lent out", label(&node)),

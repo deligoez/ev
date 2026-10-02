@@ -702,10 +702,23 @@ impl Inventory {
         disposition: Disposition,
         shred: bool,
     ) -> Result<Value> {
+        self.dispose_qty(reference, disposition, shred, None)
+    }
+
+    /// `dispose_with` for `qty` of a record's units: they are set apart as a portion of their
+    /// own (spec/portions.md §4.1) and only they become candidates to leave.
+    pub fn dispose_qty(
+        &mut self,
+        reference: &str,
+        disposition: Disposition,
+        shred: bool,
+        qty: Option<i64>,
+    ) -> Result<Value> {
         check_shred(disposition, shred)?;
         not_merged(Some(disposition))?;
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let node = crate::portions::take(&tx, node, qty)?;
         if disposition == Disposition::Mistake {
             return Err(Error::Usage(
                 "a mistaken record is not set aside; close it with `ev gone --as mistake --why`"
@@ -777,6 +790,19 @@ impl Inventory {
         why: Option<&str>,
         shred: bool,
     ) -> Result<Value> {
+        self.gone_qty(reference, disposition, why, shred, None)
+    }
+
+    /// `gone_with` for `qty` of a record's units: they leave as a portion of their own (spec/
+    /// portions.md §4.1), and the rest stay.
+    pub fn gone_qty(
+        &mut self,
+        reference: &str,
+        disposition: Option<Disposition>,
+        why: Option<&str>,
+        shred: bool,
+        qty: Option<i64>,
+    ) -> Result<Value> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
         not_merged(disposition)?;
         if disposition == Some(Disposition::Mistake) && why.is_none() {
@@ -786,6 +812,7 @@ impl Inventory {
         }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let node = crate::portions::take(&tx, node, qty)?;
         if node.state == State::Active && disposition.is_none() {
             return Err(refused(
                 format!(
@@ -907,8 +934,15 @@ impl Inventory {
     }
 
     pub fn mark_lost(&mut self, reference: &str) -> Result<Value> {
+        self.mark_lost_qty(reference, None)
+    }
+
+    /// `mark_lost` for `qty` of a record's units: those are missing, the rest are where they
+    /// were (spec/portions.md §4.1).
+    pub fn mark_lost_qty(&mut self, reference: &str, qty: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let node = crate::portions::take(&tx, node, qty)?;
         if node.kind == Kind::Home {
             return Err(refused("a home cannot be lost", Value::Null));
         }

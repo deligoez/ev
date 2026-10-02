@@ -110,6 +110,15 @@ pub(crate) fn split_off(conn: &Connection, node: &Node, count: i64) -> Result<i6
     Ok(new)
 }
 
+/// The record a verb with `--qty` acts on (spec §4.1): `node` itself for all of it, or the new
+/// portion `qty` of its units were split off into, in the same transaction as the verb.
+pub(crate) fn take(conn: &Connection, node: Node, qty: Option<i64>) -> Result<Node> {
+    match part_of(&node, qty)? {
+        Some(count) => load(conn, split_off(conn, &node, count)?),
+        None => Ok(node),
+    }
+}
+
 /// After `id` has arrived where it is: when a live portion of the same thing is already there
 /// in the same condition, the units join it and this record ends as `merged`. Returns the id
 /// that holds the units now.

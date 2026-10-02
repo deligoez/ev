@@ -143,6 +143,9 @@ enum Cmd {
         /// or digitize only.
         #[arg(long)]
         shred: bool,
+        /// Only this many of a counted item: they are set apart, the rest stay.
+        #[arg(long)]
+        qty: Option<i64>,
     },
     /// Return a candidate to active; with --correction, undo a gone recorded by mistake.
     Restore {
@@ -162,6 +165,9 @@ enum Cmd {
         /// It was shredded rather than thrown out whole; trash or digitize only.
         #[arg(long)]
         shred: bool,
+        /// Only this many of a counted item leave; the rest stay.
+        #[arg(long)]
+        qty: Option<i64>,
     },
     /// Every candidate, grouped by disposition.
     Disposals {
@@ -169,7 +175,12 @@ enum Cmd {
         disposition: Option<String>,
     },
     /// Mark a node lost, or list lost nodes when no reference is given.
-    Lost { reference: Option<String> },
+    Lost {
+        reference: Option<String>,
+        /// Only this many of a counted item are missing; the rest are where they were.
+        #[arg(long, requires = "reference")]
+        qty: Option<i64>,
+    },
     /// A lost node is found: where it was last seen, or `--in <place>` where it turned up.
     Found {
         reference: String,
@@ -191,6 +202,9 @@ enum Cmd {
         reference: String,
         #[arg(long)]
         to: String,
+        /// Only this many of a counted item are lent; they rejoin the rest on `ev back`.
+        #[arg(long)]
+        qty: Option<i64>,
     },
     /// A lent node came back.
     Back { reference: String },
@@ -1462,7 +1476,8 @@ fn run(cli: Cli) -> Result<Value> {
             reference,
             disposition: d,
             shred,
-        } => inv.dispose_with(&reference, disposition(&d)?, shred),
+            qty,
+        } => inv.dispose_qty(&reference, disposition(&d)?, shred, qty),
         Cmd::Restore {
             reference,
             correction: Some(why),
@@ -1476,17 +1491,24 @@ fn run(cli: Cli) -> Result<Value> {
             disposition: d,
             why,
             shred,
-        } => inv.gone_with(
+            qty,
+        } => inv.gone_qty(
             &reference,
             d.as_deref().map(disposition).transpose()?,
             why.as_deref(),
             shred,
+            qty,
         ),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)
         }
-        Cmd::Lost { reference: Some(r) } => inv.mark_lost(&r),
-        Cmd::Lost { reference: None } => inv.lost_list(),
+        Cmd::Lost {
+            reference: Some(r),
+            qty,
+        } => inv.mark_lost_qty(&r, qty),
+        Cmd::Lost {
+            reference: None, ..
+        } => inv.lost_list(),
         Cmd::Found {
             reference,
             place: None,
@@ -1506,7 +1528,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Ui => ui::run(inv, &db).map(|()| Value::Null),
         // Handled in `main`, before an inventory is opened.
         Cmd::Mcp => Err(Error::Usage("`ev mcp` serves over stdio; run it on its own".into())),
-        Cmd::Lend { reference, to } => inv.lend(&reference, &to),
+        Cmd::Lend { reference, to, qty } => inv.lend_qty(&reference, &to, qty),
         Cmd::Back { reference } => inv.back(&reference),
         Cmd::For { place } => inv.errands(place.as_deref()),
         Cmd::Place(PlaceCmd::Add { name, aliases }) => inv.place_add(&name, &aliases),

@@ -1,6 +1,6 @@
 # ev — an MCP server, so any agent can use the inventory
 
-Status: **decided, being implemented.** Written 2026-10-02 after a survey of the official Rust
+Status: **implemented** (unreleased), 2026-10-02. Written 2026-10-02 after a survey of the official Rust
 SDK, the MCP specification (revision 2026-07-28), Anthropic's guidance on tools for agents and on
 skills next to MCP, and the client configurations of Claude Code, Codex and OpenCode. Phases are
 in §8. Remote access (a phone, an HTTP transport, OAuth) is out of scope (§9).

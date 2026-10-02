@@ -83,7 +83,12 @@ fn schema_29_keeps_the_store_paths_of_an_older_inventory_relative() {
             [inside.to_str().unwrap()],
         )
         .unwrap();
-        c.execute_batch("PRAGMA user_version = 28;").unwrap();
+        // Back to 28: what schema 30 added goes too, or reopening adds it twice.
+        c.execute_batch(
+            "DROP INDEX nodes_thing; ALTER TABLE nodes DROP COLUMN thing;
+             PRAGMA user_version = 28;",
+        )
+        .unwrap();
     }
     drop(Inventory::open(&db).unwrap());
     let c = rusqlite::Connection::open(&db).unwrap();

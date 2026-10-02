@@ -91,7 +91,7 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
         .query_row(
             "SELECT source, source_key, shop, merchant, order_no, order_url, product_url, shop_sku,
                     name, brand, category, ordered_at, delivered_at, qty, paid, currency,
-                    billed_to, status, bucket, dismissed, why, raw, same_as, imported_at
+                    billed_to, status, bucket, dismissed, why, raw, same_as, imported_at, pack
                FROM purchases WHERE id = ?1",
             [id],
             |r| {
@@ -112,6 +112,8 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
                     "ordered_at": r.get::<_, Option<String>>(11)?,
                     "delivered_at": r.get::<_, Option<String>>(12)?,
                     "qty": r.get::<_, i64>(13)?,
+                    "pack": r.get::<_, i64>(24)?,
+                    "units": r.get::<_, i64>(13)? * r.get::<_, i64>(24)?,
                     "paid": paid.map(money),
                     "currency": r.get::<_, Option<String>>(15)?,
                     "billed_to": r.get::<_, Option<String>>(16)?,
@@ -143,7 +145,7 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
     // A line joined to another (the same purchase seen by a second source) is settled through
     // that line: nothing of it is left open.
     p["open_qty"] = if p["same_as"].is_null() {
-        json!((p["qty"].as_i64().unwrap_or(0) - linked).max(0))
+        json!((p["units"].as_i64().unwrap_or(0) - linked).max(0))
     } else {
         json!(0)
     };
@@ -209,11 +211,12 @@ pub(crate) fn purchases_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
         .collect()
 }
 
-/// Adds `today`: what `qty` of the line cost, in today's home money, when it can be computed.
+/// Adds `today`: what `qty` units of the line cost, in today's home money, when it can be
+/// computed.
 fn with_today(conn: &Connection, p: &mut Value, qty: i64) -> Result<()> {
     if let (Some(paid), Some(of)) = (
         p["paid"].as_str().and_then(|x| parse_money(x).ok()),
-        p["qty"].as_i64().filter(|q| *q > 0),
+        p["units"].as_i64().filter(|q| *q > 0),
     ) {
         let date = p["delivered_at"].as_str().or(p["ordered_at"].as_str());
         if let Some(t) =
@@ -617,8 +620,8 @@ impl Inventory {
 
     pub fn buy_show(&self, id: i64) -> Result<Value> {
         let mut p = purchase_json(&self.conn, id)?;
-        let qty = p["qty"].as_i64().unwrap_or(1);
-        with_today(&self.conn, &mut p, qty)?;
+        let units = p["units"].as_i64().unwrap_or(1);
+        with_today(&self.conn, &mut p, units)?;
         Ok(json!({ "purchase": p }))
     }
 

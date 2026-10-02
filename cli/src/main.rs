@@ -113,11 +113,16 @@ enum Cmd {
     Done { reference: String },
     /// Drop a node's pending move.
     Cancel { reference: String },
-    /// Mark a node as a candidate to leave: trash, give or sell.
+    /// Mark a node as a candidate to leave: trash, give, sell, or digitize (photograph it,
+    /// then throw the paper out; `gone` needs a photo or document on it first).
     Dispose {
         reference: String,
         #[arg(long = "as")]
         disposition: String,
+        /// Shred it rather than throw it out whole (a name, a number, a barcode on it); trash
+        /// or digitize only.
+        #[arg(long)]
+        shred: bool,
     },
     /// Return a candidate to active; with --correction, undo a gone recorded by mistake.
     Restore {
@@ -134,6 +139,9 @@ enum Cmd {
         /// Why it left; recorded in the event and appended to the note.
         #[arg(long)]
         why: Option<String>,
+        /// It was shredded rather than thrown out whole; trash or digitize only.
+        #[arg(long)]
+        shred: bool,
     },
     /// Every candidate, grouped by disposition.
     Disposals {
@@ -754,7 +762,8 @@ enum DocCmd {
     /// same document, only the new links are added.
     Add {
         file: PathBuf,
-        /// invoice, warranty, manual, service, appraisal, policy or other.
+        /// invoice, warranty, manual, service, appraisal, policy, scan (a copy of a paper
+        /// thrown out once copied) or other.
         #[arg(long)]
         kind: String,
         /// What it belongs to (repeatable).
@@ -1303,7 +1312,8 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Dispose {
             reference,
             disposition: d,
-        } => inv.dispose(&reference, disposition(&d)?),
+            shred,
+        } => inv.dispose_with(&reference, disposition(&d)?, shred),
         Cmd::Restore {
             reference,
             correction: Some(why),
@@ -1316,10 +1326,12 @@ fn run(cli: Cli) -> Result<Value> {
             reference,
             disposition: d,
             why,
-        } => inv.gone_because(
+            shred,
+        } => inv.gone_with(
             &reference,
             d.as_deref().map(disposition).transpose()?,
             why.as_deref(),
+            shred,
         ),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)

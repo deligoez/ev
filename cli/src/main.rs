@@ -106,13 +106,18 @@ enum Cmd {
         #[arg(required = true)]
         pairs: Vec<String>,
     },
-    /// Move now, or plan a move with --plan.
+    /// Move now, or plan a move with --plan. With --qty, only that many of a counted item: they
+    /// become a portion of the same thing in the new place (joining one already there), and the
+    /// rest stay.
     Move {
         reference: String,
         #[arg(long)]
         to: String,
         #[arg(long)]
         plan: bool,
+        /// How many of the record's units move; all of them by default.
+        #[arg(long)]
+        qty: Option<i64>,
     },
     /// List pending moves.
     Pending,
@@ -1433,7 +1438,8 @@ fn run(cli: Cli) -> Result<Value> {
             reference,
             to,
             plan,
-        } => inv.move_to(&reference, &to, plan),
+            qty,
+        } => inv.move_qty(&reference, &to, plan, qty),
         Cmd::Pending => inv.pending(),
         Cmd::Done { reference } => inv.done(&reference),
         Cmd::Cancel { reference } => inv.cancel(&reference),

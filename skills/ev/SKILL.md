@@ -10,6 +10,19 @@ The person stands at the shelves and reports; you record through `ev`; either of
 to act on, and add `--text` when you only need to read the result — and its stderr is the
 error channel.
 
+## Two ways in: the CLI and MCP
+
+This skill writes every command as `ev …`. With a shell, run it. Through MCP (`ev mcp`), the
+same command is the `ev` tool with the same arguments: `ev move #12 --to S5-01 --plan` is
+`{"args": ["move", "#12", "--to", "S5-01", "--plan"]}`, and the lines you would pipe into a
+`--stdin` go in `input`. The tool returns the readable text by default (`format: "json"` for
+the JSON). The commonest reads have tools of their own, read-only so the person's client can
+let them run unasked: `next`, `todo`, `find`, `show`, `suggest`, `history`, `tree`; `photo`
+returns a node's photo as an image. A numbered photo a command makes (`photo cut … --show`,
+`photo mark`) comes back as an image in the tool result: the person sees it in the
+conversation, so show it there too when no `ev ui` is open. A refused call returns its reason
+(`isError`); read it and change the call. Everything else in this skill holds either way.
+
 ## Model in one paragraph
 
 Everything is a node in one tree: `home` › `room` (rooms may nest) › `furniture` ›

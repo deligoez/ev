@@ -13,9 +13,16 @@ that fixes them.
   `cıvata`) and those an ending cannot follow (`varta`, `sabun`, `güneş`, `türkiye`) are fixed
   for the next release. Expected: a root stays whole. The rest needs a dictionary and waits for
   Çözgü's embeddable core. Measure with `tools/measure/stems.py` (1,736/1,919 after the fix).
-- **Photo and document paths are stored absolute.** `photos.path` and `documents.file` hold
-  `<data dir>/photos/<hash>.jpg`, not a path relative to the store, so a data directory that
-  moves (another Mac, another user name, a copy opened with `--db`) points back to the old
-  place: a copy of the inventory used for QA showed and marked the real store's photos.
-  Expected: files inside the store are kept relative to the database's directory and resolved
-  on read; paths outside it (not yet adopted) stay absolute. Needs a schema migration.
+- **Recording a thing's make and model, or finding it, does not offer its purchases.** `ev add`
+  shows "Could be one of these purchases"; a lost thing found again (`ev found`) and then given
+  `make=` / `model=` with `ev edit` showed none, though `ev buy for` on it ranked two strong
+  candidates first (a model match). Expected: when a record gains make or model, or comes back
+  from lost, the best purchase candidates are offered as `ev add` offers them. (Reported by the
+  inventory agent.)
+- **A second lot of the same kind of thing starts empty.** A few more of a thing already
+  recorded (same make, model, tags, photos and a linked purchase) turned up in another place;
+  `ev add` opened a separate record, rightly, but with every field to copy by hand, and its
+  purchase candidates matched only by words, weaker than make and model would. Expected: a verb
+  for "N more of this, there": `ev add --like <ref>` (name, make, model, tags, kind; perhaps the
+  photo references), the reverse of `ev split`. Propose first. (Reported by the inventory
+  agent.)

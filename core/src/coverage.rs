@@ -480,7 +480,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
     // the index (and the rate, for another currency) is cached, else as paid when it was paid
     // in the home currency (spec §3.9).
     let mut stmt = conn.prepare(
-        "SELECT l.node_id, p.paid * l.qty / p.qty, p.currency,
+        "SELECT l.node_id, p.paid * l.qty / (p.qty * p.pack), p.currency,
                 COALESCE(p.delivered_at, p.ordered_at)
            FROM purchases p
            JOIN purchase_links l ON l.purchase_id = p.id
@@ -570,7 +570,7 @@ fn open_purchases(conn: &Connection) -> Result<i64> {
         "SELECT COUNT(*) FROM purchases p
           WHERE p.bucket = 'durable' AND p.status = 'delivered' AND p.dismissed IS NULL
             AND p.same_as IS NULL
-            AND p.qty > COALESCE((SELECT SUM(qty) FROM purchase_links WHERE purchase_id = p.id), 0)",
+            AND p.qty * p.pack > COALESCE((SELECT SUM(qty) FROM purchase_links WHERE purchase_id = p.id), 0)",
         [],
         |r| r.get(0),
     )?)

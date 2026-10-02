@@ -47,3 +47,25 @@ fn a_digitized_thing_leaves_only_once_it_has_a_copy() {
     assert_eq!(v["node"]["disposition"], "digitize");
     assert!(v.get("warnings").is_none());
 }
+
+#[test]
+fn a_digitized_thing_stays_findable_and_a_thrown_out_one_does_not() {
+    let (dir, mut inv) = setup();
+    let ticket = photo(&dir, "ticket.png", 1600, 900);
+    inv.photo_add("Konser bileti 2015", &ticket, None, None)
+        .unwrap();
+    inv.gone("Konser bileti 2015", Some(Disposition::Digitize))
+        .unwrap();
+    inv.gone("Eski kimlik kartı", Some(Disposition::Trash))
+        .unwrap();
+    let names = |q: &str| -> Vec<String> {
+        inv.find(q, None, None, false).unwrap()["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names("konser"), ["Konser bileti 2015"]);
+    assert!(names("kimlik").is_empty());
+}

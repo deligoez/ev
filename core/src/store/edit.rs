@@ -180,6 +180,16 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 params![v, n.id],
             )?;
         }
+        // A note is a log the person adds to: `note=+text` appends it on a new line.
+        "note" if value.trim_start().starts_with('+') => {
+            let added = text(&value.trim_start()[1..])
+                .ok_or_else(|| Error::Usage("note=+ needs the text to add".into()))?;
+            let note = match n.note.as_deref() {
+                Some(old) if !old.trim().is_empty() => format!("{old}\n{added}"),
+                _ => added,
+            };
+            conn.execute("UPDATE nodes SET note = ?1 WHERE id = ?2", params![note, n.id])?;
+        }
         "note" | "theme" | "make" | "model" | "serial" => {
             conn.execute(
                 &format!("UPDATE nodes SET {field} = ?1 WHERE id = ?2"),

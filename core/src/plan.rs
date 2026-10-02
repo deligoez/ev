@@ -994,19 +994,12 @@ impl Inventory {
                     json!({ "task": id, "kind": "due", "due": d, "days_left": days_left(d) }),
                 );
             }
-            let nodes = task_nodes(&self.conn, *id)?;
-            let mut counted = !nodes.is_empty();
+            // No "its places are all counted" note: a task is often work on a counted place (a
+            // grid to fit, labels to stick), and on the maintainer's inventory every such note
+            // was wrong.
             let mut arriving = 0;
-            for n in &nodes {
-                let status = review_inherited(&self.conn, *n)?["status"]
-                    .as_str()
-                    .unwrap_or("raw")
-                    .to_string();
-                counted &= matches!(status.as_str(), "toured" | "kept");
-                arriving += self.pending_into(*n)?.len();
-            }
-            if counted {
-                hints.push(json!({ "task": id, "kind": "places_counted" }));
+            for n in task_nodes(&self.conn, *id)? {
+                arriving += self.pending_into(n)?.len();
             }
             if arriving > 0 {
                 hints.push(json!({ "task": id, "kind": "settles_moves", "moves": arriving }));

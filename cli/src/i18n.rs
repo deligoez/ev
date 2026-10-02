@@ -726,10 +726,6 @@ static TR: &[(&str, &str)] = &[
         "(son tarihi geldiği için önde)",
     ),
     ("On the order:", "Sıra üzerine:"),
-    (
-        "all its places are counted; close it?",
-        "bütün yerleri sayıldı; kapatılsın mı?",
-    ),
     ("settles {} planned moves", "{} planlı taşımayı tamamlar"),
     ("while there:", "oradayken:"),
     ("photo: {}", "fotoğraf: {}"),

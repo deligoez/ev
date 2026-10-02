@@ -2014,7 +2014,6 @@ fn next(out: &mut String, v: &Value) {
         for h in v["hints"].as_array().into_iter().flatten() {
             let text = match h["kind"].as_str() {
                 Some("due") => due_text(&s(h, "due"), &h["days_left"]),
-                Some("places_counted") => t("all its places are counted; close it?").to_string(),
                 Some("settles_moves") => tf("settles {} planned moves", &[&h["moves"]]),
                 _ => continue,
             };

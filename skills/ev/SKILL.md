@@ -281,9 +281,8 @@ for a record added earlier; ask about a record only once its place has been tour
 place not toured yet, the record is still a guess: bring its candidates up during that tour).
 For the back-fill and at the end of each tour, `ev buy for --toured` lists every unlinked thing
 in a toured place with its one best line, numbered and best first: ask down that list by number
-instead of looping over records yourself.
-Under My Roof is never imported; use it only to confirm a match. The reasons say why: a shared model code is strong, shared words
-are weak.
+instead of looping over records yourself. The reasons say why: a shared model code is strong,
+shared words are weak. Under My Roof is never imported; use it only to confirm a match.
 **When the person says a candidate is not the thing, record it:** `ev buy decline <line> <ref>
 --why "…"`. The line stays open for other things and is not offered to this one again; do not
 `dismiss` it, which settles it for every thing.

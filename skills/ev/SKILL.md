@@ -317,6 +317,13 @@ thing's resale price.
 
 ## Photos
 
+**A batch can span several messages.** A chat app may cap the photos per message (five in the
+Claude app), and the person's notes belong next to the photos they describe. When a message
+says more is coming ("devamı var"), answer only with a count ("aldım (5/…)") — no frames, no
+table, no questions — and wait. When the person says the batch is done ("bitti"), work the whole
+batch at once: number the photos in the order they arrived across the messages (1–5 the first,
+6–10 the second, …), keep each note with the photos it came with, and answer in one table.
+
 **Show what you read from every photo before you talk about it.** For each photo the person
 sends of a place or a batch of things, frame each group you recognise with a numbered red
 frame, put that photo on their screen, then talk in those numbers in a table. When the photo is

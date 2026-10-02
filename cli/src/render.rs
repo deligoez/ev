@@ -2089,6 +2089,43 @@ fn next(out: &mut String, v: &Value) {
 }
 
 /// `ev show`: a node's fields, marks, tasks, kits, contents and grid.
+/// What accounts for a thing's units: bought, here, gone by how they left, and what is
+/// unaccounted for or more than was bought. Nothing when it has neither purchases nor gone units.
+fn accounted(th: &Value) -> Option<String> {
+    let gone: Vec<String> = th["gone"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(d, n)| format!("{} {n}", disposition(d)))
+        .collect();
+    let bought = th["bought"].as_i64();
+    if bought.is_none() && gone.is_empty() {
+        return None;
+    }
+    let mut parts = Vec::new();
+    if let Some(b) = bought {
+        parts.push(tf("bought {}", &[&b]));
+    }
+    parts.push(tf("here {}", &[&th["total"]]));
+    if !gone.is_empty() {
+        parts.push(tf("gone: {}", &[&gone.join(", ")]));
+    }
+    match th["unaccounted"].as_i64() {
+        Some(u) if u > 0 => parts.push(tf("{} unaccounted for", &[&u])),
+        Some(u) if u < 0 => parts.push(tf("{} more than bought", &[&-u])),
+        _ => {}
+    }
+    Some(tf("accounted: {}", &[&parts.join(" · ")]))
+}
+
+/// For what a thing kept in several places has on another of its portions: which one.
+fn on(v: &Value) -> String {
+    v["on"]
+        .as_i64()
+        .map(|id| tf("  (on #{})", &[&id]))
+        .unwrap_or_default()
+}
+
 fn show(out: &mut String, v: &Value, node: &Value) {
     for w in v["warnings"].as_array().into_iter().flatten() {
         let _ = writeln!(
@@ -2154,6 +2191,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
                     &[&p["id"], &s(p, "path_text"), &p["qty"]]
                 )
             );
+        }
+        if let Some(line) = accounted(th) {
+            let _ = writeln!(out, "    {line}");
         }
     }
     for p in node["photos"].as_array().into_iter().flatten() {
@@ -2228,7 +2268,7 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
     }
     for p in v["purchases"].as_array().into_iter().flatten() {
-        let _ = writeln!(out, "  {}: {}", t("bought"), purchase_line(p));
+        let _ = writeln!(out, "  {}: {}{}", t("bought"), purchase_line(p), on(p));
     }
     // Only on a fresh `ev add`: what to ask while the thing is in hand.
     if let Some(c) = v.get("purchase_candidates") {
@@ -2250,13 +2290,13 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         );
     }
     for l in v["links"].as_array().into_iter().flatten() {
-        let _ = writeln!(out, "  {}: {}", t("link"), link_line(l));
+        let _ = writeln!(out, "  {}: {}{}", t("link"), link_line(l), on(l));
     }
     for d in v["documents"].as_array().into_iter().flatten() {
-        let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
+        let _ = writeln!(out, "  {}: {}{}", t("document"), doc_line(d), on(d));
     }
     for cv in v["coverages"].as_array().into_iter().flatten() {
-        let _ = writeln!(out, "  {}: {}", t("coverage"), coverage_line(cv));
+        let _ = writeln!(out, "  {}: {}{}", t("coverage"), coverage_line(cv), on(cv));
     }
     if let Some(p) = v.get("coverage_proposal").filter(|p| p.is_object()) {
         let _ = writeln!(

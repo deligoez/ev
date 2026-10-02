@@ -854,6 +854,13 @@ static TR: &[(&str, &str)] = &[
     ("elsewhere: #{} {} ×{}", "başka yerde: #{} {} ×{}"),
     (" (in use)", " (kullanımda)"),
     ("in all", "toplam"),
+    ("  (on #{})", "  (#{} üzerinde)"),
+    ("bought {}", "alınan {}"),
+    ("here {}", "burada {}"),
+    ("gone: {}", "giden: {}"),
+    ("{} unaccounted for", "{} hesapta yok"),
+    ("{} more than bought", "alınandan {} fazla"),
+    ("accounted: {}", "hesap: {}"),
     (
         "“{}” in more than one place: one thing? `ev join`",
         "“{}” birden çok yerde: tek eşya mı? `ev join`",

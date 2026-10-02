@@ -265,6 +265,9 @@ in a toured place with its one best line, numbered and best first: ask down that
 instead of looping over records yourself.
 Under My Roof is never imported; use it only to confirm a match. The reasons say why: a shared model code is strong, shared words
 are weak.
+**When the person says a candidate is not the thing, record it:** `ev buy decline <line> <ref>
+--why "…"`. The line stays open for other things and is not offered to this one again; do not
+`dismiss` it, which settles it for every thing.
 **After a link, offer what came with the line in one question.** `ev buy link` shows the line's
 `attachments` (a product page, a value, a warranty from the source): "bring along the invoice,
 1 link, a value of 2,500 TRY (approximate date), a 2-year warranty?" On a yes,

@@ -854,6 +854,10 @@ static TR: &[(&str, &str)] = &[
     (" (in use)", " (kullanımda)"),
     ("in all", "toplam"),
     (
+        "“{}” in more than one place: one thing? `ev join`",
+        "“{}” birden çok yerde: tek eşya mı? `ev join`",
+    ),
+    (
         "×{} in {} places · in use {} · spare {}",
         "×{}, {} yerde · kullanımda {} · yedek {}",
     ),

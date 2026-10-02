@@ -2433,6 +2433,16 @@ fn audit(out: &mut String, v: &Value) {
         for p in x["places"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "    {}", s(p, "path_text"));
         }
+        for name in x["same_name"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "    {}",
+                tf(
+                    "“{}” in more than one place: one thing? `ev join`",
+                    &[&name.as_str().unwrap_or_default()]
+                )
+            );
+        }
     }
     let _ = writeln!(out, "{}", t("Holders without a theme:"));
     for n in v["no_theme"].as_array().into_iter().flatten() {

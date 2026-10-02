@@ -212,7 +212,9 @@ serial (`ev edit X make=Bosch model="GSB 13 RE"`), searched like a code. Invoice
 policies are copied into the store (`ev doc add invoice.pdf --kind invoice --for X`).
 Purchases are a list of their own, never things in the tree: an adapter turns a shop's saved
 export into lines (`tools/purchases/<shop>.py | ev buy import --stdin`; fifteen shops and
-Under My Roof), and a line is linked to a thing only on the person's word (`ev buy link`).
+Under My Roof), and a line is linked to a thing only on the person's word (`ev buy link`);
+`ev buy for --toured` asks it for the things of toured places at once, and `ev buy decline`
+records a "not this one" so the line is not offered to that thing again.
 `ev add` and `ev split` offer the purchases a new record could be, with the reasons; one
 purchase seen by two sources is joined; what came with a line (a link, a value, a warranty)
 comes along with `ev buy bring`. Warranties and insurance have a computed status

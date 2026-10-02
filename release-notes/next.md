@@ -65,3 +65,14 @@ Draft for the next release.
   not from a marketplace abroad (AliExpress, Temu, Banggood, Amazon.com, .co.uk, .de, .fr, .it,
   .es, each with its country: a home in Germany counts Amazon.de as home), and its two years,
   plus any time in repair, must not have passed.
+- **A word that is a root of its own is no longer cut to another root.** `altın` was matched
+  as `alt`, `ünite` as `uni`, `pense` as `pens`, `cıvata` as `cıva`, `sabun` as `sap`, `Varta`
+  as `var`, `güneş` as `gün`, `Türkiye` as `Türk`, so a search for one found the other. An
+  ending is now taken off only where the stem can carry it: `-ta`/`-te` only after a voiceless
+  consonant and `-da`/`-de` never after one, the ending's `ı/i/u/ü` following the stem's last
+  vowel, and English `-es` leaving a three-letter stem only after a sibilant (`boxes`). And a
+  written word stays whole when the inventory itself inflects it as a root: `üniteleri`,
+  `pensesi`, or `altında` with no `altı` written could not be a case ending with another ending
+  after it. No dictionary is involved. Against the hand-judged stems of a real inventory, 1,736
+  of 1,919 words now get the right stem (1,728 before), with no word getting a worse one;
+  `ev find cıvata` no longer lists `civarı` and `cıva`, `ev find sabun` 1 thing instead of 20.

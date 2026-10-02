@@ -144,3 +144,35 @@ fn a_holder_with_things_inside_is_not_split_and_nothing_is_half_done() {
     );
     assert!(inv.split("Toprak nemi seti", &[], None, None).is_err());
 }
+
+#[test]
+fn with_take_the_parts_are_some_of_the_units_and_come_off_the_count() {
+    let (_d, mut inv) = setup();
+    // Of the 3 sets, 1 is another make: the original keeps 2.
+    let v = inv
+        .split_with(
+            "Toprak nemi seti",
+            &[("Toprak nemi seti, beyaz".into(), Some(1))],
+            None,
+            None,
+            true,
+        )
+        .unwrap();
+    assert_eq!(v["node"]["qty"], 2);
+    assert_eq!(v["into"][0]["qty"], 1);
+    // Taking all of them leaves nothing on the original: refused, nothing changed.
+    let e = inv
+        .split_with(
+            "Toprak nemi seti",
+            &[("Başka".into(), Some(2))],
+            None,
+            None,
+            true,
+        )
+        .unwrap_err();
+    assert_eq!(e.code(), 5);
+    assert_eq!(
+        inv.show("Toprak nemi seti", false).unwrap()["node"]["qty"],
+        2
+    );
+}

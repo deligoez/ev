@@ -143,6 +143,27 @@ fn a_pack_spreads_one_bought_line_over_several_things() {
 }
 
 #[test]
+fn a_pack_cannot_shrink_below_what_is_already_linked() {
+    let (_d, mut inv) = setup();
+    let cells = inv
+        .buy_add(
+            &json!({"name": "AA cells, 4-pack", "pack": 4}),
+            Some("Kart"),
+        )
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    // A pack given when the line is added links all its units at once.
+    assert_eq!(
+        inv.buy_show(cells).unwrap()["purchase"]["linked"][0]["qty"],
+        4
+    );
+    assert!(inv.buy_pack(cells, 2).is_err());
+    assert!(inv.buy_pack(cells, 0).is_err());
+    assert_eq!(inv.buy_pack(cells, 6).unwrap()["purchase"]["open_qty"], 2);
+}
+
+#[test]
 fn a_reimport_with_a_new_price_updates_the_line_and_keeps_its_links() {
     let (d, mut inv) = setup();
     inv.buy_import(&export(&d, "1999.00")).unwrap();

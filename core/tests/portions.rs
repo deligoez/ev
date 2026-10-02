@@ -104,3 +104,37 @@ fn a_planned_move_of_some_sets_them_apart_and_done_joins_them_on_arrival() {
     assert_eq!(done["node"]["qty"], 5);
     assert_eq!(done["thing"]["total"], 20);
 }
+
+#[test]
+fn more_than_there_is_a_box_and_a_holder_are_not_split_and_nothing_changes() {
+    let (_d, mut inv) = setup();
+    assert_eq!(
+        inv.move_qty("Eneloop AA", "Oyuncak", false, Some(21))
+            .unwrap_err()
+            .code(),
+        5
+    );
+    assert_eq!(
+        inv.move_qty("Eneloop AA", "Oyuncak", false, Some(0))
+            .unwrap_err()
+            .code(),
+        2
+    );
+    // A box is not a thing kept in several places.
+    inv.edit("D1", &["qty=2".into()]).unwrap();
+    assert_eq!(
+        inv.move_qty("D1", "Ev", false, Some(1)).unwrap_err().code(),
+        5
+    );
+    // A device with cells in it: which of its units would hold them?
+    inv.edit("El feneri", &["qty=2".into()]).unwrap();
+    inv.move_to("Eneloop AA", "El feneri", false).unwrap();
+    assert_eq!(
+        inv.move_qty("El feneri", "Ev", false, Some(1))
+            .unwrap_err()
+            .code(),
+        5
+    );
+    assert_eq!(inv.show("El feneri", false).unwrap()["node"]["qty"], 2);
+    assert!(inv.show("Eneloop AA", false).unwrap()["thing"].is_null());
+}

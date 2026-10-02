@@ -275,11 +275,15 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
         {
             grids.push(p);
         }
-        // An empty place needs no photo, and a room is not photographed as one.
-        if u["children"].as_u64().unwrap_or(0) == 0 || u["kind"] == "room" {
+        // A room is not photographed as one, and an empty place needs no photo of its own;
+        // but a photo of an emptied place still shows what left, so an outdated one is listed.
+        if u["kind"] == "room" {
             continue;
         }
-        if let Some(s) = photo_stale(conn, id)? {
+        let empty = u["children"].as_u64().unwrap_or(0) == 0;
+        if let Some(s) = photo_stale(conn, id)?
+            && !(empty && s.0 == "none")
+        {
             out.push(stale_entry(u.clone(), s));
         }
     }

@@ -73,3 +73,43 @@ fn a_task_due_tomorrow_comes_before_the_order_and_a_bad_date_adds_nothing() {
         2
     );
 }
+
+#[test]
+fn next_bundles_what_waits_in_the_task_place_and_nothing_from_elsewhere() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Belirsiz kablo", "item", Some("K1-U"), None);
+    add(&mut inv, "Kırık şarj aleti", "item", Some("K1-U"), None);
+    add(&mut inv, "Pil", "item", Some("K1-U"), None);
+    add(
+        &mut inv,
+        "Başka kutu",
+        "container",
+        Some("K1-A"),
+        Some("GF-002"),
+    );
+    inv.dispose("Kırık şarj aleti", ev_core::Disposition::Trash)
+        .unwrap();
+    inv.move_to("Pil", "K1-A", true).unwrap();
+    inv.task_add("Üstü say", "dağınık", &["K1-U".into()], None)
+        .unwrap();
+    let next = inv.next().unwrap();
+    let w = &next["task"]["places"][0]["while_there"];
+    let names = |key: &str, field: &str| -> Vec<String> {
+        w[key]
+            .as_array()
+            .unwrap_or_else(|| panic!("no {key} in {w}"))
+            .iter()
+            .map(|e| {
+                let n = if e["node"].is_object() { &e["node"] } else { e };
+                n[field].as_str().unwrap_or_default().to_string()
+            })
+            .collect()
+    };
+    // The drawer's own label is printed while the drawer is open.
+    assert_eq!(names("labels", "code"), ["K1-U"]);
+    assert_eq!(names("unclear", "name"), ["Belirsiz kablo"]);
+    assert_eq!(names("disposals", "name"), ["Kırık şarj aleti"]);
+    assert_eq!(names("leaving", "name"), ["Pil"]);
+    assert_eq!(names("photos", "code"), ["K1-U"]);
+    assert!(!w.to_string().contains("GF-002"), "{w}");
+}

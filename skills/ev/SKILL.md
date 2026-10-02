@@ -116,7 +116,8 @@ places, and how far the whole home is (`progress`). Then:
   covers yet.
 - **Work one task.** `ev task start <id>`, go through its places box by box, bring up
   everything under `arriving`, and add new tasks when you find work elsewhere.
-- **Close only on the person's word.** When they say the place is done: `ev review <place>
+- **Close only on the person's word.** Before you ask, give the place its theme (see **Give
+  every place a theme**). When they say the place is done: `ev review <place>
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
   A toured place that changed later shows in `progress` as `changed_since`; mention it.
 

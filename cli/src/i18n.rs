@@ -845,6 +845,7 @@ static TR: &[(&str, &str)] = &[
     ("Contact sheet: {}", "Kesit sayfası: {}"),
     ("Sent to ev ui.", "ev ui'a gönderildi."),
     ("joined another portion", "başka bir porsiyona katıldı"),
+    ("used up", "kullanılıp bitti"),
     (
         "thing: ×{} in {} places · in use {} · spare {}",
         "eşya: ×{}, {} yerde · kullanımda {} · yedek {}",

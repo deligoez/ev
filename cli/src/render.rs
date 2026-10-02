@@ -24,6 +24,7 @@ fn disposition(d: &str) -> String {
         "mistake" => t("record error"),
         "digitize" => t("photograph, then throw out"),
         "merged" => t("joined another portion"),
+        "used" => t("used up"),
         other => return other.to_string(),
     }
     .to_string()

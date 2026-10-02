@@ -407,6 +407,7 @@ fn disposition_tr(d: &str) -> &'static str {
         "mistake" => t("record error"),
         "digitize" => t("photograph, then throw out"),
         "merged" => t("joined another portion"),
+        "used" => t("used up"),
         _ => "?",
     }
 }

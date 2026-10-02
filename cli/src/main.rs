@@ -154,7 +154,8 @@ enum Cmd {
         correction: Option<String>,
     },
     /// A node leaves the home; --as is required when it is not a candidate yet.
-    /// --as mistake (with --why) closes a record that should never have existed.
+    /// --as used: it was used up (a tape run out, a dead cell). --as mistake (with --why)
+    /// closes a record that should never have existed.
     Gone {
         reference: String,
         #[arg(long = "as")]

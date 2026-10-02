@@ -43,6 +43,38 @@ several times showing its value before the first and after the last. Output: `ed
 JSON when piped, readable text on a terminal. `--json` forces JSON on a terminal; `--text`
 forces the text through a pipe — to read a result, not to parse it.
 
+## MCP (`ev mcp`)
+
+An MCP server over stdio on the same inventory (`--db` or `EV_DB` fixes it for the whole
+server). Each call parses its arguments with the CLI's own parser and runs the CLI's own
+dispatcher, opening and closing the inventory like a CLI call, so other ev processes can use the
+file at the same time. Only MCP messages reach stdout. The text output follows `ev settings
+language`. See `spec/mcp.md` for the reasons.
+
+| Tool | Arguments | Same as | Annotations |
+|---|---|---|---|
+| `ev` | `args: [string]`, `input?: string`, `format?` | `ev <args…>`, `input` as its stdin | destructive |
+| `next`, `todo` | `format?` | `ev next`, `ev todo` | read-only |
+| `find` | `text?`, `tag?`, `kind?`, `include_gone?`, `format?` | `ev find` | read-only |
+| `show` | `ref`, `include_gone?`, `format?` | `ev show` | read-only |
+| `suggest` | `text?` or `for?`, `format?` | `ev suggest` | read-only |
+| `history` | `ref`, `contents?`, `format?` | `ev history` | read-only |
+| `tree` | `ref?`, `depth?`, `format?` | `ev tree` | read-only |
+| `photo` | `ref`, `n?` | a node's n-th photo (the newest by default) as an image | read-only |
+
+- `format`: `text` (default) is the readable output with `#id`s; `json` is the JSON as text
+  and as `structuredContent`. A result over 50,000 characters is cut there, with a note on how
+  to narrow the call.
+- A failed command is a result with `isError: true` and the CLI's error message (in JSON with
+  `format: json`). Refused through `ev`: `ui`, `mcp`, and any `--db`. A command reading
+  `--stdin` with no `input` is refused (the server's own stdin is the protocol).
+- `["<command>", "--help"]` returns the help text as the result.
+- Images: `photo` returns a text line and the photo as JPEG, its long side at most 1,568 px. A
+  result carrying `marked` (`photo cut`, `photo mark`) or `sheet` gets those pictures after its
+  text, the same size.
+- Instructions: at most 2,048 characters (Claude Code keeps no more). Prompt `ev`: the skill as
+  one user message. Resources `ev://skill` and `ev://reference` (`text/markdown`): the skill and
+  this reference, compiled into the binary.
 ## Payload shapes
 
 Every node reference (`NodeRef`) is:

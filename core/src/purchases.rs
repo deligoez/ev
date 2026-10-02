@@ -153,6 +153,21 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
         [id]
     )?);
     p["attachments"] = json!(crate::attachments::attachments_of(conn, id)?);
+    // The things the person said it is not.
+    let mut stmt = conn.prepare(
+        "SELECT node_id, why FROM purchase_declines WHERE purchase_id = ?1 ORDER BY node_id",
+    )?;
+    let declined = stmt
+        .query_map([id], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    p["declined"] = json!(
+        declined
+            .into_iter()
+            .map(|(n, why)| Ok(json!({ "node": brief(conn, n)?, "why": why })))
+            .collect::<Result<Vec<_>>>()?
+    );
     p["documents"] = json!(
         ids(
             conn,
@@ -669,6 +684,47 @@ impl Inventory {
             "UPDATE purchases SET dismissed = ?1, why = ?2 WHERE id = ?3",
             params![reason, why.map(str::trim).filter(|w| !w.is_empty()), id],
         )?;
+        self.buy_show(id)
+    }
+
+    /// The person's "not this one": line `id` is not the thing `reference`. The line stays
+    /// open for other things and is no longer offered to this one; `clear` takes it back.
+    pub fn buy_decline(
+        &mut self,
+        id: i64,
+        reference: &str,
+        why: Option<&str>,
+        clear: bool,
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        purchase_json(&tx, id)?;
+        let node = resolve(&tx, reference, false)?;
+        if clear {
+            tx.execute(
+                "DELETE FROM purchase_declines WHERE purchase_id = ?1 AND node_id = ?2",
+                params![id, node],
+            )?;
+            event(
+                &tx,
+                node,
+                "purchase_decline_cleared",
+                json!({ "purchase": id }),
+            )?;
+        } else {
+            let why = why.map(str::trim).filter(|w| !w.is_empty());
+            tx.execute(
+                "INSERT INTO purchase_declines (purchase_id, node_id, why, at) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (purchase_id, node_id) DO UPDATE SET why = excluded.why, at = excluded.at",
+                params![id, node, why, now()],
+            )?;
+            event(
+                &tx,
+                node,
+                "purchase_declined",
+                json!({ "purchase": id, "why": why }),
+            )?;
+        }
+        tx.commit()?;
         self.buy_show(id)
     }
 }

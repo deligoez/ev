@@ -498,6 +498,8 @@ impl Inventory {
 struct Matcher {
     lines: Vec<Line>,
     corpus: Corpus,
+    /// `(line, thing)` pairs the person said are not the same purchase.
+    declined: HashSet<(i64, i64)>,
 }
 
 impl Matcher {
@@ -536,7 +538,15 @@ impl Matcher {
             .filter(|p| open(p) || p["linked"].as_array().is_some_and(|l| !l.is_empty()))
             .map(|p| Line::new(conn, p))
             .collect::<Result<Vec<_>>>()?;
-        Ok(Matcher { lines, corpus })
+        let mut stmt = conn.prepare("SELECT purchase_id, node_id FROM purchase_declines")?;
+        let declined = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<HashSet<_>>>()?;
+        Ok(Matcher {
+            lines,
+            corpus,
+            declined,
+        })
     }
 
     /// The lines scoring above `at` for `n`, at most `limit`, best first, and any linked to it.
@@ -548,7 +558,10 @@ impl Matcher {
             let linked_here = p["linked"]
                 .as_array()
                 .is_some_and(|l| l.iter().any(|x| x["node"]["id"] == n.id));
-            if !(open(p) || linked_here) {
+            let declined = p["id"]
+                .as_i64()
+                .is_some_and(|id| self.declined.contains(&(id, n.id)));
+            if !(open(p) || linked_here) || declined && !linked_here {
                 continue;
             }
             let (s, why) = score(&self.corpus, &thing, line);

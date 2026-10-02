@@ -1,6 +1,6 @@
 [package]
 name = "ev-cli"
-version = "0.18.0"
+version = "0.19.0"
 edition = "2024"
 description = "Agent-first home inventory"
 license = "MIT"

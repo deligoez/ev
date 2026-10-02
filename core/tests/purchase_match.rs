@@ -360,3 +360,28 @@ fn a_make_and_model_learned_later_offers_the_purchases_as_add_does() {
     let v = inv.edit("Pense", &["note=masada".into()]).unwrap();
     assert!(v.get("purchase_candidates").is_none(), "{v}");
 }
+
+#[test]
+fn a_lost_thing_found_again_offers_the_purchases_it_could_be() {
+    let (_d, mut inv) = setup();
+    for name in ["Pense", "Yan keski"] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Oda".into()),
+            make: Some("Pro'sKit".into()),
+            model: Some("1PK-052DS".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        inv.mark_lost(name).unwrap();
+    }
+    // Where it was last seen, and somewhere else.
+    for v in [
+        inv.found("Pense").unwrap(),
+        inv.found_in("Yan keski", "Ev").unwrap(),
+    ] {
+        let offered = v["purchase_candidates"].as_array().expect("offered");
+        assert_eq!(offered[0]["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
+    }
+}

@@ -39,7 +39,7 @@ whose place is unknown is `lost`.
 3. **Nothing is finished until the person says so.** A photo of "the current state" is not
    "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
    reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.
-4. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell`. Actually gone:
+4. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell|digitize`. Actually gone:
    `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot). Record
    what the person said about it with `--why "<text>"` ("probably thrown out" is a reason,
    not certainty). A gone node is still reachable by id: `ev show <id> --include-gone`,
@@ -47,6 +47,20 @@ whose place is unknown is `lost`.
    `ev disposals` lists what is waiting in each pile. A record that was never real (misread
    from a photo, entered twice) is closed with `ev gone <x> --as mistake --why "<what>"`, not
    as trash.
+   **Paper worth keeping only as a picture** (a ticket, a letter, an old statement, a manual)
+   is `ev dispose <x> --as digitize`: it waits in its pile while the person sorts, and is
+   photographed later in one sitting. Its copy goes on its own record before it leaves (`ev
+   gone` refuses without one): a photo or a crop when the paper is the thing; when the paper is
+   about another thing (an invoice, a warranty card, a manual), a document of that kind linked
+   to both (`ev doc add <file> --kind warranty --for <paper> --for <thing>`). **Read every copy
+   before the paper goes:** write what it says into the record (date, event, place, issuer) —
+   that text is what `ev find` finds later — and if you cannot read it, ask for a closer photo
+   instead of letting the paper go; a `warnings` line on `gone` means the copy is small. A
+   memento is tagged `hatıra` whether it is kept or digitized. One record per paper worth
+   finding on its own; a stack of alike ones (boarding passes) can be one record with a photo
+   of each and each listed in its note. Never digitize what may be needed as the original
+   (deeds, diplomas, contracts, anything signed or stamped) or what the person keeps for the
+   paper itself; ask. Anything with a name, a number or a barcode on it is `--shred`.
 5. **What the person tells you about a thing goes into its `note`** — what it is for, where it
    came from, why they keep it ("a wrench that came with the kitchen tap, kept because it is
    often needed"). That knowledge is what makes a later decision possible; record it the moment

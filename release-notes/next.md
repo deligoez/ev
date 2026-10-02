@@ -19,6 +19,20 @@ Draft for the next release.
   is by units. Before, a line of one pack was used up by its first link and the second record
   got the purchase only as prose in its note. Schema 27 adds the column; every existing line
   keeps a pack of 1.
+- **Photographed, then thrown out** (`ev dispose <x> --as digitize`). A ticket, a letter or an
+  old statement is often worth keeping only as a picture. It now has its own disposition. It
+  waits in its pile while a drawer is sorted, gets its copy later in one sitting (a photo or a
+  crop when the paper is the thing; a document linked to the paper and to the thing it is about,
+  when it is an invoice or a warranty card), and only then leaves: `ev gone` refuses a digitized
+  record that has no photo and no document, and also checks one that sits in a box leaving with
+  it. When every copy is an image under 800 px on its short side, it still leaves but warns
+  (`warnings`), since a crop from a whole-table photo may not read. A digitized record stays in
+  `ev find` without `--include-gone`, marked `(gone, copy kept)`, because finding it later is the
+  point of the copy. Documents get the `scan` kind for a copy that is none of the others.
+- **Shredded rather than thrown out whole** (`--shred` on `ev dispose` and `ev gone`, for trash
+  and digitize). An old ID card, a boarding pass or a statement carries a name, a number or a
+  barcode. The mark shows in `ev disposals` and `ev todo` as `(shred)`, and `ev restore` takes it
+  back. Neither feature changes the schema: the disposition is a value, the shred a mark.
 
 ## Fixed
 

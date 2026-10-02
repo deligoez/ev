@@ -942,9 +942,11 @@ impl Inventory {
         tx.execute("UPDATE nodes SET lost = 0 WHERE id = ?1", [node.id])?;
         touch(&tx, node.id)?;
         event(&tx, node.id, "found", json!({ "at": node.parent_id }))?;
+        // Found where the rest of the same thing is: the units join them.
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
         // Back in hand: the moment to ask which purchase it was, as for a new record.
-        offer_purchases(&self.conn, node.id, show(&self.conn, node.id)?)
+        offer_purchases(&self.conn, holder, show(&self.conn, holder)?)
     }
 
     /// A lost node turned up somewhere else than where it was last seen: it moves there, which

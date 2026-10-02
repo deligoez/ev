@@ -288,3 +288,45 @@ fn some_units_leave_are_lent_or_go_missing_while_the_rest_stay() {
     assert_eq!(shown["thing"]["places"], 1, "{shown}");
     assert_eq!(shown["thing"]["gone"], serde_json::json!({ "trash": 2 }));
 }
+
+#[test]
+fn a_purchase_linked_on_one_portion_is_the_things_and_accounts_for_its_units() {
+    let (_d, mut inv) = setup();
+    inv.buy_add(
+        &serde_json::json!({
+            "name": "Eneloop AA 20'li", "shop": "Dükkan", "ordered_at": "2026-01-05",
+            "paid": "1999", "currency": "TRY", "qty": 1, "pack": 20,
+        }),
+        Some("Eneloop AA"),
+    )
+    .unwrap();
+    let lamp = inv
+        .move_qty("Eneloop AA", "El feneri", false, Some(2))
+        .unwrap();
+    // Linked on the drawer's record, it is the flashlight's too, marked as on the drawer's.
+    assert_eq!(lamp["purchases"][0]["on"], 6);
+    assert_eq!(lamp["thing"]["bought"], 20);
+    assert_eq!(lamp["thing"]["unaccounted"], 0);
+    // 1 of the flashlight's is used up: gone, so still accounted for.
+    inv.gone_qty(
+        &id(&lamp),
+        Some(ev_core::Disposition::Used),
+        None,
+        false,
+        Some(1),
+    )
+    .unwrap();
+    let drawer = inv.show("#6", false).unwrap();
+    assert_eq!(drawer["thing"]["gone"], serde_json::json!({ "used": 1 }));
+    assert_eq!(drawer["thing"]["unaccounted"], 0);
+    // 4 more found than were bought: more here than the purchases say.
+    let more = inv
+        .add(NewNode {
+            of: Some("#6".into()),
+            parent: Some("Oyuncak".into()),
+            qty: Some(4),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(more["thing"]["unaccounted"], -4);
+}

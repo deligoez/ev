@@ -118,6 +118,31 @@ fn a_link_takes_part_of_a_line_and_the_thing_reaches_the_invoice_through_it() {
 }
 
 #[test]
+fn a_pack_spreads_one_bought_line_over_several_things() {
+    let (_d, mut inv) = setup();
+    let cells = inv
+        .buy_add(
+            &json!({"name": "AA cells, 8-pack", "qty": 1, "paid": "160.00", "currency": "TRY"}),
+            None,
+        )
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    // A line of one pack links once, all of it.
+    assert_eq!(inv.buy_show(cells).unwrap()["purchase"]["open_qty"], 1);
+    let p = &inv.buy_pack(cells, 8).unwrap()["purchase"];
+    assert_eq!(p["units"], 8);
+    assert_eq!(p["open_qty"], 8);
+    inv.buy_link(cells, "Matkap", Some(3)).unwrap();
+    let p = &inv.buy_link(cells, "Kart", Some(5)).unwrap()["purchase"];
+    assert_eq!(p["open_qty"], 0);
+    assert_eq!(p["linked"].as_array().unwrap().len(), 2);
+    // Each thing sees only its own units of the line.
+    let show = inv.show("Kart", false).unwrap();
+    assert_eq!(show["purchases"][0]["linked_qty"], 5);
+}
+
+#[test]
 fn a_reimport_with_a_new_price_updates_the_line_and_keeps_its_links() {
     let (d, mut inv) = setup();
     inv.buy_import(&export(&d, "1999.00")).unwrap();

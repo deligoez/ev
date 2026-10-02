@@ -119,6 +119,14 @@ enum Cmd {
         #[arg(long)]
         qty: Option<i64>,
     },
+    /// Records made separately are one thing kept in several places: what it is comes from the
+    /// first (a make or model that differs is refused), and records in the same place join.
+    Join {
+        #[arg(required = true, num_args = 2..)]
+        references: Vec<String>,
+    },
+    /// A portion of a thing kept in several places is a thing of its own after all.
+    Unjoin { reference: String },
     /// List pending moves.
     Pending,
     /// Apply a node's pending move.
@@ -1445,6 +1453,8 @@ fn run(cli: Cli) -> Result<Value> {
             plan,
             qty,
         } => inv.move_qty(&reference, &to, plan, qty),
+        Cmd::Join { references } => inv.join(&references),
+        Cmd::Unjoin { reference } => inv.unjoin(&reference),
         Cmd::Pending => inv.pending(),
         Cmd::Done { reference } => inv.done(&reference),
         Cmd::Cancel { reference } => inv.cancel(&reference),

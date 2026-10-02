@@ -844,6 +844,19 @@ static TR: &[(&str, &str)] = &[
     ("Numbered photo: {}", "Numaralı fotoğraf: {}"),
     ("Contact sheet: {}", "Kesit sayfası: {}"),
     ("Sent to ev ui.", "ev ui'a gönderildi."),
+    (
+        "Sent to ev ui: #{}, photo {}",
+        "ev ui'a gönderildi: #{}, {}. fotoğraf",
+    ),
+    ("Sent to ev ui: #{}", "ev ui'a gönderildi: #{}"),
+    (
+        "Sent to ev ui: {} picture(s)",
+        "ev ui'a gönderildi: {} resim",
+    ),
+    (
+        "The request to ev ui is cleared.",
+        "ev ui'a gönderilen istek silindi.",
+    ),
     ("  (no photos)", "  (fotoğraf yok)"),
     ("  crop {}", "  kesit {}"),
     ("  (file missing)", "  (dosya yok)"),

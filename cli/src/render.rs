@@ -1764,6 +1764,27 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
+    // `ev photo mark`: each label and where it is, then the numbered copy.
+    if v.get("marks").is_some() && v.get("marked").is_some() {
+        for m in v["marks"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "{:<2} {}", s(m, "label"), s(m, "at"));
+        }
+        legend(&mut out, v);
+        return out;
+    }
+    // `ev focus`: what a running `ev ui` was asked to show.
+    if let Some(f) = v.get("focus")
+        && v.as_object().is_some_and(|o| o.len() == 1)
+    {
+        let said = match (f["id"].as_i64(), f["photo"].as_i64(), f["files"].as_array()) {
+            (Some(id), Some(p), _) => tf("Sent to ev ui: #{}, photo {}", &[&id, &p]),
+            (Some(id), None, _) => tf("Sent to ev ui: #{}", &[&id]),
+            (None, _, Some(files)) => tf("Sent to ev ui: {} picture(s)", &[&files.len()]),
+            _ => t("The request to ev ui is cleared.").to_string(),
+        };
+        let _ = writeln!(out, "{said}");
+        return out;
+    }
     if let Some(list) = v.get("recoded").and_then(Value::as_array) {
         for r in list {
             let code = |k: &str| r[k].as_str().unwrap_or("—").to_string();

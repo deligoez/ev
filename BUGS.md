@@ -19,8 +19,3 @@ that fixes them.
   place: a copy of the inventory used for QA showed and marked the real store's photos.
   Expected: files inside the store are kept relative to the database's directory and resolved
   on read; paths outside it (not yet adopted) stay absolute. Needs a schema migration.
-- **A task's id and a node's id are both written `#N`.** `ev show` prints `task 14. #16 Samla
-  kutularını …`; an agent (Claude Code through `ev mcp`, in QA) read `#16` as a node and ran
-  `ev show #16`, which opened a book, before trying `ev task show 16`. Expected: a task's id
-  reads as a task's wherever a node's could be meant (a prefix such as `task #16`, or `ev show`
-  saying a task has that number when the node lookup is not what was meant). Propose first.

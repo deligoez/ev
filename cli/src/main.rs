@@ -1132,14 +1132,14 @@ fn main() -> ExitCode {
     match run(cli) {
         Ok(Value::Null) => ExitCode::SUCCESS,
         Ok(value) => {
-            if json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&value).unwrap_or_default()
-                );
+            let out = if json {
+                serde_json::to_string_pretty(&value).unwrap_or_default() + "\n"
             } else {
-                print!("{}", render::human(&value));
-            }
+                render::human(&value)
+            };
+            // A reader that stops early (`ev buy list | head`) closes the pipe; that is not an
+            // error of the command, and print! would panic on it.
+            let _ = std::io::Write::write_all(&mut std::io::stdout().lock(), out.as_bytes());
             ExitCode::SUCCESS
         }
         Err(e) => {

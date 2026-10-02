@@ -51,7 +51,9 @@ ev history 07-A --contents       # and to a place: what came in, went out, was a
 each pile; `ev gone X` (or `ev gone X --as trash --why "…"` in one step) records that it left. A
 mistaken gone comes back with `ev restore X --correction "…"`. A record that should never have
 existed (misread from a photo, entered twice) closes with `ev gone X --as mistake --why "…"`,
-keeping its history without counting as thrown away.
+keeping its history without counting as thrown away. A paper kept only as a picture (a ticket,
+a letter) leaves `--as digitize`: only once its photo or scan is on the record, and it stays in
+`ev find`. `--shred` marks what goes in the bin shredded (an old ID card, a boarding pass).
 
 **Lost and found.** A lost thing's place is unknown: `ev lost X` lists it under "Unknown
 place" with where it was last seen; `ev lost` lists them; `ev found X` puts it back there, `ev

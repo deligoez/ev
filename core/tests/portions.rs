@@ -138,3 +138,38 @@ fn more_than_there_is_a_box_and_a_holder_are_not_split_and_nothing_changes() {
     assert_eq!(inv.show("El feneri", false).unwrap()["node"]["qty"], 2);
     assert!(inv.show("Eneloop AA", false).unwrap()["thing"].is_null());
 }
+
+#[test]
+fn more_of_a_thing_takes_what_it_is_and_joins_a_portion_already_there() {
+    let (_d, mut inv) = setup();
+    inv.edit("Eneloop AA", &["make=Panasonic".into(), "tags=+pil".into()])
+        .unwrap();
+    // 4 more turn up in the toy: a new portion, the thing's identity.
+    let toy = inv
+        .add(NewNode {
+            of: Some("Eneloop AA".into()),
+            parent: Some("Oyuncak".into()),
+            qty: Some(4),
+            note: Some("oyuncağın içinden çıktı".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(toy["node"]["name"], "Eneloop AA");
+    assert_eq!(toy["node"]["make"], "Panasonic");
+    assert_eq!(toy["node"]["tags"], serde_json::json!(["pil"]));
+    assert_eq!(toy["node"]["note"], "oyuncağın içinden çıktı");
+    assert_eq!(toy["thing"]["total"], 24);
+    // 2 more in the drawer join the 20 there.
+    let drawer = inv
+        .add(NewNode {
+            of: Some(id(&toy)),
+            parent: Some("D1".into()),
+            qty: Some(2),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(id(&drawer), "6");
+    assert_eq!(drawer["node"]["qty"], 22);
+    assert_eq!(drawer["thing"]["total"], 26);
+    assert_eq!(drawer["thing"]["places"], 2);
+}

@@ -221,3 +221,40 @@ async fn a_photo_and_a_numbered_photo_come_back_as_images_the_agent_can_show() {
     assert_eq!(image_size(&r, 1).0, 1568);
     client.cancel().await.unwrap();
 }
+
+#[tokio::test]
+async fn the_skill_is_a_prompt_and_a_resource_and_the_reference_a_resource() {
+    let (_d, client) = start().await;
+    let skill = include_str!("../../skills/ev/SKILL.md");
+    let reference = include_str!("../../REFERENCE.md");
+    let prompts = client.list_all_prompts().await.unwrap();
+    assert_eq!(
+        prompts.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
+        ["ev"]
+    );
+    let got = client
+        .get_prompt(rmcp::model::GetPromptRequestParams::new("ev"))
+        .await
+        .unwrap();
+    let rmcp::model::ContentBlock::Text(t) = &got.messages[0].content else {
+        panic!("a text message")
+    };
+    assert_eq!(t.text, skill);
+    let resources = client.list_all_resources().await.unwrap();
+    assert_eq!(
+        resources.iter().map(|r| r.uri.as_str()).collect::<Vec<_>>(),
+        ["ev://skill", "ev://reference"]
+    );
+    for (uri, want) in [("ev://skill", skill), ("ev://reference", reference)] {
+        let read = client
+            .read_resource(rmcp::model::ReadResourceRequestParams::new(uri))
+            .await
+            .unwrap();
+        let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &read.contents[0]
+        else {
+            panic!("text contents")
+        };
+        assert_eq!(text, want, "{uri}");
+    }
+    client.cancel().await.unwrap();
+}

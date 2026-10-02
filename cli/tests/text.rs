@@ -122,7 +122,12 @@ fn todo_lists_each_kind_of_waiting_work_under_its_count() {
     // Codes set at add time wait for their labels.
     assert!(s.contains("\nLabels to print (3)\n"), "{s}");
     assert!(s.contains("\nNot counted yet (2)\n"), "{s}");
-    assert!(s.contains("\n  Ev › Oda › D  (no photo)\n"), "{s}");
+    // Places not counted yet get their photo on their tour, so they are only counted here.
+    assert!(
+        s.contains("\n3 more places get their photo on their tour\n"),
+        "{s}"
+    );
+    assert!(!s.contains("Photo of the current state needed"), "{s}");
 }
 
 #[test]

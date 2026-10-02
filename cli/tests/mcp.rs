@@ -171,3 +171,53 @@ async fn each_read_tool_answers_as_the_command_it_stands_for() {
     }
     client.cancel().await.unwrap();
 }
+
+/// The width and height of a result's image block, decoded.
+fn image_size(r: &CallToolResult, at: usize) -> (u32, u32) {
+    let img = r.content[at].as_image().expect("an image block");
+    assert_eq!(img.mime_type, "image/jpeg");
+    let bytes =
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &img.data).unwrap();
+    let decoded = image::load_from_memory(&bytes).unwrap();
+    (decoded.width(), decoded.height())
+}
+
+#[tokio::test]
+async fn a_photo_and_a_numbered_photo_come_back_as_images_the_agent_can_show() {
+    let (dir, client) = start().await;
+    let file = dir.path().join("drawer.png");
+    image::RgbImage::from_pixel(2000, 1000, image::Rgb([120, 120, 120]))
+        .save(&file)
+        .unwrap();
+    let file = file.to_string_lossy().to_string();
+    let seed = "{\"name\":\"Ev\",\"kind\":\"home\"}\n{\"name\":\"Çekmece\",\"kind\":\"container\",\"in\":\"Ev\",\"code\":\"D\"}\n";
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["add", "--stdin"], "input": seed }),
+    )
+    .await;
+    call(
+        &client,
+        "ev",
+        json!({ "args": ["photo", "add", "D", file] }),
+    )
+    .await;
+    // A node's photo, cut down to 1,568 pixels on its long side.
+    let r = call(&client, "photo", json!({ "ref": "D" })).await;
+    assert_ne!(r.is_error, Some(true), "{}", text(&r));
+    assert!(text(&r).contains("photo 1 of 1"), "{}", text(&r));
+    assert_eq!(image_size(&r, 1), (1568, 784));
+    let r = call(&client, "photo", json!({ "ref": "D", "n": 2 })).await;
+    assert_eq!(r.is_error, Some(true));
+    // A numbered photo made by a command comes back after its text.
+    let r = call(
+        &client,
+        "ev",
+        json!({ "args": ["photo", "mark", file, "1=0.1,0.1,0.4,0.4"] }),
+    )
+    .await;
+    assert_ne!(r.is_error, Some(true), "{}", text(&r));
+    assert_eq!(image_size(&r, 1).0, 1568);
+    client.cancel().await.unwrap();
+}

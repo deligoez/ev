@@ -48,6 +48,17 @@ A record that is not a node (a purchase line, a task, a document, an observation
 named by its id, as ev prints it or bare: `ev task done '#21'` and `ev task done 21` are the
 same. In a shell, quote it: an unquoted `#` starts a comment.
 
+## Storage
+
+One SQLite file, `ev.db`, with `photos/` and `docs/` beside it. It runs in write-ahead-log mode:
+readers (`ev ui`, an agent's reads) and the writer do not wait for each other, and writers queue
+for up to 30 seconds instead of failing. While a process has the file open, `ev.db-wal` and
+`ev.db-shm` sit beside it; keep them out of version control and never delete them by hand. After
+every command that writes, ev folds the log back into `ev.db`, so the file alone holds every
+change: it is what a data repository commits. Back it up with
+`sqlite3 ev.db ".backup '<target>'"`, which copies a consistent whole even while another
+command is writing.
+
 ## MCP (`ev mcp`)
 
 An MCP server over stdio on the same inventory (`--db` or `EV_DB` fixes it for the whole

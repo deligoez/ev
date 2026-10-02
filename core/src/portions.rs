@@ -293,6 +293,74 @@ pub(crate) fn unjoin(conn: &Connection, n: &Node) -> Result<()> {
     Ok(())
 }
 
+/// Every record of the thing `n` is a portion of, gone ones too, `n` first: what was linked to
+/// any of them (a purchase, an invoice, a warranty) is the thing's. Just `n` when it is not
+/// kept in several places.
+pub(crate) fn members(conn: &Connection, n: &Node) -> Result<Vec<i64>> {
+    let Some(thing) = n.thing else {
+        return Ok(vec![n.id]);
+    };
+    let mut all = vec![n.id];
+    all.extend(ids(
+        conn,
+        "SELECT id FROM nodes WHERE thing = ?1 AND id != ?2 ORDER BY id",
+        params![thing, n.id],
+    )?);
+    Ok(all)
+}
+
+/// `read` over every record of `n`'s thing (spec §3), each entry once by its `id`; one linked
+/// on another portion is marked `on` with that portion.
+pub(crate) fn across(
+    conn: &Connection,
+    n: &Node,
+    read: impl Fn(i64) -> Result<Vec<Value>>,
+) -> Result<Vec<Value>> {
+    let mut out: Vec<Value> = Vec::new();
+    for m in members(conn, n)? {
+        for mut v in read(m)? {
+            if out.iter().any(|o| o["id"] == v["id"] && !v["id"].is_null()) {
+                continue;
+            }
+            if m != n.id {
+                v["on"] = json!(m);
+            }
+            out.push(v);
+        }
+    }
+    Ok(out)
+}
+
+/// Units the thing's purchases account for: the units linked on any of its records.
+pub(crate) fn bought(conn: &Connection, n: &Node) -> Result<Option<i64>> {
+    let mut total = 0;
+    let mut any = false;
+    for m in members(conn, n)? {
+        let linked: Option<i64> = conn.query_row(
+            "SELECT SUM(qty) FROM purchase_links WHERE node_id = ?1",
+            [m],
+            |r| r.get(0),
+        )?;
+        if let Some(q) = linked {
+            total += q;
+            any = true;
+        }
+    }
+    Ok(any.then_some(total))
+}
+
+/// The units of `n`'s thing that are here: its live portions, lost ones left out.
+pub(crate) fn here(conn: &Connection, n: &Node) -> Result<i64> {
+    let Some(thing) = n.thing else {
+        return Ok(units(n));
+    };
+    Ok(live(conn, thing)?
+        .iter()
+        .filter(|p| !p.lost)
+        .map(units)
+        .sum())
+}
+
 /// The live portions of `thing`, oldest first.
 fn live(conn: &Connection, thing: i64) -> Result<Vec<Node>> {
     ids(
@@ -352,14 +420,28 @@ pub(crate) fn share_identity(conn: &Connection, id: i64, assignments: &[String])
 }
 
 /// The thing a record is a portion of, for `ev show` (spec §5): its units in all, in how many
-/// places, how many in use (inside an item: a device, a toy) and how many spare, and each other
-/// portion with its count. `None` for a record kept in one place.
+/// places, how many in use (inside an item: a device, a toy) and how many spare, each other
+/// portion with its count, and what accounts for the units: bought (its purchases), here and
+/// gone by how they left (portions that joined another are not gone). `None` for a record
+/// kept in one place, and for a last portion with nothing gone beside it.
 pub(crate) fn thing_json(conn: &Connection, n: &Node) -> Result<Option<Value>> {
     let Some(thing) = n.thing else {
         return Ok(None);
     };
     let portions = live(conn, thing)?;
-    if portions.iter().all(|p| p.id == n.id) {
+    let mut gone = serde_json::Map::new();
+    for m in members(conn, n)? {
+        let p = load(conn, m)?;
+        let Some(d) = p.disposition.filter(|_| p.state == State::Gone) else {
+            continue;
+        };
+        if d == crate::model::Disposition::Merged {
+            continue;
+        }
+        let was = gone.get(d.as_str()).and_then(Value::as_i64).unwrap_or(0);
+        gone.insert(d.as_str().to_string(), json!(was + units(&p)));
+    }
+    if portions.iter().all(|p| p.id == n.id) && gone.is_empty() {
         return Ok(None);
     }
     let (mut total, mut in_use, mut lost) = (0, 0, 0);
@@ -385,6 +467,10 @@ pub(crate) fn thing_json(conn: &Connection, n: &Node) -> Result<Option<Value>> {
             elsewhere.push(b);
         }
     }
+    let left: i64 = gone.values().filter_map(Value::as_i64).sum();
+    let bought = bought(conn, n)?;
+    // Bought units not here, not gone and not lost: a fact the person may want to look into.
+    let unaccounted = bought.map(|b| b - total - lost - left);
     Ok(Some(json!({
         "id": thing,
         "total": total,
@@ -393,5 +479,8 @@ pub(crate) fn thing_json(conn: &Connection, n: &Node) -> Result<Option<Value>> {
         "spare": total - in_use,
         "lost": lost,
         "elsewhere": elsewhere,
+        "bought": bought,
+        "gone": gone,
+        "unaccounted": unaccounted,
     })))
 }

@@ -1257,7 +1257,11 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         .is_some()
         .then(|| crate::placement::room(conn, &n))
         .transpose()?;
-    let (coverages, proposal) = crate::coverage::coverages_of(conn, id)?;
+    // What proves, covers and values it is the thing's: read across its portions (spec/
+    // portions.md §3), each marked with the one it was linked on.
+    let (_, proposal) = crate::coverage::coverages_of(conn, id)?;
+    let coverages =
+        crate::portions::across(conn, &n, |m| Ok(crate::coverage::coverages_of(conn, m)?.0))?;
     Ok(json!({
         "cells": cells,
         "grid": grid,
@@ -1274,10 +1278,10 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "review": review,
         "observations": observations,
         "kits": crate::kits::kits_of(conn, id)?,
-        "documents": crate::docs::docs_of(conn, id)?,
-        "purchases": crate::purchases::purchases_of(conn, id)?,
-        "valuations": crate::valuations::valuations_of(conn, id)?,
-        "links": crate::links::links_of(conn, id)?,
+        "documents": crate::portions::across(conn, &n, |m| crate::docs::docs_of(conn, m))?,
+        "purchases": crate::portions::across(conn, &n, |m| crate::purchases::purchases_of(conn, m))?,
+        "valuations": crate::portions::across(conn, &n, |m| crate::valuations::valuations_of(conn, m))?,
+        "links": crate::portions::across(conn, &n, |m| crate::links::links_of(conn, m))?,
         "coverages": coverages,
         "coverage_proposal": proposal,
         "tracking": {

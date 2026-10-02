@@ -41,7 +41,12 @@ several times showing its value before the first and after the last. Output: `ed
 ## Output
 
 JSON when piped, readable text on a terminal. `--json` forces JSON on a terminal; `--text`
-forces the text through a pipe — to read a result, not to parse it.
+forces the text through a pipe — to read a result, not to parse it. A reader that stops early
+(`| head`) is no error.
+
+A record that is not a node (a purchase line, a task, a document, an observation, a value) is
+named by its id, as ev prints it or bare: `ev task done '#21'` and `ev task done 21` are the
+same. In a shell, quote it: an unquoted `#` starts a comment.
 
 ## MCP (`ev mcp`)
 

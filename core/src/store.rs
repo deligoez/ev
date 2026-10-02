@@ -392,6 +392,19 @@ impl Inventory {
         rename: Option<&str>,
         qty: Option<i64>,
     ) -> Result<Value> {
+        self.split_with(reference, parts, rename, qty, false)
+    }
+
+    /// `split`; with `take`, the parts are some of the original's units (two of four cells are
+    /// another make) and their counts come off its count, instead of what each unit is made of.
+    pub fn split_with(
+        &mut self,
+        reference: &str,
+        parts: &[(String, Option<i64>)],
+        rename: Option<&str>,
+        qty: Option<i64>,
+        take: bool,
+    ) -> Result<Value> {
         if parts.is_empty() {
             return Err(Error::Usage(
                 "give at least one <name>=<qty> to split off".into(),
@@ -436,6 +449,36 @@ impl Inventory {
             )?;
             into.push(id);
         }
+        // Parts are what each unit is made of (three sets → three cards, three cables) unless
+        // `take`: then they are some of the units, and come off the original's count.
+        let qty = if take {
+            let taken: Option<i64> = parts.iter().map(|(_, q)| *q).sum();
+            match (qty, n.qty, taken) {
+                (Some(_), _, _) => {
+                    return Err(Error::Usage(
+                        "--take sets the original's count itself; leave --qty out".into(),
+                    ));
+                }
+                (None, Some(had), Some(t)) if t < had => Some(had - t),
+                (None, Some(had), Some(t)) => {
+                    return Err(refused(
+                        format!(
+                            "the parts take {t} of the {had} of {}; nothing would be left on it: \
+                             keep one part as the original with --rename and --qty instead",
+                            label(&n)
+                        ),
+                        json!({ "node": brief_json(&tx, n.id)? }),
+                    ));
+                }
+                _ => {
+                    return Err(Error::Usage(
+                        "--take needs a count on the original and on every part".into(),
+                    ));
+                }
+            }
+        } else {
+            qty
+        };
         let mut changes = serde_json::Map::new();
         let edits = [
             rename.map(|r| ("name", r.to_string())),

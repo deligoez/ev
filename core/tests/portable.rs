@@ -61,3 +61,42 @@ fn a_moved_data_directory_shows_its_own_photos_and_documents() {
     assert!(file.starts_with(second.to_str().unwrap()), "{file}");
     assert!(Path::new(file).exists());
 }
+
+#[test]
+fn schema_29_keeps_the_store_paths_of_an_older_inventory_relative() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("ev.db");
+    Inventory::open(&db)
+        .unwrap()
+        .add(NewNode {
+            name: "Ev".into(),
+            kind: "home".into(),
+            ..Default::default()
+        })
+        .unwrap();
+    // As schema 28 left it: absolute paths, one in the store and one outside it.
+    let inside = dir.path().join("photos").join("a.jpg");
+    {
+        let c = rusqlite::Connection::open(&db).unwrap();
+        c.execute(
+            "INSERT INTO photos (node_id, position, path) VALUES (1, 0, ?1), (1, 1, '/elsewhere/b.jpg')",
+            [inside.to_str().unwrap()],
+        )
+        .unwrap();
+        c.execute_batch("PRAGMA user_version = 28;").unwrap();
+    }
+    drop(Inventory::open(&db).unwrap());
+    let c = rusqlite::Connection::open(&db).unwrap();
+    let kept: Vec<String> = c
+        .prepare("SELECT path FROM photos ORDER BY position")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(kept, ["photos/a.jpg", "/elsewhere/b.jpg"]);
+    let version: i64 = c
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, ev_core::SCHEMA_VERSION);
+}

@@ -140,3 +140,24 @@ fn bringing_makes_the_attachments_the_things_own_once() {
     let twice = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
     assert_eq!(twice["brought"], json!([]));
 }
+
+#[test]
+fn a_shops_product_image_is_brought_as_a_document_never_as_the_things_photo() {
+    let (dir, mut inv) = setup();
+    let picture = dir.path().join("B0TVTVTV01-01.jpg");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&picture)
+        .unwrap();
+    let mut l = shop();
+    l.push(
+        json!({"type": "image", "source": "shop", "purchase": "o1:a",
+                  "file": picture.to_string_lossy()}),
+    );
+    inv.buy_import(&lines(&l)).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    let v = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
+    assert_eq!(v["brought"].as_array().unwrap().len(), 1);
+    assert_eq!(v["documents"][0]["kind"], "image");
+    assert!(v["node"]["photos"].as_array().unwrap().is_empty(), "{v}");
+}

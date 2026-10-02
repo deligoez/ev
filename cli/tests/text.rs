@@ -324,6 +324,36 @@ fn buy_for_ranks_the_lines_with_their_reasons_and_add_offers_them() {
 }
 
 #[test]
+fn buy_for_toured_numbers_each_thing_with_its_path_then_the_line_and_its_reasons() {
+    let h = Home::new();
+    h.run(
+        &["buy", "import", "--stdin"],
+        Some(
+            r#"{"source":"s","key":"1","shop":"Shop","brand":"Murata","name":"Murata PKM17EPPH4001 Buzzer","delivered_at":"2021-12-24","paid":"12.50","currency":"TRY"}"#,
+        ),
+    );
+    h.run(&["edit", "Aktif buzzer", "model=PKM17EPPH4001"], None);
+    // Nothing is toured yet: nothing is asked.
+    assert_eq!(
+        h.text(&["buy", "for", "--toured"]),
+        "(none of 0 unlinked things in toured places could be a purchase)\n"
+    );
+    for place in ["D", "D-A1", "D-B1"] {
+        h.run(&["photo", "current", place], None);
+    }
+    h.run(&["review", "D", "--as", "toured"], None);
+    let s = h.text(&["buy", "for", "--toured"]);
+    assert!(
+        s.starts_with(
+            "1 of 5 unlinked things in toured places could be a purchase, best first:\n  1. #7 Ev › Oda › D › D-B1 › Aktif buzzer\n     #1  2021-12-24  Shop  Murata PKM17EPPH4001 Buzzer ×1  12.50 TRY  ("
+        ),
+        "{s}"
+    );
+    assert!(s.contains("model pkm17epph4001 60"), "{s}");
+    assert_eq!(s.lines().count(), 3, "{s}");
+}
+
+#[test]
 fn cover_add_states_the_term_and_status_and_show_lists_it() {
     let h = Home::new();
     let s = h.text(&[

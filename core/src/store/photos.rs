@@ -113,7 +113,7 @@ impl Inventory {
             let others = ids(
                 &self.conn,
                 "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
-                  WHERE p.path = ?1 AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
+                  WHERE p.path = ev_store(?1) AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
                   ORDER BY p.node_id",
                 params![original.to_string_lossy(), id],
             )?;
@@ -148,7 +148,7 @@ impl Inventory {
         )?;
         tx.execute(
             "INSERT INTO photos (node_id, position, path, source, crop, note, added_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             VALUES (?1, ?2, ev_store(?3), ev_store(?4), ?5, ?6, ?7)",
             params![
                 id,
                 next,
@@ -213,7 +213,7 @@ impl Inventory {
             let others = ids(
                 &self.conn,
                 "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
-                  WHERE p.path = ?1 AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
+                  WHERE p.path = ev_store(?1) AND p.crop IS NULL AND p.node_id != ?2 AND n.state != 'gone'
                   ORDER BY p.node_id",
                 params![original_text, pid],
             )?;
@@ -264,7 +264,7 @@ impl Inventory {
             )?;
             tx.execute(
                 "INSERT INTO photos (node_id, position, path, source, crop, note, added_at, grid)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                 VALUES (?1, ?2, ev_store(?3), ev_store(?4), ?5, ?6, ?7, ?8)",
                 params![
                     id,
                     next,
@@ -411,10 +411,10 @@ impl Inventory {
             // they are given; otherwise the newest whole photo.
             let want_grid = corners.is_none() && marks.iter().any(|(_, s)| by_cell(s));
             let sql = if want_grid {
-                "SELECT path, grid FROM photos WHERE node_id = ?1 AND crop IS NULL
+                "SELECT ev_file(path), grid FROM photos WHERE node_id = ?1 AND crop IS NULL
                    AND grid IS NOT NULL ORDER BY position DESC LIMIT 1"
             } else {
-                "SELECT path, grid FROM photos WHERE node_id = ?1 AND crop IS NULL
+                "SELECT ev_file(path), grid FROM photos WHERE node_id = ?1 AND crop IS NULL
                    ORDER BY position DESC LIMIT 1"
             };
             let row: Option<(String, Option<String>)> = self
@@ -460,7 +460,7 @@ impl Inventory {
     pub fn photo_list(&self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, true)?;
         let mut stmt = self.conn.prepare(
-            "SELECT path, source, crop, note, added_at FROM photos WHERE node_id = ?1 ORDER BY position",
+            "SELECT ev_file(path), ev_file(source), crop, note, added_at FROM photos WHERE node_id = ?1 ORDER BY position",
         )?;
         let photos = stmt
             .query_map([id], |r| {
@@ -506,7 +506,7 @@ impl Inventory {
             })?;
         let tx = self.conn.transaction()?;
         let (path, crop, note): (String, Option<String>, Option<String>) = tx.query_row(
-            "SELECT path, crop, note FROM photos WHERE node_id = ?1 AND position = ?2",
+            "SELECT ev_file(path), crop, note FROM photos WHERE node_id = ?1 AND position = ?2",
             params![id, pos],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )?;
@@ -527,9 +527,9 @@ impl Inventory {
     /// Copies every photo still referenced outside the store into it.
     pub fn photo_adopt(&mut self) -> Result<Value> {
         let dir = self.photo_dir.to_string_lossy().into_owned();
-        let mut stmt = self
-            .conn
-            .prepare("SELECT node_id, position, path FROM photos ORDER BY node_id, position")?;
+        let mut stmt = self.conn.prepare(
+            "SELECT node_id, position, ev_file(path) FROM photos ORDER BY node_id, position",
+        )?;
         let rows: Vec<(i64, i64, String)> = stmt
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
             .collect::<rusqlite::Result<_>>()?;
@@ -545,7 +545,7 @@ impl Inventory {
             }
             let stored = crate::photo::store_file(&self.photo_dir, Path::new(&path))?;
             self.conn.execute(
-                "UPDATE photos SET path = ?1, note = COALESCE(note, ?2) WHERE node_id = ?3 AND position = ?4",
+                "UPDATE photos SET path = ev_store(?1), note = COALESCE(note, ?2) WHERE node_id = ?3 AND position = ?4",
                 params![stored.to_string_lossy(), format!("adopted from {path}"), node, pos],
             )?;
             adopted += 1;

@@ -237,12 +237,12 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                     |r| r.get(0),
                 )?;
                 conn.execute(
-                    "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ?3)",
+                    "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ev_store(?3))",
                     params![n.id, next, p],
                 )?;
             } else {
                 conn.execute(
-                    "DELETE FROM photos WHERE node_id = ?1 AND path = ?2",
+                    "DELETE FROM photos WHERE node_id = ?1 AND path = ev_store(?2)",
                     params![n.id, p],
                 )?;
             }

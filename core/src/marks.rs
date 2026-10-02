@@ -322,7 +322,7 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
 fn shared_photos(conn: &Connection) -> Result<Vec<Value>> {
     let paths: Vec<String> = {
         let mut stmt = conn.prepare(
-            "SELECT p.path FROM photos p JOIN nodes n ON n.id = p.node_id
+            "SELECT ev_file(p.path) FROM photos p JOIN nodes n ON n.id = p.node_id
               WHERE p.crop IS NULL AND n.state != 'gone'
               GROUP BY p.path HAVING COUNT(DISTINCT p.node_id) > 1 ORDER BY MIN(p.node_id)",
         )?;
@@ -335,7 +335,7 @@ fn shared_photos(conn: &Connection) -> Result<Vec<Value>> {
             let nodes = ids(
                 conn,
                 "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
-                  WHERE p.path = ?1 AND p.crop IS NULL AND n.state != 'gone' ORDER BY p.node_id",
+                  WHERE p.path = ev_store(?1) AND p.crop IS NULL AND n.state != 'gone' ORDER BY p.node_id",
                 [&p],
             )?
             .into_iter()

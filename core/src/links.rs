@@ -55,7 +55,7 @@ fn archive_of(dir: &Path, archive: Option<&str>) -> Result<Option<String>> {
 
 pub(crate) fn links_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
     let mut stmt = conn.prepare(
-        "SELECT id, kind, url, archive, note, added_at FROM links WHERE node_id = ?1
+        "SELECT id, kind, url, ev_file(archive), note, added_at FROM links WHERE node_id = ?1
           ORDER BY CASE kind WHEN 'info' THEN 0 WHEN 'manual' THEN 1 WHEN 'support' THEN 2
                              WHEN 'driver' THEN 3 ELSE 4 END, id",
     )?;
@@ -93,7 +93,7 @@ pub(crate) fn add_link(
     let note = note.map(str::trim).filter(|n| !n.is_empty());
     conn.execute(
         "INSERT INTO links (node_id, kind, url, archive, note, added_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         VALUES (?1, ?2, ?3, ev_store(?4), ?5, ?6)
          ON CONFLICT (node_id, url) DO UPDATE SET kind = excluded.kind,
            archive = COALESCE(excluded.archive, archive), note = COALESCE(excluded.note, note)",
         params![node, kind, url, archive, note, now()],

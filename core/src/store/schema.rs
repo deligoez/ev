@@ -563,3 +563,15 @@ ALTER TABLE tasks ADD COLUMN due TEXT;
 PRAGMA user_version = 28;
 COMMIT;
 ";
+
+/// Schema 29: files in the store are kept relative to the database's directory (`photos/…`,
+/// `docs/…`), so the data directory can move; `ev_store` (store/files.rs) leaves paths
+/// outside it and web addresses as they are.
+pub(super) const SCHEMA_V29: &str = "
+BEGIN;
+UPDATE photos SET path = ev_store(path), source = ev_store(source);
+UPDATE documents SET file = ev_store(file);
+UPDATE links SET archive = ev_store(archive) WHERE archive IS NOT NULL;
+PRAGMA user_version = 29;
+COMMIT;
+";

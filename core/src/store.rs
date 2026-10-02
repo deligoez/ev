@@ -11,6 +11,7 @@ use crate::{Error, Result, fold};
 
 mod audit;
 mod edit;
+mod files;
 mod photos;
 mod places;
 mod schema;
@@ -24,7 +25,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 28;
+pub const SCHEMA_VERSION: i64 = 29;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -63,6 +64,13 @@ impl Inventory {
                 .map_err(|e| Error::Internal(format!("cannot create {}: {e}", dir.display())))?;
         }
         let mut conn = Connection::open(path)?;
+        // Absolute, so a stored file never depends on the directory ev was started in.
+        let home = path
+            .parent()
+            .filter(|d| !d.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let home = std::path::absolute(home).unwrap_or_else(|_| home.to_path_buf());
+        files::register(&conn, &home)?;
         // Waiting beats failing: under a burst of parallel calls (measured: two MCP servers and
         // the CLI, 60 writes among 40 reads) a writer waited past 5 s in rollback-journal mode;
         // 30 s took all 60.
@@ -170,10 +178,9 @@ impl Inventory {
         if version < 28 {
             conn.execute_batch(SCHEMA_V28)?;
         }
-        let home = path
-            .parent()
-            .filter(|d| !d.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
+        if version < 29 {
+            conn.execute_batch(SCHEMA_V29)?;
+        }
         Ok(Self {
             conn,
             photo_dir: home.join("photos"),
@@ -994,7 +1001,7 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
     )?;
     node.photos = strings(
         conn,
-        "SELECT path FROM photos WHERE node_id = ?1 ORDER BY position",
+        "SELECT ev_file(path) FROM photos WHERE node_id = ?1 ORDER BY position",
         id,
     )?;
     Ok(node)
@@ -1587,7 +1594,7 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     }
     for (i, p) in photos.iter().enumerate() {
         conn.execute(
-            "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ?3)",
+            "INSERT INTO photos (node_id, position, path) VALUES (?1, ?2, ev_store(?3))",
             params![id, i as i64, p],
         )?;
     }
@@ -1709,9 +1716,9 @@ const COPY_SHORT_SIDE: u32 = 800;
 fn require_copy(conn: &Connection, node: &Node) -> Result<Option<String>> {
     let files: Vec<String> = {
         let mut stmt = conn.prepare(
-            "SELECT path FROM photos WHERE node_id = ?1
+            "SELECT ev_file(path) FROM photos WHERE node_id = ?1
              UNION ALL
-             SELECT d.file FROM documents d JOIN document_links l ON l.document_id = d.id
+             SELECT ev_file(d.file) FROM documents d JOIN document_links l ON l.document_id = d.id
               WHERE l.target = 'node' AND l.target_id = ?1",
         )?;
         stmt.query_map([node.id], |r| r.get(0))?

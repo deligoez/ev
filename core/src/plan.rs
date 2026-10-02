@@ -577,7 +577,7 @@ impl Inventory {
             None => None,
             Some(n) => Some(
                 tx.query_row(
-                    "SELECT path FROM photos WHERE node_id = ?1 ORDER BY position LIMIT 1 OFFSET ?2",
+                    "SELECT ev_file(path) FROM photos WHERE node_id = ?1 ORDER BY position LIMIT 1 OFFSET ?2",
                     params![id, n.saturating_sub(1) as i64],
                     |r| r.get::<_, String>(0),
                 )

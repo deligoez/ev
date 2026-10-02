@@ -83,7 +83,7 @@ fn extension(file: &Path) -> String {
 pub(crate) fn doc_json(conn: &Connection, id: i64) -> Result<Value> {
     let row = conn
         .query_row(
-            "SELECT kind, file, original_name, number, ettn, issued_at, issuer, note, added_at
+            "SELECT kind, ev_file(file), original_name, number, ettn, issued_at, issuer, note, added_at
                FROM documents WHERE id = ?1",
             [id],
             |r| {
@@ -210,9 +210,11 @@ pub(crate) fn store_doc(
     let stored = crate::photo::store_bytes(dir, &bytes, &extension(file))?;
     let stored = stored.to_string_lossy().into_owned();
     let existing: Option<i64> = conn
-        .query_row("SELECT id FROM documents WHERE file = ?1", [&stored], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT id FROM documents WHERE file = ev_store(?1)",
+            [&stored],
+            |r| r.get(0),
+        )
         .optional()?;
     if let Some(id) = existing {
         return Ok((id, true));
@@ -220,7 +222,7 @@ pub(crate) fn store_doc(
     conn.execute(
         "INSERT INTO documents (kind, file, original_name, number, ettn, issued_at, issuer, note,
                                 added_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         VALUES (?1, ev_store(?2), ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             kind,
             stored,

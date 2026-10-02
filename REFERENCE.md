@@ -57,7 +57,9 @@ for up to 30 seconds instead of failing. While a process has the file open, `ev.
 every command that writes, ev folds the log back into `ev.db`, so the file alone holds every
 change: it is what a data repository commits. Back it up with
 `sqlite3 ev.db ".backup '<target>'"`, which copies a consistent whole even while another
-command is writing.
+command is writing. A git `textconv` that dumps `ev.db` for diffs must open the file as
+immutable (`sh -c 'sqlite3 "file:$0?immutable=1" .dump'`): git hands it a temporary copy with
+no log beside it, which `sqlite3 -readonly` cannot open in this mode.
 
 ## MCP (`ev mcp`)
 

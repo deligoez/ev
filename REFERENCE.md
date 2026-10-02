@@ -50,7 +50,10 @@ same. In a shell, quote it: an unquoted `#` starts a comment.
 
 ## Storage
 
-One SQLite file, `ev.db`, with `photos/` and `docs/` beside it. It runs in write-ahead-log mode:
+One SQLite file, `ev.db`, with `photos/` and `docs/` beside it. The database keeps the files in
+those two as paths relative to its own directory (`photos/<hash>.jpg`), so the directory can
+move or be copied whole; a photo still outside the store (not adopted) keeps its absolute path.
+Output always gives a file's full path. It runs in write-ahead-log mode:
 readers (`ev ui`, an agent's reads) and the writer do not wait for each other, and writers queue
 for up to 30 seconds instead of failing. While a process has the file open, `ev.db-wal` and
 `ev.db-shm` sit beside it; keep them out of version control and never delete them by hand. After

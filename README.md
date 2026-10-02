@@ -18,6 +18,22 @@ The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it), photos nex
 `~/.ev/photos`. Output is JSON when piped and readable text on a terminal (`--json` / `--text`
 to choose either way); errors go to stderr with a distinct exit code (see `REFERENCE.md`).
 
+### Connect your agent
+
+An agent with a shell uses `ev` and the skill directly. Any MCP client (Claude Code, Codex,
+OpenCode, Claude Desktop, Cursor) can also use it through `ev mcp`, a server over stdio, with
+the person's own subscription and no key on ev's side:
+
+```bash
+claude mcp add ev -- ev mcp                 # Claude Code (--scope user: every project)
+codex mcp add ev -- ev mcp                  # Codex
+```
+
+OpenCode: `"mcp": { "ev": { "type": "local", "command": ["ev", "mcp"] } }` in `opencode.json`.
+The server has one general tool, `ev`, that runs any command from its arguments, read-only tools
+for the common reads (`next`, `todo`, `find`, `show`, `suggest`, `history`, `tree`), `photo` to
+see a photo, and a numbered photo a command makes comes back as an image. For clients with no
+skills, the skill is the prompt `ev` and the resource `ev://skill`.
 ## What it does
 
 **One tree.** `home` › `room` (rooms nest) › `furniture` › `container` › `item`, and any node can

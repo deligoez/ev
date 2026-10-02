@@ -139,29 +139,24 @@ fn a_photo_is_needed_now_only_where_the_place_is_counted_or_kept() {
 }
 
 #[test]
-fn next_notes_a_task_whose_places_are_counted_and_one_that_settles_moves() {
+fn next_notes_a_task_that_settles_moves_but_never_one_only_because_its_places_are_counted() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Pil", "item", Some("K1-U"), None);
     inv.photo_current("K1-A").unwrap();
-    let counted = inv
-        .task_add("Altı say", "unutuldu", &["K1-A".into()], None)
-        .unwrap()["id"]
-        .clone();
-    let settles = inv
-        .task_add("Üstü say", "pil gelecek", &["K1-U".into()], None)
+    let target = inv
+        .task_add("Alta ızgara", "pil gelecek", &["K1-A".into()], None)
         .unwrap()["id"]
         .clone();
     inv.review("K1-A", "kept", None).unwrap();
     inv.move_to("Pil", "K1-A", true).unwrap();
     let hints = inv.next().unwrap()["hints"].clone();
-    let has = |task: &serde_json::Value, kind: &str| {
-        hints
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|h| &h["task"] == task && h["kind"] == kind)
-    };
-    assert!(has(&counted, "places_counted"), "{hints}");
-    assert!(has(&counted, "settles_moves"), "{hints}");
-    assert!(!has(&settles, "places_counted"), "{hints}");
+    let kinds: Vec<&str> = hints
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|h| h["task"] == target)
+        .map(|h| h["kind"].as_str().unwrap())
+        .collect();
+    // Work on a counted place (a grid to fit) is not a task to close.
+    assert_eq!(kinds, ["settles_moves"], "{hints}");
 }

@@ -345,3 +345,18 @@ fn a_declined_line_is_offered_to_other_things_but_never_again_to_that_one() {
         line
     );
 }
+
+#[test]
+fn a_make_and_model_learned_later_offers_the_purchases_as_add_does() {
+    let (_d, mut inv) = setup();
+    let v = item(&mut inv, "Pense", None);
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+    let v = inv
+        .edit("Pense", &["make=Pro'sKit".into(), "model=1PK-052DS".into()])
+        .unwrap();
+    let offered = v["purchase_candidates"].as_array().expect("offered");
+    assert_eq!(offered[0]["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
+    // Any other field is no reason to ask again.
+    let v = inv.edit("Pense", &["note=masada".into()]).unwrap();
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+}

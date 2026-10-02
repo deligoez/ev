@@ -622,6 +622,18 @@ mod tests {
         assert_eq!(conflicts("vida 30 mm", "vida 3 cm"), Vec::<&str>::new());
         assert_eq!(conflicts("128 GB kart", "64GB kart"), ["storage"]);
         assert!(conflicts("kart", "64 GB kart").is_empty());
+        assert_eq!(
+            conflicts(
+                "Raspberry Pi resmi micro-USB güç adaptörü (5,1 V 2,5 A, sabit kablo)",
+                "Raspberry Pi 4 Model B, USB-C, 5.1V, 3A için resmi güç kaynağı"
+            ),
+            ["current"]
+        );
+        assert!(conflicts("şarj 2 A", "2000 mA şarj").is_empty());
+        assert_eq!(
+            measures("Pi 3 A+ için, çıkış 2,5 A ve 3A"),
+            vec![("current", 2500.0), ("current", 3000.0)]
+        );
     }
 
     #[test]

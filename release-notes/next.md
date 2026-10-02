@@ -25,6 +25,12 @@ Draft for the next release.
   between. Rare from one terminal, but an MCP client sends calls in parallel: in QA, seven of
   eight parallel writes failed. Writes now take the lock up front and wait their turn; sixteen
   parallel writers all succeed.
-- **`ev photo mark` and `ev focus` printed JSON as their text.** `photo mark` now lists each
-  label and where it is, then the numbered copy; `focus` says what `ev ui` was asked to show,
-  or that the request is cleared.
+- **`ev photo mark`, `ev focus` and `ev money needs` printed JSON as their text.** `photo
+  mark` now lists each label and where it is, then the numbered copy; `focus` says what `ev ui`
+  was asked to show, or that the request is cleared; `money needs` names the index, the month
+  it starts from and every missing exchange rate.
+- **A record id written as ev prints it was refused.** ev writes purchase lines, tasks,
+  documents and observations as `#12`, but `ev buy show #1` or `ev task done #21` failed with
+  "invalid digit". An agent copies the id as printed; every record id now takes `#12` or `12`.
+- **`ev … | head` panicked** with "failed printing to stdout: Broken pipe" when the reader
+  stopped before ev finished writing. A closed pipe is now ignored.

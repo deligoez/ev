@@ -14,3 +14,21 @@ Draft for the next release.
   The photo-needed list skipped every empty place, so a drawer emptied in the records kept a
   photo full of things. An empty place is now listed when it has a photo older than its last
   change; one never photographed still is not.
+
+## New: what comes first
+
+- **A task can be due** (`ev task add … --due YYYY-MM-DD`, `ev task edit <id> --due …|none`).
+  A day the person named ("in a day or two") used to live in the task's reason, where nothing
+  read it. `ev next` now takes a task due within a day, or overdue, ahead of the order
+  (`picked: due`), and every task shows `due` and `days_left`. Schema 28 adds the column.
+- **`ev next` bundles what waits in each place of the task** (`while_there`): the photo, the
+  labels, the unclear names, the things leaving or waiting for their place, a lost thing last
+  seen there, and the coverage and value questions about things in it. Opening the drawer is
+  the cost; these small jobs ride along instead of being ranked on their own.
+- **`ev next` adds notes on the order it never applies** (`hints`): a task due soon, one whose
+  places are all counted (close it?), one that settles planned moves. The order stays the
+  person's: ev computes facts, not a priority score.
+- **A photo is needed now or on the tour** (`when` on each `photos` entry, `counts.photos_now`).
+  Only a place that is counted, kept or being counted needs its photo today; elsewhere the tour
+  will change it. The text output and `ev ui` list only those and count the rest: on the
+  maintainer's inventory, one of 37.

@@ -12,6 +12,11 @@ that fixes them.
   over every item with a script and brought untoured records up (2026-10-02). Expected: a verb
   or a `buy for` mode that ranks open lines against the things of toured places only, best
   first, so the back-fill and each tour's end ask the same question.
+- **A statutory warranty is proposed after it has ended, and for any shop.** `ev show` on a
+  module bought on AliExpress in 2023 proposes "statutory warranty until 2025-12-06, not
+  recorded" (2026-10-02). A proposal whose end has passed asks nothing, and the Turkish legal
+  minimum binds sellers in Türkiye, not a foreign marketplace seller. Expected: no proposal once
+  it would have ended, and none for lines from shops outside the home country.
 - **A word that is a root of its own is cut to another root.** `altın` → `alt` (meets
   `altında`), `ünite` → `uni`: the shortest shorter form written somewhere wins, and nothing in
   the inventory's own words tells a root from a suffixed form of another. Expected: a root stays

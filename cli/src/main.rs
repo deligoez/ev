@@ -9,6 +9,7 @@ use serde_json::Value;
 mod i18n;
 mod input;
 mod mapview;
+mod mcp;
 mod render;
 mod settings;
 mod theme;
@@ -164,6 +165,8 @@ enum Cmd {
     },
     /// Read-only terminal browser that follows the database as it changes.
     Ui,
+    /// Serve the inventory to an agent over MCP (stdio): `claude mcp add ev -- ev mcp`.
+    Mcp,
     /// Lend a node of ours to a place; it stays in the tree where it returns to.
     Lend {
         reference: String,
@@ -1044,6 +1047,17 @@ struct AddArgs {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    if let Cmd::Mcp = cli.cmd {
+        // Text results follow the person's language, as in a terminal.
+        ui::set_language_from_settings();
+        return match mcp::serve(cli.db) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprint!("{}", render::error(&e));
+                ExitCode::from(e.code() as u8)
+            }
+        };
+    }
     let json = cli.json || (!cli.text_output && !std::io::stdout().is_terminal());
     // JSON has no words to translate; skip reading the settings (and the system language).
     if !json {
@@ -1078,6 +1092,15 @@ thread_local! {
     /// the text an MCP call gave, or `Some(None)` when it gave none — the MCP server's own stdin
     /// is the protocol stream, and reading it would corrupt the session.
     static INPUT: std::cell::RefCell<Option<Option<String>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Runs `f` with `text` as the standard input every command reads (`--stdin`); `None` means
+/// none was given, which such a command then refuses.
+fn with_input<T>(text: Option<String>, f: impl FnOnce() -> T) -> T {
+    INPUT.with(|i| *i.borrow_mut() = Some(text));
+    let out = f();
+    INPUT.with(|i| *i.borrow_mut() = None);
+    out
 }
 
 /// What a command reads as standard input: the process's, or the text set by `with_input`.
@@ -1387,6 +1410,8 @@ fn run(cli: Cli) -> Result<Value> {
             contents: true,
         } => inv.history_with_contents(&reference),
         Cmd::Ui => ui::run(inv, &db).map(|()| Value::Null),
+        // Handled in `main`, before an inventory is opened.
+        Cmd::Mcp => Err(Error::Usage("`ev mcp` serves over stdio; run it on its own".into())),
         Cmd::Lend { reference, to } => inv.lend(&reference, &to),
         Cmd::Back { reference } => inv.back(&reference),
         Cmd::For { place } => inv.errands(place.as_deref()),

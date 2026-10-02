@@ -25,9 +25,10 @@ Draft for the next release.
   labels, the unclear names, the things leaving or waiting for their place, a lost thing last
   seen there, and the coverage and value questions about things in it. Opening the drawer is
   the cost; these small jobs ride along instead of being ranked on their own.
-- **`ev next` adds notes on the order it never applies** (`hints`): a task due soon, one whose
-  places are all counted (close it?), one that settles planned moves. The order stays the
-  person's: ev computes facts, not a priority score.
+- **`ev next` adds notes on the order it never applies** (`hints`): a task due soon, one that
+  settles planned moves. The order stays the person's: ev computes facts, not a priority score.
+  A note for a task whose places are all counted was tried and dropped: on the maintainer's
+  inventory all three it raised were work on counted places (labels to stick, a grid to fit).
 - **A photo is needed now or on the tour** (`when` on each `photos` entry, `counts.photos_now`).
   Only a place that is counted, kept or being counted needs its photo today; elsewhere the tour
   will change it. The text output and `ev ui` list only those and count the rest: on the

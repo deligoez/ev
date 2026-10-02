@@ -119,8 +119,8 @@ places, and how far the whole home is (`progress`). Then:
   YYYY-MM-DD` or `ev task edit <id> --due …`. `ev next` then puts the task first a day before
   (`picked: due`) and lists it under `hints` until it is done; a date written only in the
   reason is read by nothing. The order is still the person's: never rank tasks by a score of
-  your own, and bring `hints` up as questions ("#21 is due tomorrow", "#18's places are all
-  counted: close it?", "#9 settles 4 planned moves").
+  your own, and bring `hints` up as questions ("#21 is due tomorrow", "#9 settles 4 planned
+  moves").
 - **Work one task.** `ev task start <id>`, go through its places box by box, bring up
   everything under `arriving`, and add new tasks when you find work elsewhere. **Work its
   `while_there` list in the same visit:** the photo, the labels, the unclear names, the

@@ -19,7 +19,7 @@
 | to | `--to`, `edit to=` | place the node should be taken to; empty clears |
 | owner | `--owner`, `edit owner=` | place the node belongs to when it is not ours |
 | with | `lend --to`, `back`, `edit with=` | place holding our lent node |
-| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, give, sell, return |
+| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, digitize, give, sell, return, mistake; `--shred` (trash, digitize) marks it `shred` |
 | lost | `--lost`, `lost`, `found [--in]`, any move | its place is not known: out of where it was last seen (kept as the parent), listed under "Unknown place" in `ev tree` and `ev ui`, not counted in that place's `items`; a thing added with `--lost` and no place was never seen |
 | temporary | `--temporary`, `edit temporary=true/false` | a parking place: what is put straight into it waits for its final place (`ev todo` lists it as `parked`, `ev suggest` never offers the place or anything inside it, listing them under `parking`); on an item, that one thing waits where it is. A move clears an item's own mark (the event says `was_temporary`); a place keeps its mark until set back |
 
@@ -310,6 +310,23 @@ note. A gone node is out of reach by name, but its id still works for `ev show <
 `ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any
 other exits 5).
 
+**Photographed, then thrown out: `--as digitize`.** For a paper whose content is worth keeping
+but whose paper is not: a ticket, a letter, an old statement, a manual. `ev dispose <ref> --as
+digitize` puts it in the pile to photograph (`ev disposals`, "Leaving" in `ev todo`). Its copy
+goes on its own record: `ev photo add` (or a crop with `ev photo cut`) when the paper is the
+thing, `ev doc add <file> --kind invoice|warranty|manual|… --for <ref> --for <thing>` when the
+paper is about another thing, so that thing keeps reaching it (`scan` is the kind for a copy
+that is none of these). `ev gone` refuses a digitized record with no photo
+and no document (exit 5); when every copy is an image under 800 px on its short side it still
+leaves, with `warnings: ["…"]` in the result, since only the person can tell whether it reads.
+A candidate inside a box that leaves is checked the same way. A digitized record stays in
+`ev find` without `--include-gone`, marked `(gone, copy kept)`. The copy is the only one left
+once the paper is gone; `~/.ev` is backed up by whatever backs up the home folder, not by ev.
+
+**Shredded: `--shred`.** `ev dispose <ref> --as trash|digitize --shred` (or `ev gone … --shred`)
+says the thing is shredded rather than thrown out whole: an old ID card, a boarding pass, a
+statement. It is a `shred` mark (`marks.shred`), `shred: true` in `ev disposals`, `(shred)` in
+the pile; `--shred` with give or sell exits 2, and `ev restore` takes the mark back.
 ## Documents
 
 Invoices, warranty certificates, manuals, service forms, appraisals and policies, copied into
@@ -318,7 +335,7 @@ belong to. The copy outlives the file it came from.
 
 | Command | Payload |
 |---|---|
-| `ev doc add <file> --kind k [--for <ref>]… [--number n] [--ettn u] [--issued d] [--issuer i] [--note t]` | `document`, `existing`. `kind`: `invoice`, `warranty`, `manual`, `service`, `appraisal`, `policy`, `other`; `issued`: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. The same file again is the same document: `existing: true`, its fields are kept, only new links are added. Anything refused stores nothing |
+| `ev doc add <file> --kind k [--for <ref>]… [--number n] [--ettn u] [--issued d] [--issuer i] [--note t]` | `document`, `existing`. `kind`: `invoice`, `warranty`, `manual`, `service`, `appraisal`, `policy`, `scan` (the copy of a paper thrown out, see `--as digitize`), `other`; `issued`: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. The same file again is the same document: `existing: true`, its fields are kept, only new links are added. Anything refused stores nothing |
 | `ev doc list [<ref>]` | `documents`: every document (each with `nodes`), or one thing's, newest issue first |
 | `ev doc show <id>` | `document`: `id`, `kind`, `file` (the stored copy), `original_name`, `number`, `ettn`, `issued_at`, `issuer`, `note`, `added_at`, `nodes` |
 | `ev doc link <id> <ref>` / `ev doc unlink <id> <ref>` | `document`; unlinking keeps it in the store |

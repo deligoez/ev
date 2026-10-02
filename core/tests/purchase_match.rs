@@ -161,3 +161,78 @@ fn a_part_split_off_is_offered_its_purchase_too() {
     let offered = v["into"][0]["purchase_candidates"].as_array().unwrap();
     assert_eq!(offered[0]["purchase"]["name"], "Pro's Kit 1PK-052DS Pense");
 }
+
+/// Puts a node of `kind` in `parent`.
+fn put(inv: &mut Inventory, name: &str, kind: &str, parent: &str) {
+    inv.add(NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        parent: Some(parent.into()),
+        ..Default::default()
+    })
+    .unwrap();
+}
+
+#[test]
+fn the_back_fill_offers_one_line_for_each_unlinked_thing_in_a_toured_place_best_first() {
+    let (_d, mut inv) = setup();
+    put(&mut inv, "Çekmece", "container", "Oda");
+    put(&mut inv, "Mettzchrom LR1130 düğme pil", "item", "Çekmece");
+    put(&mut inv, "Kombine pense, Pro'sKit", "item", "Çekmece");
+    put(&mut inv, "Kâğıt", "item", "Çekmece");
+    // A box with a review of its own: what is in it stands under that, not the drawer's.
+    put(&mut inv, "Kart kutusu", "container", "Çekmece");
+    put(&mut inv, "RFID kart", "item", "Kart kutusu");
+    // Not toured: the room itself.
+    put(&mut inv, "Pense 1PK-052DS", "item", "Oda");
+    // Already bought: a thing linked to a line is not asked about again.
+    put(&mut inv, "Yedek LR1130 pil", "item", "Çekmece");
+    inv.buy_add(
+        &json!({"name": "LR1130 pil", "shop": "Other"}),
+        Some("Yedek LR1130 pil"),
+    )
+    .unwrap();
+    inv.review("Kart kutusu", "counting", None).unwrap();
+    inv.photo_current("Çekmece").unwrap();
+    inv.review("Çekmece", "toured", None).unwrap();
+
+    let v = inv.buy_backfill().unwrap();
+    // The pill, the pliers, the paper and the box itself; not the card in the counted box,
+    // the pliers in the room, or the linked spare.
+    assert_eq!(v["toured_things"], 4, "{v}");
+    let names: Vec<(&str, &str)> = v["backfill"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| {
+            (
+                b["node"]["name"].as_str().unwrap(),
+                b["candidate"]["purchase"]["name"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        names,
+        [
+            (
+                "Mettzchrom LR1130 düğme pil",
+                "Mettzchrom AG10 LR1130 1.5V Alkaline Düğme Pil 100 Adet"
+            ),
+            ("Kombine pense, Pro'sKit", "Pro's Kit 1PK-052DS Pense"),
+        ],
+        "{v}"
+    );
+    let scores: Vec<f64> = v["backfill"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["candidate"]["score"].as_f64().unwrap())
+        .collect();
+    assert!(scores[0] >= scores[1] && scores[1] > 15.0, "{scores:?}");
+
+    // The box's own tour brings its card up; the same line stays offered to each thing.
+    inv.photo_current("Kart kutusu").unwrap();
+    inv.review("Kart kutusu", "toured", None).unwrap();
+    let v = inv.buy_backfill().unwrap();
+    assert_eq!(v["toured_things"], 5, "{v}");
+}

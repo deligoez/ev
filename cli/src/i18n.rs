@@ -854,6 +854,7 @@ static TR: &[(&str, &str)] = &[
     ("elsewhere: #{} {} ×{}", "başka yerde: #{} {} ×{}"),
     (" (in use)", " (kullanımda)"),
     ("in all", "toplam"),
+    ("product image", "ürün görseli"),
     ("ordered {} · delivered {}", "sipariş {} · teslim {}"),
     ("ordered {}", "sipariş {}"),
     ("delivered {}", "teslim {}"),

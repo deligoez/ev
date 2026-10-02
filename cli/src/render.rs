@@ -384,6 +384,7 @@ pub(crate) fn doc_kind(k: &str) -> &str {
         "appraisal" => t("appraisal"),
         "policy" => t("policy"),
         "scan" => t("scan"),
+        "image" => t("product image"),
         "other" => t("other document"),
         other => other,
     }
@@ -568,6 +569,7 @@ fn purchase(out: &mut String, p: &Value) {
     for a in p["attachments"].as_array().into_iter().flatten() {
         let what = match a["type"].as_str() {
             Some("link") => format!("{}  {}", t("link"), s(a, "url")),
+            Some("image") => format!("{}  {}", t("product image"), s(a, "file")),
             Some("valuation") => {
                 let at = a["at"].as_str().unwrap_or("-");
                 let at = if a["approximate"] == true {

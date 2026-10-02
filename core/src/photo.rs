@@ -215,16 +215,69 @@ fn line(img: &mut image::RgbImage, a: (f64, f64), b: (f64, f64), t: f64) {
     }
 }
 
-/// A label's size in pixels at scale `s`: 6 columns per character (one of them space), 7 rows,
-/// and a red margin of `2s` around.
-fn label_size(text: &str, s: f64) -> (f64, f64) {
-    let n = text.chars().count() as f64;
-    ((n * 6.0 - 1.0) * s + 4.0 * s, 7.0 * s + 4.0 * s)
+/// A label's size in pixels at scale `s`: 6 columns per character (one of them space) and 8 rows
+/// per line (one of them space), and a red margin of `2s` around.
+fn label_size(lines: &[String], s: f64) -> (f64, f64) {
+    let n = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) as f64;
+    let rows = lines.len().max(1) as f64;
+    (
+        (n * 6.0 - 1.0) * s + 4.0 * s,
+        (rows * 8.0 - 1.0) * s + 4.0 * s,
+    )
 }
 
-/// White text on a red plate, its top-left corner at `(x, y)`.
-fn label(img: &mut image::RgbImage, text: &str, x: f64, y: f64, s: f64) {
-    let (w, h) = label_size(text, s);
+/// `text` broken into lines no wider than `max_w` at scale `s`: at spaces, and inside a word only
+/// when the word alone is too wide. The flag says a word had to be broken.
+fn wrap(text: &str, s: f64, max_w: f64) -> (Vec<String>, bool) {
+    // (6n + 3)s ≤ max_w: the characters that fit on one line, at least one.
+    let per = (((max_w / s) - 3.0) / 6.0).floor().max(1.0) as usize;
+    let (mut lines, mut broken) = (Vec::<String>::new(), false);
+    let mut cur = String::new();
+    for word in text.split_whitespace() {
+        let mut chars: Vec<char> = word.chars().collect();
+        while chars.len() > per {
+            broken = true;
+            if !cur.is_empty() {
+                lines.push(std::mem::take(&mut cur));
+            }
+            lines.push(chars.drain(..per).collect());
+        }
+        let word: String = chars.into_iter().collect();
+        let len = cur.chars().count();
+        if len > 0 && len + 1 + word.chars().count() > per {
+            lines.push(std::mem::take(&mut cur));
+        }
+        if !cur.is_empty() {
+            cur.push(' ');
+        }
+        cur.push_str(&word);
+    }
+    if !cur.is_empty() || lines.is_empty() {
+        lines.push(cur);
+    }
+    (lines, broken)
+}
+
+/// The lines and scale a label is drawn at so it is no wider than `max_w`: the photo's own
+/// scale `base` when it fits on one line, else a smaller scale (down to a third of `base`) or up
+/// to three lines broken at spaces, else the smallest of those scales with its words broken.
+/// A bare number keeps `base`; a long label stays as wide as the frame it names.
+fn fit_label(text: &str, base: f64, max_w: f64) -> (Vec<String>, f64) {
+    let min = (base / 3.0).round().max(1.0);
+    let mut s = base;
+    while s >= min {
+        let (lines, broken) = wrap(text, s, max_w);
+        if !broken && lines.len() <= 3 {
+            return (lines, s);
+        }
+        s -= 1.0;
+    }
+    (wrap(text, min, max_w).0, min)
+}
+
+/// White text on a red plate, its top-left corner at `(x, y)`, kept inside the image.
+fn label(img: &mut image::RgbImage, lines: &[String], x: f64, y: f64, s: f64) {
+    let (w, h) = label_size(lines, s);
     let (iw, ih) = (img.width() as f64, img.height() as f64);
     let (x, y) = (
         x.clamp(0.0, (iw - w).max(0.0)),
@@ -235,84 +288,139 @@ fn label(img: &mut image::RgbImage, text: &str, x: f64, y: f64, s: f64) {
             img.put_pixel(px, py, MARK_RED);
         }
     }
-    for (i, c) in text.chars().enumerate() {
-        let g = glyph(c);
-        let gx = x + 2.0 * s + i as f64 * 6.0 * s;
-        for (row, bits) in g.iter().enumerate() {
-            for col in 0..5 {
-                if bits & (0x10 >> col) != 0 {
-                    let (cx, cy) = (gx + col as f64 * s, y + 2.0 * s + row as f64 * s);
-                    dot(img, cx + s / 2.0, cy + s / 2.0, s, MARK_WHITE);
+    for (li, text) in lines.iter().enumerate() {
+        let ly = y + 2.0 * s + li as f64 * 8.0 * s;
+        for (i, c) in text.chars().enumerate() {
+            let g = glyph(c);
+            let gx = x + 2.0 * s + i as f64 * 6.0 * s;
+            for (row, bits) in g.iter().enumerate() {
+                for col in 0..5 {
+                    if bits & (0x10 >> col) != 0 {
+                        let (cx, cy) = (gx + col as f64 * s, ly + row as f64 * s);
+                        dot(img, cx + s / 2.0, cy + s / 2.0, s, MARK_WHITE);
+                    }
                 }
             }
         }
     }
 }
 
-/// The first of `tries` where a label of `size` stays inside a photo of `photo` size and clear
-/// of the labels already `placed` (x, y, w, h); the first try when none is.
+type Area = (f64, f64, f64, f64);
+
+/// Where a label of `size` goes in a photo of `photo` size: the first of `tries` that stays
+/// inside the photo, clear of the labels already `placed` and clear of the other `frames`
+/// (x, y, w, h); else the first clear of the labels alone. When none is, the first try's column
+/// is searched downwards, then upwards, for a row clear of the labels; the first try when there
+/// is none. Labels never cover each other where there is room; a frame only gives way to them.
 fn label_spot(
     tries: &[(f64, f64)],
-    placed: &[(f64, f64, f64, f64)],
+    placed: &[Area],
+    frames: &[Area],
     size: (f64, f64),
     photo: (f64, f64),
 ) -> (f64, f64) {
     let (lw, lh) = size;
-    let fits = |&(x, y): &(f64, f64)| {
-        let inside = y >= 0.0 && y + lh <= photo.1 && x + lw <= photo.0;
-        let clear = placed
+    let fits = |(x, y): (f64, f64), avoid: &[&[Area]]| {
+        let inside = x >= 0.0 && y >= 0.0 && y + lh <= photo.1 && x + lw <= photo.0;
+        let clear = avoid
             .iter()
+            .flat_map(|a| a.iter())
             .all(|&(px, py, pw, ph)| x + lw <= px || px + pw <= x || y + lh <= py || py + ph <= y);
         inside && clear
     };
-    tries.iter().copied().find(fits).unwrap_or(tries[0])
+    let first = |avoid: &[&[Area]]| tries.iter().copied().find(|&p| fits(p, avoid));
+    if let Some(spot) = first(&[placed, frames]).or_else(|| first(&[placed])) {
+        return spot;
+    }
+    let (x, y0) = tries[0];
+    let x = x.clamp(0.0, (photo.0 - lw).max(0.0));
+    let step = (lh / 4.0).max(1.0);
+    let rows = (photo.1 / step).ceil() as usize;
+    (1..=rows)
+        .flat_map(|k| [y0 + k as f64 * step, y0 - k as f64 * step])
+        .map(|y| (x, y))
+        .find(|&p| fits(p, &[placed]))
+        .unwrap_or(tries[0])
 }
 
 /// Draws each `(label, shape)` on a copy of `file` and writes it to `out` as a JPEG: a red frame
-/// around the shape, and the label on a red plate — above a rectangle's top-left corner (inside
-/// it at the photo's top edge), in the middle of a grid's cells. The original is not touched.
+/// around the shape, and the label on a red plate — above a rectangle's top-left corner (below
+/// it, or inside it, when that is off the photo, on another label or on another frame), in the
+/// middle of a grid's cells. Every frame is drawn before any label, so no frame crosses a label.
+/// A label is no wider than its frame (or an eighth of the photo, so a number on a small frame
+/// stays legible): a long one is drawn smaller or on several lines. The original is not touched.
 pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> Result<()> {
     let mut img = open_upright(file)?.to_rgb8();
     let (w, h) = (f64::from(img.width()), f64::from(img.height()));
     let short = w.min(h);
     let t = (short / 180.0).max(3.0);
-    let s = (short / 150.0).max(2.0).round();
-    let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
-    for (text, shape) in marks {
-        let pts: [(f64, f64); 4] = match shape {
-            Shape::Rect(c) => [
-                (c.x, c.y),
-                (c.x + c.w, c.y),
-                (c.x + c.w, c.y + c.h),
-                (c.x, c.y + c.h),
-            ],
-            Shape::Quad(q) => *q,
-        };
-        let px: Vec<(f64, f64)> = pts.iter().map(|(x, y)| (x * w, y * h)).collect();
+    let base = (short / 150.0).max(2.0).round();
+    let corners: Vec<Vec<(f64, f64)>> = marks
+        .iter()
+        .map(|(_, shape)| {
+            let pts: [(f64, f64); 4] = match shape {
+                Shape::Rect(c) => [
+                    (c.x, c.y),
+                    (c.x + c.w, c.y),
+                    (c.x + c.w, c.y + c.h),
+                    (c.x, c.y + c.h),
+                ],
+                Shape::Quad(q) => *q,
+            };
+            pts.iter().map(|(x, y)| (x * w, y * h)).collect()
+        })
+        .collect();
+    let bounds: Vec<Area> = corners
+        .iter()
+        .map(|px| {
+            let left = px.iter().map(|p| p.0).fold(f64::MAX, f64::min);
+            let right = px.iter().map(|p| p.0).fold(f64::MIN, f64::max);
+            let top = px.iter().map(|p| p.1).fold(f64::MAX, f64::min);
+            let bottom = px.iter().map(|p| p.1).fold(f64::MIN, f64::max);
+            (
+                left - t,
+                top - t,
+                right - left + 2.0 * t,
+                bottom - top + 2.0 * t,
+            )
+        })
+        .collect();
+    for px in &corners {
         for i in 0..4 {
             line(&mut img, px[i], px[(i + 1) % 4], t);
         }
-        let (lw, lh) = label_size(text, s);
+    }
+    let mut placed: Vec<Area> = Vec::new();
+    for (i, ((text, shape), px)) in marks.iter().zip(&corners).enumerate() {
+        let others: Vec<Area> = (0..bounds.len())
+            .filter(|&j| j != i)
+            .map(|j| bounds[j])
+            .collect();
+        let room = (bounds[i].2 - 2.0 * t).max(short / 8.0).min(w);
+        let (lines, s) = fit_label(text, base, room);
+        let (lw, lh) = label_size(&lines, s);
         let (x, y) = match shape {
             Shape::Rect(_) => {
-                // Above the frame, else below it, else inside its top: the first place that
-                // stays in the photo and clear of the labels already drawn.
-                let bottom = px[2].1;
+                // Above the frame, else below it, else inside its top, else inside its bottom.
+                let (top, bottom) = (px[0].1, px[2].1);
+                let x = px[0].0 - t / 2.0;
                 let tries = [
-                    (px[0].0 - t / 2.0, px[0].1 - lh - t),
-                    (px[0].0 - t / 2.0, bottom + t),
-                    (px[0].0 + t, px[0].1 + t),
+                    (x, top - lh - t),
+                    (x, bottom + t),
+                    (px[0].0 + t, top + t),
+                    (px[0].0 + t, bottom - lh - t),
                 ];
-                label_spot(&tries, &placed, (lw, lh), (w, h))
+                label_spot(&tries, &placed, &others, (lw, lh), (w, h))
             }
             Shape::Quad(_) => {
                 let cx = px.iter().map(|p| p.0).sum::<f64>() / 4.0;
                 let cy = px.iter().map(|p| p.1).sum::<f64>() / 4.0;
-                (cx - lw / 2.0, cy - lh / 2.0)
+                let tries = [(cx - lw / 2.0, cy - lh / 2.0)];
+                label_spot(&tries, &placed, &others, (lw, lh), (w, h))
             }
         };
         placed.push((x, y, lw, lh));
-        label(&mut img, text, x, y, s);
+        label(&mut img, &lines, x, y, s);
     }
     if let Some(dir) = out.parent() {
         std::fs::create_dir_all(dir).map_err(io(dir))?;
@@ -333,7 +441,7 @@ pub(crate) fn contact_sheet(file: &Path, tiles: &[(String, Crop)], out: &Path) -
     const S: f64 = 2.0;
     let img = open_upright(file)?.to_rgb8();
     let (w, h) = (f64::from(img.width()), f64::from(img.height()));
-    let strip = label_size("X", S).1 as u32 + 4;
+    let strip = label_size(&["X".to_string()], S).1 as u32 + 4;
     let (cell_w, cell_h) = (TILE.0 + GAP, TILE.1 + strip + GAP);
     let n = tiles.len().max(1) as u32;
     let (cols, rows) = (n.min(COLS), n.div_ceil(COLS));
@@ -362,7 +470,13 @@ pub(crate) fn contact_sheet(file: &Path, tiles: &[(String, Crop)], out: &Path) -
             i64::from(x0 + (TILE.0 - tw) / 2),
             i64::from(y0 + strip + (TILE.1 - th) / 2),
         );
-        label(&mut sheet, text, f64::from(x0), f64::from(y0), S);
+        label(
+            &mut sheet,
+            std::slice::from_ref(text),
+            f64::from(x0),
+            f64::from(y0),
+            S,
+        );
     }
     if let Some(dir) = out.parent() {
         std::fs::create_dir_all(dir).map_err(io(dir))?;

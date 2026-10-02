@@ -842,6 +842,10 @@ enum TaskCmd {
         on: Vec<String>,
         #[arg(long)]
         at: Option<usize>,
+        /// The day the person wants it done by (YYYY-MM-DD); `ev next` puts it first a day
+        /// before.
+        #[arg(long)]
+        due: Option<String>,
     },
     /// Unfinished tasks in order; --all adds finished and dropped ones.
     List {
@@ -866,7 +870,7 @@ enum TaskCmd {
     },
     /// Reopen a closed task.
     Reopen { id: i64 },
-    /// Change title, reason, position or places (--on / --off).
+    /// Change title, reason, position, due date (--due none clears it) or places (--on / --off).
     Edit {
         id: i64,
         #[arg(long)]
@@ -879,6 +883,8 @@ enum TaskCmd {
         off: Vec<String>,
         #[arg(long)]
         at: Option<usize>,
+        #[arg(long)]
+        due: Option<String>,
     },
 }
 
@@ -1658,7 +1664,13 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Doc(DocCmd::Unlink { id, reference }) => inv.doc_unlink(id, &reference),
         Cmd::Need(NeedCmd::Got { id, note }) => inv.need_close(id, true, note.as_deref()),
         Cmd::Need(NeedCmd::Drop { id, note }) => inv.need_close(id, false, note.as_deref()),
-        Cmd::Task(TaskCmd::Add { title, why, on, at }) => inv.task_add(&title, &why, &on, at),
+        Cmd::Task(TaskCmd::Add {
+            title,
+            why,
+            on,
+            at,
+            due,
+        }) => inv.task_add_with(&title, &why, &on, at, due.as_deref()),
         Cmd::Task(TaskCmd::List { all }) => inv.task_list(all),
         Cmd::Task(TaskCmd::Show { id }) => inv.task_show(id),
         Cmd::Task(TaskCmd::Start { id }) => inv.task_set(id, "doing", None),
@@ -1672,7 +1684,14 @@ fn run(cli: Cli) -> Result<Value> {
             on,
             off,
             at,
-        }) => inv.task_edit(id, title.as_deref(), why.as_deref(), &on, &off, at),
+            due,
+        }) => {
+            // The date first: a malformed one stops the edit before anything changes.
+            if let Some(d) = &due {
+                inv.task_due(id, Some(d))?;
+            }
+            inv.task_edit(id, title.as_deref(), why.as_deref(), &on, &off, at)
+        }
         Cmd::Audit => inv.audit(),
         Cmd::Rule(RuleCmd::Add { text }) => inv.rule_add(&text),
         Cmd::Rule(RuleCmd::List) => inv.rule_list(),

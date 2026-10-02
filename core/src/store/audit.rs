@@ -256,9 +256,13 @@ impl Inventory {
         type Places = std::collections::BTreeMap<i64, Vec<String>>;
         let mut spread: std::collections::BTreeMap<String, (Places, BTreeSet<String>)> =
             Default::default();
+        // A thing kept in several places is spread on purpose (spec/portions.md §6): it counts
+        // in one place only, its first portion's.
+        let mut things = std::collections::HashSet::new();
         let item_words: Vec<(i64, &str, Vec<String>)> = all
             .iter()
             .filter(|n| n.kind == Kind::Item)
+            .filter(|n| n.thing.is_none_or(|t| things.insert(t)))
             .filter_map(|n| {
                 let p = n.parent_id?;
                 let mut ws = words(&n.name);
@@ -299,7 +303,26 @@ impl Inventory {
                     .min_by_key(|f| (f.chars().count(), (*f).clone()))
                     .cloned()
                     .unwrap_or_default();
-                Ok(json!({ "word": word, "forms": forms, "places": list }))
+                // The same name in several places may be one thing recorded twice: `ev join`.
+                let mut seen: HashMap<String, (String, usize)> = HashMap::new();
+                for names in places.values() {
+                    let here: BTreeSet<String> = names.iter().map(|n| fold(n)).collect();
+                    for key in here {
+                        let shown = names
+                            .iter()
+                            .find(|n| fold(n) == key)
+                            .cloned()
+                            .unwrap_or_default();
+                        seen.entry(key).or_insert((shown, 0)).1 += 1;
+                    }
+                }
+                let mut same: Vec<String> = seen
+                    .into_values()
+                    .filter(|(_, places)| *places > 1)
+                    .map(|(name, _)| name)
+                    .collect();
+                same.sort();
+                Ok(json!({ "word": word, "forms": forms, "places": list, "same_name": same }))
             })
             .collect::<Result<Vec<_>>>()?;
         spread.sort_by_key(|v| std::cmp::Reverse(v["places"].as_array().map_or(0, Vec::len)));

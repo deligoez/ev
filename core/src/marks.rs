@@ -57,6 +57,7 @@ pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {
         "sale",
         "condition",
         "photo_ok",
+        "photo_stale",
         "shred",
     ] {
         let m = mark(conn, id, kind)?;
@@ -241,8 +242,14 @@ pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
         (p, a) => p.or(a),
     };
     let changed = contents_changed_at(conn, id)?;
+    // The person may also say the newest photo no longer shows the place, for a change the
+    // records never saw (a drawer emptied before it was recorded); a newer photo answers it.
+    let marked = mark(conn, id, "photo_stale")?["at"]
+        .as_str()
+        .map(str::to_string);
     let reason = match (&photo_at, &changed) {
         (None, _) => Some("none"),
+        (Some(p), _) if marked.as_ref().is_some_and(|m| m > p) => Some("marked"),
         (Some(p), Some(c)) if c > p => Some("changed"),
         _ => None,
     };
@@ -332,6 +339,15 @@ impl Inventory {
     pub fn photo_current(&mut self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         set_mark(&self.conn, id, "photo_ok", None, None, None)?;
+        show(&self.conn, id)
+    }
+
+    /// The person says a place's newest photo no longer shows it, though the records saw no
+    /// change (it was emptied or rearranged before it was recorded): the place stays on the
+    /// photo-needed list until a newer photo is attached or `photo_current` takes it back.
+    pub fn photo_stale_mark(&mut self, reference: &str, why: Option<&str>) -> Result<Value> {
+        let id = resolve(&self.conn, reference, false)?;
+        set_mark(&self.conn, id, "photo_stale", None, None, why)?;
         show(&self.conn, id)
     }
 

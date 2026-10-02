@@ -184,10 +184,17 @@ command takes `#534` in place of a name or code. The key hints at the bottom sho
 that do something on the screen at hand, and fit the width, dropping the least useful first.
 
 **The details pane.** Beside the tree, the selected node's details are split into tabs (`H`/`L`
-or a click; a tab with nothing for the node is dimmed):
+or a click; only the tabs the node has something for are shown):
 
-- **Summary** — the fields, labels aligned, with the fill as a bar (`▮▮▯▯`) and the room left.
+- **Summary** — its state as badges, then what it is, then sections in the order a person asks:
+  Money (each purchase in one line with today's money), Coverage (its status in colour),
+  Documents and links, To do, Note. Empty fields are not drawn (`E` shows the identity still to
+  fill), long values wrap under their own column, and money reads the reader's way
+  (`1.999,50 TL`).
 - **Photos** — every photo, newest first, with when it was added, crop or whole, and its note.
+- **Documents** — its invoices, manuals and policies, also through its purchases, and its links
+  with the purchases' order and product pages; `[` `]` pick one, `O` or a click opens it in the
+  program the system gives it, `y` copies its path or address.
 - **Grid** — a drawer drawn as its plate, each box a frame over its cells; a box shows its place
   on its drawer's plate.
 - **Contents**, and **Suggestions** — what `ev regroup` proposes there, guesses marked as such.
@@ -198,7 +205,7 @@ A click on a line opens what it names — a photo, a thing inside, a thing in th
 click on a box in any grid opens that box with the Grid tab still showing, so a drawer can be
 walked box by box. The pane scrolls (`J`/`K`, the wheel). Drag the divider between the list and
 the details, or under the photo, to resize (`<` `>` `{` `}` from the keyboard, a double click
-resets); the sizes and the tab are kept.
+resets), or widen the details with `+`; the sizes and the tab are kept.
 
 **What it cost, what proves it, what still covers it.** A thing carries its make, model and
 serial (`ev edit X make=Bosch model="GSB 13 RE"`), searched like a code. Invoices, manuals and

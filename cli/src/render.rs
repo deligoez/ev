@@ -441,26 +441,29 @@ fn purchase(out: &mut String, p: &Value) {
 /// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  1999.00 TRY  (73: model gsb13re 60, …)`.
 fn candidate_lines(out: &mut String, list: &Value) {
     for (i, c) in list.as_array().into_iter().flatten().enumerate() {
-        let why = c["why"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|w| format!("{} {}", s(w, "why"), w["points"]))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let linked = if c["linked"] == true {
-            format!("  {}", t("[linked]"))
-        } else {
-            String::new()
-        };
-        let _ = writeln!(
-            out,
-            "  {}. {}{linked}  ({}: {why})",
-            i + 1,
-            purchase_line(&c["purchase"]),
-            c["score"]
-        );
+        let _ = writeln!(out, "  {}. {}", i + 1, candidate_line(c));
     }
+}
+
+/// One candidate line without its number: the purchase, then its score and reasons.
+fn candidate_line(c: &Value) -> String {
+    let why = c["why"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|w| format!("{} {}", s(w, "why"), w["points"]))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let linked = if c["linked"] == true {
+        format!("  {}", t("[linked]"))
+    } else {
+        String::new()
+    };
+    format!(
+        "{}{linked}  ({}: {why})",
+        purchase_line(&c["purchase"]),
+        c["score"]
+    )
 }
 
 /// One document: its line, where its copy is, and what it belongs to.
@@ -1312,6 +1315,32 @@ pub fn human(v: &Value) -> String {
                 String::new()
             };
             let _ = writeln!(out, "{k}: {}{default}", s(x, "value"));
+        }
+        return out;
+    }
+    if let Some(list) = v.get("backfill").and_then(Value::as_array) {
+        if list.is_empty() {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf(
+                    "(none of {} unlinked things in toured places could be a purchase)",
+                    &[&v["toured_things"]]
+                )
+            );
+        } else {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf(
+                    "{} of {} unlinked things in toured places could be a purchase, best first:",
+                    &[&list.len(), &v["toured_things"]]
+                )
+            );
+        }
+        for (i, b) in list.iter().enumerate() {
+            let _ = writeln!(out, "  {}. {}", i + 1, line(&b["node"]));
+            let _ = writeln!(out, "     {}", candidate_line(&b["candidate"]));
         }
         return out;
     }

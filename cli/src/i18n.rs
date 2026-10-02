@@ -498,6 +498,14 @@ static TR: &[(&str, &str)] = &[
         "Could be one of these purchases:",
         "Şu alımlardan biri olabilir:",
     ),
+    (
+        "{} of {} unlinked things in toured places could be a purchase, best first:",
+        "Sayılmış yerlerde alıma bağlanmamış şeylerden {} tanesi bir alım olabilir ({} şeyden), en iyisi önce:",
+    ),
+    (
+        "(none of {} unlinked things in toured places could be a purchase)",
+        "(sayılmış yerlerde alıma bağlanmamış {} şeyden hiçbiri bir alım olamaz)",
+    ),
     // Coverage
     ("Coverage ending", "Biten güvenceler"),
     ("Coverage not asked", "Garantisi sorulmamış"),

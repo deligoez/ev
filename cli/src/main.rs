@@ -673,8 +673,14 @@ enum BuyCmd {
     },
     /// One line with what it is linked to and its documents.
     Show { id: i64 },
-    /// Purchase lines that could be this thing, best first, with the reasons.
-    For { reference: String },
+    /// Purchase lines that could be this thing, best first, with the reasons; `--toured`: every
+    /// unlinked thing in a toured place with the one line that could be it (the back-fill).
+    For {
+        #[arg(required_unless_present = "toured", conflicts_with = "toured")]
+        reference: Option<String>,
+        #[arg(long)]
+        toured: bool,
+    },
     /// Link a line to a thing on the person's word (all that is left of it by default).
     Link {
         id: i64,
@@ -1578,7 +1584,10 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Link(LinkCmd::List { reference }) => inv.link_list(&reference),
         Cmd::Link(LinkCmd::Remove { id }) => inv.link_remove(id),
         Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
-        Cmd::Buy(BuyCmd::For { reference }) => inv.buy_for(&reference),
+        Cmd::Buy(BuyCmd::For { reference, .. }) => match reference {
+            Some(r) => inv.buy_for(&r),
+            None => inv.buy_backfill(),
+        },
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
         Cmd::Buy(BuyCmd::Bring {

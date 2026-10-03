@@ -3167,4 +3167,19 @@ mod tests {
         assert_eq!(super::cm(&json!(-300.04)), "-300");
         assert_eq!(super::cm(&json!(null)), "null");
     }
+
+    #[test]
+    fn a_field_with_no_value_is_left_out_below_the_top_level() {
+        let v = json!({
+            "goal": null,
+            "results": [{"id": 1, "code": null, "lost": false, "tags": [], "grid": {"face": null}}],
+        });
+        assert_eq!(
+            super::for_program(&v),
+            json!({
+                "goal": null,
+                "results": [{"id": 1, "lost": false, "tags": [], "grid": {}}],
+            })
+        );
+    }
 }

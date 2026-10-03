@@ -73,10 +73,26 @@ existed (misread from a photo, entered twice) closes with `ev gone X --as mistak
 keeping its history without counting as thrown away. A paper kept only as a picture (a ticket,
 a letter) leaves `--as digitize`: only once its photo or scan is on the record, and it stays in
 `ev find`. `--shred` marks what goes in the bin shredded (an old ID card, a boarding pass).
+What was used up (a tape run out, a dead cell) leaves `--as used`, and `--qty 2` lets two of a
+counted thing go while the rest stay.
 
 **Lost and found.** A lost thing's place is unknown: `ev lost X` lists it under "Unknown
 place" with where it was last seen; `ev lost` lists them; `ev found X` puts it back there, `ev
 found X --in Y` where it turned up.
+
+**One thing, several places.** Twenty rechargeable cells, two in a flashlight, two in a toy and
+sixteen spare in a drawer, are one thing kept in three places, not three records typed three
+times. The verbs take a count: `ev move "Eneloop AA" --qty 2 --to "El feneri"` moves two and
+leaves eighteen; `--qty` works on `ev lend`, `ev dispose`, `ev gone` and `ev lost` too. Each
+place's portion is an ordinary record with its own count, note and photos, and what the thing
+is (name, make, model, tags) stays the same on all of them: fix the model on one and it is fixed
+everywhere. Moving the flashlight's two back to the drawer joins the sixteen there, so nothing
+piles up. `ev show` and `ev ui` show the whole thing (`×20 in 3 places · in use 4 · spare 16`),
+every other place, its purchases and documents whichever place they were linked on, and an
+account: `bought 20 · here 18 · gone: used up 2`, or how many are unaccounted for. `ev find`
+lists a thing's places together, and `p` in `ev ui` walks them. More of the same turns up:
+`ev add --of "Eneloop AA" --qty 4 --in <box>`; two records made apart are one thing:
+`ev join <a> <b>`.
 
 **Parked for now.** A place where things only wait until their places are decided is marked
 `ev edit X temporary=true` (or one thing waiting among things that belong there). Placement
@@ -86,7 +102,9 @@ mark with it — "for now" stays in the records instead of in someone's memory.
 **One record per kind of thing, and what a kit still misses.** A set of parts recorded as one
 thing becomes a record per part with `ev split X "LM393 kart=3" "Kablo=3" --rename "Prob"`;
 the history links the pieces both ways, and the place's photo stays current (the same things
-lie there, only recorded apart). A bought kit is a checklist: `ev kit add "Proje seti" --copies 2
+lie there, only recorded apart). When the parts are some of its units instead (two of four
+cells are another make), `--take` takes their count off the original. A bought kit is a
+checklist: `ev kit add "Proje seti" --copies 2
 --part "RC522 okuyucu" --part "Kablo=3"`, `ev kit link "Proje seti" 1 <record>…` as its parts
 turn up, and `ev kit show "Proje seti"` counts each part found, lost and still missing, from
 the records themselves: find or move one and the kit follows.
@@ -118,8 +136,9 @@ the technical shelf.
 `ev themes` lists the places with things in them and no theme, with what a theme could be read
 from: the words their contents share and the themed place they read most like (a theme is the
 summary every placement answer leans on, so the agent writes one from this with the person).
-`ev audit` finds alike things split across places, holders without a theme, loose items,
-and boxes whose name says a size their `size` field does not.
+`ev audit` finds alike things split across places (and, for the same name in two places,
+suggests `ev join`), holders without a theme, loose items, and boxes whose name says a size
+their `size` field does not.
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
@@ -214,7 +233,8 @@ or a click; only the tabs the node has something for are shown):
 
 - **Summary** — its state as badges, then what it is, then sections in the order a person asks:
   Money (each purchase in one line with today's money), Coverage (its status in colour),
-  Documents and links, To do, Note. Empty fields are not drawn (`E` shows the identity still to
+  Documents and links, To do, Note. A thing kept in several places shows its total and every
+  other place (`p` goes there). Empty fields are not drawn (`E` shows the identity still to
   fill), long values wrap under their own column, and money reads the reader's way
   (`1.999,50 TL`).
 - **Photos** — every photo, newest first, with when it was added, crop or whole, and its note.
@@ -241,15 +261,19 @@ export into lines (`tools/purchases/<shop>.py | ev buy import --stdin`; fifteen 
 Under My Roof), and a line is linked to a thing only on the person's word (`ev buy link`);
 `ev buy for --toured` asks it for the things of toured places at once, and `ev buy decline`
 records a "not this one" so the line is not offered to that thing again.
-`ev add` and `ev split` offer the purchases a new record could be, with the reasons; one
-purchase seen by two sources is joined; what came with a line (a link, a value, a warranty)
-comes along with `ev buy bring`. Warranties and insurance have a computed status
+`ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
+record could be, with the reasons, while the thing is in hand; a purchase names its dates
+(`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line
+(a link, a value, a warranty, the shop's product pictures hung on it by
+`tools/purchases/images.py`) comes along with `ev buy bring`, the pictures as documents, never
+as the thing's own photos. Warranties and insurance have a computed status
 (`ev cover add X --kind manufacturer --term 2y`; repair time extends it), values are dated
 observations (`ev value X 2500 --source "listing"`), links keep an archive copy
 (`ev link add X <url> --archive page.html`), and "don't track this" or "not now" is never asked
 again (`ev track X coverage no`). A price shows in today's money: `ev money needs`, piped
 through `tools/money/fetch.py` into `ev money import --stdin`, caches the official price index
 and exchange rates, so `ev` itself stays offline.
+
 **English and Turkish, light and dark.** `ev ui` and the readable terminal output speak English
 or Turkish: the computer's language by default, or the one picked on the Settings tab or with
 `ev settings language en|tr|auto`. The appearance follows the terminal's light or dark

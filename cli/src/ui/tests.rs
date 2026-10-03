@@ -1119,19 +1119,21 @@ fn ev_focus_from_another_process_shows_the_node_and_photo() {
     press(&mut app, KeyCode::Char('3'));
     assert!(!app.fullscreen);
 
-    // The agent points at the hammer from its own connection.
+    // The agent points at the hammer from its own connection; the request is a file beside the
+    // database, read on the UI's next tick.
     let mut agent = Inventory::open(&db).unwrap();
     agent.focus(Some("Çekiç"), None).unwrap();
-    app.refresh_if_changed().unwrap();
+    app.apply_focus().unwrap();
     assert!(app.tab == Tab::Tree);
     let hammer = agent.resolve("Çekiç", false).unwrap();
     assert_eq!(app.selected_id(), Some(hammer));
     assert!(app.fullscreen);
 
-    // Shown once: closing it does not bring it back on the next refresh.
+    // Shown once: closing it does not bring it back on the next tick or refresh.
     press(&mut app, KeyCode::Esc);
     agent.observe("Kutu", "x", None).unwrap();
     app.refresh_if_changed().unwrap();
+    app.apply_focus().unwrap();
     assert!(!app.fullscreen);
 }
 

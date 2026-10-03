@@ -85,3 +85,11 @@ compartment ("A1 and A1 would share cells"): a cell was a gridfinity box's, one 
 Two kinds of cutting disc lie together in one compartment of a Dremel case. Now things (items)
 share a cell with other things; a box (anything but an item) still keeps its cells to itself,
 and nothing shares a cell with a box. `ev grid <case>` lists what is in each compartment.
+
+## A kit link says what changed
+
+`ev kit link` and `unlink` printed the whole checklist again, every part's records with their
+full paths; on a set of 36 parts that was the whole set for one link. They now answer with the
+part that changed and the kit's counts (`part`, `counts`), and `ev kit show` lists each part's
+records by the holder they are in instead of the whole path. In the text of `ev edit`, a line
+added to a note (`note=+…`) shows as `note: + <the line>`, not the note twice.

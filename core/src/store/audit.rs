@@ -139,14 +139,7 @@ fn stem_keys(vocab: &BTreeSet<String>) -> HashMap<String, String> {
 }
 
 pub(crate) fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
-    ids(
-        conn,
-        "SELECT id FROM nodes WHERE state != 'gone' ORDER BY id",
-        [],
-    )?
-    .into_iter()
-    .map(|id| load(conn, id))
-    .collect()
+    super::load_live(conn)
 }
 
 /// The parking place (`temporary`) that `id` is, or stands inside, if any: the nearest one up

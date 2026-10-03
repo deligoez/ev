@@ -1160,45 +1160,48 @@ fn db_enum<T: std::str::FromStr<Err = Error>>(idx: usize, s: String) -> rusqlite
     })
 }
 
+/// A record from a row of `SELECT {NODE_COLUMNS}`, without its tags and photos.
+fn node_row(r: &rusqlite::Row) -> rusqlite::Result<Node> {
+    Ok(Node {
+        id: r.get(0)?,
+        name: r.get(1)?,
+        kind: db_enum(2, r.get(2)?)?,
+        parent_id: r.get(3)?,
+        code: r.get(4)?,
+        address: r.get(5)?,
+        qty: r.get(6)?,
+        note: r.get(7)?,
+        theme: r.get(8)?,
+        fill: r.get(9)?,
+        tags: Vec::new(),
+        photos: Vec::new(),
+        state: db_enum(10, r.get(10)?)?,
+        disposition: r
+            .get::<_, Option<String>>(11)?
+            .map(|s| db_enum(11, s))
+            .transpose()?,
+        lost: r.get(12)?,
+        pending_to: r.get(13)?,
+        created_at: r.get(14)?,
+        updated_at: r.get(15)?,
+        owner: r.get(16)?,
+        with: r.get(17)?,
+        to: r.get(18)?,
+        size: r.get(19)?,
+        temporary: r.get(20)?,
+        make: r.get(21)?,
+        model: r.get(22)?,
+        serial: r.get(23)?,
+        thing: r.get(24)?,
+    })
+}
+
 pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
     let node = conn
         .query_row(
             &format!("SELECT {NODE_COLUMNS} FROM nodes WHERE id = ?1"),
             [id],
-            |r| {
-                Ok(Node {
-                    id: r.get(0)?,
-                    name: r.get(1)?,
-                    kind: db_enum(2, r.get(2)?)?,
-                    parent_id: r.get(3)?,
-                    code: r.get(4)?,
-                    address: r.get(5)?,
-                    qty: r.get(6)?,
-                    note: r.get(7)?,
-                    theme: r.get(8)?,
-                    fill: r.get(9)?,
-                    tags: Vec::new(),
-                    photos: Vec::new(),
-                    state: db_enum(10, r.get(10)?)?,
-                    disposition: r
-                        .get::<_, Option<String>>(11)?
-                        .map(|s| db_enum(11, s))
-                        .transpose()?,
-                    lost: r.get(12)?,
-                    pending_to: r.get(13)?,
-                    created_at: r.get(14)?,
-                    updated_at: r.get(15)?,
-                    owner: r.get(16)?,
-                    with: r.get(17)?,
-                    to: r.get(18)?,
-                    size: r.get(19)?,
-                    temporary: r.get(20)?,
-                    make: r.get(21)?,
-                    model: r.get(22)?,
-                    serial: r.get(23)?,
-                    thing: r.get(24)?,
-                })
-            },
+            node_row,
         )
         .optional()?;
     let mut node = node.ok_or_else(|| Error::NotFound(format!("no node with id {id}")))?;
@@ -1213,6 +1216,34 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
         id,
     )?;
     Ok(node)
+}
+
+/// Every record that has not left the home, in id order, with its tags and photos: three
+/// queries in all, however many records there are (loading them one by one took a few each).
+pub(crate) fn load_live(conn: &Connection) -> Result<Vec<Node>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {NODE_COLUMNS} FROM nodes WHERE state != 'gone' ORDER BY id"
+    ))?;
+    let mut all: Vec<Node> = stmt
+        .query_map([], node_row)?
+        .collect::<rusqlite::Result<_>>()?;
+    let at: HashMap<i64, usize> = all.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
+    let mut stmt = conn.prepare("SELECT node_id, tag FROM tags ORDER BY node_id, tag")?;
+    for row in stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))? {
+        let (id, tag) = row?;
+        if let Some(&i) = at.get(&id) {
+            all[i].tags.push(tag);
+        }
+    }
+    let mut stmt =
+        conn.prepare("SELECT node_id, ev_file(path) FROM photos ORDER BY node_id, position")?;
+    for row in stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))? {
+        let (id, path) = row?;
+        if let Some(&i) = at.get(&id) {
+            all[i].photos.push(path);
+        }
+    }
+    Ok(all)
 }
 
 fn strings(conn: &Connection, sql: &str, id: i64) -> Result<Vec<String>> {

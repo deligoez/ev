@@ -220,6 +220,11 @@ Record the kinds that have their own verbs as you meet them:
   cell. When boxes trade places, give all of them their new cells in one
   `ev cell A=A3-B3 B=A4 C=B4` once the person has moved them: overlaps are checked against
   the final layout. Each box keeps its code: it is the box's serial label, not its place.
+- **A box with fixed compartments** (a tool case of four, an organiser) is a grid too: give it
+  its layout once (`ev grid <box> --cols 2 --rows 2`) and put each thing in its compartment
+  with `ev cell "<thing>"=A1`. `ev grid <box>` then shows which thing is in which compartment,
+  to check against a photo. A compartment is a record of its own only when it is a box that
+  comes out. A move within one box is a new cell, never `ev move` to the same box (refused).
 - **The map:** `ev map <place>`, and `M` in `ev ui`, show a place as tiles: its grid, its
   sketch, or furniture stacked front on. Record how furniture stands as the person says it
   (`ev sketch <top> --on <bottom>` for a Kallax on another), give a piece of furniture a grid of

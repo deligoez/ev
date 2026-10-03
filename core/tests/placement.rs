@@ -589,3 +589,19 @@ fn boxes_with_codes_of_their_own_come_before_the_drawers_of_furniture() {
         .collect();
     assert_eq!(order, [("G1x1-001", false), ("K4-09-A", true)]);
 }
+
+#[test]
+fn a_suggestion_sees_a_change_made_from_another_connection() {
+    let (d, inv) = setup();
+    let first = inv.suggest("röle modülü", None).unwrap();
+    assert_eq!(first["new_group_likely"], true);
+    // Another process (the agent, the CLI) adds a box for relays while this one keeps its
+    // words cached.
+    let mut other = Inventory::open(&d.path().join("ev.db")).unwrap();
+    let mut b = boxed("D-B2", "röle modülleri");
+    b.key = None;
+    other.add(b).unwrap();
+    drop(other);
+    let again = inv.suggest("röle modülü", None).unwrap();
+    assert_eq!(top(&again), "D-B2", "{}", again["similar"]);
+}

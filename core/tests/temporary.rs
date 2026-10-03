@@ -143,9 +143,10 @@ fn one_item_can_wait_among_things_that_do_belong_where_it_is() {
     assert_eq!(s["similar"][0]["container"]["name"], "Dolap");
     // Moved to its place, the key is no longer parked: the move takes the mark with it.
     inv.move_to("Yedek anahtar", "Kutu", false).unwrap();
-    assert_eq!(
-        inv.show("Yedek anahtar", false).unwrap()["node"]["temporary"],
-        false
+    assert!(
+        inv.show("Yedek anahtar", false).unwrap()["node"]
+            .get("temporary")
+            .is_none()
     );
     let h = inv.history("Yedek anahtar").unwrap()["events"].clone();
     assert_eq!(

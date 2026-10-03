@@ -257,7 +257,7 @@ fn a13_a14_lost_then_moved() {
         "Ev › Salon › K4x4 › K4x4-15-A"
     );
     let v = inv.move_to("Flipper Zero", "S5-01", false).unwrap();
-    assert_eq!(v["node"]["lost"], false);
+    assert!(v["node"].get("lost").is_none(), "{v}");
     assert!(
         inv.lost_list().unwrap()["lost"]
             .as_array()
@@ -280,7 +280,7 @@ fn lost_without_place_and_found_in_place() {
     );
     inv.mark_lost("Flipper Zero").unwrap();
     let v = inv.found("Flipper Zero").unwrap();
-    assert_eq!(v["node"]["lost"], false);
+    assert!(v["node"].get("lost").is_none(), "{v}");
 }
 
 #[test]

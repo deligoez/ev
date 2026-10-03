@@ -67,6 +67,9 @@ enum Cmd {
         kind: Option<String>,
         #[arg(long)]
         include_gone: bool,
+        /// Only the containers nothing is in, worked out from the records (no tag to keep).
+        #[arg(long)]
+        empty: bool,
     },
     /// Change fields: name, code, kind, address, qty, note, theme, fill, make, model, serial, tags=+x/-x, photos=+p/-p.
     Edit {
@@ -1417,9 +1420,10 @@ fn run(cli: Cli) -> Result<Value> {
             tag,
             kind,
             include_gone,
+            empty,
         } => {
             let kind = kind.map(|k| k.parse::<Kind>()).transpose()?;
-            inv.find(&text, tag.as_deref(), kind, include_gone)
+            inv.find_with(&text, tag.as_deref(), kind, include_gone, empty)
         }
         Cmd::Edit { stdin: true, .. } => {
             let text = read_input()?;

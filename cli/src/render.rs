@@ -3185,6 +3185,23 @@ mod tests {
     }
 
     #[test]
+    fn the_node_payload_keeps_only_the_sections_with_something_in_them() {
+        let v = json!({
+            "node": {"id": 5, "note": null},
+            "children": [],
+            "kits": [],
+            "marks": {},
+            "tracking": {"value": null, "coverage": null},
+            "pending": null,
+            "tasks": [{"id": 1}],
+        });
+        assert_eq!(
+            super::for_program(&v),
+            json!({"node": {"id": 5}, "tasks": [{"id": 1}]})
+        );
+    }
+
+    #[test]
     fn a_field_with_no_value_is_left_out_below_the_top_level() {
         let v = json!({
             "goal": null,

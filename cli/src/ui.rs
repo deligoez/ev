@@ -38,6 +38,45 @@ mod prefs;
 mod rows;
 
 const POLL: Duration = Duration::from_millis(500);
+/// How many decoded photos are kept: each is up to 1600 px a side, several megabytes.
+const DECODED_KEPT: usize = 24;
+
+/// Decodes photos on a thread of its own: a phone photo takes about 80 ms to read and scale,
+/// which a key press waited for on every new place with a photo. A finished photo wakes the
+/// loop through the input channel (an empty read), and the next frame shows it.
+struct Decoder {
+    jobs: mpsc::Sender<String>,
+    done: mpsc::Receiver<(String, Option<image::DynamicImage>)>,
+    pending: HashSet<String>,
+}
+
+impl Decoder {
+    fn start(wake: mpsc::Sender<Vec<u8>>) -> Decoder {
+        let (jobs, todo) = mpsc::channel::<String>();
+        let (finished, done) = mpsc::channel();
+        std::thread::spawn(move || {
+            while let Ok(path) = todo.recv() {
+                let img = decode_photo(&path);
+                if finished.send((path, img)).is_err() {
+                    break;
+                }
+                let _ = wake.send(Vec::new());
+            }
+        });
+        Decoder {
+            jobs,
+            done,
+            pending: HashSet::new(),
+        }
+    }
+}
+
+/// A photo upright and scaled to fit the largest pane it is drawn in.
+fn decode_photo(path: &str) -> Option<image::DynamicImage> {
+    ev_core::open_upright(std::path::Path::new(path))
+        .ok()
+        .map(|i| i.thumbnail(1600, 1600))
+}
 const HIGHLIGHT_FOR: Duration = Duration::from_secs(6);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 /// How long a lone ESC waits for the rest of a sequence before it counts as the Esc key.
@@ -658,7 +697,13 @@ struct App {
     show_empty: bool,
     /// `+`: the list's width before the details were widened, to go back to.
     split_before: Option<u16>,
+    /// Photos decoded (downscaled), the latest `DECODED_KEPT` of them; `decoded_order` is the
+    /// order they came in, the oldest let go first.
     decoded: HashMap<String, Option<image::DynamicImage>>,
+    decoded_order: std::collections::VecDeque<String>,
+    /// Decodes photos off the loop in `run`, so a key never waits for a photo; without it
+    /// (tests), a photo is decoded where it is drawn.
+    decoder: Option<Decoder>,
     /// The photo on screen, keyed by path, quarter turns and area.
     shown: Option<(String, u8, Rect, Protocol)>,
     /// Clockwise quarter turns per photo path (`r`/`R`), for this session only: the UI never
@@ -807,6 +852,8 @@ impl App {
             show_empty: false,
             split_before: None,
             decoded: HashMap::new(),
+            decoded_order: std::collections::VecDeque::new(),
+            decoder: None,
             shown: None,
             rotation: HashMap::new(),
             fullscreen: false,
@@ -1305,6 +1352,7 @@ impl App {
     fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         let io = |e: std::io::Error| Error::Internal(format!("terminal: {e}"));
         let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        let tx_wake = tx.clone();
         std::thread::spawn(move || {
             use std::io::Read;
             let mut stdin = std::io::stdin();
@@ -1327,7 +1375,9 @@ impl App {
             send(input::IMAGE_QUERY);
         }
         send(input::START);
+        self.decoder = Some(Decoder::start(tx_wake));
         while !self.quit {
+            self.take_decoded();
             terminal.draw(|f| self.draw(f)).map_err(io)?;
             match rx.recv_timeout(POLL) {
                 Ok(bytes) => {

@@ -458,23 +458,65 @@ impl App {
         }
     }
 
+    /// Keeps a decoded photo, letting the oldest go past `DECODED_KEPT`.
+    fn keep_decoded(&mut self, path: String, img: Option<image::DynamicImage>) {
+        if self.decoded.insert(path.clone(), img).is_none() {
+            self.decoded_order.push_back(path);
+        }
+        while self.decoded_order.len() > DECODED_KEPT {
+            if let Some(old) = self.decoded_order.pop_front() {
+                self.decoded.remove(&old);
+            }
+        }
+    }
+
+    /// Takes the photos the decoder finished; the frame drawn next shows them.
+    pub(super) fn take_decoded(&mut self) {
+        let Some(d) = self.decoder.as_mut() else {
+            return;
+        };
+        let mut done = Vec::new();
+        while let Ok(r) = d.done.try_recv() {
+            d.pending.remove(&r.0);
+            done.push(r);
+        }
+        for (path, img) in done {
+            self.keep_decoded(path, img);
+        }
+    }
+
     /// Decodes once per path (downscaled), and re-encodes for the terminal only when the photo,
-    /// its rotation or its area changes.
+    /// its rotation or its area changes. A photo not decoded yet goes to the decoder, and the
+    /// pane says so until it is back.
     pub(super) fn render_photo(&mut self, f: &mut Frame, path: &str, area: Rect) {
-        let Some(picker) = &self.picker else { return };
+        if self.picker.is_none() {
+            return;
+        }
         let turns = self.rotation.get(path).copied().unwrap_or(0);
         let fresh =
             !matches!(&self.shown, Some((p, t, a, _)) if p == path && *t == turns && *a == area);
         if fresh {
-            let img = self
-                .decoded
-                .entry(path.to_string())
-                .or_insert_with(|| {
-                    ev_core::open_upright(std::path::Path::new(path))
-                        .ok()
-                        .map(|i| i.thumbnail(1600, 1600))
-                })
-                .clone();
+            let img = match self.decoded.get(path) {
+                Some(img) => img.clone(),
+                None => match self.decoder.as_mut() {
+                    Some(d) => {
+                        if d.pending.insert(path.to_string()) {
+                            let _ = d.jobs.send(path.to_string());
+                        }
+                        f.render_widget(
+                            Paragraph::new(t("(opening the photo…)")).fg(pal().muted),
+                            area,
+                        );
+                        return;
+                    }
+                    None => {
+                        let img = crate::ui::decode_photo(path);
+                        self.keep_decoded(path.to_string(), img.clone());
+                        img
+                    }
+                },
+            };
+            let Some(picker) = &self.picker else { return };
             self.shown = img.and_then(|img| {
                 let img = match turns {
                     1 => img.rotate90(),

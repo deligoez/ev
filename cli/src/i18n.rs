@@ -453,6 +453,7 @@ static TR: &[(&str, &str)] = &[
     ("cleared", "silindi"),
     ("name", "ad"),
     ("(the photo could not be opened)", "(fotoğraf açılamadı)"),
+    ("(opening the photo…)", "(fotoğraf açılıyor…)"),
     ("(empty)", "(boş)"),
     // Details pane fields
     ("kind", "tür"),

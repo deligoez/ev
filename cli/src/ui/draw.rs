@@ -326,7 +326,7 @@ impl App {
             )
         } else if self.tab == Tab::Settings {
             tf(
-                "↑↓ move · Enter/→ next option · ← previous option · Tab/1-8 tabs · q quit    {}",
+                "↑↓ move · Enter/→ next option · ← previous option · Tab/1-9 tabs · q quit    {}",
                 &[&self.status],
             )
         } else {
@@ -377,7 +377,7 @@ impl App {
         } else if self.picture_count() > 0 {
             parts.push((3, t("[ ] o photos")));
         }
-        parts.push((4, t("Tab/1-8 tabs")));
+        parts.push((4, t("Tab/1-9 tabs")));
         parts.push((5, t("< > { } or drag: resize")));
         parts.push((0, t("q quit")));
         fit_hints(parts, width, &self.status)

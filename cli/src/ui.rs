@@ -46,7 +46,7 @@ const ESC_WAIT: Duration = Duration::from_millis(30);
 const BACKGROUND_POLL: Duration = Duration::from_secs(3);
 
 /// Tab titles in the current language.
-fn tab_titles() -> [&'static str; 8] {
+fn tab_titles() -> [&'static str; 9] {
     [
         t("Layout"),
         t("Pending"),
@@ -56,11 +56,15 @@ fn tab_titles() -> [&'static str; 8] {
         t("Search"),
         t("To do"),
         t("Settings"),
+        t("Statistics"),
     ]
 }
 
 /// The To do section that starts collapsed: unclear records are a long, low-priority list.
 const UNCLEAR_SECTION: i64 = -14;
+/// The Statistics tab's sections count down from here, clear of the To do sections, the lost
+/// heading and the settings.
+const STATS_SECTION: i64 = -3000;
 /// The To do section of places not counted yet, which also starts collapsed: every place in
 /// the home is on it until it is counted.
 const UNCOUNTED_SECTION: i64 = -10;
@@ -81,10 +85,12 @@ enum Tab {
     Search,
     Plan,
     Settings,
+    /// `ev stats` on one page (spec/stats.md).
+    Stats,
 }
 
 impl Tab {
-    const ALL: [Tab; 8] = [
+    const ALL: [Tab; 9] = [
         Tab::Tree,
         Tab::Pending,
         Tab::Disposals,
@@ -93,6 +99,7 @@ impl Tab {
         Tab::Search,
         Tab::Plan,
         Tab::Settings,
+        Tab::Stats,
     ];
 
     fn index(self) -> usize {
@@ -1200,6 +1207,9 @@ impl App {
         }
         if id < 0 {
             return self.toggle_section(id);
+        }
+        if id == 0 {
+            return Ok(());
         }
         if self.tab != Tab::Tree {
             return self.reveal(id);

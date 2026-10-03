@@ -124,6 +124,7 @@ impl App {
             Tab::Search => self.search_rows.clone(),
             Tab::Plan => self.todo_rows()?,
             Tab::Settings => self.settings_rows(),
+            Tab::Stats => self.stats_rows()?,
         };
         let idx = keep
             .and_then(|id| self.rows.iter().position(|r| r.id == id))
@@ -438,6 +439,34 @@ impl App {
             });
             if open {
                 out.extend(rows);
+            }
+        }
+        Ok(out)
+    }
+
+    /// The Statistics tab: `ev stats` as one collapsible section per heading. A line that
+    /// names a record opens it on the right; the other lines point at nothing (id 0).
+    pub(super) fn stats_rows(&mut self) -> Result<Vec<Row>> {
+        let v = self.inv.stats()?;
+        let mut out = Vec::new();
+        for (i, (heading, lines)) in crate::render::stats_sections(&v).into_iter().enumerate() {
+            let id = STATS_SECTION - i as i64;
+            let open = !self.collapsed.contains(&id);
+            out.push(Row {
+                id,
+                depth: 0,
+                spans: vec![Span::styled(heading, Style::new().fg(pal().blue).bold())],
+                expandable: true,
+                expanded: open,
+            });
+            if open {
+                out.extend(lines.into_iter().map(|(node, text)| Row {
+                    id: node.unwrap_or(0),
+                    depth: 1,
+                    spans: vec![Span::raw(text.trim_start().to_string())],
+                    expandable: false,
+                    expanded: false,
+                }));
             }
         }
         Ok(out)

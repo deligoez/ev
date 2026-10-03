@@ -120,6 +120,7 @@ static TR: &[(&str, &str)] = &[
     ("Search", "Ara"),
     ("To do", "Yapılacak"),
     ("Settings", "Ayarlar"),
+    ("Statistics", "İstatistik"),
     // Words for stored values
     ("trash", "çöp"),
     ("give", "ver"),
@@ -369,8 +370,8 @@ static TR: &[(&str, &str)] = &[
         "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",
     ),
     (
-        "↑↓ move · Enter/→ next option · ← previous option · Tab/1-8 tabs · q quit    {}",
-        "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab/1-8 sekme · q çık    {}",
+        "↑↓ move · Enter/→ next option · ← previous option · Tab/1-9 tabs · q quit    {}",
+        "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab/1-9 sekme · q çık    {}",
     ),
     // The key hints under the panes, one part each so the line fits the width.
     ("↑↓ move", "↑↓ gez"),
@@ -382,7 +383,7 @@ static TR: &[(&str, &str)] = &[
     ("H/L details tabs", "H/L ayrıntı sekmesi"),
     ("J/K scroll", "J/K kaydır"),
     ("[ ] o photos", "[ ] o fotoğraf"),
-    ("Tab/1-8 tabs", "Tab/1-8 sekme"),
+    ("Tab/1-9 tabs", "Tab/1-9 sekme"),
     ("< > { } or drag: resize", "< > { } ya da sürükle: boyut"),
     ("q quit", "q çık"),
     (

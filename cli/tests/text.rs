@@ -687,3 +687,30 @@ fn grid_lists_each_box_with_its_cells_its_code_and_its_name() {
     assert!(s.contains("  A1      D-A1  Kutu\n"), "{s}");
     assert!(s.contains("  B1      D-B1  Kutu\n"), "{s}");
 }
+
+#[test]
+fn photo_mark_codes_puts_each_placed_boxs_code_on_its_cells() {
+    let h = Home::new();
+    let photo = h.dir.path().join("d.png");
+    image::RgbImage::from_pixel(400, 200, image::Rgb([120, 120, 120]))
+        .save(&photo)
+        .unwrap();
+    h.run(&["photo", "add", "D", photo.to_str().unwrap()], None);
+    let out = h.run(
+        &[
+            "--json",
+            "photo",
+            "mark",
+            "D",
+            "--codes",
+            "--grid",
+            "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9",
+        ],
+        None,
+    );
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(
+        v["marks"],
+        serde_json::json!([{"label": "D-A1", "at": "A1"}, {"label": "D-B1", "at": "B1"}])
+    );
+}

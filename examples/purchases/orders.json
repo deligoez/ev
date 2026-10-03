@@ -1,0 +1,36 @@
+[
+  {
+    "no": "100-0001",
+    "placed": "06.12.2024 14:05",
+    "delivered": "09.12.2024",
+    "status": "Teslim edildi",
+    "invoice": "invoices/100-0001.pdf",
+    "items": [
+      {
+        "sku": "EX-DRILL-13",
+        "title": "Darbeli matkap 13 mm",
+        "brand": "Örnek",
+        "qty": 1,
+        "total": "1.999,00 TL",
+        "url": "https://shop.example/p/EX-DRILL-13",
+        "warranty_months": 24,
+        "images": ["images/EX-DRILL-13-01.png"]
+      },
+      {
+        "sku": "EX-BAG-01",
+        "title": "Kağıt poşet",
+        "qty": 1,
+        "total": "2,00 TL",
+        "images": []
+      }
+    ]
+  },
+  {
+    "no": "100-0002",
+    "placed": "02.01.2025 09:30",
+    "status": "İptal edildi",
+    "items": [
+      {"sku": "EX-LAMP-02", "title": "Masa lambası", "qty": 1, "total": "499,00 TL"}
+    ]
+  }
+]

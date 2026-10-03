@@ -1270,11 +1270,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let mut node = serde_json::to_value(&n).map_err(|e| Error::Internal(e.to_string()))?;
     node["path_text"] = json!(path_text(&segments));
     node["path"] = json!(segments);
-    let children: Vec<i64> = ids(
-        conn,
-        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' ORDER BY id",
-        [id],
-    )?;
+    let children = sorted_children(conn, id, true)?;
     let children = children
         .iter()
         .map(|c| brief(conn, *c))
@@ -1352,6 +1348,60 @@ pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
     )?)
 }
 
+/// A node's live children in the order a person reads a shelf: rooms, furniture, containers,
+/// then things; within each, the coded ones by their code read naturally (`S5-2` before
+/// `S5-10`, the `S5` series before `S45`), then the rest by name. Creation order split a series
+/// whenever something else was recorded between its boxes. `with_lost` keeps the lost ones.
+pub(crate) fn sorted_children(conn: &Connection, parent: i64, with_lost: bool) -> Result<Vec<i64>> {
+    let sql = format!(
+        "SELECT id, kind, code, name FROM nodes WHERE parent_id = ?1 AND state != 'gone'{}",
+        if with_lost { "" } else { " AND lost = 0" }
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows: Vec<(i64, String, Option<String>, String)> = stmt
+        .query_map([parent], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })?
+        .collect::<std::result::Result<_, _>>()?;
+    rows.sort_by_cached_key(|(id, kind, code, name)| {
+        let rank = match kind.as_str() {
+            "room" => 0,
+            "furniture" => 1,
+            "container" => 2,
+            _ => 3,
+        };
+        let code_key = code.as_deref().map(natural_key).unwrap_or_default();
+        (rank, code.is_none(), code_key, fold(name), *id)
+    });
+    Ok(rows.into_iter().map(|r| r.0).collect())
+}
+
+/// A code cut into runs of digits and of the rest, digits compared as numbers.
+fn natural_key(s: &str) -> Vec<(bool, u64, String)> {
+    let mut out: Vec<(bool, u64, String)> = Vec::new();
+    let mut run = String::new();
+    let mut digits = false;
+    let flush = |run: &mut String, digits: bool, out: &mut Vec<(bool, u64, String)>| {
+        if run.is_empty() {
+            return;
+        }
+        if digits {
+            out.push((false, run.parse().unwrap_or(u64::MAX), String::new()));
+        } else {
+            out.push((true, 0, fold(run)));
+        }
+        run.clear();
+    };
+    for c in s.chars() {
+        if c.is_ascii_digit() != digits {
+            flush(&mut run, digits, &mut out);
+            digits = c.is_ascii_digit();
+        }
+        run.push(c);
+    }
+    flush(&mut run, digits, &mut out);
+    out
+}
 fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
     let n = load(conn, id)?;
     let mut v = json!({
@@ -1397,11 +1447,7 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
         Vec::new()
     } else {
         // A lost thing is not where it was last seen: the tree lists it apart.
-        let kids: Vec<i64> = ids(
-            conn,
-            "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0 ORDER BY id",
-            [id],
-        )?;
+        let kids = sorted_children(conn, id, false)?;
         kids.iter()
             .map(|k| subtree(conn, *k, depth - 1))
             .collect::<Result<Vec<_>>>()?

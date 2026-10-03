@@ -244,14 +244,12 @@ Record the kinds that have their own verbs as you meet them:
   said or drew — never estimate one. Ask for as much as they can give, no more: nothing (the
   map lays rooms out as tiles), each room's width and depth and which room it is beside
   (`ev sketch Mutfak --size 300,500 --right-of Salon`, `--offset` to slide it along that side),
-  or a plan. ev reads no plan file: when the person has one (Sweet Home 3D's `.sh3d` is a zip
-  whose `Home.xml` gives each room's corners in centimetres), read it yourself, ask which plan
-  room is which record, and write one `ev sketch --stdin` line per room with its `points`;
-  a room inside a room (a balcony) takes corners relative to its room's top-left corner. A
-  room the plan did not draw is found from the plan's own walls around where the person says
-  it is, never shaped by guess; and nothing of the plan but the rooms goes in unless the
-  person asks (their cabinets, doors and windows cluttered the map). When the person asks
-  where something is, `ev focus` it and suggest `M` in their `ev ui` to see it in place.
+  or a plan. ev reads no plan file: read it yourself (a Sweet Home 3D `.sh3d` is a zip whose
+  `Home.xml` has each room's corners in cm), ask which plan room is which record, and write one
+  `ev sketch --stdin` line per room with its `points` (a room inside a room relative to its
+  room's top-left). Only the rooms go in, never cabinets, doors or windows unless asked; a room
+  the plan lacks is found from its walls, never guessed. When the person asks where something
+  is, `ev focus` it and suggest `M` in their `ev ui`.
 - **Unclear records** are names still guessed ("belirsiz", "muhtemelen"): ask about them when
   the person is at that place, then rename.
 
@@ -425,37 +423,27 @@ table, no questions — and wait. When the person says the batch is done ("bitti
 batch at once: number the photos in the order they arrived across the messages (1–5 the first,
 6–10 the second, …), keep each note with the photos it came with, and answer in one table.
 
-**Show what you read from every photo before you talk about it.** For each photo the person
-sends of a place or a batch of things, frame each group you recognise with a numbered red
-frame, put that photo on their screen, then talk in those numbers in a table. When the photo is
-cut among records, `ev photo cut <file> <ref>=x,y,w,h… --show` does it in one step: it numbers
-the crops 1… in the order you give them (then the grid's boxes), sends the numbered photo to
-`ev ui`, and returns `legend` (`n` → record) for your table; `--note "<what this is>"` titles
-it. For a photo you do not attach, frame it with `ev photo mark <file> 1=x,y,w,h 2=…` (numbers
-only as labels, the meaning goes in your text) and send it with
-`ev focus --file <marked> --note "<what this is>"`. A group is what the person handles as one
-(a stack of LR44 cards of two makes is one group); records may still be per make. Open the
-numbered file and check every frame before talking. The person then answers by number and
-corrects a misread at a glance.
-**Name every part by where it is in the photo, every time.** "The transistors" or "the
-temperature sensors" is not enough, and neither is having described the position once further
-up: the person matches your words to the picture, so each mention carries its place in that
-photo — "left, the two on paper tape", "bottom row, all three", "top right, the big black
-one", "2nd from the left in the middle row" — in tables, proposals and questions alike. A
-proposal that says what goes where names both ends by position: the part in the photo and the
-cell or box it goes to.
+**Show what you read from every photo before you talk about it.** Frame each group you
+recognise (what the person handles as one: a stack of LR44 cards of two makes is one group,
+though records may be per make) with a numbered red frame, put that photo on their screen, and
+talk in those numbers in a table. A photo cut among records: `ev photo cut <file>
+<ref>=x,y,w,h… --show --note "<what this is>"` numbers the crops in the order given (then the
+grid's boxes), sends it to `ev ui` and returns `legend` (`n` → record). A photo you do not
+attach: `ev photo mark <file> 1=x,y,w,h 2=…` (bare numbers; the meaning goes in your text), then
+`ev focus --file <marked> --note "<what this is>"`. **Open every marked file and check each
+frame sits on its part before sending** — the coordinates are your estimate.
+**Name every part by where it is in the photo, every time** — "left, the two on paper tape",
+"top right, the big black one", "2nd from the left in the middle row" — in tables, proposals
+and questions alike, even when you said it once further up: the person matches your words to
+the picture.
 
-**Show a placement proposal, don't only write it.** When you propose where the things in a
-photo go, mark both ends and put them on the person's screen together: the parts photo with a
-numbered frame on each part (`ev photo mark <file> "1 → A6"=x,y,w,h …`), the destination with
-the same numbers on its cells (`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a
-photo cut before corners were kept), then both in one request, `ev focus --file <parts> --file
-<drawer> --note "<what this is>"` (sent one after the other, the second would replace the
-first). The person steps between them with `[` `]`, closes them with Esc and reopens them with
-`m`; no need to send again. Open each marked file and check every frame sits on its part before
-sending — the coordinates are your estimate. The marked copies are temporary (not stored, not
-attached, no history); nothing needs undoing after the move. The text still names each part by
-position, for a person reading without the screen.
+**Show a placement proposal, don't only write it.** Mark both ends with the same numbers: the
+parts (`ev photo mark <file> "1 → A6"=x,y,w,h …`) and the destination's cells
+(`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a photo cut before corners were
+kept), and send both in one request, `ev focus --file <parts> --file <drawer> --note "…"` (sent
+one after the other, the second replaces the first). The person steps with `[` `]` and reopens
+them with `m`. Marked copies are temporary: nothing to undo after the move. The text still names
+each part and its destination by position.
 
 **Unpacking a bag: record in the bag, then plan.** When parts come out of a bag or box, record
 each one in that bag first (`"in": "<bag>"`), then plan its move to the place you propose
@@ -557,12 +545,9 @@ shows its photo full screen — usually the crop you cut. Say you did it.
 
 Suggest `ev ui` in a second terminal at the start of a session: it is read-only and
 refreshes on its own, highlighting whatever you just changed, so the person sees each
-record land as you make it. To look at a photo they press `o` (full screen, `[` `]` to step
-through the node's photos) or `O` (system viewer); on the search tab `x` clears the search;
-`J`/`K` scroll the details and `H`/`L` switch their tabs (summary, photos, documents, grid, contents, suggestions,
-history); the panes resize by dragging their dividers or with `<` `>` `{` `}`. The details start
-with the node's `#id`: when the person says "#534", run commands on `#534` as it is. When they
-ask what happened to a place, its History tab shows the same as `ev history <x> --contents`.
+record land as you make it. `o` shows a photo full screen (`[` `]` step through them). The
+details start with the node's `#id`: when the person says "#534", run commands on `#534` as it
+is. Its History tab shows the same as `ev history <x> --contents`.
 
 ## Working through `ev`, not around it
 
@@ -602,10 +587,8 @@ finds `K4x4-07-Ü`.
   because nobody counted them come apart (`not_known`): open them before calling them empty.
   When the person says a box is empty (opened it, brought it empty), record it:
   `ev empty <box>… --note "…"`; that also counts it (toured), so it leaves the tour.
-- `ev show <ref>` — one node, its path, children, pending move, disposition.
-- `ev tree [<ref>] [--depth n]` — the whole picture.
-- `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out
-  or was added there.
+- `ev show <ref>`, `ev tree [<ref>] [--depth n]`, `ev history <ref> [--contents]` (`--contents`
+  adds what came in, went out or was added there).
 
 Field reference and payload shapes: `REFERENCE.md` in the ev repository.
 

@@ -214,3 +214,60 @@ fn linking_a_part_again_writes_no_second_history_event() {
         .count();
     assert_eq!(links, 1);
 }
+
+/// The set's purchase line, imported as an adapter gives it; its id.
+fn set_line(inv: &mut Inventory) -> i64 {
+    inv.buy_import(
+        &serde_json::json!({"type": "purchase", "source": "shop", "key": "o1:set",
+            "shop": "Shop", "name": "RFID proje seti, 3 parça", "qty": 1,
+            "paid": "999.00", "currency": "TRY"})
+        .to_string(),
+    )
+    .unwrap();
+    inv.buy_list(false, None, None, None).unwrap()["purchases"][0]["id"]
+        .as_i64()
+        .unwrap()
+}
+
+#[test]
+fn a_kit_bought_as_one_line_settles_it_and_its_parts_see_it() {
+    let (_d, mut inv) = setup();
+    let line = set_line(&mut inv);
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)], Some(line))
+        .unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    let open = inv.buy_list(true, None, None, None).unwrap();
+    assert!(open["purchases"].as_array().unwrap().is_empty(), "{open}");
+    let shown = inv.buy_show(line).unwrap();
+    assert_eq!(shown["purchase"]["kits"][0], "Set");
+    let v = inv.show("RC522 okuyucu", false).unwrap();
+    assert_eq!(v["purchases"][0]["id"], line);
+    assert_eq!(v["purchases"][0]["kit"], "Set");
+    // Cleared, the line is open again and the part has no purchase.
+    inv.kit_purchase("Set", None).unwrap();
+    assert_eq!(inv.buy_show(line).unwrap()["purchase"]["open_qty"], 1);
+    let v = inv.show("RC522 okuyucu", false).unwrap();
+    assert!(v["purchases"].as_array().unwrap().is_empty(), "{v}");
+}
+
+#[test]
+fn a_part_of_a_kit_bought_as_one_line_is_asked_no_purchase() {
+    let (_d, mut inv) = setup();
+    let line = set_line(&mut inv);
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)], None)
+        .unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    // Set afterwards: every record already linked hears of it in its history.
+    inv.kit_purchase("Set", Some(line)).unwrap();
+    let v = inv.edit("RC522 okuyucu", &["model=RC522".into()]).unwrap();
+    assert!(v.get("purchase_candidates").is_none(), "{v}");
+    let h = inv.history("RC522 okuyucu").unwrap();
+    assert!(
+        h["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["type"] == "kit_purchase"),
+        "{h}"
+    );
+}

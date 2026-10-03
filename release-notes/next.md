@@ -42,3 +42,11 @@ photo of what was in it. A lost thing now counts as in no place for all of them,
 kept a picture of things that had left. Decided with the person: an emptied place is
 photographed empty. Touring now asks for that photo too; an empty place never photographed
 still needs none.
+
+## A short model is not found inside another code
+
+A thing's model or serial was looked for anywhere in a purchase line's name, so a Dremel bit
+recorded as model `561` was offered a hard disk whose product code is `6002561`, at the top
+with 60 points. A model or serial now counts only as whole words of the line (`GSB 13 RE` still
+reads as `GSB13RE`); one of six characters or more may still start a longer code, where a
+suffix names a colour or a region.

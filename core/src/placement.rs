@@ -305,24 +305,29 @@ impl Inventory {
         // first. Empty is worked out from the records, never from a tag.
         let empty = if new_group {
             let near = for_node["id"].as_i64().and_then(|id| room_of(&by_id, id));
-            let mut boxes: Vec<&Node> = all
-                .iter()
-                .filter(|n| {
-                    n.kind == Kind::Container
-                        && n.theme.is_none()
-                        && !has_children.contains(&n.id)
-                        && !skip.contains(&n.id)
-                        && parking_of(&by_id, n.id).is_none()
-                })
-                .collect();
+            // Only boxes known to be empty: a carton never gone through may be full. Boxes that
+            // move come before the slots of furniture, which a person seldom means by "a box".
+            let mut boxes: Vec<(&Node, bool)> = Vec::new();
+            for n in all.iter().filter(|n| {
+                n.kind == Kind::Container
+                    && n.theme.is_none()
+                    && !has_children.contains(&n.id)
+                    && !skip.contains(&n.id)
+                    && parking_of(&by_id, n.id).is_none()
+            }) {
+                if crate::store::known_empty(&self.conn, n.id)? {
+                    boxes.push((n, crate::store::is_slot(&self.conn, n)?));
+                }
+            }
             let here = |n: &Node| near.is_some() && room_of(&by_id, n.id) == near;
-            boxes.sort_by_key(|n| (!here(n), n.id));
+            boxes.sort_by_key(|(n, slot)| (!here(n), *slot, n.id));
             boxes
                 .iter()
                 .take(EMPTY_OFFERED)
-                .map(|n| {
+                .map(|(n, slot)| {
                     let mut c = holder_json(&self.conn, n, &all)?;
                     c["same_room"] = json!(here(n));
+                    c["slot"] = json!(slot);
                     Ok(c)
                 })
                 .collect::<Result<Vec<_>>>()?
@@ -535,18 +540,19 @@ impl Inventory {
         // Spare boxes: boxes with a size that nothing is in, worked out from the records. The
         // old "boş kap" (or "spare box") tag still marks a spare that is not a container, but a
         // box with something in it is never one, whatever its tag says.
-        let spares: Vec<&Node> = all
-            .iter()
-            .filter(|n| {
-                n.size.is_some()
-                    && n.theme.is_none()
-                    && !all.iter().any(|c| c.parent_id == Some(n.id))
-                    && (n.kind == Kind::Container
-                        || n.tags
-                            .iter()
-                            .any(|t| matches!(fold(t).as_str(), "bos kap" | "spare box")))
-            })
-            .collect();
+        let mut spares: Vec<&Node> = Vec::new();
+        for n in all.iter().filter(|n| {
+            n.size.is_some() && n.theme.is_none() && !all.iter().any(|c| c.parent_id == Some(n.id))
+        }) {
+            // Tagged by the person, or a container known to be empty (not one never counted).
+            let tagged = n
+                .tags
+                .iter()
+                .any(|t| matches!(fold(t).as_str(), "bos kap" | "spare box"));
+            if tagged || n.kind == Kind::Container && crate::store::known_empty(&self.conn, n.id)? {
+                spares.push(n);
+            }
+        }
 
         let mut full = Vec::new();
         let mut sparse = Vec::new();

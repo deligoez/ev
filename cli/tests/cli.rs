@@ -70,6 +70,23 @@ fn stdout_is_json_when_piped() {
 }
 
 #[test]
+fn json_is_one_line() {
+    let ev = seeded();
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["show", "Salon"])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(stdout.lines().count(), 1, "{stdout}");
+    assert!(!stdout.contains(": "), "{stdout}");
+}
+
+#[test]
 fn text_is_asked_for_through_a_pipe() {
     let ev = seeded();
     let out = Command::cargo_bin("ev")

@@ -2208,12 +2208,15 @@ fn changed_lines(out: &mut String, changed: &Value) {
     if fields.is_empty() {
         let _ = writeln!(out, "  {}", t("(nothing changed)"));
     }
+    // `field=+text` adds on a new line; a value that only grows on the same line (a theme
+    // written out longer) is a replacement, shown whole.
     let added = |c: &Value| -> Option<String> {
         let (before, after) = (c["before"].as_str()?, c["after"].as_str()?);
         let rest = after
             .strip_prefix(before)
-            .filter(|r| !r.is_empty() && !before.is_empty())?;
-        Some(rest.trim_start_matches('\n').replace('\n', " · "))
+            .filter(|_| !before.is_empty())?
+            .strip_prefix('\n')?;
+        Some(rest.replace('\n', " · "))
     };
     let shown = |v: &Value| match v {
         Value::Null => "—".to_string(),

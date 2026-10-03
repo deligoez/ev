@@ -1,6 +1,8 @@
 # ev — one thing kept in several places
 
-Status: **proposed**, 2026-10-03. Written after the person asked for a better answer than copying
+Status: **implemented** (unreleased), 2026-10-03; the person settled the three open choices (a
+note and photos are a portion's own, in use is read from the holder's kind, only items are
+spread) before it was built. Written after the person asked for a better answer than copying
 a record: 20 rechargeable AA cells, 2 in a flashlight, 2 in a toy, 16 spare in a drawer, are one
 thing, not three records typed three times. Phases are in §8.
 
@@ -103,7 +105,10 @@ the two lent to a neighbour are not the spare ones.
   model that differs is refused (exit 5) with both values, so the agent asks the person and
   edits first. Portions that end up in one place join (§4.2).
 - **`ev unjoin <ref>`**: a portion is a thing of its own after all. It keeps its identity and
-  leaves the key; a thing left with one portion drops the key too.
+  leaves the key. A thing left with one portion keeps its key: purchases and documents linked
+  on its gone or merged portions are read through it, and dropping the key would cut them off.
+  With no other live portion, `ev show` shows the thing only while units gone beside it need
+  accounting for.
 
 ## 5. What ev shows
 

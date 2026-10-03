@@ -19,8 +19,12 @@ The rules, in the order they were measured to matter:
    not printed: a missing field reads as null. Top-level keys stay, so a payload's sections are
    always there to look for.
 4. **The node payload leaves out what it does not have.** `show`, and every command that
-   answers with the node it changed (`add`, `edit`, `move`, `review`, `lend`, …), prints `node`
-   and only the sections with something in them: no `"kits": []`, no `"grid": null`.
+   answers with the node it changed (`add`, `move`, `review`, `lend`, …), prints `node` and only
+   the sections with something in them: no `"kits": []`, no `"grid": null`. The node's flags
+   `lost` and `temporary` appear only when true, as on a row.
+   An **edit** answers with what it changed: `node` as a row and `changed`
+   (`{field: {before, after}}`). The caller wrote the rest; a long note came back whole on every
+   `note=+…`, which the inventory agent reported (it already knew all of it).
 5. **A list is a list of rows.** `buy list` prints a line's own fields and counts of what came
    with it; `buy show <id>` has the attachments, the documents, the raw file and the links.
 6. **Errors are JSON too.** A mistyped argument or a missing value, which the argument parser

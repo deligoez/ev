@@ -1325,6 +1325,8 @@ impl App {
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     self.refresh_if_changed()?;
+                    // A focus request is a file beside the database, not a write to it.
+                    self.apply_focus()?;
                     self.reload_settings()?;
                     self.poll_background();
                 }

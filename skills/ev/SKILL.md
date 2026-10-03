@@ -470,7 +470,10 @@ only to confirm a state ("son hali bu mu?"). A photo that confirmed something an
 attached leaves the place's current photo older than the place, which is the exact slip this
 rule exists for. The newest photo is the current one; a place's older photos stay as history,
 never replaced or removed. (A thing's group photo is different: see below — it is cropped per
-record, and a record split in two loses the whole photo for its own crops.)
+record, and a record split in two loses the whole photo for its own crops.) **An emptied place
+is photographed empty**: its older photo still shows what left, and would mislead as its current
+one; `ev review --as toured` and `ev todo` ask for it. A place never photographed and empty
+needs none. Never stand another place's photo in for it.
 
 When the person sends a photo of a drawer or box, first confirm its contents against the
 records. Then attach it in one step. **Look which way up it is first:** a photo that came in on

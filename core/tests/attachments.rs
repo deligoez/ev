@@ -188,3 +188,17 @@ fn bringing_by_type_brings_only_that_type_and_names_what_it_left() {
         "an unknown type is refused"
     );
 }
+
+#[test]
+fn an_attachment_the_line_does_not_carry_is_refused_not_skipped() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(&lines(&shop())).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    let e = inv
+        .buy_bring(tv, "Televizyon", &[9999], &[])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("#9999"), "{e}");
+}

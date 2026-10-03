@@ -562,6 +562,8 @@ finds `K4x4-07-Ü`.
   `ev find --empty` lists the boxes known to be empty (their place toured, or something left
   them), worked out from the records: never tag a box empty. Boxes with nothing recorded only
   because nobody counted them come apart (`not_known`): open them before calling them empty.
+  When the person says a box is empty (opened it, brought it empty), record it:
+  `ev empty <box>… --note "…"`.
 - `ev show <ref>` — one node, its path, children, pending move, disposition.
 - `ev tree [<ref>] [--depth n]` — the whole picture.
 - `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out

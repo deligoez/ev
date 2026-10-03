@@ -683,6 +683,18 @@ mod tests {
     }
 
     #[test]
+    fn a_model_is_found_as_whole_words_never_inside_another_code() {
+        let words = super::tokens("Harici disk 2 TB, ürün kodu 6002561");
+        assert!(!super::has_words(&words, "561", 6));
+        let words = super::tokens("Bosch GSB 13 RE darbeli matkap, 4250-6/128 set");
+        assert!(super::has_words(&words, "gsb13re", 6));
+        assert!(super::has_words(&words, "4250", 6));
+        // A long model may start a longer code: a suffix names a colour or a region.
+        let words = super::tokens("WD40EFRX68N32N0 4 TB disk");
+        assert!(super::has_words(&words, "wd40efrx", 6));
+    }
+
+    #[test]
     fn codes_mix_letters_and_digits_and_drop_hyphens() {
         let c = codes("Pro'sKit 1PK-052DS pense, LR1130 pil, 64 GB, 64gb, M10, 3x3 küp");
         assert!(c.contains("1pk052ds") && c.contains("lr1130"));

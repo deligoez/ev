@@ -239,9 +239,12 @@ fn audit_leaves_a_spread_thing_alone_and_hints_join_for_the_same_name_recorded_t
         ..Default::default()
     })
     .unwrap();
-    let found = rows(&inv);
-    assert_eq!(found.len(), 1, "{found:?}");
-    assert_eq!(found[0]["same_name"], serde_json::json!(["Eneloop AA"]));
+    // Alike in two places again, and one hint for the name, each record of it named.
+    assert_eq!(rows(&inv).len(), 1, "{:?}", rows(&inv));
+    let same = inv.audit().unwrap()["same_name"].clone();
+    assert_eq!(same.as_array().unwrap().len(), 1, "{same}");
+    assert_eq!(same[0]["name"], "Eneloop AA");
+    assert_eq!(same[0]["nodes"].as_array().unwrap().len(), 3);
 }
 
 #[test]

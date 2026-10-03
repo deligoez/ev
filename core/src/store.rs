@@ -493,10 +493,14 @@ impl Inventory {
             [n.id],
             |r| r.get(0),
         )?;
-        if inside > 0 {
+        // With --take a box of several (two battery cases as one record) gives up some of its
+        // units empty; what is inside stays in the original. Without it, the parts would be what
+        // each unit is made of, which a holder with things in it is not split into.
+        if inside > 0 && !take {
             return Err(refused(
                 format!(
-                    "{} holds {inside} thing(s); split what is inside, or move it out first",
+                    "{} holds {inside} thing(s); split what is inside, move it out first, or \
+                     take empty units off it with --take",
                     label(&n)
                 ),
                 json!({ "node": brief_json(&tx, n.id)? }),

@@ -96,3 +96,42 @@ fn empty_lists_the_containers_nothing_is_in_and_follows_what_moves() {
         .unwrap();
     assert_eq!(empty(&inv), ["Kablo çantası"], "what left is not in it");
 }
+
+#[test]
+fn siblings_come_by_kind_then_by_code_read_naturally_then_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    let node = |name: &str, kind: &str, parent: Option<&str>, code: Option<&str>| NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        parent: parent.map(Into::into),
+        code: code.map(Into::into),
+        ..Default::default()
+    };
+    for n in [
+        node("Ev", "home", None, None),
+        node("Oda", "room", Some("Ev"), None),
+        node("Kutu", "container", Some("Oda"), Some("S5-2")),
+        node("Kalem", "item", Some("Oda"), None),
+        node("Kutu", "container", Some("Oda"), Some("S45-1")),
+        // Recorded between the boxes of one series: it must not split them.
+        node("Masa", "furniture", Some("Oda"), None),
+        node("Kutu", "container", Some("Oda"), Some("S5-10")),
+        node("Kutu", "container", Some("Oda"), None),
+    ] {
+        inv.add(n).unwrap();
+    }
+    let v = inv.show("Oda", false).unwrap();
+    let order: Vec<String> = v["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c["code"]
+                .as_str()
+                .unwrap_or(c["name"].as_str().unwrap())
+                .to_string()
+        })
+        .collect();
+    assert_eq!(order, ["Masa", "S5-2", "S5-10", "S45-1", "Kutu", "Kalem"]);
+}

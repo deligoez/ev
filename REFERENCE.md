@@ -80,7 +80,7 @@ language`. See `spec/mcp.md` for the reasons.
 |---|---|---|---|
 | `ev` | `args: [string]`, `input?: string`, `format?` | `ev <args…>`, `input` as its stdin | destructive |
 | `next`, `todo` | `format?` | `ev next`, `ev todo` | read-only |
-| `find` | `text?`, `tag?`, `kind?`, `include_gone?`, `format?` | `ev find` | read-only |
+| `find` | `text?`, `tag?`, `kind?`, `include_gone?`, `empty?`, `format?` | `ev find` | read-only |
 | `show` | `ref`, `include_gone?`, `format?` | `ev show` | read-only |
 | `suggest` | `text?` or `for?`, `format?` | `ev suggest` | read-only |
 | `history` | `ref`, `contents?`, `format?` | `ev history` | read-only |
@@ -119,7 +119,7 @@ one, its name otherwise.
 | show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage), `thing` (a portion of a thing kept in several places, see **One thing in several places**) |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
-| find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`). A portion of a thing kept in several places carries `thing`: `{id, total, places, in_use, spare}`; the text shows a thing's portions together under one line |
+| find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag`, `--kind` or `--empty` to list every match of the filter (`ev find --tag "3d yazıcı"`). `--empty` keeps only the containers no live record is in, worked out from the records, so no "empty" tag has to be kept (`ev find --empty`). A portion of a thing kept in several places carries `thing`: `{id, total, places, in_use, spare}`; the text shows a thing's portions together under one line |
 | tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set; `count` on a place gone through on its own: `raw`, `counting`, `toured` or `kept`; lost things are not among the children or in `items`), `lost` (without a reference: every lost thing, with `last_seen`, null when never seen) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
@@ -339,7 +339,7 @@ counts a thing in one place only and, for a name recorded in more than one place
 
 | Command | Does |
 |---|---|
-| `ev suggest <text> [--tag t] [--for <ref>]` | `words` (the query as searched), `synonyms_added`, `facet` (the facets the query names), `other_facet` (up to 5 holders kept out because they are of another facet, with their `facet` and `score`), `parking` (up to 5 holders kept out because they are, or stand in, a `temporary` place: `container` with `temporary_in`, and `score`), `new_group_likely`, `considered` (how scores are made, in words), `rules`, `similar` (up to 12 holders, best first: `container` with `room`, `review` (its own or its nearest reviewed ancestor's: `status`, `at`, `from`; null when never gone through — `(not toured)` in text), `score`, `coverage`, `specific`, `matched` `[{term, points, from, specific}]`, `count`, `matches`), `containers` (every holder, with `path_text`, `theme`, `fill`, `room`, `items`, `sample`, `cells`/`grid`), `complete.containers`. `--for` places an existing node by its own name, tags and note, never into itself or anything inside it |
+| `ev suggest <text> [--tag t] [--for <ref>]` | `words` (the query as searched), `synonyms_added`, `facet` (the facets the query names), `other_facet` (up to 5 holders kept out because they are of another facet, with their `facet` and `score`), `parking` (up to 5 holders kept out because they are, or stand in, a `temporary` place: `container` with `temporary_in`, and `score`), `new_group_likely`, `empty` (when `new_group_likely`: up to 10 containers with no theme and nothing in them, where a new group can start, those in the `--for` thing's own room first, each with `same_room`), `considered` (how scores are made, in words), `rules`, `similar` (up to 12 holders, best first: `container` with `room`, `review` (its own or its nearest reviewed ancestor's: `status`, `at`, `from`; null when never gone through — `(not toured)` in text), `score`, `coverage`, `specific`, `matched` `[{term, points, from, specific}]`, `count`, `matches`), `containers` (every holder, with `path_text`, `theme`, `fill`, `room`, `items`, `sample`, `cells`/`grid`), `complete.containers`. `--for` places an existing node by its own name, tags and note, never into itself or anything inside it |
 | `ev regroup [<ref>]` | for the holders under `<ref>` (or everywhere): `checked` (`items`, `best_where_they_are`), `elsewhere` (`item`, `now`, `better` with score and `matched`), `alone` (the same shape, for things that share no word with anything else in their holder: its score there is 0, so the other holder is a guess), `strays` (things named for another holder's theme), `full` (fill ≥ 90, with `bigger_spares` and the cells each `fits_at`), `sparse` (fill ≤ 25, with a `merge_into` sibling that has room), `mixed` (half or more of three or more things fit better elsewhere), `unknown_fill` (fill unknown or `stale`), `declined` (`item`, `holder`, `why`: moves the person said no to, left out of the lists above) |
 | `ev regroup --decline <ref> [--why "…"]` | the person said no to moving it: it stays in the holder it is in and regroup no longer proposes moving it, until it is moved somewhere else. A `decline` event |
 | `ev regroup --allow <ref>` | takes a decline back; a `decline_cleared` event |
@@ -378,7 +378,8 @@ the name 1, tags 0.8, a note 0.4 (`--for`), a synonym 0.8.
 for where it already is). A holder with the same theme words as the thing's own is the same
 group split over boxes and counts as home. A thing is flagged `elsewhere` only when another
 holder scores at least 1.5× its own, at least 3, and matched on a `specific` word. A spare box
-is anything tagged `boş kap` (or `spare box`) with a `size`.
+is a box with a `size`, no theme and nothing in it: a container, or anything tagged `boş kap`
+(or `spare box`); a box with something in it is never one, whatever its tag says.
 
 `ev restore <ref> --correction "<why>"` undoes a `gone` recorded by mistake; plain `restore` returns a
 candidate to active.

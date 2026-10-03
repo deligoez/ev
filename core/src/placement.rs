@@ -378,9 +378,11 @@ impl Inventory {
             .collect();
         let holder_ids: HashSet<i64> = holders.iter().map(|h| h.id).collect();
         // Candidates are the holders in scope; the rest of the house is not a regroup.
+        // Only holders are scored, so only the holders outside the scope need skipping: a set of
+        // every record outside it was copied once per thing.
         let outside: HashSet<i64> = all
             .iter()
-            .filter(|n| !holder_ids.contains(&n.id))
+            .filter(|n| is_holder(n, &has_children) && !holder_ids.contains(&n.id))
             .map(|n| n.id)
             .collect();
         let index = Index::build(&all);
@@ -442,7 +444,11 @@ impl Inventory {
                 );
             }
             // A thing that holds things is a holder too, but never a better place for itself.
-            skip.extend(subtree(&all, item.id));
+            if has_children.contains(&item.id) {
+                skip.extend(subtree(&all, item.id));
+            } else {
+                skip.insert(item.id);
+            }
             let ranked = index.score(&q, &HashSet::from([item.id]), &skip);
             let Some(best) = ranked.first() else {
                 continue;
@@ -507,13 +513,14 @@ impl Inventory {
                 .collect();
             for t in themed {
                 for item in all.iter().filter(|n| {
+                    // The cheap tests first: the walk up the thing's holders comes last.
                     n.kind == Kind::Item
+                        && best_of.get(&n.id) == Some(&h.id)
+                        && !flagged.contains(&n.id)
                         && n.parent_id != Some(h.id)
                         && n.parent_id.is_some_and(|p| holder_ids.contains(&p))
                         // A holder the thing is already inside is not somewhere else.
                         && !ancestors(n.id).contains(&h.id)
-                        && best_of.get(&n.id) == Some(&h.id)
-                        && !flagged.contains(&n.id)
                 }) {
                     let parent = item.parent_id.unwrap_or_default();
                     let parent_theme = by_id[&parent].theme.clone().unwrap_or_default();

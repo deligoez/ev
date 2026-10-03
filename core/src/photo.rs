@@ -631,6 +631,28 @@ mod tests {
     }
 
     #[test]
+    fn a_cell_label_sits_in_its_corner_and_leaves_the_box_to_be_seen() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("p.png");
+        image::RgbImage::from_pixel(2000, 1500, image::Rgb([128, 128, 128]))
+            .save(&file)
+            .unwrap();
+        let out = dir.path().join("m.jpg");
+        // One cell of a drawer: x 400–800, y 300–600 on a phone-sized photo.
+        let cell = Shape::Quad([(0.2, 0.2), (0.4, 0.2), (0.4, 0.4), (0.2, 0.4)]);
+        draw_marks(&file, &[("001".to_string(), cell)], &out).unwrap();
+        let img = image::open(&out).unwrap().to_rgb8();
+        let red = |x: u32, y: u32| {
+            let p = img.get_pixel(x, y);
+            p[0] > 180 && p[1] < 90 && p[2] < 90
+        };
+        // The label's plate is in the top-left corner; the cell's middle and lower part are clear.
+        assert!(red(430, 330), "the label is in the corner");
+        assert!(!red(600, 450), "the box under the label shows");
+        assert!(!red(600, 540));
+    }
+
+    #[test]
     fn a_label_steps_aside_from_one_already_drawn_and_stays_in_the_photo() {
         let size = (100.0, 40.0);
         let photo = (1000.0, 800.0);

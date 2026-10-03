@@ -86,7 +86,28 @@ pub(crate) fn date(v: &Option<String>) -> Result<Option<String>> {
         .transpose()
 }
 
+/// A purchase line with what came with it: its attachments and its documents.
 pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
+    let mut p = purchase_row(conn, id)?;
+    p["attachments"] = json!(crate::attachments::attachments_of(conn, id)?);
+    p["documents"] = json!(
+        ids(
+            conn,
+            "SELECT DISTINCT document_id FROM document_links
+              WHERE target = 'purchase'
+                AND (target_id = ?1 OR target_id IN (SELECT id FROM purchases WHERE same_as = ?1))
+              ORDER BY document_id",
+            [id],
+        )?
+        .into_iter()
+        .map(|d| crate::docs::doc_json(conn, d))
+        .collect::<Result<Vec<_>>>()?
+    );
+    Ok(p)
+}
+
+/// A purchase line: its own fields, what it is linked to and what is left of it.
+fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
     let row = conn
         .query_row(
             "SELECT source, source_key, shop, merchant, order_no, order_url, product_url, shop_sku,
@@ -154,7 +175,6 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
         "SELECT id FROM purchases WHERE same_as = ?1 ORDER BY id",
         [id]
     )?);
-    p["attachments"] = json!(crate::attachments::attachments_of(conn, id)?);
     // The things the person said it is not.
     let mut stmt = conn.prepare(
         "SELECT node_id, why FROM purchase_declines WHERE purchase_id = ?1 ORDER BY node_id",
@@ -170,19 +190,45 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
             .map(|(n, why)| Ok(json!({ "node": brief(conn, n)?, "why": why })))
             .collect::<Result<Vec<_>>>()?
     );
-    p["documents"] = json!(
-        ids(
-            conn,
-            "SELECT DISTINCT document_id FROM document_links
-              WHERE target = 'purchase'
-                AND (target_id = ?1 OR target_id IN (SELECT id FROM purchases WHERE same_as = ?1))
-              ORDER BY document_id",
-            [id],
-        )?
-        .into_iter()
-        .map(|d| crate::docs::doc_json(conn, d))
-        .collect::<Result<Vec<_>>>()?
-    );
+    Ok(p)
+}
+
+/// A line as `buy list` prints it (spec/output.md): its own fields with the adapter's key, what
+/// it is linked to, and how many attachments of each type and documents came with it; the raw
+/// file, the order and product pages and the attachments and documents themselves are
+/// `buy show`'s.
+fn list_row(conn: &Connection, id: i64) -> Result<Value> {
+    let mut p = purchase_row(conn, id)?;
+    if let Value::Object(m) = &mut p {
+        for k in [
+            "merchant",
+            "order_url",
+            "product_url",
+            "billed_to",
+            "raw",
+            "imported_at",
+        ] {
+            m.remove(k);
+        }
+    }
+    let mut stmt = conn.prepare_cached(
+        "SELECT kind, COUNT(*) FROM purchase_attachments
+          WHERE purchase_id = ?1 OR purchase_id IN (SELECT id FROM purchases WHERE same_as = ?1)
+          GROUP BY kind ORDER BY kind",
+    )?;
+    let counts = stmt
+        .query_map([id], |r| {
+            Ok((r.get::<_, String>(0)?, json!(r.get::<_, i64>(1)?)))
+        })?
+        .collect::<rusqlite::Result<serde_json::Map<String, Value>>>()?;
+    p["attachments"] = Value::Object(counts);
+    p["documents"] = json!(conn.query_row(
+        "SELECT COUNT(DISTINCT document_id) FROM document_links
+          WHERE target = 'purchase'
+            AND (target_id = ?1 OR target_id IN (SELECT id FROM purchases WHERE same_as = ?1))",
+        [id],
+        |r| r.get::<_, i64>(0),
+    )?);
     Ok(p)
 }
 
@@ -597,7 +643,7 @@ impl Inventory {
         let shop = shop.map(crate::fold);
         let mut out = Vec::new();
         for id in all {
-            let p = purchase_json(&self.conn, id)?;
+            let p = list_row(&self.conn, id)?;
             let is_open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
             if open && !is_open
                 || bucket.is_some_and(|b| p["bucket"] != b)

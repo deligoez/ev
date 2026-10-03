@@ -1025,6 +1025,10 @@ static TR: &[(&str, &str)] = &[
     ),
     ("  (no photos)", "  (fotoğraf yok)"),
     ("  crop {}", "  kesit {}"),
+    (
+        "turned {}° clockwise, on:",
+        "saat yönünde {}° döndürüldü, şunlarda:",
+    ),
     ("  (file missing)", "  (dosya yok)"),
     // Grids
     (

@@ -1019,6 +1019,10 @@ enum PhotoCmd {
         /// Attach the whole photo even though it is already attached whole to another node.
         #[arg(long, conflicts_with = "crop")]
         whole: bool,
+        /// Turn the photo clockwise first (90, 180 or 270) and store it turned; --crop is a
+        /// fraction of the turned photo.
+        #[arg(long)]
+        rotate: Option<u16>,
     },
     /// Cut one photo up among several nodes at once: `<ref>=x,y,w,h` for each, and the whole
     /// photo on --place (the drawer or box it shows). All or nothing.
@@ -1043,6 +1047,10 @@ enum PhotoCmd {
         /// `ev ui`, titled with --note (else with what each number is).
         #[arg(long)]
         show: bool,
+        /// Turn the photo clockwise first (90, 180 or 270) and store it turned; the crops and
+        /// --grid are fractions of the turned photo.
+        #[arg(long)]
+        rotate: Option<u16>,
     },
     /// Draw numbered marks on a copy of a photo, to show which thing is meant and where it goes:
     /// `<label>=x,y,w,h` (fractions of the upright photo) or `<label>=A6` (cells of the grid,
@@ -1070,6 +1078,15 @@ enum PhotoCmd {
     List { reference: String },
     /// Detach the n-th photo of a node.
     Remove { reference: String, n: usize },
+    /// Turn a node's n-th photo clockwise for good, with every crop cut from it on any record
+    /// (re-cut to show the same part upright) and its grid corners; a crop turns its source
+    /// photo.
+    Rotate {
+        reference: String,
+        n: usize,
+        /// 90, 180 or 270, clockwise.
+        degrees: u16,
+    },
     /// Copy every photo still referenced outside the store into it.
     Adopt,
     /// The newest photo still shows the place well enough; drop it from the photo-needed list.
@@ -1921,7 +1938,12 @@ fn run(cli: Cli) -> Result<Value> {
             crop,
             note,
             whole,
+            rotate,
         }) => {
+            let file = match rotate {
+                Some(d) => inv.turned_copy(&file, d)?,
+                None => file,
+            };
             let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
             inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
         }
@@ -1975,7 +1997,12 @@ fn run(cli: Cli) -> Result<Value> {
             grid,
             preview,
             show,
+            rotate,
         }) => {
+            let file = match rotate {
+                Some(d) => inv.turned_copy(&file, d)?,
+                None => file,
+            };
             let grid = grid
                 .as_deref()
                 .map(str::parse::<ev_core::GridCorners>)
@@ -2023,6 +2050,11 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),
+        Cmd::Photo(PhotoCmd::Rotate {
+            reference,
+            n,
+            degrees,
+        }) => inv.photo_rotate(&reference, n, degrees),
         Cmd::Photo(PhotoCmd::Adopt) => inv.photo_adopt(),
         Cmd::Photo(PhotoCmd::Current { reference }) => inv.photo_current(&reference),
         Cmd::Photo(PhotoCmd::Stale { reference, why }) => {

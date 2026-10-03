@@ -2142,6 +2142,13 @@ pub fn human(v: &Value) -> String {
         v.get("photos").and_then(Value::as_array),
     ) {
         photo_list(&mut out, node, list);
+        // `ev photo rotate`: every record whose photo or crop turned with it.
+        if let Some(r) = v.get("rotated") {
+            let _ = writeln!(out, "{}", tf("turned {}° clockwise, on:", &[&r["degrees"]]));
+            for n in r["records"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  {}", line(n));
+            }
+        }
         return out;
     }
     let _ = writeln!(out, "{v}");

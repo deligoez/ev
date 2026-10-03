@@ -66,6 +66,30 @@ fn id_of(inv: &Inventory, name: &str) -> i64 {
 }
 
 #[test]
+fn the_list_counts_what_came_with_a_line_and_show_has_it() {
+    let (d, mut inv) = setup();
+    inv.buy_import(&export(&d, "1999.00")).unwrap();
+    let drill = id_of(&inv, "Matkap");
+    let list = inv.buy_list(false, None, None, None).unwrap();
+    let row = list["purchases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == drill)
+        .unwrap();
+    assert_eq!(row["documents"], 1);
+    assert_eq!(row["attachments"], json!({}));
+    assert_eq!(row["source_key"], "o1:a");
+    assert!(
+        row.get("raw").is_none() && row.get("imported_at").is_none(),
+        "{row}"
+    );
+    let shown = &inv.buy_show(drill).unwrap()["purchase"];
+    assert_eq!(shown["documents"].as_array().unwrap().len(), 1);
+    assert!(shown.get("imported_at").is_some(), "{shown}");
+}
+
+#[test]
 fn importing_twice_changes_nothing_and_skips_consumables_and_cancelled_lines() {
     let (d, mut inv) = setup();
     let first = inv.buy_import(&export(&d, "1999.00")).unwrap();

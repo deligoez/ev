@@ -473,7 +473,12 @@ never replaced or removed. (A thing's group photo is different: see below — it
 record, and a record split in two loses the whole photo for its own crops.)
 
 When the person sends a photo of a drawer or box, first confirm its contents against the
-records. Then attach it in one step. **A drawer with a grid is cut by its corners**:
+records. Then attach it in one step. **Look which way up it is first:** a photo that came in on
+its side or upside down is turned before anything is cut — `--rotate 90|180|270` (clockwise) on
+`ev photo add` or `ev photo cut`, every coordinate then a fraction of the turned photo; one
+already attached turns for good with `ev photo rotate <ref> <n> <degrees>`, its crops with it
+(never by hand: turned coordinates are easy to get backwards).
+**A drawer with a grid is cut by its corners**:
 `ev photo cut <photo> --place <drawer> --grid blx,bly,brx,bry,frx,fry,flx,fly` takes the grid's
 four corners as fractions of the upright photo — back-left, back-right, front-right, front-left
 — and cuts a crop for every placed box from the grid, with the photo's perspective, so no box is

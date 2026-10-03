@@ -344,11 +344,17 @@ shared words are weak. Under My Roof is never imported; use it only to confirm a
 **After a link, offer what came with the line in one question.** `ev buy link` shows the line's
 `attachments` (a product page, a value, a warranty from the source, the shop's product
 pictures): "bring along the invoice, 1 link, 3 product pictures, a value of 2,500 TRY
-(approximate date), a 2-year warranty?" On a yes, `ev buy bring <line> <ref>`; `--only <id>`
-for the ones they want. A product picture becomes a document of kind `image`: it shows the
-product as sold, never the thing as it is now, so it never replaces or counts as the thing's
-photo. On a thing kept in several places, a purchase linked on one portion is the whole
-thing's: do not link it again on the others.
+(approximate date), a 2-year warranty?" On a yes, `ev buy bring <line> <ref>`; `--only <id>,<id>`
+for the ones they want, `--type image` for the pictures alone. Where the person has said the
+pictures always come along (a household rule), bring them with the link without asking:
+`ev buy bring <line> <ref> --type image`, or `ev buy bring --all --type image` after a run of
+links. **Never bring silently:** each bring answers with what it brought and what it left and
+why (`brought_types`, `skipped`, `left`); tell the person in one line ("brought 3 product
+pictures to #12 Matkap; the value is still waiting"). A line linked to several things, or to
+a thing that is gone, is left: ask which thing it belongs to. A product picture becomes a
+document of kind `image`: it shows the product as sold, never the thing as it is now, so it
+never replaces or counts as the thing's photo. On a thing kept in several places, a purchase
+linked on one portion is the whole thing's: do not link it again on the others.
 
 ## Warranty, insurance and what is not tracked
 

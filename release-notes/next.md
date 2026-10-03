@@ -23,3 +23,46 @@ shops with most lines); the last 30 days (added, moved, gone by how, photos, the
 the boxes (known to be empty, never counted, fill, the fullest); coverages; the tags most used;
 and the things bought longest ago. `ev ui` shows the same on a ninth tab, Statistics, one
 collapsible section per heading, where a line that names a record opens it.
+
+## Faster, measured on a real household
+
+Every number here is from one household's copy (~670 records, ~900 purchase lines), release
+build, and every output was checked byte for byte against the previous version.
+
+- `ev ui` opens in about a fifth of the time: it loaded every node's details twice and rebuilt
+  its rows on each setting it read at start; it now builds the rows once and reads details once,
+  for the node it opens on. A photo is decoded on a thread of its own: moving onto a place with a
+  phone photo waited ~80 ms for it; the key now answers in ~2 ms and the photo follows a moment
+  later ("opening the photo…").
+- `ev tree` read each node with several queries; it now reads them all in three, and counts the
+  items under each place from one index (100 ms → under 10 ms).
+- `ev todo`, `ev progress` and `ev next` find when each place's contents last changed from one
+  read of the history instead of one per place (`todo` 80 → 20 ms).
+- `ev suggest`, `ev regroup` and `ev themes` build their word index once for each state of the
+  data, and `regroup` skips what cannot be a holder before it looks inside.
+- `ev add` and `ev found` offer the purchases a thing could be; that read every line's attachments
+  and documents too, which scoring never looks at (160 → 60 ms).
+
+## Output: what the reader needs, once
+
+An agent pays for every byte it reads. Measured on the same copy, the JSON of `ev buy list` was
+1.9 MB, `ev regroup` 500 KB, `ev tree` 340 KB, and `ev show` of one box 23 KB, mostly repeats.
+Now (spec/output.md):
+
+- **JSON is one line**, on the command line and over MCP; indentation was over half of `tree`.
+  Pipe it through `jq` to read it, or ask for `--text`.
+- **A row names its place once.** A node in a list (`children`, `results`, a task's `nodes`, a
+  suggestion's holder) carries `path_text` and no longer the `path` segments, which said the same
+  with every ancestor's id again. The node a payload is about (`node` in `show` and the commands
+  that answer with it) keeps `path`. `lost` appears only when true, on rows and in `tree`.
+- **A field with no value is left out** below a payload's top-level keys: a missing field reads
+  as null (`jq '.x'`, `d.get("x")`).
+- **The node payload leaves out its empty sections**: `show`, `add`, `edit`, `move` and the rest
+  answer with `node` and only the sections with something in them, no `"kits": []`.
+- **`ev buy list` rows count** what came with a line (`attachments: {image: 2}`, `documents: 1`)
+  and leave the raw file, the order and product pages and the attachments themselves to
+  `ev buy show`.
+- **A mistyped argument answers in JSON** in JSON mode (`kind: usage`, exit 2), like every other
+  error; `--help` stays text.
+
+`buy list` is now 0.4 MB, `regroup` 130 KB, `tree` 117 KB, `show` of that box 6 KB.

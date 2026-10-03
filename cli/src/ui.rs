@@ -692,6 +692,9 @@ struct App {
     /// version they were computed at.
     hints: Vec<Line<'static>>,
     regroups: HashMap<i64, (i64, Value)>,
+    /// While `run` sets up (settings, layout, resuming): details wait until the node it opens
+    /// on is known, so no other row's are worked out on the way.
+    starting: bool,
     /// The node selected in the tree when another tab was opened; the tree's position is what
     /// `ev ui` reopens on.
     tree_selected: Option<i64>,
@@ -825,6 +828,7 @@ impl App {
             detail_lines: 0,
             hints: Vec::new(),
             regroups: HashMap::new(),
+            starting: false,
             tree_selected: None,
             split: SPLIT,
             photo_split: PHOTO_SPLIT,
@@ -857,7 +861,9 @@ impl App {
         if !files.is_empty() {
             app.last_overlay = Some((files, 0, req["note"].as_str().map(str::to_string)));
         }
-        app.rebuild()?;
+        // The details wait for the node `ev ui` resumes at (see `run`): the first row's would
+        // be thrown away at once, and the home's cost a whole-house regroup.
+        app.rebuild_rows()?;
         Ok(app)
     }
 
@@ -977,6 +983,9 @@ impl App {
         }
         if let Some(c) = ids("collapsed") {
             self.collapsed = c;
+        }
+        if self.starting {
+            return self.rebuild_rows();
         }
         self.rebuild()
     }
@@ -1124,7 +1133,7 @@ impl App {
         self.tab = Tab::Tree;
         self.rows.clear();
         self.state.select(None);
-        self.rebuild()?;
+        self.rebuild_rows()?;
         if let Some(i) = self.rows.iter().position(|r| r.id == id) {
             self.state.select(Some(i));
         }
@@ -1376,6 +1385,7 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
         return Err(Error::Usage("`ev ui` needs a terminal".into()));
     }
     let mut app = App::new(inv)?;
+    app.starting = true;
     app.settings_path = Settings::path();
     app.reload_settings()?;
     let db = std::path::absolute(db).unwrap_or_else(|_| db.to_path_buf());
@@ -1390,6 +1400,10 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     }
     if let (true, Some(id)) = (app.prefs.resume, state.as_ref().and_then(|s| s.last(&db))) {
         app.resume_at(id)?;
+    }
+    app.starting = false;
+    if app.details.is_none() {
+        app.load_details()?;
     }
     let mut terminal = ratatui::init();
     // Inside tmux the query has to be wrapped for passthrough, which ratatui-image knows how to

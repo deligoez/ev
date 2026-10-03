@@ -22,6 +22,9 @@ impl App {
     pub(super) fn set_prefs(&mut self, prefs: Settings) -> Result<()> {
         self.prefs = prefs;
         self.apply_prefs();
+        if self.starting {
+            return self.rebuild_rows();
+        }
         self.rebuild()
     }
 

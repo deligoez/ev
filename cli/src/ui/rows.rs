@@ -3,8 +3,16 @@
 use super::*;
 
 impl App {
-    /// Recomputes the rows of the current tab, keeping the selection on the same node.
+    /// Recomputes the rows of the current tab, keeping the selection on the same node, and the
+    /// details of what is selected.
     pub(super) fn rebuild(&mut self) -> Result<()> {
+        self.rebuild_rows()?;
+        self.load_details()
+    }
+
+    /// The rows alone, for a caller that selects another row next: the details of a row only
+    /// passed through (the home, on every jump into the tree) cost a whole-house regroup.
+    pub(super) fn rebuild_rows(&mut self) -> Result<()> {
         let keep = self.selected_id();
         self.rows = match self.tab {
             Tab::Tree => {
@@ -137,7 +145,7 @@ impl App {
             })
             .map(|i| i.min(self.rows.len().saturating_sub(1)));
         self.state.select(idx);
-        self.load_details()
+        Ok(())
     }
 
     /// The Yapılacak tab: one section per kind of waiting work, each headed by its count and

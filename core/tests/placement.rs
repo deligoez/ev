@@ -526,3 +526,24 @@ fn a_thing_with_no_group_is_offered_the_empty_boxes_its_own_room_first() {
     let ds = inv.suggest("DS18B20 sıcaklık sensörü", None).unwrap();
     assert_eq!(ds["empty"], serde_json::json!([]));
 }
+
+#[test]
+fn a_spare_box_is_one_nothing_is_in_whatever_its_tag_says() {
+    let (_d, mut inv) = setup();
+    inv.edit("D-B1", &["fill=95".into()]).unwrap();
+    let spares = |inv: &Inventory| -> usize {
+        inv.regroup(Some("D")).unwrap()["full"][0]["bigger_spares"]
+            .as_array()
+            .map_or(0, Vec::len)
+    };
+    // Without the tag, the empty box is still a spare.
+    inv.edit("Boş kutu 1x2x1", &["tags=-boş kap".into()])
+        .unwrap();
+    assert_eq!(spares(&inv), 1);
+    // Something put in it: no longer a spare, tagged or not.
+    inv.edit("Boş kutu 1x2x1", &["tags=+boş kap".into()])
+        .unwrap();
+    inv.add(node("Röle modülü", "item", "Boş kutu 1x2x1"))
+        .unwrap();
+    assert_eq!(spares(&inv), 0);
+}

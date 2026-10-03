@@ -340,7 +340,9 @@ impl Inventory {
         let tag = tag.map(|t| t.trim().to_lowercase());
         let filled: std::collections::HashSet<i64> = ids(
             &self.conn,
-            "SELECT DISTINCT parent_id FROM nodes WHERE parent_id IS NOT NULL AND state != 'gone'",
+            // A lost thing is not in its last-seen place (as in `tree`).
+            "SELECT DISTINCT parent_id FROM nodes
+              WHERE parent_id IS NOT NULL AND state != 'gone' AND lost = 0",
             [],
         )?
         .into_iter()

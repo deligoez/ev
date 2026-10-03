@@ -644,7 +644,8 @@ impl Inventory {
                     let mut stale = Vec::new();
                     for n in check {
                         let holds: i64 = tx.query_row(
-                            "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone'",
+                            "SELECT COUNT(*) FROM nodes
+                              WHERE parent_id = ?1 AND state != 'gone' AND lost = 0",
                             [n],
                             |r| r.get(0),
                         )?;
@@ -718,7 +719,10 @@ impl Inventory {
         for u in units(&all) {
             let mut v = serde_json::to_value(brief(&self.conn, u)?)
                 .map_err(|e| Error::Internal(e.to_string()))?;
-            let direct = kids.get(&u).map_or(0, Vec::len);
+            // What is in it: a lost thing only keeps it as where it was last seen.
+            let direct = kids
+                .get(&u)
+                .map_or(0, |k| k.iter().filter(|n| !n.lost).count());
             v["children"] = json!(direct);
             v["observations"] = json!(observations_of(&self.conn, u)?.len());
             v["planned"] = json!(planned.contains(&u));

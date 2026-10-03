@@ -485,7 +485,8 @@ impl Inventory {
             }
             let inside = ids(
                 &tx,
-                "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone'",
+                // A lost thing only keeps the box as where it was last seen.
+                "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0",
                 [id],
             )?;
             if !inside.is_empty() {

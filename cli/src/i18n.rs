@@ -867,6 +867,10 @@ static TR: &[(&str, &str)] = &[
         "götür {} · iade {} · geri al {}",
     ),
     ("(none)", "(yok)"),
+    (
+        "Nothing recorded in these, but never counted: empty is not known",
+        "Bunlarda kayıtlı bir şey yok ama hiç sayılmadılar: boş oldukları bilinmiyor",
+    ),
     ("(no pending moves)", "(bekleyen taşıma yok)"),
     ("(nothing lost)", "(kayıp bir şey yok)"),
     ("holds {}", "içinde: {}"),

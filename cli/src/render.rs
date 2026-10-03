@@ -1964,6 +1964,18 @@ pub fn human(v: &Value) -> String {
                     candidate_lines(&mut out, c);
                 }
             }
+            // `ev find --empty`: boxes with nothing recorded in them only because nobody looked.
+            let unknown = v["not_known"].as_array().cloned().unwrap_or_default();
+            if !unknown.is_empty() {
+                let _ = writeln!(
+                    out,
+                    "\n{}",
+                    t("Nothing recorded in these, but never counted: empty is not known")
+                );
+                for n in &unknown {
+                    let _ = writeln!(out, "  {}", line(n));
+                }
+            }
             return out;
         }
     }

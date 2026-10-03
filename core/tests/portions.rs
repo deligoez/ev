@@ -392,3 +392,20 @@ fn a_thing_its_purchases_account_for_asks_nothing_and_more_than_bought_asks_agai
     assert_eq!(offered[0]["purchase"]["name"], "Eneloop AA BK-3MCCE 4'lü");
     assert!(offered.iter().all(|c| c["linked"] != true));
 }
+
+#[test]
+fn the_same_one_put_in_for_a_used_up_one_is_more_of_that_thing() {
+    let (_d, mut inv) = setup();
+    inv.gone("El feneri", Some(ev_core::Disposition::Used))
+        .unwrap();
+    let new = inv
+        .add(NewNode {
+            of: Some("El feneri".into()),
+            parent: Some("Oda".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(new["node"]["name"], "El feneri");
+    assert_eq!(new["thing"]["total"], 1);
+    assert_eq!(new["thing"]["gone"], serde_json::json!({"used": 1}));
+}

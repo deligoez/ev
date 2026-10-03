@@ -203,6 +203,9 @@ refused (`--whole` when that is really meant), and `ev todo` lists older slips. 
 give the same record several crops (`ev photo cut sets.jpg 598=… 598=…`), one per set in the
 photo. `ev photo list|remove|adopt`; a removed photo stays in the history, and a removed crop
 no record uses any more leaves the store with it (a whole photo stays: it may be the only copy).
+A photo taken on its side is turned for good: `--rotate 90|180|270` on `photo add` or
+`photo cut` stores it turned, and `ev photo rotate X 1 90` turns one already attached, every crop
+cut from it turned and cut again with it.
 
 **One drawer photo, every box cut from it.** For a drawer with a grid, `ev photo cut drawer.jpg
 --place 07-A --grid 0.07,0.09,0.95,0.09,0.93,0.83,0.07,0.83` takes the grid's four corners in the

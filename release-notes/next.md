@@ -34,3 +34,11 @@ A thing recorded as lost keeps the place it was last seen in, and `ev tree` alre
 of that place; but `ev empty` refused a box whose only record was such a thing ("has 1
 record(s) in it"), `ev find --empty` did not list it, and `ev review --as toured` asked for a
 photo of what was in it. A lost thing now counts as in no place for all of them, as in the tree.
+
+## An emptied place is photographed empty
+
+`ev todo` already asked for a new photo of a place emptied after its photo was taken, but
+`ev review --as toured` let any place with nothing in it through without one, so the record
+kept a picture of things that had left. Decided with the person: an emptied place is
+photographed empty. Touring now asks for that photo too; an empty place never photographed
+still needs none.

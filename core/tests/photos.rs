@@ -214,3 +214,70 @@ fn a_removed_crop_no_record_uses_is_deleted_and_a_whole_photo_is_kept() {
     inv.photo_remove("Çekmece", 1).unwrap();
     assert!(std::path::Path::new(&whole).exists());
 }
+
+#[test]
+fn turning_a_photo_turns_its_crops_and_cuts_them_again() {
+    let (_dir, mut inv, photo) = setup();
+    inv.add(NewNode {
+        name: "Kutu".into(),
+        kind: "container".into(),
+        parent: Some("Çekmece".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    // The red half on the box, the whole photo on the drawer.
+    inv.photo_cut(
+        &photo,
+        Some("Çekmece"),
+        &[("Kutu".into(), "0,0,0.5,1".parse().unwrap())],
+        None,
+        None,
+    )
+    .unwrap();
+    let old = inv.photo_list("Kutu").unwrap()["photos"][0]["path"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    // Turned from the crop: its source turns, and the drawer's whole photo with it.
+    let v = inv.photo_rotate("Kutu", 1, 90).unwrap();
+    assert_eq!(v["rotated"]["records"].as_array().unwrap().len(), 2, "{v}");
+    let crop = &v["photos"][0];
+    assert_eq!(crop["crop"], "0.0000,0.0000,1.0000,0.5000");
+    let cut = image::open(crop["path"].as_str().unwrap())
+        .unwrap()
+        .to_rgb8();
+    assert_eq!((cut.width(), cut.height()), (100, 100));
+    assert!(
+        cut.pixels().all(|p| p[0] > 200 && p[2] < 60),
+        "still the red half"
+    );
+    assert!(!std::path::Path::new(&old).exists(), "the old crop is gone");
+    let whole = inv.photo_list("Çekmece").unwrap()["photos"][0]["path"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(image::image_dimensions(&whole).unwrap(), (100, 200));
+    let h = inv.history("Çekmece").unwrap();
+    assert_eq!(
+        h["events"].as_array().unwrap().last().unwrap()["type"],
+        "photo_rotate"
+    );
+}
+
+#[test]
+fn a_photo_added_turned_is_stored_turned() {
+    let (_dir, mut inv, photo) = setup();
+    let turned = inv.turned_copy(&photo, 270).unwrap();
+    // The crop is a fraction of the turned photo: its top half was the right, blue half.
+    let v = inv
+        .photo_add("Çekmece", &turned, Some("0,0,1,0.5".parse().unwrap()), None)
+        .unwrap();
+    let cut = image::open(v["photos"][0]["path"].as_str().unwrap())
+        .unwrap()
+        .to_rgb8();
+    assert!(
+        cut.pixels().all(|p| p[2] > 200 && p[0] < 60),
+        "the blue half"
+    );
+    assert!(inv.turned_copy(&photo, 45).is_err());
+}

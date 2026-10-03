@@ -131,7 +131,9 @@ from the home down, the ancestors' ids to step up with.
 | history | `node`, `events`: `[{at, type, data}]`; with `--contents` also the events of things that came in, went out (`move`, `done`, `plan` to or from it) or were added there (`create`), each with `item` (NodeRef) and `relation`: `in` \| `out` \| `added` |
 
 Errors print nothing on stdout; stderr carries
-`{"error": {"code", "kind", "message", "candidates"?, "details"?}}` in JSON mode.
+`{"error": {"code", "kind", "message", "candidates"?, "details"?}}` in JSON mode, a mistyped
+argument too (`kind: usage`, exit 2, the message with the command's usage line). `--help` and
+`--version` stay text, on stdout.
 
 ## Event types
 

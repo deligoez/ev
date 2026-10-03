@@ -315,9 +315,12 @@ sold, `ev show` lists its documents: read them out before the person goes lookin
 `~/.ev/purchases/` stay outside `ev` until the person says to bring a shop in; running an
 adapter into their database on your own is not part of any other task.
 **What was bought is evidence, not a record.** Purchase lines come from a shop's export
-(`tools/purchases/<shop>.py | tools/purchases/images.py | ev buy import --stdin`, the middle
-step hanging the shop's saved product pictures on each line) or by hand (`ev buy add`); none of
-them is a thing in the tree. **Say the right date:** a line shows `ordered …` (the day it was
+through an adapter you keep next to it, which also emits each line's product pictures as
+`image` lines (`~/.ev/purchases/<shop>/adapter.py | ev buy import --stdin`), or by hand
+(`ev buy add`); none of them is a thing in the tree. A new shop gets a new adapter: start from
+`examples/purchases/` in the ev repository (its README walks through it) and keep the adapter
+with the shop's raw export and its `RECIPE.md`.
+**Say the right date:** a line shows `ordered …` (the day it was
 bought, what the shop's order page says) and `delivered …` when it arrived; "bought on" is the
 order date. When the person holds a thing that matches a line ("this is the drill I
 bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`. The thing then

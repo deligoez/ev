@@ -949,6 +949,38 @@ fn the_selected_node_shows_its_photo_panel() {
 }
 
 #[test]
+fn a_photo_is_decoded_off_the_loop_and_shown_when_it_is_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    inv.add(NewNode {
+        name: "Ev".into(),
+        kind: "home".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let photo = dir.path().join("p.png");
+    image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]))
+        .save(&photo)
+        .unwrap();
+    inv.photo_add("Ev", &photo, None, None).unwrap();
+    let mut app = app_tr(inv);
+    app.picker = Some(Picker::halfblocks());
+    let (wake, woken) = std::sync::mpsc::channel();
+    app.decoder = Some(crate::ui::Decoder::start(wake));
+    let mut term = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("fotoğraf açılıyor"));
+    woken
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    app.take_decoded();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(!s.contains("fotoğraf açılıyor"), "{s}");
+    assert_eq!(app.decoded.len(), 1);
+}
+
+#[test]
 fn the_newest_photo_and_its_note_show_first_under_the_nodes_id() {
     let dir = tempfile::tempdir().unwrap();
     let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();

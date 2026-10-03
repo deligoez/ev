@@ -679,3 +679,11 @@ fn buy_bring_all_lists_each_line_it_brought_from_with_the_thing() {
     );
     assert_eq!(h.text(&["buy", "bring", "--all"]), "Nothing brought.\n");
 }
+
+#[test]
+fn grid_lists_each_box_with_its_cells_its_code_and_its_name() {
+    let h = Home::new();
+    let s = h.text(&["grid", "D"]);
+    assert!(s.contains("  A1      D-A1  Kutu\n"), "{s}");
+    assert!(s.contains("  B1      D-B1  Kutu\n"), "{s}");
+}

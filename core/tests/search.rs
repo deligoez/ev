@@ -78,23 +78,27 @@ fn a_match_in_the_name_ranks_above_one_in_the_note() {
 }
 
 #[test]
-fn empty_lists_the_containers_nothing_is_in_and_follows_what_moves() {
+fn empty_lists_the_containers_known_to_hold_nothing_and_follows_what_moves() {
     let (_d, mut inv) = setup();
-    let empty = |inv: &Inventory| -> Vec<String> {
-        inv.find_with("", None, None, false, true).unwrap()["results"]
+    let list = |inv: &Inventory, key: &str| -> Vec<String> {
+        inv.find_with("", None, None, false, true).unwrap()[key]
             .as_array()
             .unwrap()
             .iter()
             .map(|r| r["name"].as_str().unwrap().to_string())
             .collect()
     };
-    assert_eq!(empty(&inv), ["Kablo çantası"]);
+    // Nothing was ever recorded in the bag and its room was never counted: not known to be
+    // empty, only never looked into.
+    assert!(list(&inv, "results").is_empty());
+    assert_eq!(list(&inv, "not_known"), ["Kablo çantası"]);
     inv.move_to("Kırmızı kablo", "Kablo çantası", false)
         .unwrap();
-    assert!(empty(&inv).is_empty(), "something is in it now");
+    assert!(list(&inv, "not_known").is_empty(), "something is in it now");
     inv.gone("Kırmızı kablo", Some(ev_core::Disposition::Trash))
         .unwrap();
-    assert_eq!(empty(&inv), ["Kablo çantası"], "what left is not in it");
+    // What was in it left: now it is known to be empty.
+    assert_eq!(list(&inv, "results"), ["Kablo çantası"]);
 }
 
 #[test]

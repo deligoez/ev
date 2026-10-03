@@ -511,6 +511,14 @@ fn a_thing_with_no_group_is_offered_the_empty_boxes_its_own_room_first() {
         l.key = None;
     }
     inv.add_batch(more).unwrap();
+    // Things were in both boxes and left, so they are known to be empty; a carton never opened
+    // has nothing recorded in it only because nobody looked, and is not offered.
+    for b in ["Samla 5 L", "Boş kutu 1x2x1"] {
+        let t = inv.add(node("Geçici", "item", b)).unwrap();
+        let id = t["node"]["id"].to_string();
+        inv.move_to(&id, "Mutfak", false).unwrap();
+    }
+    inv.add(node("Karton kutu", "container", "Mutfak")).unwrap();
     let v = inv.suggest_with("", None, Some("RFID okuyucu")).unwrap();
     assert_eq!(v["new_group_likely"], true);
     let names: Vec<&str> = v["empty"]
@@ -531,6 +539,9 @@ fn a_thing_with_no_group_is_offered_the_empty_boxes_its_own_room_first() {
 fn a_spare_box_is_one_nothing_is_in_whatever_its_tag_says() {
     let (_d, mut inv) = setup();
     inv.edit("D-B1", &["fill=95".into()]).unwrap();
+    // Something was in the box and left: it is known to be empty, not just never counted.
+    inv.add(node("Geçici", "item", "Boş kutu 1x2x1")).unwrap();
+    inv.move_to("Geçici", "Oda", false).unwrap();
     let spares = |inv: &Inventory| -> usize {
         inv.regroup(Some("D")).unwrap()["full"][0]["bigger_spares"]
             .as_array()

@@ -422,6 +422,20 @@ impl Inventory {
                 ));
             }
             crate::store::event(&tx, id, "empty", json!({ "note": note }))?;
+            // A box known to be empty has nothing left to count: it is counted (`toured`), so
+            // it neither shows as not counted nor waits in the tour. Something put in it later
+            // makes it changed since its tour, like any toured place.
+            tx.execute(
+                "INSERT INTO reviews (node_id, status, at, note) VALUES (?1, 'toured', ?2, ?3)
+                 ON CONFLICT(node_id) DO UPDATE SET status = 'toured', at = excluded.at,
+                   note = excluded.note",
+                params![
+                    id,
+                    crate::store::now(),
+                    note.map(str::trim).filter(|n| !n.is_empty())
+                ],
+            )?;
+            crate::store::event(&tx, id, "review", json!({ "as": "toured", "note": note }))?;
             marked.push(brief(&tx, id)?);
         }
         tx.commit()?;

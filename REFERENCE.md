@@ -103,16 +103,17 @@ language`. See `spec/mcp.md` for the reasons.
   this reference, compiled into the binary.
 ## Payload shapes
 
-Every node reference (`NodeRef`) is:
+Every node reference (`NodeRef`), a row in any list, is:
 
 ```json
 {"id": 5, "code": null, "name": "Flipper Zero", "kind": "item", "state": "active",
- "lost": false, "path": [{"id": 1, "code": null, "name": "Ev"}, "…"],
  "path_text": "Ev › Salon › K4x4 › K4x4-15-A › Flipper Zero"}
 ```
 
-`disposition` and `qty` appear when set. A path segment prints a node's code when it has
-one, its name otherwise.
+`lost` (true), `disposition` and `qty` appear when set. `path_text` names each place from the
+home down by its code when it has one, its name otherwise. The node a payload is about (`node`
+in `show` and the commands that answer with it) also carries `path`: `[{id, code, name}]`
+from the home down, the ancestors' ids to step up with.
 
 | Command | Top-level keys |
 |---|---|

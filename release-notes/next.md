@@ -27,3 +27,10 @@ whole, and everything else the agent had just written. It now answers with the r
 and `changed`: each field it changed, before and after (`note: old → new` in the text);
 `ev edit --stdin` gives each line's `changed` the same way, and `ev show` still has the rest.
 A node's `lost` and `temporary` now appear only when true, as they already did on rows.
+
+## A lost thing does not fill the box it was last seen in
+
+A thing recorded as lost keeps the place it was last seen in, and `ev tree` already left it out
+of that place; but `ev empty` refused a box whose only record was such a thing ("has 1
+record(s) in it"), `ev find --empty` did not list it, and `ev review --as toured` asked for a
+photo of what was in it. A lost thing now counts as in no place for all of them, as in the tree.

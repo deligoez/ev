@@ -1443,3 +1443,23 @@ fn product_images_show_on_the_photos_tab_after_the_persons_photos_never_as_one()
     let s = screen(&term);
     assert!(s.contains("Matkap · Ürün görseli 1/1"), "{s}");
 }
+
+#[test]
+fn nine_opens_the_statistics_with_a_section_per_heading() {
+    let (_dir, inv) = led_drawer();
+    let mut app = app_tr(inv);
+    press(&mut app, KeyCode::Char('9'));
+    assert!(app.tab == Tab::Stats);
+    let mut term = Terminal::new(TestBackend::new(150, 50)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("9 İstatistik"), "{s}");
+    assert!(s.contains("GENEL") && s.contains("SAYIM"), "{s}");
+    assert!(s.contains("eşya kaydı"), "{s}");
+    // The first heading closes with Enter, and its lines go.
+    let first = app.rows.iter().position(|r| r.id < 0).unwrap();
+    app.select(first).unwrap();
+    press(&mut app, KeyCode::Enter);
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(!screen(&term).contains("eşya kaydı"));
+}

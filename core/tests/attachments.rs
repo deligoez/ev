@@ -123,7 +123,7 @@ fn bringing_makes_the_attachments_the_things_own_once() {
     inv.buy_import(&lines(&other_app())).unwrap();
     let tv = id_of(&inv, "o1:a");
     assert!(
-        inv.buy_bring(tv, "Televizyon", &[]).is_err(),
+        inv.buy_bring(tv, "Televizyon", &[], &[]).is_err(),
         "not linked yet"
     );
     let linked = inv.buy_link(tv, "Televizyon", None).unwrap();
@@ -131,13 +131,13 @@ fn bringing_makes_the_attachments_the_things_own_once() {
         linked["purchase"]["attachments"].as_array().unwrap().len(),
         3
     );
-    let v = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
+    let v = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(v["brought"].as_array().unwrap().len(), 3);
     assert_eq!(v["valuations"][0]["amount"], "27000.00");
     assert_eq!(v["valuations"][0]["approximate"], true);
     assert_eq!(v["coverages"][0]["kind"], "manufacturer");
     assert_eq!(v["links"][0]["url"], "https://www.lg.example/oled55c1");
-    let twice = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
+    let twice = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(twice["brought"], json!([]));
 }
 
@@ -156,7 +156,7 @@ fn a_shops_product_image_is_brought_as_a_document_never_as_the_things_photo() {
     inv.buy_import(&lines(&l)).unwrap();
     let tv = id_of(&inv, "o1:a");
     inv.buy_link(tv, "Televizyon", None).unwrap();
-    let v = inv.buy_bring(tv, "Televizyon", &[]).unwrap();
+    let v = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(v["brought"].as_array().unwrap().len(), 1);
     assert_eq!(v["documents"][0]["kind"], "image");
     assert!(v["node"]["photos"].as_array().unwrap().is_empty(), "{v}");

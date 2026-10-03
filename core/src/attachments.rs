@@ -242,9 +242,18 @@ fn by_name(conn: &Connection, id: i64, among: &[i64]) -> Result<Option<i64>> {
 
 impl Inventory {
     /// Brings a line's attachments (and those of the lines joined to it) to a thing it is
-    /// linked to: links, values and coverages become the thing's own. `only` picks some by id;
-    /// those already brought are skipped.
-    pub fn buy_bring(&mut self, id: i64, reference: &str, only: &[i64]) -> Result<Value> {
+    /// linked to: links, values, coverages and product images become the thing's own. `only`
+    /// picks some by id, `types` some by type; those already brought are skipped. The result
+    /// says what was brought (`brought`, `brought_types`) and what was not and why (`skipped`),
+    /// so the agent can tell the person.
+    pub fn buy_bring(
+        &mut self,
+        id: i64,
+        reference: &str,
+        only: &[i64],
+        types: &[String],
+    ) -> Result<Value> {
+        check_types(types)?;
         let tx = self.conn.transaction()?;
         let node = resolve(&tx, reference, false)?;
         let linked: Option<i64> = tx
@@ -259,80 +268,146 @@ impl Inventory {
                 "purchase {id} is not linked to {reference}; ev buy link it first"
             )));
         }
-        let mut brought = Vec::new();
-        for a in attachments_of(&tx, id)? {
-            let aid = a["id"].as_i64().unwrap_or_default();
-            if !a["brought_to"].is_null() || !only.is_empty() && !only.contains(&aid) {
-                continue;
-            }
-            let s = |k: &str| a[k].as_str().map(str::to_string);
-            match a["type"].as_str() {
-                Some("link") => {
-                    crate::links::add_link(
-                        &tx,
-                        &self.doc_dir,
-                        node,
-                        &s("url").unwrap_or_default(),
-                        &s("kind").unwrap_or_else(|| "info".into()),
-                        s("archive").as_deref(),
-                        s("note").as_deref(),
-                    )?;
-                }
-                Some("valuation") => {
-                    crate::valuations::add_valuation(
-                        &tx,
-                        node,
-                        &NewValuation {
-                            amount: s("amount").unwrap_or_default(),
-                            currency: s("currency"),
-                            at: s("at"),
-                            approximate: a["approximate"] == true,
-                            source: s("from"),
-                            note: s("note"),
-                        },
-                    )?;
-                }
-                Some("coverage") => {
-                    crate::coverage::add_coverage(
-                        &tx,
-                        &[node],
-                        &NewCoverage {
-                            kind: s("kind").unwrap_or_default(),
-                            term: s("term"),
-                            from: s("from"),
-                            ends: s("ends"),
-                            issuer: s("issuer"),
-                            number: s("number"),
-                            note: s("note"),
-                            ..Default::default()
-                        },
-                    )?;
-                }
-                Some("image") => {
-                    let file = s("file").unwrap_or_default();
-                    let (doc, _) = crate::docs::store_doc(
-                        &tx,
-                        &self.doc_dir,
-                        std::path::Path::new(&file),
-                        &crate::docs::NewDoc {
-                            kind: "image".into(),
-                            note: s("note"),
-                            ..Default::default()
-                        },
-                    )?;
-                    crate::docs::link_node(&tx, doc, node, "image")?;
-                }
-                _ => continue,
-            }
-            tx.execute(
-                "UPDATE purchase_attachments SET brought_to = ?1 WHERE id = ?2",
-                params![node, aid],
-            )?;
-            brought.push(aid);
+        let attachments = attachments_of(&tx, id)?;
+        let unknown: Vec<String> = only
+            .iter()
+            .filter(|o| !attachments.iter().any(|a| a["id"] == **o))
+            .map(|o| format!("#{o}"))
+            .collect();
+        if !unknown.is_empty() {
+            return Err(Error::Usage(format!(
+                "purchase {id} carries no attachment {}; ev buy show {id} lists them",
+                unknown.join(", ")
+            )));
         }
+        let picked: Vec<Value> = attachments
+            .into_iter()
+            .filter(|a| only.is_empty() || only.iter().any(|o| a["id"] == *o))
+            .collect();
+        let (brought, skipped) = bring_into(&tx, &self.doc_dir, node, &picked, types)?;
         tx.commit()?;
         let mut v = crate::store::show(&self.conn, node)?;
+        v["brought_types"] = counts_by_type(&picked, &brought);
         v["brought"] = json!(brought);
+        v["skipped"] = json!(skipped);
+        v["from_purchase"] = json!(id);
         Ok(v)
     }
+}
+
+fn check_types(types: &[String]) -> Result<()> {
+    match types
+        .iter()
+        .find(|t| !ATTACHMENT_KINDS.contains(&t.as_str()))
+    {
+        Some(t) => Err(Error::Usage(format!(
+            "attachment type '{t}' is not one of: {}",
+            ATTACHMENT_KINDS.join(", ")
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// How many of each type `brought` holds, e.g. `{"image": 2, "link": 1}`.
+fn counts_by_type(attachments: &[Value], brought: &[i64]) -> Value {
+    let mut counts = Map::new();
+    for a in attachments
+        .iter()
+        .filter(|a| brought.iter().any(|b| a["id"] == *b))
+    {
+        let t = a["type"].as_str().unwrap_or_default().to_string();
+        let n = counts.get(&t).and_then(Value::as_i64).unwrap_or(0);
+        counts.insert(t, json!(n + 1));
+    }
+    Value::Object(counts)
+}
+
+/// Brings `attachments` to `node`, those of `types` only when given. Returns the ids brought
+/// and, for each one left, why: `brought` (already, `to` says where) or `type` (filtered out).
+fn bring_into(
+    tx: &Connection,
+    doc_dir: &std::path::Path,
+    node: i64,
+    attachments: &[Value],
+    types: &[String],
+) -> Result<(Vec<i64>, Vec<Value>)> {
+    let mut brought = Vec::new();
+    let mut skipped = Vec::new();
+    for a in attachments {
+        let aid = a["id"].as_i64().unwrap_or_default();
+        let kind = a["type"].as_str().unwrap_or_default();
+        if let Some(to) = a["brought_to"].as_i64() {
+            skipped.push(json!({"id": aid, "type": kind, "why": "brought", "to": to}));
+            continue;
+        }
+        if !types.is_empty() && !types.iter().any(|t| t == kind) {
+            skipped.push(json!({"id": aid, "type": kind, "why": "type"}));
+            continue;
+        }
+        let s = |k: &str| a[k].as_str().map(str::to_string);
+        match kind {
+            "link" => {
+                crate::links::add_link(
+                    tx,
+                    doc_dir,
+                    node,
+                    &s("url").unwrap_or_default(),
+                    &s("kind").unwrap_or_else(|| "info".into()),
+                    s("archive").as_deref(),
+                    s("note").as_deref(),
+                )?;
+            }
+            "valuation" => {
+                crate::valuations::add_valuation(
+                    tx,
+                    node,
+                    &NewValuation {
+                        amount: s("amount").unwrap_or_default(),
+                        currency: s("currency"),
+                        at: s("at"),
+                        approximate: a["approximate"] == true,
+                        source: s("from"),
+                        note: s("note"),
+                    },
+                )?;
+            }
+            "coverage" => {
+                crate::coverage::add_coverage(
+                    tx,
+                    &[node],
+                    &NewCoverage {
+                        kind: s("kind").unwrap_or_default(),
+                        term: s("term"),
+                        from: s("from"),
+                        ends: s("ends"),
+                        issuer: s("issuer"),
+                        number: s("number"),
+                        note: s("note"),
+                        ..Default::default()
+                    },
+                )?;
+            }
+            "image" => {
+                let file = s("file").unwrap_or_default();
+                let (doc, _) = crate::docs::store_doc(
+                    tx,
+                    doc_dir,
+                    std::path::Path::new(&file),
+                    &crate::docs::NewDoc {
+                        kind: "image".into(),
+                        note: s("note"),
+                        ..Default::default()
+                    },
+                )?;
+                crate::docs::link_node(tx, doc, node, "image")?;
+            }
+            _ => continue,
+        }
+        tx.execute(
+            "UPDATE purchase_attachments SET brought_to = ?1 WHERE id = ?2",
+            params![node, aid],
+        )?;
+        brought.push(aid);
+    }
+    Ok((brought, skipped))
 }

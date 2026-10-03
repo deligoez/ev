@@ -788,14 +788,20 @@ enum BuyCmd {
         #[arg(long, conflicts_with = "why")]
         clear: bool,
     },
-    /// Bring what came with a line (a link, a value, a warranty) to a thing it is linked to.
+    /// Bring what came with a line (a link, a value, a warranty, a product image) to a thing it
+    /// is linked to. Says what it brought and what it left, and why.
     Bring {
         #[arg(value_parser = record_id)]
         id: i64,
         reference: String,
-        /// Only these attachments, by id (repeatable); all not yet brought by default.
-        #[arg(long, value_parser = record_id)]
+        /// Only these attachments, by id (repeatable or comma-separated); all not yet brought
+        /// by default.
+        #[arg(long, value_parser = record_id, value_delimiter = ',')]
         only: Vec<i64>,
+        /// Only attachments of these types: link, valuation, coverage, image (repeatable or
+        /// comma-separated).
+        #[arg(long = "type", value_delimiter = ',')]
+        r#type: Vec<String>,
     },
 }
 
@@ -1798,7 +1804,8 @@ fn run(cli: Cli) -> Result<Value> {
             id,
             reference,
             only,
-        }) => inv.buy_bring(id, &reference, &only),
+            r#type,
+        }) => inv.buy_bring(id, &reference, &only, &r#type),
         Cmd::Buy(BuyCmd::Dismiss {
             id,
             reason,

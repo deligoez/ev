@@ -59,7 +59,8 @@ move or be copied whole; a photo still outside the store (not adopted) keeps its
 Output always gives a file's full path. It runs in write-ahead-log mode:
 readers (`ev ui`, an agent's reads) and the writer do not wait for each other, and writers queue
 for up to 30 seconds instead of failing. While a process has the file open, `ev.db-wal` and
-`ev.db-shm` sit beside it; keep them out of version control and never delete them by hand. After
+`ev.db-shm` sit beside it; keep them out of version control and never delete them by hand, and
+keep `ev.db-focus.json` (the last `ev focus` request) out too. After
 every command that writes, ev folds the log back into `ev.db`, so the file alone holds every
 change: it is what a data repository commits. Back it up with
 `sqlite3 ev.db ".backup '<target>'"`, which copies a consistent whole even while another
@@ -390,7 +391,9 @@ screen (the last one by default); `ev focus --file <picture>… [--note text]` s
 are no record (marked photos; repeat `--file` for several, stepped with `[` `]`) full screen,
 titled with the note, until Esc (a click does not close them; `m` in `ev ui` opens the last ones
 again, also after a restart); `ev focus --clear`
-withdraws the request. Each request is shown once, without restarting `ev ui`.
+withdraws the request. Each request is shown once, without restarting `ev ui`. A request is a
+message to the UI, not a change to the inventory: it is kept beside the database in
+`ev.db-focus.json`, and `ev.db` stays as it was.
 
 `ev photo mark <target> <label>=<where>… [--grid corners] [--out file] [--show note]` draws a
 red frame and a label for each mark on a copy of a photo: `<target>` is a photo file or a place

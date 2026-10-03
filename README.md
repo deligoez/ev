@@ -176,6 +176,11 @@ leaving, coverage and value questions), notes on the order it never applies itse
 places no task covers yet. `ev goal organize|track` says whether the household
 wants a tidy-up at all — under `track` ev only keeps the records.
 
+**Numbers on one page.** `ev stats` says how much there is (records, units, rooms, boxes),
+what it cost by the linked purchases (and in today's money), per room, how far the counting
+has come, the purchases by year and shop, the last 30 days, the boxes known to be empty, the
+coverages, the tags most used and the things bought longest ago; `ev ui` shows it on its
+Statistics tab (`9`).
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
 uninventoried places, and places whose photo of the current state is missing or older than their

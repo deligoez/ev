@@ -94,7 +94,7 @@ pub(crate) fn tasks_of(conn: &Connection, id: i64) -> Result<Vec<Value>> {
 /// children carries a code (a code is a physical label, so a coded child is a place of its
 /// own); everything below a unit is gone through with it. `K4x4-08-A` is a unit and the boxes
 /// in it are not; `K4x4-08` is not, because its drawers are labelled.
-fn units(all: &[Node]) -> Vec<i64> {
+pub(crate) fn units(all: &[Node]) -> Vec<i64> {
     let mut kids: HashMap<Option<i64>, Vec<&Node>> = HashMap::new();
     for n in all {
         kids.entry(n.parent_id).or_default().push(n);
@@ -186,7 +186,7 @@ fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
 }
 
 /// The review a unit inherits: its own, or the nearest reviewed ancestor's.
-fn effective_review(
+pub(crate) fn effective_review(
     id: i64,
     parent: &HashMap<i64, Option<i64>>,
     reviews: &HashMap<i64, (String, String)>,
@@ -220,7 +220,7 @@ pub(crate) fn review_inherited(conn: &Connection, id: i64) -> Result<Value> {
     Ok(Value::Null)
 }
 
-fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
+pub(crate) fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
     let mut stmt = conn.prepare("SELECT node_id, status, at FROM reviews")?;
     let rows = stmt
         .query_map([], |r| Ok((r.get(0)?, (r.get(1)?, r.get(2)?))))?

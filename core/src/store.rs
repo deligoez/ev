@@ -272,33 +272,29 @@ impl Inventory {
 
     pub fn tree(&self, reference: Option<&str>, depth: Option<usize>) -> Result<Value> {
         let depth = depth.unwrap_or(usize::MAX);
+        let index = TreeIndex::build(&self.conn)?;
         match reference {
             Some(r) => {
                 let id = resolve(&self.conn, r, false)?;
-                Ok(json!({ "tree": [subtree(&self.conn, id, depth)?] }))
+                Ok(json!({ "tree": [subtree(&index, id, depth)] }))
             }
             None => {
-                let homes: Vec<i64> = ids(
-                    &self.conn,
-                    "SELECT id FROM nodes WHERE kind = 'home' AND state != 'gone' ORDER BY id",
-                    [],
-                )?;
-                let tree = homes
-                    .iter()
-                    .map(|id| subtree(&self.conn, *id, depth))
-                    .collect::<Result<Vec<_>>>()?;
+                let mut homes: Vec<i64> = index
+                    .nodes
+                    .values()
+                    .filter(|n| n.kind == Kind::Home)
+                    .map(|n| n.id)
+                    .collect();
+                homes.sort_unstable();
+                let tree: Vec<Value> = homes.iter().map(|id| subtree(&index, *id, depth)).collect();
                 // Whose place is not known: every lost thing, each with where it was last seen.
-                let lost: Vec<i64> = ids(
-                    &self.conn,
-                    "SELECT id FROM nodes WHERE lost = 1 AND state != 'gone' ORDER BY id",
-                    [],
-                )?;
+                let mut lost: Vec<&Node> = index.nodes.values().filter(|n| n.lost).collect();
+                lost.sort_by_key(|n| n.id);
                 let lost = lost
                     .iter()
-                    .map(|id| {
-                        let mut v = subtree(&self.conn, *id, depth)?;
-                        let seen = load(&self.conn, *id)?.parent_id;
-                        v["last_seen"] = match seen {
+                    .map(|n| {
+                        let mut v = subtree(&index, n.id, depth);
+                        v["last_seen"] = match n.parent_id {
                             Some(p) => json!(brief(&self.conn, p)?),
                             None => Value::Null,
                         };
@@ -1463,17 +1459,97 @@ pub(crate) fn sorted_children(conn: &Connection, parent: i64, with_lost: bool) -
             Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         })?
         .collect::<std::result::Result<_, _>>()?;
-    rows.sort_by_cached_key(|(id, kind, code, name)| {
-        let rank = match kind.as_str() {
-            "room" => 0,
-            "furniture" => 1,
-            "container" => 2,
-            _ => 3,
-        };
-        let code_key = code.as_deref().map(natural_key).unwrap_or_default();
-        (rank, code.is_none(), code_key, fold(name), *id)
-    });
+    rows.sort_by_cached_key(|(id, kind, code, name)| sibling_key(kind, code.as_deref(), name, *id));
     Ok(rows.into_iter().map(|r| r.0).collect())
+}
+
+/// Where a record stands among its siblings (see `sorted_children`).
+type SiblingKey = (u8, bool, Vec<(bool, u64, String)>, String, i64);
+
+fn sibling_key(kind: &str, code: Option<&str>, name: &str, id: i64) -> SiblingKey {
+    let rank = match kind {
+        "room" => 0,
+        "furniture" => 1,
+        "container" => 2,
+        _ => 3,
+    };
+    let code_key = code.map(natural_key).unwrap_or_default();
+    (rank, code.is_none(), code_key, fold(name), id)
+}
+
+/// Everything `ev tree` shows of every live record, read in a few queries: built per record it
+/// took thousands (each record loaded again, its count found by walking up its chain, its item
+/// total by a recursive query), and `ev ui` waited for them on every start.
+struct TreeIndex {
+    nodes: HashMap<i64, Node>,
+    /// The children that are not lost, in reading order.
+    kids: HashMap<i64, Vec<i64>>,
+    /// The units of everything below a record, lost ones left out.
+    items: HashMap<i64, i64>,
+    /// How far each place gone through on its own has been counted.
+    count: HashMap<i64, String>,
+}
+
+impl TreeIndex {
+    fn build(conn: &Connection) -> Result<Self> {
+        let all = load_live(conn)?;
+        let mut kids: HashMap<i64, Vec<i64>> = HashMap::new();
+        for n in all.iter().filter(|n| !n.lost) {
+            if let Some(p) = n.parent_id {
+                kids.entry(p).or_default().push(n.id);
+            }
+        }
+        let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
+        let reviews = crate::plan::all_reviews(conn)?;
+        let count = crate::plan::units(&all)
+            .into_iter()
+            .map(|u| {
+                let s = crate::plan::effective_review(u, &parent, &reviews)
+                    .map_or_else(|| "raw".to_string(), |(_, s, _)| s);
+                (u, s)
+            })
+            .collect();
+        let nodes: HashMap<i64, Node> = all.into_iter().map(|n| (n.id, n)).collect();
+        for list in kids.values_mut() {
+            list.sort_by_cached_key(|id| {
+                let n = &nodes[id];
+                sibling_key(&n.kind.to_string(), n.code.as_deref(), &n.name, n.id)
+            });
+        }
+        let mut items = HashMap::new();
+        let ids: Vec<i64> = nodes.keys().copied().collect();
+        for id in ids {
+            item_total_in(id, &nodes, &kids, &mut items);
+        }
+        Ok(TreeIndex {
+            nodes,
+            kids,
+            items,
+            count,
+        })
+    }
+}
+
+/// The units of the items below `id` (not lost), memoised in `out`.
+fn item_total_in(
+    id: i64,
+    nodes: &HashMap<i64, Node>,
+    kids: &HashMap<i64, Vec<i64>>,
+    out: &mut HashMap<i64, i64>,
+) -> i64 {
+    if let Some(t) = out.get(&id) {
+        return *t;
+    }
+    let mut total = 0;
+    for k in kids.get(&id).into_iter().flatten() {
+        let n = &nodes[k];
+        if n.kind == Kind::Item {
+            total += n.qty.unwrap_or(1);
+        }
+        total += item_total_in(*k, nodes, kids, out);
+    }
+    out.insert(id, total);
+    total
 }
 
 /// A code cut into runs of digits and of the rest, digits compared as numbers.
@@ -1502,8 +1578,10 @@ fn natural_key(s: &str) -> Vec<(bool, u64, String)> {
     flush(&mut run, digits, &mut out);
     out
 }
-fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
-    let n = load(conn, id)?;
+fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
+    let Some(n) = t.nodes.get(&id) else {
+        return Value::Null;
+    };
     let mut v = json!({
         "id": n.id, "code": n.code, "name": n.name, "kind": n.kind,
         "state": n.state, "lost": n.lost,
@@ -1526,7 +1604,7 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
         v["temporary"] = json!(true);
     }
     // How far a place gone through on its own has been counted.
-    if let Some(s) = crate::plan::count_state(conn, id)? {
+    if let Some(s) = t.count.get(&id) {
         v["count"] = json!(s);
     }
     // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
@@ -1542,18 +1620,20 @@ fn subtree(conn: &Connection, id: i64, depth: usize) -> Result<Value> {
         v["tags"] = json!(n.tags);
     }
     v["updated_at"] = json!(n.updated_at);
-    v["items"] = json!(item_total(conn, id)?);
-    let children = if depth == 0 {
+    v["items"] = json!(t.items.get(&id).copied().unwrap_or(0));
+    // A lost thing is not where it was last seen: the tree lists it apart.
+    let children: Vec<Value> = if depth == 0 {
         Vec::new()
     } else {
-        // A lost thing is not where it was last seen: the tree lists it apart.
-        let kids = sorted_children(conn, id, false)?;
-        kids.iter()
-            .map(|k| subtree(conn, *k, depth - 1))
-            .collect::<Result<Vec<_>>>()?
+        t.kids
+            .get(&id)
+            .into_iter()
+            .flatten()
+            .map(|k| subtree(t, *k, depth - 1))
+            .collect()
     };
     v["children"] = json!(children);
-    Ok(v)
+    v
 }
 
 // ---------- references (spec §4, §11.4) ----------

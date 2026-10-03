@@ -49,6 +49,7 @@ ev add Salon --kind room --in Ev
 ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing batch
 ev find flipper                  # word search over name, code, note, theme, tags
 ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
+ev find --empty                  # the boxes nothing is in, worked out, no tag to keep
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows
 ev tree Salon --depth 2          # the picture, with item totals
@@ -116,7 +117,8 @@ meant for a place (`to=`), belong to one (`owner=`) or be lent out (`ev lend X -
 **Where should this go?** `ev suggest "<what it is>"` ranks the holders by how well their
 theme, name, note and contents match, and shows why: the words that matched, from where, and
 how many points each. It says how much of the description the best holder covers and flags a
-thing nothing here is like (`new_group_likely`), shows each holder's room from its fill, and
+thing nothing here is like (`new_group_likely`) with the empty boxes to start its group in
+(those in its own room first), shows each holder's room from its fill, and
 still lists every holder, the placement rules (`ev rule add|list|remove`) and synonyms
 (`ev synonym add "fotosel, ldr"`). Turkish word forms meet (`kutuda` → `kutu`), part codes stay
 whole (`KY-018`), and the same question always gets the same answer. `ev suggest --for <thing>`
@@ -125,7 +127,7 @@ places something already recorded by its own words.
 **What could regroup?** `ev regroup <drawer>` asks the same question of every thing inside:
 what would fit better in another box (and, apart, the guesses: things that share no word with
 anything in their box, where the other box is only a hint), boxes that are mixed, full boxes
-with a bigger spare box (tagged `boş kap`, with a `size`) and the cells it would fit in, nearly
+with a bigger spare box (an empty one with a `size`) and the cells it would fit in, nearly
 empty boxes that could merge, and boxes whose fill is unknown or out of date. A move the
 person says no to is kept (`ev regroup --decline <thing> --why "…"`) and not proposed again
 until the thing is moved. Noun compounds

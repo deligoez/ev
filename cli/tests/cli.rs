@@ -614,8 +614,9 @@ fn a_kit_is_recorded_linked_and_counted_from_the_command_line() {
     assert_eq!(v["parts"][1]["expected"], 6);
     ev.ok(&["kit", "part", "Proje seti", "HC-06"]);
     let v = ev.ok(&["kit", "link", "Proje seti", "1", "Röle"]);
-    assert_eq!(v["parts"][0]["found"], 1);
-    assert_eq!(v["parts"][0]["open"], 1);
+    assert_eq!(v["part"]["found"], 1);
+    assert_eq!(v["part"]["open"], 1);
+    let v = ev.ok(&["kit", "show", "Proje seti"]);
     assert_eq!(v["parts"][2]["text"], "HC-06");
     let v = ev.ok(&["kit", "list"]);
     assert_eq!(v["kits"][0]["counts"]["expected"], 10);

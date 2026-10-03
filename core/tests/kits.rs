@@ -71,6 +71,10 @@ fn a_kit_counts_each_part_found_lost_and_still_missing_across_its_copies() {
             &["Beyaz kart".into(), "Beyaz kart (eksik)".into()],
         )
         .unwrap();
+    // A link answers with the part it changed and the kit's counts, not the whole list.
+    assert_eq!(v["part"]["n"], 2);
+    assert!(v.get("parts").is_none(), "{v}");
+    let v = inv.kit_show("Proje seti").unwrap();
     // A record's count is how many it stands for; a lost one is neither found nor missing.
     assert_eq!(part(&v, 1)["found"], 2);
     assert_eq!(part(&v, 1)["open"], 0);
@@ -110,9 +114,9 @@ fn a_link_is_in_the_records_history_and_details_and_can_be_undone() {
     );
     // Linking the same record twice changes nothing.
     let v = inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
-    assert_eq!(part(&v, 1)["found"], 2);
+    assert_eq!(v["part"]["found"], 2);
     let v = inv.kit_unlink("Set", 1, "RC522 okuyucu").unwrap();
-    assert_eq!(part(&v, 1)["open"], 2);
+    assert_eq!(v["part"]["open"], 2);
     assert!(
         inv.show("RC522 okuyucu", false).unwrap()["kits"]
             .as_array()
@@ -174,7 +178,7 @@ fn a_part_that_left_the_home_no_longer_counts_as_found() {
     inv.kit_add("Set", None, None, &[("Kart".into(), 1)], None)
         .unwrap();
     let v = inv.kit_link("Set", 1, &["Beyaz kart".into()]).unwrap();
-    assert_eq!(part(&v, 1)["found"], 1);
+    assert_eq!(v["part"]["found"], 1);
     // Thrown out: the link stays in the history, but the part is missing again.
     inv.gone("Beyaz kart", Some(ev_core::Disposition::Trash))
         .unwrap();

@@ -211,7 +211,23 @@ impl Inventory {
             }
         }
         tx.commit()?;
-        self.kit_show(&id.to_string())
+        self.kit_part(id, n)
+    }
+
+    /// What a link or an unlink changed: the part, with its count, and the kit's counts. The
+    /// whole checklist is `kit_show`'s (spec/output.md).
+    fn kit_part(&self, id: i64, n: i64) -> Result<Value> {
+        let v = self.kit_show(&id.to_string())?;
+        let part = v["parts"]
+            .as_array()
+            .and_then(|p| p.iter().find(|p| p["n"] == n))
+            .cloned()
+            .unwrap_or(Value::Null);
+        Ok(json!({
+            "kit": { "id": id, "name": v["kit"]["name"] },
+            "part": part,
+            "counts": v["counts"],
+        }))
     }
 
     /// Links a kit to the purchase line it was bought as (spec/kit-purchase.md), or clears it
@@ -248,7 +264,7 @@ impl Inventory {
             json!({ "kit": name, "part": n, "text": text }),
         )?;
         tx.commit()?;
-        self.kit_show(&id.to_string())
+        self.kit_part(id, n)
     }
 
     /// One kit, part by part: how many are expected (per copy × copies), which records are

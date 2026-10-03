@@ -1876,6 +1876,24 @@ pub fn human(v: &Value) -> String {
         kit_parts(&mut out, v, kit, parts);
         return out;
     }
+    // `ev kit link` / `unlink`: the part that changed and the kit's counts.
+    if let (Some(kit), Some(part)) = (
+        v.get("kit").filter(|k| k.is_object()),
+        v.get("part").filter(|p| p.is_object()),
+    ) {
+        kit_part_lines(&mut out, part);
+        let c = &v["counts"];
+        let _ = writeln!(
+            out,
+            "{}  {}",
+            s(kit, "name"),
+            tf(
+                "{} of {} found · {} lost · {} still missing",
+                &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
+            )
+        );
+        return out;
+    }
     if let Some(list) = v.get("kits").and_then(Value::as_array) {
         if list.is_empty() {
             let _ = writeln!(out, "{}", t("(no kits)"));
@@ -2724,24 +2742,42 @@ fn kit_parts(out: &mut String, v: &Value, kit: &Value, parts: &[Value]) {
         let _ = writeln!(out, "  {}: {}", t("bought"), purchase_line(p));
     }
     for p in parts {
-        let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
-            (Some(0), Some(0)) => "✓",
-            _ if p["found"] == 0 => "·",
-            _ => "~",
-        };
-        let mut counts = format!("{}/{}", p["found"], p["expected"]);
-        if p["lost"].as_i64().unwrap_or(0) > 0 {
-            counts.push_str(&format!("  {}", tf("{} lost", &[&p["lost"]])));
-        }
+        kit_part_lines(out, p);
+    }
+}
+
+/// One part of a kit with its count, and each record that is it by name and the holder it is
+/// in, not its whole path: the list is read against the case in hand.
+fn kit_part_lines(out: &mut String, p: &Value) {
+    let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
+        (Some(0), Some(0)) => "✓",
+        _ if p["found"] == 0 => "·",
+        _ => "~",
+    };
+    let mut counts = format!("{}/{}", p["found"], p["expected"]);
+    if p["lost"].as_i64().unwrap_or(0) > 0 {
+        counts.push_str(&format!("  {}", tf("{} lost", &[&p["lost"]])));
+    }
+    let _ = writeln!(
+        out,
+        "{:>3}. {mark} {}  {counts}",
+        p["n"].as_i64().unwrap_or_default(),
+        s(p, "text")
+    );
+    for n in p["nodes"].as_array().into_iter().flatten() {
+        let path = n["path_text"].as_str().unwrap_or_default();
+        let holder = path.rsplit(" › ").nth(1).unwrap_or(path);
+        let qty = n["qty"]
+            .as_i64()
+            .map(|q| format!(" ×{q}"))
+            .unwrap_or_default();
+        let lost = if n["lost"] == true { t("  [lost]") } else { "" };
         let _ = writeln!(
             out,
-            "{:>3}. {mark} {}  {counts}",
-            p["n"].as_i64().unwrap_or_default(),
-            s(p, "text")
+            "       #{} {}{qty}  ← {holder}{lost}",
+            n["id"],
+            s(n, "name")
         );
-        for n in p["nodes"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "       {}", line(n));
-        }
     }
 }
 

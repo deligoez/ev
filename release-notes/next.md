@@ -76,7 +76,8 @@ records: a container no live record is in, and known to be empty — its place w
 something was once recorded in it and left. A box with nothing recorded only because nobody
 looked into it (an unopened carton, an uncounted drawer) is not empty: `ev find --empty` lists
 it apart under `not_known`, and nothing offers it. A box that moves comes before a slot of
-furniture.
+furniture. When the person opens a box and says it is empty, `ev empty <box>… --note "…"`
+records that on their word, and the box counts as known to be empty from then on.
 
 - `ev find --empty` lists them (also `empty` on the MCP `find` tool).
 - When a thing has no group here (`new_group_likely`), `ev suggest` lists the empty boxes with

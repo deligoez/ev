@@ -82,3 +82,24 @@ records: a container no live record is in.
   still marks a spare that is not a container, but a box with something in it is never one.
 
 The tag can be dropped from boxes that carry it; nothing reads it as "empty" any more.
+
+## Sticking labels on a drawer's boxes
+
+Labelling a gridded drawer is one question asked many times: which code goes on which box.
+
+- `ev photo mark <drawer> --codes` draws each placed box's code on its own cells of the
+  drawer's photo; before, the agent typed that `code=cell` list itself from the grid.
+- A label on cells now sits in the cells' top-left corner, no taller than about a third of
+  them and no wider, so the box under it stays visible. It used to be drawn at the photo's own
+  scale in the middle of the cells, where even a three-character code covered the box.
+- A label keeps its letters as given: the built-in font had capitals only and drew `G1x1-001`
+  as `G1X1-001`, while the person copies the code from the picture by hand.
+- `ev grid <drawer>` lists each box by its cells, its code and its name.
+
+## Siblings in reading order
+
+`ev tree`, `ev show` and `ev ui` listed what is in a place in the order it was recorded, so a
+series of boxes was split whenever a piece of furniture was recorded between them
+(`S5-01`…`S5-07`, the desk, then `S5-08`…). Siblings now come rooms, furniture, containers,
+then things; within each, the coded ones by their code read naturally (`S5-2` before `S5-10`,
+the `S5` series before `S45`), then the rest by name.

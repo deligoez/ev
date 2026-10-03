@@ -42,3 +42,17 @@ lines") and gains `examples/purchases/`: a worked adapter over an invented shop 
 README on writing one for a new shop. A test runs the example into `ev buy import`, so the
 adapter an agent starts from always works. The fifteen adapters written so far stay in the
 `v0.21.0` tag.
+
+## Writes that changed nothing no longer change `ev.db`
+
+The data repository commits `ev.db`, so a command that changes nothing in the inventory should
+leave the file alone. Two did not, and each made a commit about nothing:
+
+- `ev focus` kept its request for `ev ui` in the database's settings table. A request is a
+  message to the UI, not a change to the inventory: it now goes to `ev.db-focus.json` beside the
+  database (keep it out of version control, like `ev.db-wal`), and `ev ui` reads it on its
+  half-second tick instead of waiting for a write.
+- Importing the same purchase lines again raised the attachments table's AUTOINCREMENT counter
+  by one per attachment, because an ignored `INSERT OR IGNORE` still advances it. An attachment
+  is now looked up first; a re-import that changes nothing leaves the file byte for byte as it
+  was.

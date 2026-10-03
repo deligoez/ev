@@ -223,3 +223,35 @@ fn bringing_again_says_each_attachment_is_already_brought_and_where() {
         "{skipped:?}"
     );
 }
+
+#[test]
+fn bringing_all_brings_each_line_to_its_thing_and_names_a_gone_one() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Aparat".into(),
+        kind: "item".into(),
+        parent: Some("Oda".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let mut l = shop();
+    l.push(json!({"type": "link", "source": "shop", "purchase": "o1:b",
+                  "url": "https://shop.example/mount"}));
+    inv.buy_import(&lines(&l)).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let (tv, mount) = (id_of(&inv, "o1:a"), id_of(&inv, "o1:b"));
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    inv.buy_link(mount, "Aparat", None).unwrap();
+    inv.gone("Aparat", Some(ev_core::Disposition::Trash))
+        .unwrap();
+    let v = inv.buy_bring_all(&["link".into()]).unwrap();
+    assert_eq!(v["brought_types"], json!({"link": 1}));
+    assert_eq!(v["brought_from"][0]["purchase"], tv);
+    assert_eq!(v["left"][0]["purchase"], mount);
+    assert_eq!(v["left"][0]["why"], "gone");
+    let again = inv.buy_bring_all(&[]).unwrap();
+    assert_eq!(
+        again["brought_types"],
+        json!({"valuation": 1, "coverage": 1})
+    );
+}

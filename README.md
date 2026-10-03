@@ -52,7 +52,7 @@ ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
 ev find --empty                  # the boxes nothing is in, worked out, no tag to keep
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows
-ev tree Salon --depth 2          # the picture, with item totals
+ev tree Salon --depth 2          # the picture, with item totals; a series of boxes in code order
 ev edit 391 qty=11 note="…"      # change fields
 ev edit --stdin < edits.ndjson   # many records at once, all or nothing: {"ref":…,"set":{…}}
 ev recode A3=A4 A4=A3            # swap or rotate codes when boxes trade places
@@ -144,7 +144,7 @@ their `size` field does not.
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
-map and lists the free cells, `ev ui` shows it in the drawer's details, and `ev suggest` names
+map, lists the free cells and each box by its cells, code and name, `ev ui` shows it in the drawer's details, and `ev suggest` names
 the free cells. Boxes trade places in one `ev cell` call and keep their codes. Furniture is a
 grid too, seen from the front (`ev grid K4x4 --cols 4 --rows 4
 --face front`, row 1 at the top); several holders take the same grid in one call. Movable
@@ -218,7 +218,9 @@ in a running `ev ui` at once; `ev focus --file a.jpg --file b.jpg --note "…"` 
 together, stepped with `[` `]`. Esc closes them (a stray click does not), and `m` opens the last
 ones again, even after a restart. The marked copies are scratch: never stored, never attached,
 no history, cleared after a day. `ev focus X [--photo n]` does the same for a recorded node,
-so "which one do you mean?" is answered on screen too.
+so "which one do you mean?" is answered on screen too. While labels go on a gridded drawer's
+boxes, `ev photo mark <drawer> --codes` writes each box's code in the corner of its own cells,
+so the person reads which label goes on which box; a label keeps the letters as given.
 
 **Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves,
 things leaving, lost items, errands, search, everything waiting (one collapsible section per

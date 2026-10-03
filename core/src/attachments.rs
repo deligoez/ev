@@ -293,6 +293,65 @@ impl Inventory {
         v["from_purchase"] = json!(id);
         Ok(v)
     }
+
+    /// Brings what every linked line still carries (of `types` only, when given) to the thing
+    /// it is linked to: the back-fill after an import or a run of `ev buy link`. A line linked
+    /// to more than one thing is left for `ev buy bring <line> <ref>` (which one is the
+    /// person's call), and so is one whose thing is gone; the result names both, and lists
+    /// each line it brought from with what it brought.
+    pub fn buy_bring_all(&mut self, types: &[String]) -> Result<Value> {
+        check_types(types)?;
+        let tx = self.conn.transaction()?;
+        let lines: Vec<(i64, i64, String, String, i64)> = {
+            let mut stmt = tx.prepare(
+                "SELECT l.purchase_id, MIN(l.node_id), n.name, n.state,
+                        COUNT(DISTINCT COALESCE('t' || n.thing, 'n' || n.id))
+                 FROM purchase_links l JOIN nodes n ON n.id = l.node_id
+                 GROUP BY l.purchase_id ORDER BY l.purchase_id",
+            )?;
+            stmt.query_map([], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })?
+            .collect::<std::result::Result<_, _>>()?
+        };
+        let mut brought_from = Vec::new();
+        let mut left = Vec::new();
+        let mut totals = Map::new();
+        for (line, node, name, state, things) in lines {
+            let pending: Vec<Value> = attachments_of(&tx, line)?
+                .into_iter()
+                .filter(|a| a["brought_to"].is_null())
+                .filter(|a| types.is_empty() || types.iter().any(|t| a["type"] == *t.as_str()))
+                .collect();
+            if pending.is_empty() {
+                continue;
+            }
+            let why = if things > 1 {
+                Some("several")
+            } else if state == "gone" {
+                Some("gone")
+            } else {
+                None
+            };
+            if let Some(why) = why {
+                left.push(
+                    json!({"purchase": line, "node": node, "name": name, "why": why,
+                                 "waiting": pending.len()}),
+                );
+                continue;
+            }
+            let (brought, _) = bring_into(&tx, &self.doc_dir, node, &pending, types)?;
+            let counts = counts_by_type(&pending, &brought);
+            for (t, n) in counts.as_object().into_iter().flatten() {
+                let sum = totals.get(t).and_then(Value::as_i64).unwrap_or(0);
+                totals.insert(t.clone(), json!(sum + n.as_i64().unwrap_or(0)));
+            }
+            brought_from.push(json!({"purchase": line, "node": node, "name": name,
+                                     "brought_types": counts, "brought": brought}));
+        }
+        tx.commit()?;
+        Ok(json!({"brought_from": brought_from, "brought_types": totals, "left": left}))
+    }
 }
 
 fn check_types(types: &[String]) -> Result<()> {

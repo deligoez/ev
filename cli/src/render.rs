@@ -602,6 +602,58 @@ fn purchase(out: &mut String, p: &Value) {
     }
 }
 
+fn type_counts(counts: &Value) -> String {
+    counts
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(k, n)| format!("{} ×{n}", attachment_type(k)))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// `ev buy bring --all`: the total, each line it brought from, then each it left and why.
+fn bring_all(out: &mut String, v: &Value) {
+    let from = v["brought_from"].as_array().cloned().unwrap_or_default();
+    if from.is_empty() {
+        let _ = writeln!(out, "{}", t("Nothing brought."));
+    } else {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "Brought from {} purchases: {}",
+                &[&from.len(), &type_counts(&v["brought_types"])]
+            )
+        );
+    }
+    for f in &from {
+        let _ = writeln!(
+            out,
+            "  #{} → #{} {}: {}",
+            f["purchase"],
+            f["node"],
+            s(f, "name"),
+            type_counts(&f["brought_types"])
+        );
+    }
+    for l in v["left"].as_array().into_iter().flatten() {
+        let why = if l["why"] == "gone" {
+            tf("#{} {} is gone", &[&l["node"], &s(l, "name")])
+        } else {
+            t("linked to several things").to_string()
+        };
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "left #{}: {}, {} waiting; ev buy bring {} <ref> brings it",
+                &[&l["purchase"], &why, &l["waiting"], &l["purchase"]]
+            )
+        );
+    }
+}
+
 fn attachment_type(kind: &str) -> &'static str {
     match kind {
         "link" => t("link"),
@@ -1372,6 +1424,10 @@ fn regroup(out: &mut String, v: &Value) {
 )]
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    if v.get("brought_from").is_some() {
+        bring_all(&mut out, v);
+        return out;
+    }
     if v.get("item").is_some()
         && v.get("declined").is_some()
         && v.as_object().is_some_and(|o| o.len() == 2)

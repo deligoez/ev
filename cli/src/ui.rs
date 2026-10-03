@@ -1226,8 +1226,8 @@ impl App {
     }
 
     fn step_photo(&mut self, delta: isize) {
-        let last = self.photo_count().saturating_sub(1);
-        let cur = self.photo_idx.min(last) as isize;
+        let last = self.picture_count().saturating_sub(1);
+        let cur = self.picture_idx() as isize;
         self.photo_idx = (cur + delta).clamp(0, last as isize) as usize;
     }
 

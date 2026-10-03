@@ -243,7 +243,6 @@ static TR: &[(&str, &str)] = &[
     ("showing: {}", "gösteriliyor: {}"),
     ("\"{}\": {} results", "\"{}\": {} sonuç"),
     ("search cleared", "arama temizlendi"),
-    (" {} · Photo {}/{} ", " {} · Fotoğraf {}/{} "),
     (
         "(this terminal cannot show pictures — press O to open it outside)",
         "(bu terminal resim gösteremiyor — O ile dışarıda aç)",
@@ -257,6 +256,9 @@ static TR: &[(&str, &str)] = &[
         " Ara: \"{}\" · ✕ temizle (x) ",
     ),
     (" Photo {}/{} ", " Fotoğraf {}/{} "),
+    (" Product image {}/{} ", " Ürün görseli {}/{} "),
+    ("Photos ({})", "Fotoğraflar ({})"),
+    ("Product images ({})", "Ürün görselleri ({})"),
     (
         "([ ] step · r rotate · o full screen · O open outside) ",
         "([ ] gez · r döndür · o tam ekran · O dışarıda aç) ",

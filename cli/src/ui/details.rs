@@ -78,7 +78,7 @@ impl App {
         };
         match tab {
             DetailTab::Summary => true,
-            DetailTab::Photos => self.photo_count() > 0,
+            DetailTab::Photos => self.picture_count() > 0,
             DetailTab::Documents => self.tab_badge(DetailTab::Documents).is_some(),
             DetailTab::Grid => v["grid"].is_object() || v["parent_grid"].is_object(),
             DetailTab::Contents => v["children"].as_array().is_some_and(|c| !c.is_empty()),
@@ -90,7 +90,7 @@ impl App {
     /// The count a tab title carries: things inside, suggested moves, events.
     pub(super) fn tab_badge(&self, tab: DetailTab) -> Option<usize> {
         let n = match tab {
-            DetailTab::Photos => self.photo_count(),
+            DetailTab::Photos => self.picture_count(),
             DetailTab::Documents => self.document_targets().len(),
             DetailTab::Contents => self.details.as_ref()?["children"].as_array()?.len(),
             DetailTab::Suggestions => self
@@ -749,15 +749,17 @@ impl App {
         out
     }
 
-    /// What `[` `]` step through and `O` opens on the Documents tab, in the order drawn.
+    /// What `[` `]` step through and `O` opens on the Documents tab, in the order drawn. Product
+    /// images are not here: they show on the Photos tab.
     pub(super) fn document_targets(&self) -> Vec<Target> {
-        let docs = self
-            .details
+        self.details
             .as_ref()
             .and_then(|v| v["documents"].as_array())
-            .map_or(0, Vec::len);
-        (0..docs)
-            .map(Target::Document)
+            .into_iter()
+            .flatten()
+            .enumerate()
+            .filter(|(_, d)| d["kind"] != "image")
+            .map(|(i, _)| Target::Document(i))
             .chain((0..self.detail_links().len()).map(Target::Link))
             .collect()
     }
@@ -806,13 +808,22 @@ impl App {
                 Span::raw("  ")
             }
         };
-        let docs = v["documents"].as_array().cloned().unwrap_or_default();
+        // Product images show on the Photos tab; each document keeps its index in `documents`.
+        let docs: Vec<(usize, Value)> = v["documents"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .cloned()
+            .enumerate()
+            .filter(|(_, d)| d["kind"] != "image")
+            .collect();
         if !docs.is_empty() {
             out.push((
                 Line::from(tf("Documents ({})", &[&docs.len()])).bold(),
                 None,
             ));
-            for (i, d) in docs.iter().enumerate() {
+            for (i, d) in &docs {
+                let i = *i;
                 let mut what = vec![crate::render::doc_kind(&str_of(d, "kind")).to_string()];
                 for key in ["issuer", "issued_at"] {
                     if let Some(x) = d[key].as_str() {
@@ -1151,41 +1162,79 @@ impl App {
         lines
     }
 
-    /// The Photos tab: every photo, newest first, with when it was added, whether it is a crop,
-    /// and its note; the one shown above is marked. A click shows that one.
+    /// The Photos tab: the person's photos, newest first, with when each was added, whether it
+    /// is a crop, and its note; then the product images that came with a purchase. The one
+    /// shown above is marked; a click shows that one.
     pub(super) fn photo_lines(&self) -> Vec<(Line<'static>, Option<Target>)> {
-        let current = self.photo_idx.min(self.photos.len().saturating_sub(1));
+        let current = self.picture_idx();
         let count = self.photos.len();
-        (0..count)
-            .rev()
-            .map(|i| {
-                let p = &self.photos[i];
-                let at = chrono::DateTime::parse_from_rfc3339(p["added_at"].as_str().unwrap_or(""))
-                    .map(|d| {
-                        d.with_timezone(&chrono::Local)
-                            .format("%Y-%m-%d %H:%M")
-                            .to_string()
-                    })
-                    .unwrap_or_else(|_| "\u{2014}".repeat(16));
-                let kind = if p["crop"].is_string() {
-                    t("crop")
-                } else {
-                    t("whole")
-                };
-                let mark = if i == current { "\u{25b6} " } else { "  " };
-                let style = if i == current {
-                    Style::new().bold()
-                } else {
-                    Style::new()
-                };
-                let line = Line::from(vec![
-                    Span::styled(format!("{mark}{:>2}  ", i + 1), style.fg(pal().code)),
-                    Span::styled(format!("{at}  {kind:<5}  "), Style::new().fg(pal().muted)),
-                    Span::styled(str_of(p, "note"), style),
-                ]);
-                (line, Some(Target::Photo(i)))
-            })
-            .collect()
+        let images = self.product_images();
+        let mut out = Vec::new();
+        let marked = |i: usize| {
+            let mark = if i == current { "\u{25b6} " } else { "  " };
+            let style = if i == current {
+                Style::new().bold()
+            } else {
+                Style::new()
+            };
+            (mark, style)
+        };
+        if count > 0 && !images.is_empty() {
+            out.push((Line::from(tf("Photos ({})", &[&count])).bold(), None));
+        }
+        for i in (0..count).rev() {
+            let p = &self.photos[i];
+            let at = chrono::DateTime::parse_from_rfc3339(p["added_at"].as_str().unwrap_or(""))
+                .map(|d| {
+                    d.with_timezone(&chrono::Local)
+                        .format("%Y-%m-%d %H:%M")
+                        .to_string()
+                })
+                .unwrap_or_else(|_| "\u{2014}".repeat(16));
+            let kind = if p["crop"].is_string() {
+                t("crop")
+            } else {
+                t("whole")
+            };
+            let (mark, style) = marked(i);
+            let line = Line::from(vec![
+                Span::styled(format!("{mark}{:>2}  ", i + 1), style.fg(pal().code)),
+                Span::styled(format!("{at}  {kind:<5}  "), Style::new().fg(pal().muted)),
+                Span::styled(str_of(p, "note"), style),
+            ]);
+            out.push((line, Some(Target::Photo(i))));
+        }
+        if images.is_empty() {
+            return out;
+        }
+        if count > 0 {
+            out.push((Line::raw(""), None));
+        }
+        out.push((
+            Line::from(tf("Product images ({})", &[&images.len()])).bold(),
+            None,
+        ));
+        for (j, d) in images.iter().enumerate() {
+            let i = count + j;
+            let (mark, style) = marked(i);
+            let what = d["note"]
+                .as_str()
+                .or(d["original_name"].as_str())
+                .unwrap_or_default()
+                .to_string();
+            let mut spans = vec![
+                Span::styled(format!("{mark}{:>2}  ", j + 1), style.fg(pal().code)),
+                Span::styled(what, style),
+            ];
+            if let Some(p) = d["via_purchase"].as_i64() {
+                spans.push(Span::styled(
+                    tf("  (purchase #{})", &[&p]),
+                    Style::new().fg(pal().muted),
+                ));
+            }
+            out.push((Line::from(spans), Some(Target::Photo(i))));
+        }
+        out
     }
 
     /// What each line of the details points at, in the order `details_text` draws them: the

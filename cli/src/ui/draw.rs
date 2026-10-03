@@ -4,23 +4,14 @@
 use super::*;
 
 impl App {
-    /// The current photo over the whole screen, titled with the node, its place in the node's
-    /// photos and the photo's own note.
+    /// The current picture over the whole screen, titled with the node, its place among the
+    /// node's photos or product images and its own note.
     pub(super) fn draw_fullscreen(&mut self, f: &mut Frame, path: &str) {
         let [main, bottom] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
-        let count = self.photo_count();
-        let idx = self.photo_idx.min(count.saturating_sub(1));
         let node = self.details.as_ref().map(|d| d["node"].clone());
         let name = node.as_ref().map(|n| str_of(n, "name")).unwrap_or_default();
-        let note = self
-            .photos
-            .get(idx)
-            .and_then(|p| p["note"].as_str().map(str::to_string));
-        let mut title = tf(" {} · Photo {}/{} ", &[&name, &(idx + 1), &count]);
-        if let Some(n) = note {
-            title.push_str(&format!("· {n} "));
-        }
+        let title = format!(" {name} ·{}", self.picture_title());
         let block = Block::bordered().title(title);
         let inner = block.inner(main);
         f.render_widget(block, main);
@@ -193,26 +184,18 @@ impl App {
         self.photo_area = Rect::default();
         let text_area = match (self.current_photo(), self.picker.is_some()) {
             (Some(path), true) => {
-                let count = self.photo_count();
                 let [img_area, rest] = Layout::vertical([
                     Constraint::Percentage(self.photo_split),
                     Constraint::Min(6),
                 ])
                 .areas(right);
-                let idx = self.photo_idx.min(count - 1);
-                // The photo's own note says what it shows (a drawer's final state, the inside
-                // of a bag), which the picture alone may not.
-                let note = self
-                    .photos
-                    .get(idx)
-                    .and_then(|p| p["note"].as_str())
-                    .map(|n| format!("· {n} "))
-                    .unwrap_or_default();
-                // The note before the key hints, so a narrow pane cuts the hints, not the note.
+                // The picture's own note says what it shows (a drawer's final state, the inside
+                // of a bag), which the picture alone may not; it comes before the key hints, so
+                // a narrow pane cuts the hints, not the note.
                 let block = Block::bordered()
                     .title(format!(
-                        "{}{note}{}",
-                        tf(" Photo {}/{} ", &[&(idx + 1), &count]),
+                        "{}{}",
+                        self.picture_title(),
                         t("([ ] step · r rotate · o full screen · O open outside) ")
                     ))
                     .border_style(columns_edge.patch(photo_edge));
@@ -291,11 +274,15 @@ impl App {
                     spans.push(Span::styled(" · ", Style::new().fg(pal().muted)));
                     x += 3;
                 }
-                let badge = self
-                    .tab_badge(tab)
-                    .filter(|_| tab != DetailTab::Summary)
-                    .map(|n| format!(" {n}"))
-                    .unwrap_or_default();
+                let images = self.product_images().len();
+                let badge = match self.tab_badge(tab).filter(|_| tab != DetailTab::Summary) {
+                    // The person's photos and the product images counted apart: `2+3`.
+                    Some(n) if tab == DetailTab::Photos && images > 0 => {
+                        format!(" {}+{images}", n - images)
+                    }
+                    Some(n) => format!(" {n}"),
+                    None => String::new(),
+                };
                 let style = if tab == shown {
                     Style::new().bold().reversed()
                 } else if !self.tab_available(tab) {
@@ -387,7 +374,7 @@ impl App {
         }
         if self.details.is_some() && self.shown_detail_tab() == DetailTab::Documents {
             parts.push((1, t("[ ] O open a document")));
-        } else if self.photo_count() > 0 {
+        } else if self.picture_count() > 0 {
             parts.push((3, t("[ ] o photos")));
         }
         parts.push((4, t("Tab/1-8 tabs")));
@@ -396,6 +383,8 @@ impl App {
         fit_hints(parts, width, &self.status)
     }
 
+    /// The person's own photos of the selected node: what "as it is now" and a stale photo are
+    /// reckoned from.
     pub(super) fn photo_count(&self) -> usize {
         self.details
             .as_ref()
@@ -403,14 +392,70 @@ impl App {
             .map_or(0, Vec::len)
     }
 
-    pub(super) fn current_photo(&self) -> Option<String> {
-        let photos = self.details.as_ref()?["node"]["photos"].as_array()?.clone();
-        if photos.is_empty() {
-            return None;
+    /// The selected thing's product images (documents of kind `image`), with each one's note
+    /// or file name and the purchase it came with: the product as sold, shown after the photos
+    /// and never counted as one.
+    pub(super) fn product_images(&self) -> Vec<Value> {
+        self.details
+            .as_ref()
+            .and_then(|d| d["documents"].as_array())
+            .into_iter()
+            .flatten()
+            .filter(|d| d["kind"] == "image" && d["file"].is_string())
+            .cloned()
+            .collect()
+    }
+
+    /// What `[` `]` step through: the photos, then the product images.
+    pub(super) fn picture_count(&self) -> usize {
+        self.photo_count() + self.product_images().len()
+    }
+
+    /// The picture shown: the one picked, or the newest photo (the place as it is now) when
+    /// none was, or the first product image when there is no photo.
+    pub(super) fn picture_idx(&self) -> usize {
+        let (own, all) = (self.photo_count(), self.picture_count());
+        match self.photo_idx {
+            usize::MAX if own > 0 => own - 1,
+            usize::MAX => 0,
+            i => i.min(all.saturating_sub(1)),
         }
-        photos[self.photo_idx.min(photos.len() - 1)]
-            .as_str()
-            .map(str::to_string)
+    }
+
+    /// ` Photo 2/3 ` or ` Product image 1/2 `, then the picture's note when it has one.
+    pub(super) fn picture_title(&self) -> String {
+        let (own, idx) = (self.photo_count(), self.picture_idx());
+        if idx < own {
+            let note = self
+                .photos
+                .get(idx)
+                .and_then(|p| p["note"].as_str())
+                .map(|n| format!("· {n} "))
+                .unwrap_or_default();
+            return format!("{}{note}", tf(" Photo {}/{} ", &[&(idx + 1), &own]));
+        }
+        let images = self.product_images();
+        let note = images
+            .get(idx - own)
+            .and_then(|d| d["note"].as_str().or(d["original_name"].as_str()))
+            .map(|n| format!("· {n} "))
+            .unwrap_or_default();
+        format!(
+            "{}{note}",
+            tf(" Product image {}/{} ", &[&(idx - own + 1), &images.len()])
+        )
+    }
+
+    pub(super) fn current_photo(&self) -> Option<String> {
+        let own = self.details.as_ref()?["node"]["photos"].as_array()?.clone();
+        let idx = self.picture_idx();
+        match own.get(idx) {
+            Some(p) => p.as_str().map(str::to_string),
+            None => self
+                .product_images()
+                .get(idx - own.len())
+                .and_then(|d| d["file"].as_str().map(str::to_string)),
+        }
     }
 
     /// Decodes once per path (downscaled), and re-encodes for the terminal only when the photo,

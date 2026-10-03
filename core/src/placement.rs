@@ -301,14 +301,15 @@ impl Inventory {
         }
         // No holder matched on a word that says what the thing is: it has no group yet.
         let new_group = ranked.first().is_none_or(|s| s.coverage < GROUP_COVERAGE);
-        // A new group starts in an empty box: those in the thing's own room first. Empty is
-        // worked out from the records, never from a tag.
+        // A new group starts in an empty box with no theme yet: those in the thing's own room
+        // first. Empty is worked out from the records, never from a tag.
         let empty = if new_group {
             let near = for_node["id"].as_i64().and_then(|id| room_of(&by_id, id));
             let mut boxes: Vec<&Node> = all
                 .iter()
                 .filter(|n| {
                     n.kind == Kind::Container
+                        && n.theme.is_none()
                         && !has_children.contains(&n.id)
                         && !skip.contains(&n.id)
                         && parking_of(&by_id, n.id).is_none()

@@ -245,8 +245,10 @@ in this order:
    (marked `*` in text output) says what the thing is; a match only on common words ("sensör",
    "modül") says only its family.
 3. **If `new_group_likely` is true, nothing here is this kind of thing.** Do not squeeze it into
-   the least bad box: propose a new group — an empty box or free cell first (`ev find kutu
-   --tag "boş kap"`, the drawer's `grid.free`), or a mixed box if it is one of a kind.
+   the least bad box: propose a new group — an empty box first (`ev suggest` lists them under
+   `empty`, the thing's own room first; `ev find --empty` lists them all), a free cell (the
+   drawer's `grid.free`), or a mixed box if it is one of a kind. The box takes the group's
+   `theme` once the thing is in it.
 4. **Check the rules and the room.** Every rule in `rules` applies. `room` comes from `fill`:
    `none` means the best box is full — say so and offer the next one or a bigger box; `unknown`
    or `stale` means estimate the fill from the photo (0/25/50/75/100) and record it with
@@ -260,8 +262,8 @@ in this order:
    applies; next was C5". The person can then disagree with a reason, not a guess.
 7. **Turn corrections into data.** When the person picks another place, record why: a `theme`
    on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
-   miss was two words for one thing. Give boxes a `size` (`1x2x0.5`) and tag empty ones
-   `boş kap`, so regrouping can offer them; a size written only in a box's name is not read —
+   miss was two words for one thing. Give boxes a `size` (`1x2x0.5`), so regrouping can offer
+   the empty ones (empty is worked out: nothing in it, no theme); a size written only in a box's name is not read —
    `ev audit` lists those under `size_drift`.
 
 At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
@@ -447,7 +449,8 @@ part looks too long for the one it belongs in: ask them to try it on edge or dia
 (the part is in their hand; a 1x1 gridfinity box is about 5 cm across its diagonal), and name
 the bigger box only as the fallback. And a cell `ev grid` lists as `free` is only free in the
 records — look at the drawer's photo before proposing a box there: a spare empty box may stand
-in it. Record such a spare as its own empty box on its cell (`tags=+"boş kap"`, `ev cell`),
+in it. Record such a spare as its own empty box on its cell (`ev cell`; nothing in it makes it
+empty, no tag needed),
 not as a count on an unplaced record, so the grid shows it.
 
 **Every photo of a place is attached the moment it arrives** — including one the person sends
@@ -550,8 +553,10 @@ finds `K4x4-07-Ü`.
 
 ## Useful reads
 
-- `ev find <text> [--tag t] [--kind k]` — where is it? `ev find --tag t` alone lists all tagged
+- `ev find <text> [--tag t] [--kind k] [--empty]` — where is it? `ev find --tag t` alone lists all tagged
   t: tag things that belong together but are scattered (`3d yazıcı`) so they can be gathered.
+  `ev find --empty` lists the boxes nothing is in, worked out from the records: never tag a box
+  empty.
 - `ev show <ref>` — one node, its path, children, pending move, disposition.
 - `ev tree [<ref>] [--depth n]` — the whole picture.
 - `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out

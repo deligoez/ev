@@ -161,3 +161,30 @@ fn a_shops_product_image_is_brought_as_a_document_never_as_the_things_photo() {
     assert_eq!(v["documents"][0]["kind"], "image");
     assert!(v["node"]["photos"].as_array().unwrap().is_empty(), "{v}");
 }
+
+#[test]
+fn bringing_by_type_brings_only_that_type_and_names_what_it_left() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(&lines(&shop())).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    let v = inv
+        .buy_bring(tv, "Televizyon", &[], &["link".into()])
+        .unwrap();
+    assert_eq!(v["brought_types"], json!({"link": 1}));
+    assert_eq!(v["links"].as_array().unwrap().len(), 1);
+    assert!(v["valuations"].as_array().unwrap().is_empty(), "{v}");
+    let left: Vec<&str> = v["skipped"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["why"].as_str().unwrap())
+        .collect();
+    assert_eq!(left, ["type", "type"]);
+    assert!(
+        inv.buy_bring(tv, "Televizyon", &[], &["photo".into()])
+            .is_err(),
+        "an unknown type is refused"
+    );
+}

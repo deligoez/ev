@@ -1774,8 +1774,10 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
 /// `ev add --of`: more units of a thing already recorded, in `parent`. What the thing is comes
 /// from it; what is said of these units (count, note, photos) from `new`. They are a portion of
 /// the same thing, and join a portion already in that place. Returns the record that holds them.
+/// The record may be gone: a cassette used up and replaced with the same one is the same thing,
+/// and the used-up one is often its only record.
 fn add_of(conn: &Connection, new: &NewNode, of: &str, parent: Option<i64>) -> Result<i64> {
-    let src = load(conn, resolve(conn, of, false)?)?;
+    let src = load(conn, resolve(conn, of, true)?)?;
     if src.kind != Kind::Item || src.serial.is_some() {
         return Err(refused(
             format!(

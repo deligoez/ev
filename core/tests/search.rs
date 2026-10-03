@@ -159,3 +159,13 @@ fn a_box_the_person_calls_empty_is_known_empty_and_one_with_things_is_refused() 
     assert!(inv.mark_empty(&["LED kutusu".into()], None).is_err());
     assert!(inv.mark_empty(&["Tablo".into()], None).is_err());
 }
+
+#[test]
+fn a_box_called_empty_is_counted_and_waits_in_no_tour() {
+    let (_d, mut inv) = setup();
+    inv.mark_empty(&["Kablo çantası".into()], Some("açtık, boş"))
+        .unwrap();
+    let v = inv.show("Kablo çantası", false).unwrap();
+    assert_eq!(v["review"]["status"], "toured", "{}", v["review"]);
+    assert_eq!(v["review"]["note"], "açtık, boş");
+}

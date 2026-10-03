@@ -644,11 +644,13 @@ impl Inventory {
     }
 
     /// Records made separately are one thing kept in several places (spec/portions.md §4.3).
+    /// Records made separately are one thing kept in several places (spec/portions.md §4.3). A
+    /// gone record may be among them (a used-up one and its replacement), as long as one lives.
     pub fn join(&mut self, references: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let mut nodes: Vec<Node> = Vec::new();
         for r in references {
-            let n = load(&tx, resolve(&tx, r, false)?)?;
+            let n = load(&tx, resolve(&tx, r, true)?)?;
             if !nodes.iter().any(|m| m.id == n.id) {
                 nodes.push(n);
             }

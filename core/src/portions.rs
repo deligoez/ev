@@ -195,19 +195,27 @@ fn merge(conn: &Connection, from: &Node, into: i64) -> Result<()> {
 /// `ev join` (spec §4.3): records made separately are one thing. What it is comes from the
 /// first, a make, model or size only the others know filling in, and the tags of all of them;
 /// a make or model that differs is refused with every value, for the person to settle. A record
-/// already a portion of another thing brings that thing's portions along. Portions that end up
-/// in one place join. Returns the record that holds the first one's units.
+/// already a portion of another thing brings that thing's portions along. A gone record may be
+/// among them (one used up, and the same one bought again) as long as one lives; it keeps what
+/// it was. Portions that end up in one place join. Returns the live record that holds the
+/// units of the first live one.
 pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
     for n in nodes {
-        if n.state == State::Gone || n.kind != Kind::Item || n.serial.is_some() {
+        if n.kind != Kind::Item || n.serial.is_some() {
             return Err(refused(
                 format!(
-                    "{}: only live items without a serial are kept in several places",
+                    "{}: only items without a serial are kept in several places",
                     label(n)
                 ),
                 Value::Null,
             ));
         }
+    }
+    if nodes.iter().all(|n| n.state == State::Gone) {
+        return Err(refused(
+            "every one of them is gone; join needs one that is still here",
+            Value::Null,
+        ));
     }
     let first = &nodes[0];
     for (field, values) in [
@@ -272,10 +280,15 @@ pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
             event(conn, *id, "join", json!({ "thing": key }))?;
         }
     }
-    for id in members.iter().filter(|id| **id != first.id) {
+    // The record returned is a live one: a gone record lends what the thing is, not a place.
+    let lead = nodes
+        .iter()
+        .find(|n| n.state != State::Gone)
+        .map_or(first.id, |n| n.id);
+    for id in members.iter().filter(|id| **id != lead) {
         join_here(conn, *id)?;
     }
-    join_here(conn, first.id)
+    join_here(conn, lead)
 }
 
 /// `ev unjoin`: a portion is a thing of its own after all. It keeps what it is and leaves the

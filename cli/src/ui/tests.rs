@@ -1383,3 +1383,61 @@ fn a_thing_in_several_places_shows_them_and_p_goes_from_one_place_to_the_next() 
     press(&mut app, KeyCode::Char('p'));
     assert_eq!(id(&app), Some(4));
 }
+
+#[test]
+fn product_images_show_on_the_photos_tab_after_the_persons_photos_never_as_one() {
+    let (dir, mut inv) = home();
+    inv.add(NewNode {
+        name: "Matkap".into(),
+        kind: "item".into(),
+        parent: Some("Ev".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let photo = dir.path().join("p.png");
+    image::RgbImage::from_pixel(64, 32, image::Rgb([200, 50, 50]))
+        .save(&photo)
+        .unwrap();
+    inv.photo_add("Matkap", &photo, None, Some("rafta"))
+        .unwrap();
+    let picture = dir.path().join("urun.png");
+    image::RgbImage::from_pixel(32, 32, image::Rgb([1, 2, 3]))
+        .save(&picture)
+        .unwrap();
+    inv.doc_add(
+        &picture,
+        &ev_core::NewDoc {
+            kind: "image".into(),
+            note: Some("kutu önü".into()),
+            ..Default::default()
+        },
+        &["Matkap".into()],
+    )
+    .unwrap();
+    let mut app = app_tr(inv);
+    app.picker = Some(Picker::halfblocks());
+    let s = shown(&mut app, "Matkap", 150, 40);
+    // The person's photo is the one shown; the tab counts the two apart; no Documents tab.
+    assert!(s.contains("Fotoğraf 1/1 · rafta"), "{s}");
+    assert!(
+        s.contains("Fotoğraflar 1+1") && !s.contains("Belgeler"),
+        "{s}"
+    );
+    app.detail_tab = DetailTab::Photos;
+    let s = shown(&mut app, "Matkap", 150, 40);
+    assert!(
+        s.contains("Fotoğraflar (1)") && s.contains("Ürün görselleri (1)"),
+        "{s}"
+    );
+    // `]` steps on to the product image, shown inside ev ui and full screen with `o`.
+    press(&mut app, KeyCode::Char(']'));
+    let mut term = Terminal::new(TestBackend::new(150, 40)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("Ürün görseli 1/1 · kutu önü"), "{s}");
+    press(&mut app, KeyCode::Char('o'));
+    assert!(app.fullscreen);
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("Matkap · Ürün görseli 1/1"), "{s}");
+}

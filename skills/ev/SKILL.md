@@ -36,7 +36,9 @@ its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` (`GF1x1-0
 `GF1x2-003`), one series per footprint. Use codes exactly as the person gives them; for a new
 box, `code=GF1x1-*` takes the next free number of its series — say it, since it goes on the
 label. A node leaves in two steps (`dispose --as` then `gone`) or one (`gone --as`). A node
-whose place is unknown is `lost`.
+whose place is unknown is `lost`. **One thing can be kept in several places**: each place holds
+a portion, an ordinary record with its own count, and the portions share what the thing is
+(name, make, model, size, tags) — item 8.
 
 ## The conversation loop
 
@@ -59,7 +61,9 @@ whose place is unknown is `lost`.
    `ev history <id>`, and `ev edit <id> note=…` to annotate it later.
    `ev disposals` lists what is waiting in each pile. A record that was never real (misread
    from a photo, entered twice) is closed with `ev gone <x> --as mistake --why "<what>"`, not
-   as trash.
+   as trash. What was **used up** (a tape run out, a dead cell, a spent consumable) leaves
+   `--as used`, not as trash. When only some of a counted thing leave, say how many:
+   `ev gone <x> --as used --qty 2` (also on `dispose`, `lend` and `lost`); the rest stay.
    **Paper worth keeping only as a picture** (a ticket, a letter, an old statement, a manual)
    is `ev dispose <x> --as digitize`: it waits in its pile while the person sorts, and is
    photographed later in one sitting. Its copy goes on its own record before it leaves (`ev
@@ -92,8 +96,10 @@ whose place is unknown is `lost`.
    are interchangeable); one record for the whole set hides the parts — a cable cannot be
    moved to the jumper wires, nor a board missed. A record that already holds several kinds is
    split with `ev split <x> "<part>=<n>"… --rename "<what the original keeps>"`, never by
-   editing it and adding new records by hand: the split links them in the history. A boxed kit
-   that stays in its case is one item.
+   editing it and adding new records by hand: the split links them in the history. When the
+   parts are some of the record's own units instead (two of four cells turn out another make),
+   add `--take`: their counts come off the original's; without it the original keeps its count,
+   since the parts are what each unit is made of. A boxed kit that stays in its case is one item.
    **A bought kit is a checklist in `ev kit`.** When the person says what set things came from
    and its contents are known (a shop's list, an observation), record it once — `ev kit add
    "<name>" --copies <n> --part "<part>[=<per copy>]"…` — and `ev kit link <kit> <n> <record>`
@@ -104,6 +110,22 @@ whose place is unknown is `lost`.
    as "last seen") and lists it under "Unknown place" in the tree; `ev lost` lists them. `ev
    found <x>` puts it back where it was last seen, `ev found <x> --in <place>` where it turned
    up; any move clears it too. A thing whose place was never known is added `--lost`.
+8. **One thing in several places: never copy a record.** When some of a counted thing are
+   elsewhere (two of the twenty cells are in the flashlight), the person reports a fact:
+   `ev move <x> --qty 2 --to <flashlight>` records it now (a move you only propose is still
+   `--plan`). More of a thing already recorded turns up somewhere (four more cells inside the
+   label maker): `ev add --of <x> --qty 4 --in <place>`, never a new `ev add` with the fields
+   copied by hand. Two records you see are one thing (the same name in two places, which
+   `ev audit` points out with `ev join`): propose it, and on the person's word
+   `ev join <a> <b>`; a different make or model is refused — ask which is right first. Portions
+   that meet in one place join on their own, so moving units back and forth is safe. Fix what
+   the thing is on any portion and it is fixed on all; a note stays the portion's own ("the
+   flashlight's, charged in September"). `ev show` tells the whole thing (`×20 in 3 places · in
+   use 4 · spare 16`) and its account (`bought 20 · here 18 · gone: used up 2`). Report an
+   account that does not add up as a fact and ask ("2 of the 20 bought are not recorded
+   anywhere: used up, or somewhere we have not toured?"); never invent where they went. Units
+   that are a different variant (another colour, another make) are another thing: `ev split
+   --take`, not a portion. In `ev ui`, `p` walks the thing's places.
 
 ## The plan: start every session with `ev next`
 
@@ -289,8 +311,11 @@ sold, `ev show` lists its documents: read them out before the person goes lookin
 `~/.ev/purchases/` stay outside `ev` until the person says to bring a shop in; running an
 adapter into their database on your own is not part of any other task.
 **What was bought is evidence, not a record.** Purchase lines come from a shop's export
-(`tools/purchases/<shop>.py | ev buy import --stdin`) or by hand (`ev buy add`); none of them
-is a thing in the tree. When the person holds a thing that matches a line ("this is the drill I
+(`tools/purchases/<shop>.py | tools/purchases/images.py | ev buy import --stdin`, the middle
+step hanging the shop's saved product pictures on each line) or by hand (`ev buy add`); none of
+them is a thing in the tree. **Say the right date:** a line shows `ordered …` (the day it was
+bought, what the shop's order page says) and `delivered …` when it arrived; "bought on" is the
+order date. When the person holds a thing that matches a line ("this is the drill I
 bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`. The thing then
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
 returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
@@ -313,9 +338,13 @@ shared words are weak. Under My Roof is never imported; use it only to confirm a
 --why "…"`. The line stays open for other things and is not offered to this one again; do not
 `dismiss` it, which settles it for every thing.
 **After a link, offer what came with the line in one question.** `ev buy link` shows the line's
-`attachments` (a product page, a value, a warranty from the source): "bring along the invoice,
-1 link, a value of 2,500 TRY (approximate date), a 2-year warranty?" On a yes,
-`ev buy bring <line> <ref>`; `--only <id>` for the ones they want.
+`attachments` (a product page, a value, a warranty from the source, the shop's product
+pictures): "bring along the invoice, 1 link, 3 product pictures, a value of 2,500 TRY
+(approximate date), a 2-year warranty?" On a yes, `ev buy bring <line> <ref>`; `--only <id>`
+for the ones they want. A product picture becomes a document of kind `image`: it shows the
+product as sold, never the thing as it is now, so it never replaces or counts as the thing's
+photo. On a thing kept in several places, a purchase linked on one portion is the whole
+thing's: do not link it again on the others.
 
 ## Warranty, insurance and what is not tracked
 

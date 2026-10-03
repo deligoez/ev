@@ -1400,12 +1400,21 @@ pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
     Ok(held.is_some())
 }
 
-/// A slot of a piece of furniture (a drawer, a compartment) rather than a box that moves.
+/// A slot of a piece of furniture (a drawer, a compartment) rather than a box that moves: one
+/// in furniture or in such a slot, with no code or a positional code extending its holder's
+/// (`K4x2-08` in `K4x2`, `K4x4-09-A` in `K4x4-09`). A box with a code of its own is a box
+/// wherever it stands: `S5-01` in compartment `K4x4-07`, `G1x1-005` on a desk.
 pub(crate) fn is_slot(conn: &Connection, n: &Node) -> Result<bool> {
     let Some(parent) = n.parent_id else {
         return Ok(false);
     };
-    Ok(load(conn, parent)?.kind == Kind::Furniture)
+    let p = load(conn, parent)?;
+    let positional = match (n.code.as_deref(), p.code.as_deref()) {
+        (None, _) => true,
+        (Some(c), Some(pc)) => fold(c).starts_with(&format!("{}-", fold(pc))),
+        (Some(_), None) => false,
+    };
+    Ok(positional && (p.kind == Kind::Furniture || is_slot(conn, &p)?))
 }
 
 /// A node's live children in the order a person reads a shelf: rooms, furniture, containers,

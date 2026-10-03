@@ -176,3 +176,59 @@ fn with_take_the_parts_are_some_of_the_units_and_come_off_the_count() {
         2
     );
 }
+
+#[test]
+fn take_splits_an_empty_case_off_two_recorded_as_one_and_the_cells_stay() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    let node = |name: &str, kind: &str, parent: Option<&str>, qty: Option<i64>| NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        parent: parent.map(Into::into),
+        qty,
+        ..Default::default()
+    };
+    for n in [
+        node("Ev", "home", None, None),
+        node("Çekmece", "container", Some("Ev"), None),
+        node("Pil kutusu", "container", Some("Çekmece"), Some(2)),
+        node("AA pil", "item", Some("Pil kutusu"), Some(4)),
+    ] {
+        inv.add(n).unwrap();
+    }
+    // Without --take, the parts would be what each case is made of: refused while it holds cells.
+    assert!(
+        inv.split_with(
+            "Pil kutusu",
+            &[("Pil kutusu".into(), Some(1))],
+            None,
+            None,
+            false
+        )
+        .is_err()
+    );
+    let v = inv
+        .split_with(
+            "Pil kutusu",
+            &[("Pil kutusu".into(), Some(1))],
+            None,
+            None,
+            true,
+        )
+        .unwrap();
+    assert_eq!(v["node"]["qty"], 1);
+    // The original case is #3 in this house.
+    let original = inv.show("3", false).unwrap();
+    assert_eq!(
+        original["children"].as_array().unwrap().len(),
+        1,
+        "the cells stay"
+    );
+    let off = v["into"][0]["id"].clone();
+    let off = inv.show(&off.to_string(), false).unwrap();
+    assert_eq!(off["node"]["qty"], 1);
+    assert!(
+        off["children"].as_array().unwrap().is_empty(),
+        "taken empty"
+    );
+}

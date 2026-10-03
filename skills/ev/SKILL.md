@@ -125,7 +125,11 @@ a portion, an ordinary record with its own count, and the portions share what th
    account that does not add up as a fact and ask ("2 of the 20 bought are not recorded
    anywhere: used up, or somewhere we have not toured?"); never invent where they went. Units
    that are a different variant (another colour, another make) are another thing: `ev split
-   --take`, not a portion. In `ev ui`, `p` walks the thing's places.
+   --take`, not a portion. In `ev ui`, `p` walks the thing's places. **In use or spare is read
+   from the holder's kind:** inside an item (a flashlight, a toy) is in use, inside a container
+   is spare. So a case or box that only stores things (a battery case, a pill box) is a
+   `container`, not an item; when `ev show` calls stored units "in use", ask whether their
+   holder is a case and fix its kind on the person's word.
 
 ## The plan: start every session with `ev next`
 

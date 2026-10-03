@@ -43,13 +43,23 @@ fn squash(s: &str) -> String {
 /// word when it is long enough to mean something on its own: `Pro's Kit` is in "Kombine pense,
 /// Pro'sKit", `Ecotag` in "ecotagPLUS", `HP` is not in "siyah plastik".
 fn has_phrase(text: &str, phrase: &str) -> bool {
-    let words: Vec<String> = fold(text)
+    has_words(&tokens(text), phrase, 4)
+}
+
+/// The folded words of `text`, split at anything not a letter or digit.
+fn tokens(text: &str) -> Vec<String> {
+    fold(text)
         .split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
         .map(str::to_string)
-        .collect();
+        .collect()
+}
+
+/// Whether `phrase` (squashed) is one to four of `words` run together, or starts a word when it
+/// is at least `prefix_at` characters long.
+fn has_words(words: &[String], phrase: &str, prefix_at: usize) -> bool {
     (0..words.len()).any(|i| {
-        phrase.chars().count() >= 4 && words[i].starts_with(phrase)
+        phrase.chars().count() >= prefix_at && words[i].starts_with(phrase)
             || (1..=4)
                 .filter(|n| i + n <= words.len())
                 .any(|n| words[i..i + n].concat() == phrase)
@@ -252,7 +262,8 @@ fn node_text(n: &Node) -> String {
 struct Line {
     value: Value,
     name: String,
-    squashed: String,
+    /// The name's folded words, where a model or serial is looked for whole.
+    tokens: Vec<String>,
     codes: HashSet<String>,
     words: Vec<(String, Vec<String>)>,
     measures: Vec<(&'static str, f64)>,
@@ -281,7 +292,7 @@ impl Line {
             .map(squash)
             .filter(|b| b.len() >= 2 && *b != shop);
         Ok(Line {
-            squashed: squash(&name),
+            tokens: tokens(&name),
             codes: codes(&name),
             words: words(&name),
             measures: measures(&name),
@@ -361,9 +372,10 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         add(format!("bought before for #{a}"), ALIAS);
         strong = true;
     }
-    // 2. The thing's model or serial written in the line.
+    // 2. The thing's model or serial written in the line, as whole words: a short model (`561`)
+    //    sits inside many other codes (`6002561`).
     for (field, v) in &n.keys {
-        if p.squashed.contains(v.as_str()) {
+        if has_words(&p.tokens, v, 6) {
             add(format!("{field} {v}"), EXACT_KEY);
             strong = true;
         }

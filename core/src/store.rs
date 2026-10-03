@@ -1586,9 +1586,12 @@ fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
         return Value::Null;
     };
     let mut v = json!({
-        "id": n.id, "code": n.code, "name": n.name, "kind": n.kind,
-        "state": n.state, "lost": n.lost,
+        "id": n.id, "code": n.code, "name": n.name, "kind": n.kind, "state": n.state,
     });
+    // As in a row: only when true (spec/output.md).
+    if n.lost {
+        v["lost"] = json!(true);
+    }
     if let Some(q) = n.qty {
         v["qty"] = json!(q);
     }

@@ -115,7 +115,9 @@ a portion, an ordinary record with its own count, and the portions share what th
    `ev move <x> --qty 2 --to <flashlight>` records it now (a move you only propose is still
    `--plan`). More of a thing already recorded turns up somewhere (four more cells inside the
    label maker): `ev add --of <x> --qty 4 --in <place>`, never a new `ev add` with the fields
-   copied by hand. Two records you see are one thing (the same name in two places, which
+   copied by hand. The same goes for a consumable replaced with the same one (a tape cassette
+   used up, a new one put in): `ev gone <old> --as used`, then `ev add --of <old> --in <place>`;
+   `--of` takes the gone record. Two records you see are one thing (the same name in two places, which
    `ev audit` points out with `ev join`): propose it, and on the person's word
    `ev join <a> <b>`; a different make or model is refused — ask which is right first. Portions
    that meet in one place join on their own, so moving units back and forth is safe. Fix what

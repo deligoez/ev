@@ -649,11 +649,12 @@ impl Inventory {
                             [n],
                             |r| r.get(0),
                         )?;
-                        if holds == 0 {
-                            continue;
-                        }
+                        // An empty place never photographed needs no photo; one whose older photo
+                        // still shows what left does, as `todo` lists it: the person decided an
+                        // emptied place is photographed empty, so its picture does not mislead.
                         if let Some((reason, photo_at, changed)) =
                             crate::marks::photo_stale(&tx, n)?
+                            && !(holds == 0 && reason == "none")
                         {
                             stale.push(json!({
                                 "node": brief(&tx, n)?,

@@ -1451,6 +1451,10 @@ fn regroup(out: &mut String, v: &Value) {
 )]
 pub fn human(v: &Value) -> String {
     let mut out = String::new();
+    if v.get("overview").is_some() && v.get("tour").is_some() {
+        stats_text(&mut out, v);
+        return out;
+    }
     if v.get("brought_from").is_some() {
         bring_all(&mut out, v);
         return out;
@@ -2820,6 +2824,282 @@ pub fn error(e: &Error) -> String {
         let _ = writeln!(out, "  {}", tf("holds {}", &[&line(c)]));
     }
     out
+}
+
+/// Amounts per currency (`{"TRY": "1999.00"}`) in the reader's way, joined; `—` when none.
+fn amounts(per: &Value) -> String {
+    let parts: Vec<String> = per
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(c, a)| a.as_str().map(|a| amount(a, c)))
+        .collect();
+    if parts.is_empty() {
+        "\u{2014}".to_string()
+    } else {
+        parts.join(", ")
+    }
+}
+
+/// `ev stats` as headed sections of lines, each line with the record it names, if any: the
+/// text output and the Statistics tab of `ev ui` both read it.
+pub(crate) type StatSection = (String, Vec<(Option<i64>, String)>);
+
+pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
+    let mut out: Vec<StatSection> = Vec::new();
+    let line = |text: String| (None, text);
+    let node = |n: &Value, text: String| (n["id"].as_i64(), text);
+
+    let o = &v["overview"];
+    out.push((
+        t("OVERVIEW").to_string(),
+        vec![
+            line(tf(
+                "{} records of things, {} units",
+                &[&o["records"], &o["units"]],
+            )),
+            line(tf(
+                "{} rooms · {} pieces of furniture · {} containers",
+                &[&o["rooms"], &o["furniture"], &o["containers"]],
+            )),
+            line(tf(
+                "{} things kept in several places",
+                &[&o["in_several_places"]],
+            )),
+            line(tf(
+                "{} records with a photo · {} documents",
+                &[&o["with_photo"], &o["documents"]],
+            )),
+        ],
+    ));
+
+    let m = &v["value"];
+    let mut value = vec![
+        line(tf(
+            "What the things here cost, by their linked purchases: {}",
+            &[&amounts(&m["cost"])],
+        )),
+        line(tf(
+            "known for {} of {} records",
+            &[&m["things_with_cost"], &m["things"]],
+        )),
+    ];
+    if let Some(today) = m["today"].as_object() {
+        value.push(line(tf(
+            "in today's money: {} ({} of {} lines)",
+            &[
+                &amount(
+                    today["amount"].as_str().unwrap_or_default(),
+                    today["currency"].as_str().unwrap_or_default(),
+                ),
+                &today["lines"],
+                &today["of"],
+            ],
+        )));
+    }
+    for d in m["dearest"].as_array().into_iter().flatten() {
+        let today = d["today"]
+            .as_object()
+            .map(|t| {
+                tf(
+                    " (today {})",
+                    &[&amount(
+                        t["amount"].as_str().unwrap_or_default(),
+                        t["currency"].as_str().unwrap_or_default(),
+                    )],
+                )
+            })
+            .unwrap_or_default();
+        value.push(node(
+            d,
+            format!(
+                "  {}{today}  {}",
+                amount(s(d, "cost").as_str(), s(d, "currency").as_str()),
+                s(d, "path_text")
+            ),
+        ));
+    }
+    if m["valued"]["things"].as_i64().unwrap_or(0) > 0 {
+        value.push(line(tf(
+            "latest values recorded: {} things, {}",
+            &[&m["valued"]["things"], &amounts(&m["valued"]["latest"])],
+        )));
+    }
+    out.push((t("WHAT IT COST").to_string(), value));
+
+    // Rooms with something recorded in them, then how many have nothing yet.
+    let all_rooms = v["rooms"].as_array().cloned().unwrap_or_default();
+    let (some, none): (Vec<&Value>, Vec<&Value>) = all_rooms
+        .iter()
+        .partition(|r| r["records"].as_i64().unwrap_or(0) + r["holders"].as_i64().unwrap_or(0) > 0);
+    let mut rooms: Vec<(Option<i64>, String)> = some
+        .iter()
+        .map(|r| {
+            node(
+                r,
+                tf(
+                    "{}: {} records, {} units, {} holders · {}",
+                    &[
+                        &s(r, "name"),
+                        &r["records"],
+                        &r["units"],
+                        &r["holders"],
+                        &amounts(&r["cost"]),
+                    ],
+                ),
+            )
+        })
+        .collect();
+    if !none.is_empty() {
+        rooms.push(line(tf(
+            "{} rooms with nothing recorded yet",
+            &[&none.len()],
+        )));
+    }
+    out.push((t("ROOMS").to_string(), rooms));
+
+    let c = &v["tour"];
+    let share = |a: &Value, b: &Value| {
+        let (a, b) = (a.as_i64().unwrap_or(0), b.as_i64().unwrap_or(0));
+        if b > 0 { a * 100 / b } else { 0 }
+    };
+    out.push((
+        t("COUNTING").to_string(),
+        vec![
+            line(tf(
+                "{} of {} places counted · {} being counted · {} not counted",
+                &[&c["toured"], &c["places"], &c["counting"], &c["raw"]],
+            )),
+            line(tf(
+                "{} changed since they were counted",
+                &[&c["changed_since"]],
+            )),
+            line(tf(
+                "{} of {} records are in counted places ({}%)",
+                &[
+                    &c["things_in_counted_places"],
+                    &c["things"],
+                    &share(&c["things_in_counted_places"], &c["things"]),
+                ],
+            )),
+        ],
+    ));
+
+    let p = &v["purchases"];
+    let mut buys = vec![line(tf(
+        "{} lines · {} linked · {} settled · {} durable still open",
+        &[
+            &p["lines"],
+            &p["linked"],
+            &p["dismissed"],
+            &p["open_durable"],
+        ],
+    ))];
+    for y in p["years"].as_array().into_iter().flatten() {
+        buys.push(line(tf(
+            "  {}: {} lines · {}",
+            &[
+                &y["year"].as_str().unwrap_or(t("no date")),
+                &y["lines"],
+                &amounts(&y["paid"]),
+            ],
+        )));
+    }
+    for sh in p["shops"].as_array().into_iter().flatten() {
+        buys.push(line(tf(
+            "  {}: {} lines · {}",
+            &[&s(sh, "shop"), &sh["lines"], &amounts(&sh["paid"])],
+        )));
+    }
+    out.push((t("PURCHASES").to_string(), buys));
+
+    let a = &v["activity"];
+    let mut recent = vec![line(tf(
+        "{} added · {} moves · {} photos",
+        &[&a["added"], &a["moved"], &a["photos"]],
+    ))];
+    let gone: Vec<String> = a["gone"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(how, n)| format!("{} {n}", disposition(how)))
+        .collect();
+    if !gone.is_empty() {
+        recent.push(line(tf("left the home: {}", &[&gone.join(", ")])));
+    }
+    if let Some(d) = a["busiest_day"].as_object() {
+        recent.push(line(tf(
+            "busiest day: {} ({} events)",
+            &[&d["day"].as_str().unwrap_or_default(), &d["events"]],
+        )));
+    }
+    out.push((t("LAST 30 DAYS").to_string(), recent));
+
+    let h = &v["holders"];
+    let mut boxes = vec![
+        line(tf(
+            "{} containers · {} known to be empty · {} with nothing recorded, never counted",
+            &[&h["containers"], &h["empty"], &h["empty_not_known"]],
+        )),
+        line(tf(
+            "{} with a fill, {}% on average · {} full",
+            &[
+                &h["with_fill"],
+                &h["average_fill"].as_i64().unwrap_or(0),
+                &h["full"],
+            ],
+        )),
+    ];
+    for b in h["most_records"].as_array().into_iter().flatten() {
+        boxes.push(node(
+            b,
+            tf("  {} records  {}", &[&b["records"], &s(b, "path_text")]),
+        ));
+    }
+    out.push((t("BOXES").to_string(), boxes));
+
+    let cv = &v["coverage"];
+    out.push((
+        t("COVERAGE").to_string(),
+        vec![line(tf(
+            "{} active of {} · {} ending soon",
+            &[&cv["active"], &cv["coverages"], &cv["ending"]],
+        ))],
+    ));
+
+    out.push((
+        t("TAGS").to_string(),
+        v["tags"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|g| line(format!("{} ({})", s(g, "tag"), g["records"])))
+            .collect(),
+    ));
+
+    out.push((
+        t("BOUGHT LONGEST AGO").to_string(),
+        v["oldest"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|n| node(n, format!("{}  {}", s(n, "bought"), s(n, "path_text"))))
+            .collect(),
+    ));
+    out.retain(|(_, lines)| !lines.is_empty());
+    out
+}
+
+fn stats_text(out: &mut String, v: &Value) {
+    for (i, (heading, lines)) in stats_sections(v).into_iter().enumerate() {
+        if i > 0 {
+            let _ = writeln!(out);
+        }
+        let _ = writeln!(out, "{heading}");
+        for (_, l) in lines {
+            let _ = writeln!(out, "  {l}");
+        }
+    }
 }
 
 #[cfg(test)]

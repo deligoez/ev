@@ -867,6 +867,89 @@ static TR: &[(&str, &str)] = &[
         "götür {} · iade {} · geri al {}",
     ),
     ("(none)", "(yok)"),
+    // Statistics
+    ("OVERVIEW", "GENEL"),
+    ("{} records of things, {} units", "{} eşya kaydı, {} adet"),
+    (
+        "{} rooms · {} pieces of furniture · {} containers",
+        "{} oda · {} mobilya · {} kap",
+    ),
+    (
+        "{} things kept in several places",
+        "{} eşya birden çok yerde",
+    ),
+    (
+        "{} records with a photo · {} documents",
+        "{} kaydın fotoğrafı var · {} belge",
+    ),
+    ("WHAT IT COST", "NEYE MAL OLDU"),
+    (
+        "What the things here cost, by their linked purchases: {}",
+        "Evdeki eşyaların bağlı alımlara göre tutarı: {}",
+    ),
+    ("known for {} of {} records", "{} / {} kayıt için biliniyor"),
+    (
+        "in today's money: {} ({} of {} lines)",
+        "bugünün parasıyla: {} ({} / {} satır)",
+    ),
+    (
+        "latest values recorded: {} things, {}",
+        "son kaydedilen değerler: {} eşya, {}",
+    ),
+    ("ROOMS", "ODALAR"),
+    (
+        "{} rooms with nothing recorded yet",
+        "{} odada henüz kayıt yok",
+    ),
+    (" (today {})", " (bugün {})"),
+    ("no date", "tarihsiz"),
+    (
+        "{}: {} records, {} units, {} holders · {}",
+        "{}: {} kayıt, {} adet, {} kap · {}",
+    ),
+    ("COUNTING", "SAYIM"),
+    (
+        "{} of {} places counted · {} being counted · {} not counted",
+        "{} / {} yer sayıldı · {} sayılıyor · {} sayılmadı",
+    ),
+    (
+        "{} changed since they were counted",
+        "{} yer sayıldıktan sonra değişti",
+    ),
+    (
+        "{} of {} records are in counted places ({}%)",
+        "{} / {} kayıt sayılmış yerlerde (%{})",
+    ),
+    ("PURCHASES", "ALIMLAR"),
+    (
+        "{} lines · {} linked · {} settled · {} durable still open",
+        "{} satır · {} bağlı · {} kapatıldı · {} kalıcı eşya satırı açık",
+    ),
+    ("  {}: {} lines · {}", "  {}: {} satır · {}"),
+    ("LAST 30 DAYS", "SON 30 GÜN"),
+    (
+        "{} added · {} moves · {} photos",
+        "{} eklendi · {} taşıma · {} fotoğraf",
+    ),
+    ("left the home: {}", "evden çıkan: {}"),
+    ("busiest day: {} ({} events)", "en yoğun gün: {} ({} olay)"),
+    ("BOXES", "KAPLAR"),
+    (
+        "{} containers · {} known to be empty · {} with nothing recorded, never counted",
+        "{} kap · {} boş olduğu biliniyor · {} içinde kayıt yok ama hiç sayılmadı",
+    ),
+    (
+        "{} with a fill, {}% on average · {} full",
+        "{} kabın doluluğu var, ortalama %{} · {} dolu",
+    ),
+    ("  {} records  {}", "  {} kayıt  {}"),
+    ("COVERAGE", "GÜVENCE"),
+    (
+        "{} active of {} · {} ending soon",
+        "{} / {} geçerli · {} yakında bitiyor",
+    ),
+    ("TAGS", "ETİKETLER"),
+    ("BOUGHT LONGEST AGO", "EN ESKİ ALINANLAR"),
     ("Empty, on the person's word:", "Kişinin sözüyle boş:"),
     (
         "Nothing recorded in these, but never counted: empty is not known",

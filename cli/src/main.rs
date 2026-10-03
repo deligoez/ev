@@ -296,6 +296,9 @@ enum Cmd {
     /// Everything waiting, in one list: tasks, moves, errands, disposals, labels, needs, repairs,
     /// use-by dates, lost things, uninventoried and changed places, unclear records.
     Todo,
+    /// Numbers about the home on one page: how much there is, what it cost, how far the counting
+    /// has come, the purchases, the last 30 days, the boxes, coverages, tags, the oldest things.
+    Stats,
     /// On the person's word, these boxes are empty (opened, nothing inside), though their place
     /// was never toured: `find --empty`, `suggest` and `regroup` then count them as empty.
     Empty {
@@ -1611,6 +1614,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Progress => inv.progress(),
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
+        Cmd::Stats => inv.stats(),
         Cmd::Focus { file, note, .. } if !file.is_empty() => inv.focus_file(&file, note.as_deref()),
         Cmd::Focus {
             reference,

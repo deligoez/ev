@@ -50,6 +50,20 @@ impl std::fmt::Display for Crop {
 }
 
 impl Crop {
+    /// The crop grown on every side by `pad` of its own width and height, inside the photo: a
+    /// part whose edge an estimate cut off (a disc's rim, a bit's shank) stays whole.
+    pub fn padded(self, pad: f64) -> Crop {
+        let (dx, dy) = (self.w * pad, self.h * pad);
+        let x = (self.x - dx).max(0.0);
+        let y = (self.y - dy).max(0.0);
+        Crop {
+            x,
+            y,
+            w: (self.x + self.w + dx).min(1.0) - x,
+            h: (self.y + self.h + dy).min(1.0) - y,
+        }
+    }
+
     /// The same part of the photo after `turns` clockwise quarter turns (spec/rotate.md).
     pub(crate) fn turned(self, turns: u8) -> Crop {
         let mut c = self;

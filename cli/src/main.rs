@@ -1021,6 +1021,8 @@ enum TaskCmd {
 #[derive(Subcommand)]
 enum PhotoCmd {
     /// Copy a photo into the store and attach it; --crop x,y,w,h (fractions 0–1) attaches a cut-out.
+    /// To check a crop before it is made, cut it with `ev photo cut <file> <ref>=x,y,w,h --preview`
+    /// instead: the same crop, with a sheet and the photo framed.
     Add {
         reference: String,
         file: PathBuf,
@@ -1035,6 +1037,9 @@ enum PhotoCmd {
         /// fraction of the turned photo.
         #[arg(long)]
         rotate: Option<u16>,
+        /// Grow --crop on each side by this fraction of its own size (0.1: a tenth).
+        #[arg(long, requires = "crop")]
+        pad: Option<f64>,
     },
     /// Cut one photo up among several nodes at once: `<ref>=x,y,w,h` for each, and the whole
     /// photo on --place (the drawer or box it shows). All or nothing.
@@ -1063,6 +1068,10 @@ enum PhotoCmd {
         /// --grid are fractions of the turned photo.
         #[arg(long)]
         rotate: Option<u16>,
+        /// Grow every crop named by hand on each side by this fraction of its own size (0.1:
+        /// a tenth), so an edge the estimate cut off stays in; the grid's crops have a margin.
+        #[arg(long)]
+        pad: Option<f64>,
     },
     /// Draw numbered marks on a copy of a photo, to show which thing is meant and where it goes:
     /// `<label>=x,y,w,h` (fractions of the upright photo) or `<label>=A6` (cells of the grid,
@@ -1959,12 +1968,16 @@ fn run(cli: Cli) -> Result<Value> {
             note,
             whole,
             rotate,
+            pad,
         }) => {
+            let pad = pad_of(pad)?;
             let file = match rotate {
                 Some(d) => inv.turned_copy(&file, d)?,
                 None => file,
             };
-            let crop = crop.map(|c| c.parse::<ev_core::Crop>()).transpose()?;
+            let crop = crop
+                .map(|c| c.parse::<ev_core::Crop>().map(|c| c.padded(pad)))
+                .transpose()?;
             inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
         }
         Cmd::Photo(PhotoCmd::Mark {
@@ -2018,7 +2031,9 @@ fn run(cli: Cli) -> Result<Value> {
             preview,
             show,
             rotate,
+            pad,
         }) => {
+            let pad = pad_of(pad)?;
             let file = match rotate {
                 Some(d) => inv.turned_copy(&file, d)?,
                 None => file,
@@ -2033,7 +2048,7 @@ fn run(cli: Cli) -> Result<Value> {
                     let (r, c) = p
                         .rsplit_once('=')
                         .ok_or_else(|| Error::Usage(format!("`{p}` is not <ref>=x,y,w,h")))?;
-                    Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?))
+                    Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?.padded(pad)))
                 })
                 .collect::<Result<Vec<_>>>()?;
             let (mut v, title) = match &preview {
@@ -2080,6 +2095,17 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Photo(PhotoCmd::Stale { reference, why }) => {
             inv.photo_stale_mark(&reference, why.as_deref())
         }
+    }
+}
+
+/// `--pad`: a fraction 0–1 of a crop's own size added on every side; none by default.
+fn pad_of(pad: Option<f64>) -> Result<f64> {
+    match pad {
+        None => Ok(0.0),
+        Some(p) if (0.0..=1.0).contains(&p) => Ok(p),
+        Some(p) => Err(Error::Usage(format!(
+            "--pad is a fraction of the crop's size, 0 to 1, not {p}"
+        ))),
     }
 }
 

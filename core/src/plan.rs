@@ -346,16 +346,15 @@ pub(crate) fn progress_summary(p: &Value) -> Value {
     })
 }
 
-/// Whether a `todo` entry (a brief node, or one wrapped as `{node}`) is `place` or inside it.
-fn inside(entry: &Value, place: i64) -> bool {
-    let node = if entry["path"].is_array() {
+/// Whether a `todo` entry (a brief node, or one wrapped as `{node}`) is among `under`: a place
+/// and everything inside it.
+fn inside(entry: &Value, under: &HashSet<i64>) -> bool {
+    let node = if entry["path_text"].is_string() {
         entry
     } else {
         &entry["node"]
     };
-    node["path"]
-        .as_array()
-        .is_some_and(|p| p.iter().any(|s| s["id"].as_i64() == Some(place)))
+    node["id"].as_i64().is_some_and(|id| under.contains(&id))
 }
 
 /// Everything `todo` lists that sits in `place`: the small jobs done while it is open anyway,
@@ -367,11 +366,21 @@ fn while_there(
     uncovered: &[i64],
     unvalued: &[i64],
 ) -> Result<Value> {
+    let under: HashSet<i64> = ids(
+        conn,
+        "WITH RECURSIVE d(id) AS (
+             SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
+         )
+         SELECT id FROM d",
+        [place],
+    )?
+    .into_iter()
+    .collect();
     let pick = |list: &Value| -> Vec<Value> {
         list.as_array()
             .into_iter()
             .flatten()
-            .filter(|e| inside(e, place))
+            .filter(|e| inside(e, &under))
             .cloned()
             .collect()
     };
@@ -387,7 +396,7 @@ fn while_there(
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|m| inside(&m["node"], place) && !inside(&m["to"], place))
+        .filter(|m| inside(&m["node"], &under) && !inside(&m["to"], &under))
         .cloned()
         .collect();
     if !leaving.is_empty() {
@@ -409,7 +418,7 @@ fn while_there(
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|l| l["last_seen"].is_object() && inside(&l["last_seen"], place))
+        .filter(|l| l["last_seen"].is_object() && inside(&l["last_seen"], &under))
         .cloned()
         .collect();
     if !lost.is_empty() {
@@ -417,12 +426,11 @@ fn while_there(
     }
     for (key, list) in [("coverage", uncovered), ("values", unvalued)] {
         let mut found = Vec::new();
-        for n in list {
-            let b = serde_json::to_value(brief(conn, *n)?)
-                .map_err(|e| Error::Internal(e.to_string()))?;
-            if inside(&b, place) {
-                found.push(b);
-            }
+        for n in list.iter().filter(|n| under.contains(n)) {
+            found.push(
+                serde_json::to_value(brief(conn, *n)?)
+                    .map_err(|e| Error::Internal(e.to_string()))?,
+            );
         }
         if !found.is_empty() {
             out.insert(key.into(), json!(found));

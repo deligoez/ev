@@ -49,6 +49,59 @@ impl std::fmt::Display for Crop {
     }
 }
 
+impl Crop {
+    /// The same part of the photo after `turns` clockwise quarter turns (spec/rotate.md).
+    pub(crate) fn turned(self, turns: u8) -> Crop {
+        let mut c = self;
+        for _ in 0..turns {
+            c = Crop {
+                x: (1.0 - c.y - c.h).max(0.0),
+                y: c.x,
+                w: c.h,
+                h: c.w,
+            };
+        }
+        c
+    }
+}
+
+/// Clockwise quarter turns for a turn in degrees: 90, 180 or 270.
+pub fn quarter_turns(degrees: u16) -> Result<u8> {
+    match degrees {
+        90 => Ok(1),
+        180 => Ok(2),
+        270 => Ok(3),
+        _ => Err(Error::Usage(format!(
+            "turn a photo by 90, 180 or 270 degrees clockwise, not {degrees}"
+        ))),
+    }
+}
+
+/// A point of the photo, in fractions, after `turns` clockwise quarter turns.
+pub(crate) fn turn_point((x, y): (f64, f64), turns: u8) -> (f64, f64) {
+    let mut p = (x, y);
+    for _ in 0..turns {
+        p = (1.0 - p.1, p.0);
+    }
+    p
+}
+
+/// The photo turned `turns` clockwise quarter turns, upright first, as a JPEG.
+pub(crate) fn turned_jpeg(file: &Path, turns: u8) -> Result<Vec<u8>> {
+    let img = open_upright(file)?;
+    let img = match turns {
+        1 => img.rotate90(),
+        2 => img.rotate180(),
+        3 => img.rotate270(),
+        _ => img,
+    };
+    let mut buf = Cursor::new(Vec::new());
+    img.to_rgb8()
+        .write_with_encoder(JpegEncoder::new_with_quality(&mut buf, 92))
+        .map_err(|e| Error::Internal(format!("encoding a turned photo: {e}")))?;
+    Ok(buf.into_inner())
+}
+
 fn io(path: &Path) -> impl Fn(std::io::Error) -> Error + '_ {
     move |e| Error::Usage(format!("{}: {e}", path.display()))
 }

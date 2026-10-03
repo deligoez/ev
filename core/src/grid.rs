@@ -120,6 +120,14 @@ impl std::str::FromStr for GridCorners {
     }
 }
 
+impl GridCorners {
+    /// The same corners after `turns` clockwise quarter turns of the photo; each keeps its name
+    /// (back-left is the furniture's corner, wherever the picture puts it).
+    pub(crate) fn turned(&self, turns: u8) -> GridCorners {
+        GridCorners(self.0.map(|p| crate::photo::turn_point(p, turns)))
+    }
+}
+
 impl std::fmt::Display for GridCorners {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let v: Vec<String> = self

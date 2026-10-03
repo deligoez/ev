@@ -488,6 +488,149 @@ impl Inventory {
 
     /// Detaches the n-th photo (1-based); the stored file stays, other nodes may share it. The
     /// history keeps what was detached (`photo_remove`), as it keeps what was attached.
+    /// `file` turned `degrees` clockwise, as a temporary copy to add or cut instead of it
+    /// (`--rotate`, spec/rotate.md): what is stored is the turned photo, and coordinates given
+    /// with it are fractions of the turned one.
+    pub fn turned_copy(&self, file: &Path, degrees: u16) -> Result<PathBuf> {
+        let turns = crate::photo::quarter_turns(degrees)?;
+        let bytes = crate::photo::turned_jpeg(file, turns)?;
+        let out = scratch_path(file, "turned");
+        if let Some(dir) = out.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| Error::Internal(e.to_string()))?;
+        }
+        std::fs::write(&out, bytes).map_err(|e| Error::Internal(e.to_string()))?;
+        Ok(out)
+    }
+
+    /// Turns a node's `n`-th photo `degrees` clockwise for good, with everything cut from it
+    /// (spec/rotate.md): the photo is stored turned; every record holding it whole gets the
+    /// turned one, its grid corners turned; every crop cut from it, on any record, is turned
+    /// with it and cut again. A crop turns its source photo. Files nothing uses any more are
+    /// deleted.
+    pub fn photo_rotate(&mut self, reference: &str, n: usize, degrees: u16) -> Result<Value> {
+        let turns = crate::photo::quarter_turns(degrees)?;
+        let id = resolve(&self.conn, reference, false)?;
+        let positions = ids(
+            &self.conn,
+            "SELECT position FROM photos WHERE node_id = ?1 ORDER BY position",
+            [id],
+        )?;
+        let pos = *n
+            .checked_sub(1)
+            .and_then(|i| positions.get(i))
+            .ok_or_else(|| {
+                Error::NotFound(format!(
+                    "photo {n} does not exist; it has {}",
+                    positions.len()
+                ))
+            })?;
+        let (path, source): (String, Option<String>) = self.conn.query_row(
+            "SELECT ev_file(path), ev_file(source) FROM photos WHERE node_id = ?1 AND position = ?2",
+            params![id, pos],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        // A crop is sideways because the photo it was cut from is: that photo turns.
+        let old = source.unwrap_or(path);
+        let new = crate::photo::store_bytes(
+            &self.photo_dir,
+            &crate::photo::turned_jpeg(Path::new(&old), turns)?,
+            "jpg",
+        )?;
+        let new_text = new.to_string_lossy().into_owned();
+        type Whole = (i64, i64, Option<String>);
+        let whole: Vec<Whole> = {
+            let mut stmt = self.conn.prepare(
+                "SELECT node_id, position, grid FROM photos
+                  WHERE path = ev_store(?1) AND crop IS NULL ORDER BY node_id, position",
+            )?;
+            stmt.query_map([&old], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+                .collect::<rusqlite::Result<_>>()?
+        };
+        type Cut = (i64, i64, String, String);
+        let cuts: Vec<Cut> = {
+            let mut stmt = self.conn.prepare(
+                "SELECT node_id, position, ev_file(path), crop FROM photos
+                  WHERE source = ev_store(?1) AND crop IS NOT NULL ORDER BY node_id, position",
+            )?;
+            stmt.query_map([&old], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+                .collect::<rusqlite::Result<_>>()?
+        };
+        // Every crop is cut again before anything is recorded.
+        let mut recut = Vec::with_capacity(cuts.len());
+        for (node, position, file, crop) in &cuts {
+            let c = crop.parse::<crate::Crop>()?.turned(turns);
+            let cut = crate::photo::store_crop(&self.photo_dir, &new, c)?;
+            recut.push((*node, *position, file.clone(), cut, c));
+        }
+        let tx = self.conn.transaction()?;
+        let mut nodes = Vec::new();
+        for (node, position, grid) in &whole {
+            let grid = grid
+                .as_deref()
+                .map(str::parse::<crate::GridCorners>)
+                .transpose()?
+                .map(|g| g.turned(turns).to_string());
+            tx.execute(
+                "UPDATE photos SET path = ev_store(?1), grid = ?2 WHERE node_id = ?3 AND position = ?4",
+                params![new_text, grid, node, position],
+            )?;
+            nodes.push(*node);
+        }
+        for (node, position, _, cut, c) in &recut {
+            tx.execute(
+                "UPDATE photos SET path = ev_store(?1), source = ev_store(?2), crop = ?3
+                  WHERE node_id = ?4 AND position = ?5",
+                params![
+                    cut.to_string_lossy(),
+                    new_text,
+                    c.to_string(),
+                    node,
+                    position
+                ],
+            )?;
+            nodes.push(*node);
+        }
+        nodes.sort_unstable();
+        nodes.dedup();
+        for node in &nodes {
+            event(
+                &tx,
+                *node,
+                "photo_rotate",
+                json!({ "from": old, "to": new_text, "degrees": degrees }),
+            )?;
+        }
+        // The old photo and its old crops, once nothing points at them.
+        let mut unused = Vec::new();
+        for f in std::iter::once(old.clone()).chain(recut.iter().map(|r| r.2.clone())) {
+            let left: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM photos WHERE path = ev_store(?1) OR source = ev_store(?1)",
+                [&f],
+                |r| r.get(0),
+            )?;
+            if left == 0 && Path::new(&f).starts_with(&self.photo_dir) && f != new_text {
+                unused.push(f);
+            }
+        }
+        tx.commit()?;
+        unused.sort();
+        unused.dedup();
+        let deleted: Vec<String> = unused
+            .into_iter()
+            .filter(|f| std::fs::remove_file(f).is_ok())
+            .collect();
+        let mut v = self.photo_list(&id.to_string())?;
+        v["rotated"] = json!({
+            "degrees": degrees,
+            "records": nodes
+                .iter()
+                .map(|n| brief_json(&self.conn, *n))
+                .collect::<Result<Vec<_>>>()?,
+            "deleted_files": deleted,
+        });
+        Ok(v)
+    }
+
     pub fn photo_remove(&mut self, reference: &str, n: usize) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         let positions = ids(

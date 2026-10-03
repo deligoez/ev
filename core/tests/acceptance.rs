@@ -368,8 +368,8 @@ fn edit_fields_and_history() {
             ],
         )
         .unwrap();
-    assert_eq!(v["node"]["qty"], 2);
-    assert_eq!(v["node"]["tags"][0], "maker");
+    assert_eq!(v["changed"]["qty"]["after"], 2);
+    assert_eq!(v["changed"]["tags"]["after"][0], "maker");
     assert_eq!(
         code_of(&inv.edit("Flipper Zero", &["fill=150".into()]).unwrap_err()),
         2
@@ -827,7 +827,7 @@ fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
         5
     );
     let v = inv.edit(&id, &["note=probably thrown out".into()]).unwrap();
-    assert_eq!(v["node"]["note"], "probably thrown out");
+    assert_eq!(v["changed"]["note"]["after"], "probably thrown out");
     assert_eq!(v["node"]["state"], "gone");
 }
 

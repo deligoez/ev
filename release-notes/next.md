@@ -19,3 +19,11 @@ coordinates by hand — and getting the direction backwards cut them upside down
 
 A phone photo's EXIF orientation was already applied on every read; this is for the photo that
 has none, or a wrong one.
+
+## An edit says what it changed
+
+`ev edit` answered with the whole record, so adding a line to a long note sent the note back
+whole, and everything else the agent had just written. It now answers with the record as a row
+and `changed`: each field it changed, before and after (`note: old → new` in the text);
+`ev edit --stdin` gives each line's `changed` the same way, and `ev show` still has the rest.
+A node's `lost` and `temporary` now appear only when true, as they already did on rows.

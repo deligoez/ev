@@ -791,9 +791,14 @@ enum BuyCmd {
     /// Bring what came with a line (a link, a value, a warranty, a product image) to a thing it
     /// is linked to. Says what it brought and what it left, and why.
     Bring {
-        #[arg(value_parser = record_id)]
-        id: i64,
-        reference: String,
+        #[arg(value_parser = record_id, required_unless_present = "all")]
+        id: Option<i64>,
+        #[arg(required_unless_present = "all")]
+        reference: Option<String>,
+        /// Every linked line, each to the thing it is linked to: the back-fill. A line
+        /// linked to several things, or to a thing that is gone, is left and named.
+        #[arg(long, conflicts_with_all = ["id", "reference", "only"])]
+        all: bool,
         /// Only these attachments, by id (repeatable or comma-separated); all not yet brought
         /// by default.
         #[arg(long, value_parser = record_id, value_delimiter = ',')]
@@ -1803,9 +1808,13 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Buy(BuyCmd::Bring {
             id,
             reference,
+            all,
             only,
             r#type,
-        }) => inv.buy_bring(id, &reference, &only, &r#type),
+        }) => match (id, reference) {
+            (Some(id), Some(reference)) if !all => inv.buy_bring(id, &reference, &only, &r#type),
+            _ => inv.buy_bring_all(&r#type),
+        },
         Cmd::Buy(BuyCmd::Dismiss {
             id,
             reason,

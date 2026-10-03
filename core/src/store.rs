@@ -317,14 +317,34 @@ impl Inventory {
         kind: Option<Kind>,
         include_gone: bool,
     ) -> Result<Value> {
+        self.find_with(text, tag, kind, include_gone, false)
+    }
+
+    /// `find`, and with `empty` only the containers nothing is in: worked out from the records,
+    /// so it never goes stale the way a hand-kept "empty" tag does.
+    pub fn find_with(
+        &self,
+        text: &str,
+        tag: Option<&str>,
+        kind: Option<Kind>,
+        include_gone: bool,
+        empty: bool,
+    ) -> Result<Value> {
         let query = search::Query::parse(&self.conn, text)?;
         // Without text a filter must narrow it: `--tag x` alone lists everything tagged x.
-        if query.is_empty() && tag.is_none() && kind.is_none() {
+        if query.is_empty() && tag.is_none() && kind.is_none() && !empty {
             return Err(Error::Usage(
-                "search text is empty; give text, or --tag / --kind to list".into(),
+                "search text is empty; give text, or --tag / --kind / --empty to list".into(),
             ));
         }
         let tag = tag.map(|t| t.trim().to_lowercase());
+        let filled: std::collections::HashSet<i64> = ids(
+            &self.conn,
+            "SELECT DISTINCT parent_id FROM nodes WHERE parent_id IS NOT NULL AND state != 'gone'",
+            [],
+        )?
+        .into_iter()
+        .collect();
         let mut nodes = Vec::new();
         for id in ids(&self.conn, "SELECT id FROM nodes ORDER BY id", [])? {
             let n = load(&self.conn, id)?;
@@ -333,6 +353,8 @@ impl Inventory {
             if (n.state == State::Gone && !include_gone && !archived)
                 || kind.is_some_and(|k| k != n.kind)
                 || tag.as_ref().is_some_and(|t| !n.tags.contains(t))
+                || empty
+                    && (n.kind != Kind::Container || n.state == State::Gone || filled.contains(&id))
             {
                 continue;
             }

@@ -30,6 +30,19 @@ fn wrap_words(text: &str, width: usize) -> Vec<String> {
     out
 }
 
+/// A thing's documents without its product images, which are pictures and show on the Photos
+/// tab; each keeps its index in `documents`.
+fn proof_documents(v: &Value) -> Vec<(usize, Value)> {
+    v["documents"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .cloned()
+        .enumerate()
+        .filter(|(_, d)| d["kind"] != "image")
+        .collect()
+}
+
 impl App {
     pub(super) fn load_details(&mut self) -> Result<()> {
         let before = self.details.as_ref().map(|d| d["node"]["id"].clone());
@@ -569,7 +582,7 @@ impl App {
         }
 
         // What proves it: counts and kinds here, the files themselves on the Documents tab.
-        let docs = v["documents"].as_array().cloned().unwrap_or_default();
+        let docs: Vec<Value> = proof_documents(v).into_iter().map(|(_, d)| d).collect();
         let links = self.detail_links();
         if !docs.is_empty() || !links.is_empty() {
             Self::section(
@@ -808,15 +821,7 @@ impl App {
                 Span::raw("  ")
             }
         };
-        // Product images show on the Photos tab; each document keeps its index in `documents`.
-        let docs: Vec<(usize, Value)> = v["documents"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .cloned()
-            .enumerate()
-            .filter(|(_, d)| d["kind"] != "image")
-            .collect();
+        let docs = proof_documents(v);
         if !docs.is_empty() {
             out.push((
                 Line::from(tf("Documents ({})", &[&docs.len()])).bold(),

@@ -72,7 +72,11 @@ pairs already made apart can be joined.
 An empty box used to be one tagged `boş kap` by hand, and the tag went stale both ways: a box
 recorded empty without it was missed, and a box that had something put in it kept the tag and
 still looked empty (`ev regroup` even offered it as a spare). Empty is now worked out from the
-records: a container no live record is in.
+records: a container no live record is in, and known to be empty — its place was toured, or
+something was once recorded in it and left. A box with nothing recorded only because nobody
+looked into it (an unopened carton, an uncounted drawer) is not empty: `ev find --empty` lists
+it apart under `not_known`, and nothing offers it. A box that moves comes before a slot of
+furniture.
 
 - `ev find --empty` lists them (also `empty` on the MCP `find` tool).
 - When a thing has no group here (`new_group_likely`), `ev suggest` lists the empty boxes with

@@ -1,6 +1,6 @@
 # Statistics
 
-Status: **implementing** (decided 2026-10-03).
+Status: **implemented** (decided 2026-10-03): all three phases.
 
 ## 1. Decision
 

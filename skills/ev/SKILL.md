@@ -176,6 +176,11 @@ places, and how far the whole home is (`progress`). Then:
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
   A toured place that changed later shows in `progress` as `changed_since`; mention it.
 
+**How many, how much, how far: `ev stats`.** When the person asks how big the inventory is,
+what it cost, how far the counting has come or where the purchases stand, read `ev stats` and
+answer from it (numbers, never a score); `ev ui` shows the same on its Statistics tab (`9`).
+Say what a sum covers: the cost is only that of things with a linked purchase ("known for 12
+of 300 records").
 ## Everything waiting: `ev todo`
 
 When the person asks what is left, or a session starts with no clear task, run `ev todo` and

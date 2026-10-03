@@ -77,3 +77,11 @@ checked first.
 is, planned or not, is now refused, and the message points to a grid: a box with fixed
 compartments takes `ev grid <box> --cols 2 --rows 2` and `ev cell "<thing>"=A1`, which already
 worked for any holder. A lost thing moved to where it was last seen is still found there.
+
+## Things share a compartment
+
+A case of four compartments is a 2×2 grid, but `ev cell` refused two things in one
+compartment ("A1 and A1 would share cells"): a cell was a gridfinity box's, one record each.
+Two kinds of cutting disc lie together in one compartment of a Dremel case. Now things (items)
+share a cell with other things; a box (anything but an item) still keeps its cells to itself,
+and nothing shares a cell with a box. `ev grid <case>` lists what is in each compartment.

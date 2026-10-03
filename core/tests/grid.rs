@@ -474,3 +474,31 @@ fn a_drawer_is_toured_only_with_photos_that_show_it_as_it_is() {
     assert!(codes.contains(&"D-A4"), "{codes:?}");
     assert!(!codes.contains(&"D-A3"), "{codes:?}");
 }
+
+#[test]
+fn things_share_a_compartment_and_a_box_keeps_its_cells() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Kesme diski", "item", Some("D"), None);
+    add(&mut inv, "Taşlama diski", "item", Some("D"), None);
+    inv.grid_set("D", 2, 2).unwrap();
+    inv.cells_set(&pairs(&[("Kesme diski", "A1"), ("Taşlama diski", "A1")]))
+        .unwrap();
+    let g = inv.grid("D").unwrap();
+    let in_a1: Vec<&Value> = g["grid"]["boxes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|b| b["cells"] == "A1")
+        .collect();
+    assert_eq!(in_a1.len(), 2, "{g}");
+    // A box does not stand where things already lie, nor on another box.
+    assert_eq!(
+        inv.cells_set(&pairs(&[("D-A3", "A1")])).unwrap_err().code(),
+        5
+    );
+    inv.cells_set(&pairs(&[("D-A3", "B1")])).unwrap();
+    assert_eq!(
+        inv.cells_set(&pairs(&[("D-B3", "B1")])).unwrap_err().code(),
+        5
+    );
+}

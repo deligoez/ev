@@ -50,3 +50,14 @@ recorded as model `561` was offered a hard disk whose product code is `6002561`,
 with 60 points. A model or serial now counts only as whole words of the line (`GSB 13 RE` still
 reads as `GSB13RE`); one of six characters or more may still start a longer code, where a
 suffix names a colour or a region.
+
+## A kit bought as one purchase line
+
+A set of 128 bits bought as one line was recorded as a kit, its parts linked to the records,
+but the records had no purchase: linking each part to the line meant nothing, and every part was
+offered unrelated lines while the set's own line stayed open. Now (spec/kit-purchase.md)
+`ev kit purchase <kit> <line>` (or `--purchase` on `ev kit add`) links the kit to the line: the
+line is settled and named by the kit in `ev buy list` and `ev buy show`, every linked part shows
+it under its purchases in `ev show`, and none of them is asked for a purchase again. `--clear`
+takes it back. **Schema 31**: this version adds `kits.purchase_id` when it first opens an
+inventory of 30.

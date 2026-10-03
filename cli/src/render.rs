@@ -1445,6 +1445,11 @@ fn regroup(out: &mut String, v: &Value) {
     let _ = writeln!(out, "\n{}", scored());
 }
 
+/// A result as JSON for a program: one line (spec/output.md).
+pub fn json(v: &Value) -> String {
+    serde_json::to_string(v).unwrap_or_default()
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one branch per output shape; the long shapes have their own functions"

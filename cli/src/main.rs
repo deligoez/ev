@@ -1202,7 +1202,7 @@ fn main() -> ExitCode {
         Ok(Value::Null) => ExitCode::SUCCESS,
         Ok(value) => {
             let out = if json {
-                serde_json::to_string_pretty(&value).unwrap_or_default() + "\n"
+                render::json(&value) + "\n"
             } else {
                 render::human(&value)
             };

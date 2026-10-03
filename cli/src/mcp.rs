@@ -526,7 +526,7 @@ pub(crate) fn run_args(
 fn shaped(v: &Value, format: Format) -> CallToolResult {
     let body = match format {
         Format::Text => crate::render::human(v),
-        Format::Json => serde_json::to_string_pretty(v).unwrap_or_default(),
+        Format::Json => crate::render::json(v),
     };
     if let Format::Json = format {
         let chars = body.chars().count();

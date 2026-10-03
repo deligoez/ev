@@ -1,5 +1,37 @@
 Draft for the next release.
 
+## New: one thing kept in several places
+
+- **A thing can be kept in several places, as portions** (spec/portions.md). Twenty
+  rechargeable cells, two in a flashlight, two in a toy and sixteen spare in a drawer, are one
+  thing, not three records typed three times. Each place holds a portion: an ordinary record
+  with its own place and count, tied to the others by `thing` (schema 30). What the thing is
+  (name, make, model, size, tags) is kept equal on every portion: an edit through one sets it
+  on all. The person never manages portions; the verbs they already use take a count:
+  `ev move <ref> --qty 2 --to <flashlight>` moves two and leaves eighteen, now or with
+  `--plan`; `--qty` works on `ev lend`, `ev dispose`, `ev gone` and `ev lost` too, in the same
+  transaction as the verb, so a refused verb leaves nothing split. A portion that arrives where
+  another portion of the same thing already is, in the same condition, joins it (the counts
+  add up; the arriving record ends as `merged`), so units moved back and forth never pile up
+  records.
+- **`ev show` and `ev ui` show the whole thing.** All its units, in how many places, how many in
+  use (inside an item: a device, a toy) and how many spare, and each other place with its
+  count. Purchases, documents, coverage, values and links are read across every portion, each
+  marked with the portion it was linked on. An account says what the units are: `bought 20 ·
+  here 18 · gone: used up 2`, and how many are unaccounted for or more than were bought. In
+  `ev ui`, `p` goes to the thing's next place.
+- **`ev find` groups a thing's portions** under one line with its total and places; in JSON each
+  result carries `thing`, and agents keep acting on the portion's own id.
+- **`ev add --of <ref> --qty 4 --in <place>`**: more of a thing already recorded, taking what it
+  is from that record (also `of` in `ev add --stdin` lines). It replaces copying a record by
+  hand for a second lot. **`ev join <ref> <ref>…`** makes records made separately one thing (a
+  make or model that differs is refused with both values); **`ev unjoin`** undoes it. `ev
+  audit` no longer lists a thing's portions as alike things split up, and hints `ev join` for a
+  name recorded in two places.
+- **Purchases count units across the thing.** A line linked to any portion is the thing's; a
+  "not this one" said of one portion holds for all; a portion of a thing its purchases already
+  account for asks about no purchase, and one with more units than were bought asks again.
+
 ## New
 
 - **`ev mcp`: any agent can keep the inventory.** An MCP server over stdio, so an MCP client
@@ -17,15 +49,24 @@ Draft for the next release.
   JSON does not parse. The instructions stay under the 2,048 characters Claude Code keeps; the
   skill is also the prompt `ev` and the resource `ev://skill`, and the reference
   `ev://reference`. Nine tools take about 9 KB of definitions.
-
 - **The inventory runs in write-ahead-log mode.** Readers (`ev ui`, an agent's reads) and the
   writer no longer wait for each other; only writers queue. Under a burst of two MCP servers and
   the CLI (60 writes among 40 reads) every write is recorded, in about 7 seconds against 11 in
   the old mode. After every command that writes, ev folds the log back into `ev.db`, so the file
   a data repository commits holds every change, even with `ev ui` open. `ev.db-wal` and
   `ev.db-shm` appear beside the file while it is open: keep them out of version control. Back up
-  with `sqlite3 ev.db ".backup '<target>'"`, not `cp`. The first command of this version
-  switches the file; the schema does not change.
+  with `sqlite3 ev.db ".backup '<target>'"`, not `cp`; a git `textconv` that dumps `ev.db` opens
+  it as immutable (see REFERENCE).
+- **`ev gone --as used`**, for a thing that left by being used up: a tape run out, a dead cell.
+  It is neither throwing a good thing away nor giving it, and the thing's account says so.
+- **A shop's product images come with its purchases.** `tools/purchases/images.py` sits between
+  any adapter and `ev buy import` and hangs each line's saved pictures on it as `image`
+  attachments (`<adapter> | tools/purchases/images.py | ev buy import --stdin`). `ev buy bring`
+  makes them documents of kind `image` on the thing, never its photos, so the shop's picture
+  never stands in for how the thing looks now.
+- **`ev split --take`**, for parts that are some of the original's units (two of four cells are
+  another make): their counts come off the original's. Without it the parts are what each
+  unit is made of, as before (three sets: three cards, three cables).
 
 ## Fixed
 
@@ -35,17 +76,6 @@ Draft for the next release.
   eight parallel writes failed. Writes now take the lock up front and wait their turn, for up
   to 30 seconds instead of 5: a burst of two MCP servers and the CLI (60 writes among 40 reads)
   lost 27 writes before and none after.
-- **`ev photo mark`, `ev focus` and `ev money needs` printed JSON as their text.** `photo
-  mark` now lists each label and where it is, then the numbered copy; `focus` says what `ev ui`
-  was asked to show, or that the request is cleared; `money needs` names the index, the month
-  it starts from and every missing exchange rate.
-- **A record id written as ev prints it was refused.** ev writes purchase lines, tasks,
-  documents and observations as `#12`, but `ev buy show #1` or `ev task done #21` failed with
-  "invalid digit". An agent copies the id as printed; every record id now takes `#12` or `12`.
-- **A task on a node read like a node.** `ev show` printed `task 14. #16 Samla …`; with the
-  position between the word and the id, an agent read `#16` as a node and opened a book. The
-  line now reads `task #16: Samla … (order 14)`, and the skill says that `#N` after a record's
-  word (task, purchase line, doc, need, cover) is that record's number.
 - **A data directory that moved still pointed at the old one.** Photos and documents in the
   store were kept as absolute paths, so a copy of the inventory elsewhere (another machine,
   another user name, a copy opened with `--db`) showed and marked the original's photos, or
@@ -54,10 +84,28 @@ Draft for the next release.
   rows the first time this version opens the file (one household's 740 photo paths, 517 crop
   sources and 287 documents, all found afterwards). A relative `--db` no longer stores paths
   relative to the directory ev was started in.
+- **A purchase's date did not say which date it was.** The text printed one bare date, the
+  delivery when there was one, and an agent told the person a thing was bought the day it
+  arrived. A purchase now reads `ordered 2024-12-06 · delivered 2024-12-09`, or its one date,
+  named.
 - **A thing found again, or one that just got its make and model, was not matched to a
   purchase.** `ev add` and `ev split` offer the purchase lines a thing could be while it is in
-  hand; `ev found` and an `ev edit` setting `make=` / `model=` did not, though `ev buy for`
-  ranked a model match first. Both now carry the same `purchase_candidates`, and the skill asks
-  about the first one then.
+  hand; `ev found`, an `ev edit` setting `make=` / `model=` and the same edit through `ev edit
+  --stdin` did not, though `ev buy for` ranked a model match first. They now carry the same
+  `purchase_candidates`, and the skill asks about the first one then.
+- **A record id written as ev prints it was refused.** ev writes purchase lines, tasks,
+  documents and observations as `#12`, but `ev buy show #1` or `ev task done #21` failed with
+  "invalid digit". An agent copies the id as printed; every record id now takes `#12` or `12`.
+- **A task on a node read like a node.** `ev show` printed `task 14. #16 Samla …`; with the
+  position between the word and the id, an agent read `#16` as a node and opened a book. The
+  line now reads `task #16: Samla … (order 14)`, and the skill says that `#N` after a record's
+  word (task, purchase line, doc, need, cover) is that record's number.
+- **A removed crop's file stayed in the store**, reachable by nothing; an agent found two as
+  untracked files and deleted them by hand. A crop no record uses goes with `ev photo remove`.
+  A whole photo stays: it may be the only copy of what was taken.
+- **`ev photo mark`, `ev focus` and `ev money needs` printed JSON as their text.** `photo
+  mark` now lists each label and where it is, then the numbered copy; `focus` says what `ev ui`
+  was asked to show, or that the request is cleared; `money needs` names the index, the month
+  it starts from and every missing exchange rate.
 - **`ev … | head` panicked** with "failed printing to stdout: Broken pipe" when the reader
   stopped before ev finished writing. A closed pipe is now ignored.

@@ -87,6 +87,20 @@ fn json_is_one_line() {
 }
 
 #[test]
+fn a_row_names_its_place_once_and_the_node_keeps_its_ancestors() {
+    let ev = seeded();
+    let row = &ev.ok(&["find", "anten"])["results"][0];
+    assert_eq!(row["path_text"], "Ev › Salon › Anten");
+    assert!(
+        row.get("path").is_none() && row.get("lost").is_none(),
+        "{row}"
+    );
+    let v = ev.ok(&["show", "Salon"]);
+    assert_eq!(v["node"]["path"][0]["name"], "Ev");
+    assert!(v["children"][0].get("path").is_none(), "{v}");
+}
+
+#[test]
 fn text_is_asked_for_through_a_pipe() {
     let ev = seeded();
     let out = Command::cargo_bin("ev")

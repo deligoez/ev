@@ -409,3 +409,29 @@ fn the_same_one_put_in_for_a_used_up_one_is_more_of_that_thing() {
     assert_eq!(new["thing"]["total"], 1);
     assert_eq!(new["thing"]["gone"], serde_json::json!({"used": 1}));
 }
+
+#[test]
+fn a_used_up_record_joins_its_replacement_and_two_gone_ones_are_refused() {
+    let (_d, mut inv) = setup();
+    inv.gone("El feneri", Some(ev_core::Disposition::Used))
+        .unwrap();
+    // Recorded again on its own before `--of` took a gone record.
+    let again = inv
+        .add(NewNode {
+            name: "El feneri".into(),
+            kind: "item".into(),
+            parent: Some("Oda".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    // The flashlight is #4 in the setup.
+    let v = inv
+        .join(&["4".into(), id(&again)])
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(id(&v), id(&again), "the live record holds the units");
+    assert_eq!(v["thing"]["gone"], serde_json::json!({"used": 1}));
+    inv.gone(&id(&again), Some(ev_core::Disposition::Used))
+        .unwrap();
+    let e = inv.join(&["4".into(), id(&again)]).unwrap_err();
+    assert!(e.to_string().contains("gone"), "{e}");
+}

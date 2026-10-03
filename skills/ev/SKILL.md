@@ -101,7 +101,9 @@ a portion, an ordinary record with its own count, and the portions share what th
    editing it and adding new records by hand: the split links them in the history. When the
    parts are some of the record's own units instead (two of four cells turn out another make),
    add `--take`: their counts come off the original's; without it the original keeps its count,
-   since the parts are what each unit is made of. A boxed kit that stays in its case is one item.
+   since the parts are what each unit is made of. `--take` also splits empty boxes off a box
+   record of several (two cases as one record, one emptied): what is inside stays in the
+   original. A boxed kit that stays in its case is one item.
    **A bought kit is a checklist in `ev kit`.** When the person says what set things came from
    and its contents are known (a shop's list, an observation), record it once — `ev kit add
    "<name>" --copies <n> --part "<part>[=<per copy>]"…` — and `ev kit link <kit> <n> <record>`

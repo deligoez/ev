@@ -272,9 +272,10 @@ first on two shared codes and dropped an RFID near-miss on a frequency conflict.
 
 ## 6. Sources and adapters
 
-- An adapter is a script under `tools/purchases/<source>` that reads one source's raw export and
-  writes NDJSON. Sources: each shop, and **Under My Roof** (read-only from its local SQLite;
-  never written).
+- An adapter is a script that reads one source's raw export and writes NDJSON. It lives with
+  the data, `~/.ev/purchases/<source>/adapter.py`, written by the inventory agent (§13);
+  `examples/purchases/` is the worked example. Sources: each shop, and **Under My Roof**
+  (read-only from its local SQLite; never written).
 - An adapter emits typed objects: `purchase` (§3.2 fields), and `document`, `link`, `valuation`
   and `coverage` objects that **hang on a purchase** by its `(source, source_key)`.
 - Nothing reaches a node until the purchase is linked. Linking offers the attachments in one
@@ -361,8 +362,26 @@ Each phase ends with the gate green and one measured check.
 ## 12. Decided while back-filling (2026-10-02)
 
 1. **Under My Roof is not imported.** It is not a shop: its records were typed by the person,
-   so they confirm a match, they are not purchases of their own. `tools/purchases/umr.py`
+   so they confirm a match, they are not purchases of their own. The `umr` adapter
    stays as a reader; what it gives is used to confirm a shop line, never imported as lines.
 2. **Back-fill only toured places.** A record in a place not toured yet is still a guess; it
    is matched to a purchase during that place's tour, not before. The one-off back-fill of
    §11.3 covers things whose place has been toured.
+
+## 13. Adapters live with the data (2026-10-03)
+
+1. **ev ships the contract, not the shops.** An adapter depends on how one shop's pages look
+   and on how the agent saved them (its `RECIPE.md`, its `raw/` layout); it changes with them,
+   not with ev's releases. So the shop adapters moved out of this repository to the data side,
+   `~/.ev/purchases/<shop>/adapter.py`, kept by the inventory agent. The fifteen written during
+   the back-fill are in the `v0.21.0` tag for anyone who wants to start from one.
+2. **One worked example stays**, `examples/purchases/`: an adapter over an invented export and
+   a README on writing one for a new shop. A test runs it into `ev buy import`, so the example
+   an agent copies from is always one that works.
+3. **The adapter emits the `image` lines.** It knows which picture is which line; matching
+   saved file names to lines afterwards (`images.py`) failed for three shops whose file names
+   carried another id.
+4. **Pictures are brought by the agent, never on their own**, and every bring says what it
+   brought (`ev buy bring --type image`, `--all` for the back-fill); the agent tells the
+   person. Where the person said pictures always come along, that rule is the household's
+   (`~/.ev/CLAUDE.md`), not a setting in ev.

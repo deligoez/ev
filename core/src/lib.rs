@@ -18,6 +18,7 @@ mod plan;
 mod portions;
 mod purchase_match;
 mod purchases;
+mod stats;
 mod store;
 mod valuations;
 

@@ -1181,8 +1181,39 @@ fn record_id(s: &str) -> std::result::Result<i64, String> {
         .map_err(|_| "expected a record id such as 12 or #12".to_string())
 }
 
+/// Whether the parser's error is a page to read (`--help`, `--version`) rather than a mistake.
+fn is_page(e: &clap::Error) -> bool {
+    matches!(
+        e.kind(),
+        clap::error::ErrorKind::DisplayHelp
+            | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+            | clap::error::ErrorKind::DisplayVersion
+    )
+}
+
+/// A mistyped argument as ev's own usage error, so JSON mode answers in JSON (spec/output.md).
+fn usage_error(e: &clap::Error) -> Error {
+    let text = e.render().to_string();
+    Error::Usage(text.trim().trim_start_matches("error: ").to_string())
+}
+
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) if is_page(&e) => e.exit(),
+        Err(e) => {
+            // Decided from the arguments as written: they did not parse.
+            let args: Vec<String> = std::env::args().collect();
+            let json = args.iter().any(|a| a == "--json")
+                || (!args.iter().any(|a| a == "--text") && !std::io::stdout().is_terminal());
+            if !json {
+                e.exit();
+            }
+            let err = usage_error(&e);
+            eprintln!("{}", err.to_json());
+            return ExitCode::from(err.code() as u8);
+        }
+    };
     if let Cmd::Mcp = cli.cmd {
         // Each call sets the person's language on the thread it runs on (mcp::run_args).
         return match mcp::serve(cli.db) {

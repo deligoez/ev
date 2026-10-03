@@ -483,14 +483,14 @@ pub(crate) fn run_args(
     let mut cli = match Cli::try_parse_from(argv) {
         Ok(cli) => cli,
         Err(e) => {
-            let text = e.render().to_string();
-            return match e.kind() {
-                clap::error::ErrorKind::DisplayHelp
-                | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
-                | clap::error::ErrorKind::DisplayVersion => {
-                    CallToolResult::success(vec![ContentBlock::text(text)])
-                }
-                _ => CallToolResult::error(vec![ContentBlock::text(text)]),
+            let text = match format {
+                Format::Json if !crate::is_page(&e) => crate::usage_error(&e).to_json().to_string(),
+                _ => e.render().to_string(),
+            };
+            return if crate::is_page(&e) {
+                CallToolResult::success(vec![ContentBlock::text(text)])
+            } else {
+                CallToolResult::error(vec![ContentBlock::text(text)])
             };
         }
     };

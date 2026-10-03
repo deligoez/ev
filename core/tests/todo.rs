@@ -338,6 +338,19 @@ fn focus_names_a_node_and_its_last_photo_by_default() {
 }
 
 #[test]
+fn a_focus_request_goes_beside_the_database_and_leaves_its_file_as_it_was() {
+    let (d, inv) = setup();
+    drop(inv);
+    let db = d.path().join("ev.db");
+    let before = std::fs::read(&db).unwrap();
+    let mut inv = ev_core::Inventory::open(&db).unwrap();
+    inv.focus(Some("Silikon"), None).unwrap();
+    drop(inv);
+    assert_eq!(std::fs::read(&db).unwrap(), before);
+    assert!(d.path().join("ev.db-focus.json").is_file());
+}
+
+#[test]
 fn todo_gathers_state_that_lives_elsewhere_without_copying_it() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Kutu", "container", Some("Oda"), None);

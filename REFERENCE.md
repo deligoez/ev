@@ -120,7 +120,7 @@ one, its name otherwise.
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag`, `--kind` or `--empty` to list every match of the filter (`ev find --tag "3d yazıcı"`). `--empty` keeps only the containers no live record is in, worked out from the records, so no "empty" tag has to be kept (`ev find --empty`). A portion of a thing kept in several places carries `thing`: `{id, total, places, in_use, spare}`; the text shows a thing's portions together under one line |
-| tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set; `count` on a place gone through on its own: `raw`, `counting`, `toured` or `kept`; lost things are not among the children or in `items`), `lost` (without a reference: every lost thing, with `last_seen`, null when never seen) |
+| tree | `tree` (nested, each with `children` (rooms, furniture, containers, then things; within each the coded ones by their code read naturally, `S5-2` before `S5-10`, then the rest by name; `ev show`'s `children` the same), and `theme`, `fill`, `size`, `tags` when set; `count` on a place gone through on its own: `raw`, `counting`, `toured` or `kept`; lost things are not among the children or in `items`), `lost` (without a reference: every lost thing, with `last_seen`, null when never seen) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
 | disposals | `disposals`: `{trash, give, sell}` |
@@ -218,7 +218,7 @@ A holder can be laid out in cells, like a gridfinity drawer: columns A…Z from 
 
 | Command | Does |
 |---|---|
-| `ev grid <ref>` | `node`, `grid`: `cols`, `rows`, `boxes` (NodeRef + `cells`), `free` (cell names), `unplaced` (children without cells), `map` (rows of box ids, null where free); `grid` is null without one |
+| `ev grid <ref>` | `node`, `grid`: `cols`, `rows`, `boxes` (NodeRef + `cells`; the text lists each by its cells, code and name), `free` (cell names), `unplaced` (children without cells), `map` (rows of box ids, null where free); `grid` is null without one |
 | `ev grid <ref>… --cols N --rows M` | set the size (1–26 × 1–99); refused (exit 5) while a placed box would fall outside. Several references get the same grid, all or none, and return `grids` |
 | `ev grid <ref>… --face above\|front` | how the grid is seen: `above` (the default; a drawer, row 1 at the back) or `front` (furniture and its compartments, row 1 at the top); with or without `--cols`/`--rows`, all or none; refused (exit 5) for a holder without a grid. `grid.face` |
 | `ev grid <ref> --clear` | remove the grid; refused while boxes are placed in it |
@@ -396,19 +396,23 @@ withdraws the request. Each request is shown once, without restarting `ev ui`. A
 message to the UI, not a change to the inventory: it is kept beside the database in
 `ev.db-focus.json`, and `ev.db` stays as it was.
 
-`ev photo mark <target> <label>=<where>… [--grid corners] [--out file] [--show note]` draws a
+`ev photo mark <target> <label>=<where>… [--codes] [--grid corners] [--out file] [--show note]` draws a
 red frame and a label for each mark on a copy of a photo: `<target>` is a photo file or a place
 (its newest whole photo), `<where>` is `x,y,w,h` in fractions of the upright photo or cells of
-the place's grid (`A6`, `A6-B7`). Cells are found through the grid corners the photo kept when
+the place's grid (`A6`, `A6-B7`). `--codes` adds a mark for every box placed in the place's grid
+that has a code, its code on its own cells (which label goes on which box). Cells are found through the grid corners the photo kept when
 it was cut with `--grid` (schema 11), or through `--grid`. The copy goes to `--out` or to
 `<temp>/ev-marks/` (files there older than a day are removed on each call); it is not stored,
 not attached and leaves no history. `--show` also sends it to a running `ev ui`. Output:
-`marked`, `source`, `marks: [{label, at}]`, and `shown` with `--show`. A label is no wider
+`marked`, `source`, `marks: [{label, at}]`, and `shown` with `--show`. A label keeps the
+letters as given (lowercase too; Turkish letters are drawn plain). A label on a frame is no wider
 than its frame (or an eighth of the photo, so a number on a small frame stays legible): a long
 one is drawn smaller, down to a third of the photo's size, and broken onto up to three lines at
 spaces. It goes above its frame, else below it, else inside it, at the first of those that
 stays in the photo and off every other label and frame; with no such place it may cover a
-frame, and moves down its column before it covers another label. Photos cut among records
+frame, and moves down its column before it covers another label. A label on cells sits inside
+them, in the top-left corner, no taller than about a third of the cells and no wider than them,
+so the box under it stays visible. Photos cut among records
 are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).
 
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the

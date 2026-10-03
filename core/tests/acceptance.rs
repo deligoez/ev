@@ -1000,3 +1000,30 @@ fn a_lost_thing_is_listed_apart_with_where_it_was_last_seen() {
     );
     assert_eq!(inv.found_in("Flipper Zero", "Kiler").unwrap_err().code(), 5);
 }
+
+#[test]
+fn a_move_to_where_it_already_is_is_refused_and_plans_nothing() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let here = inv.show("Flipper Zero", false).unwrap()["node"]["parent_id"]
+        .as_i64()
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        code_of(&inv.move_to("Flipper Zero", &here, true).unwrap_err()),
+        5
+    );
+    assert_eq!(
+        code_of(&inv.move_to("Flipper Zero", &here, false).unwrap_err()),
+        5
+    );
+    assert!(
+        inv.pending().unwrap()["pending"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    // Lost, it is found where it was last seen by moving it there.
+    inv.mark_lost("Flipper Zero").unwrap();
+    inv.move_to("Flipper Zero", &here, false).unwrap();
+}

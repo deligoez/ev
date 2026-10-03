@@ -546,7 +546,7 @@ fn shaped(v: &Value, format: Format) -> CallToolResult {
     }
     let mut r = CallToolResult::success(content);
     if let Format::Json = format {
-        r.structured_content = Some(v.clone());
+        r.structured_content = Some(crate::render::for_program(v));
     }
     r
 }

@@ -1447,7 +1447,31 @@ fn regroup(out: &mut String, v: &Value) {
 
 /// A result as JSON for a program: one line (spec/output.md).
 pub fn json(v: &Value) -> String {
-    serde_json::to_string(v).unwrap_or_default()
+    serde_json::to_string(&for_program(v)).unwrap_or_default()
+}
+
+/// A result as a program reads it: below the top level, a field with no value is left out, so
+/// a missing field reads as null; the top-level keys stay, a payload's sections always there to
+/// look for (spec/output.md).
+pub fn for_program(v: &Value) -> Value {
+    let mut v = v.clone();
+    match &mut v {
+        Value::Object(m) => m.values_mut().for_each(drop_nulls),
+        Value::Array(a) => a.iter_mut().for_each(drop_nulls),
+        _ => {}
+    }
+    v
+}
+
+fn drop_nulls(v: &mut Value) {
+    match v {
+        Value::Object(m) => {
+            m.retain(|_, x| !x.is_null());
+            m.values_mut().for_each(drop_nulls);
+        }
+        Value::Array(a) => a.iter_mut().for_each(drop_nulls),
+        _ => {}
+    }
 }
 
 #[expect(

@@ -169,3 +169,32 @@ fn a_box_called_empty_is_counted_and_waits_in_no_tour() {
     assert_eq!(v["review"]["status"], "toured", "{}", v["review"]);
     assert_eq!(v["review"]["note"], "açtık, boş");
 }
+
+#[test]
+fn a_lost_thing_last_seen_in_a_box_does_not_keep_it_from_being_empty() {
+    let (_d, mut inv) = setup();
+    // Lost from the start: recorded with the box as where it was last seen.
+    inv.add(NewNode {
+        name: "Güneş gözlüğü".into(),
+        kind: "item".into(),
+        parent: Some("Kablo çantası".into()),
+        lost: true,
+        ..Default::default()
+    })
+    .unwrap();
+    let v = inv
+        .mark_empty(&["Kablo çantası".into()], Some("boşaldı"))
+        .unwrap();
+    assert_eq!(v["empty"][0]["name"], "Kablo çantası");
+    let found = inv.find_with("", None, None, false, true).unwrap();
+    assert!(
+        found["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["name"] == "Kablo çantası"),
+        "{found}"
+    );
+    // Toured with no photo: there is nothing in it to show.
+    inv.review("Kablo çantası", "toured", None).unwrap();
+}

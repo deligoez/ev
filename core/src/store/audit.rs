@@ -303,26 +303,7 @@ impl Inventory {
                     .min_by_key(|f| (f.chars().count(), (*f).clone()))
                     .cloned()
                     .unwrap_or_default();
-                // The same name in several places may be one thing recorded twice: `ev join`.
-                let mut seen: HashMap<String, (String, usize)> = HashMap::new();
-                for names in places.values() {
-                    let here: BTreeSet<String> = names.iter().map(|n| fold(n)).collect();
-                    for key in here {
-                        let shown = names
-                            .iter()
-                            .find(|n| fold(n) == key)
-                            .cloned()
-                            .unwrap_or_default();
-                        seen.entry(key).or_insert((shown, 0)).1 += 1;
-                    }
-                }
-                let mut same: Vec<String> = seen
-                    .into_values()
-                    .filter(|(_, places)| *places > 1)
-                    .map(|(name, _)| name)
-                    .collect();
-                same.sort();
-                Ok(json!({ "word": word, "forms": forms, "places": list, "same_name": same }))
+                Ok(json!({ "word": word, "forms": forms, "places": list }))
             })
             .collect::<Result<Vec<_>>>()?;
         spread.sort_by_key(|v| std::cmp::Reverse(v["places"].as_array().map_or(0, Vec::len)));
@@ -367,9 +348,33 @@ impl Inventory {
                 Ok(b)
             })
             .collect::<Result<Vec<_>>>()?;
+        // The same name in more than one place, not already one thing: maybe one thing recorded
+        // twice, which `ev join` makes one (spec/portions.md §6). Each name once, with its records.
+        let mut by_name: std::collections::BTreeMap<String, Vec<&Node>> = Default::default();
+        for n in all
+            .iter()
+            .filter(|n| n.kind == Kind::Item && n.parent_id.is_some())
+        {
+            by_name.entry(fold(&n.name)).or_default().push(n);
+        }
+        let same_name = by_name
+            .into_values()
+            .filter(|ns| {
+                let places: BTreeSet<i64> = ns.iter().filter_map(|n| n.parent_id).collect();
+                let things: BTreeSet<Option<i64>> = ns.iter().map(|n| n.thing).collect();
+                places.len() > 1 && !(things.len() == 1 && ns[0].thing.is_some())
+            })
+            .map(|ns| {
+                let nodes = ns
+                    .iter()
+                    .map(|n| brief_json(&self.conn, n.id))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({ "name": ns[0].name, "nodes": nodes }))
+            })
+            .collect::<Result<Vec<_>>>()?;
         Ok(json!({
             "spread": spread, "no_theme": no_theme, "loose": loose,
-            "size_drift": size_drift,
+            "size_drift": size_drift, "same_name": same_name,
         }))
     }
 }

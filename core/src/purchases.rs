@@ -163,13 +163,23 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
             .map(|(n, q)| Ok(json!({ "node": brief(conn, *n)?, "qty": q })))
             .collect::<Result<Vec<_>>>()?
     );
+    // A kit bought as this line settles it (spec/kit-purchase.md): its parts are the units.
+    let kits: Vec<String> = {
+        let mut stmt =
+            conn.prepare_cached("SELECT name FROM kits WHERE purchase_id = ?1 ORDER BY name")?;
+        stmt.query_map([id], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?
+    };
     // A line joined to another (the same purchase seen by a second source) is settled through
     // that line: nothing of it is left open.
-    p["open_qty"] = if p["same_as"].is_null() {
+    p["open_qty"] = if p["same_as"].is_null() && kits.is_empty() {
         json!((p["units"].as_i64().unwrap_or(0) - linked).max(0))
     } else {
         json!(0)
     };
+    if !kits.is_empty() {
+        p["kits"] = json!(kits);
+    }
     p["joined"] = json!(ids(
         conn,
         "SELECT id FROM purchases WHERE same_as = ?1 ORDER BY id",
@@ -241,7 +251,8 @@ pub(crate) fn purchases_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
     let rows = stmt
         .query_map([node], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    rows.into_iter()
+    let mut out = rows
+        .into_iter()
         .map(|(id, q)| {
             let mut p = purchase_json(conn, id)?;
             if let Some(o) = p.as_object_mut() {
@@ -254,7 +265,34 @@ pub(crate) fn purchases_of(conn: &Connection, node: i64) -> Result<Vec<Value>> {
             with_today(conn, &mut p, q)?;
             Ok(p)
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    // The line of a kit this record is a part of (spec/kit-purchase.md): the set's purchase,
+    // named by the kit, with no share of its own and no price of its own.
+    for (id, kit) in kit_purchases_of(conn, node)? {
+        if out.iter().any(|p| p["id"] == id) {
+            continue;
+        }
+        let mut p = purchase_json(conn, id)?;
+        if let Some(o) = p.as_object_mut() {
+            o.remove("linked");
+            o.remove("documents");
+            o.remove("raw");
+        }
+        p["kit"] = json!(kit);
+        out.push(p);
+    }
+    Ok(out)
+}
+
+/// The purchase lines of the kits a record is a part of, with each kit's name.
+pub(crate) fn kit_purchases_of(conn: &Connection, node: i64) -> Result<Vec<(i64, String)>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT DISTINCT k.purchase_id, k.name FROM kit_links l JOIN kits k ON k.id = l.kit_id
+          WHERE l.node_id = ?1 AND k.purchase_id IS NOT NULL ORDER BY k.name",
+    )?;
+    stmt.query_map([node], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(Into::into)
 }
 
 /// Adds `today`: what `qty` units of the line cost, in today's home money, when it can be

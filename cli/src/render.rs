@@ -356,6 +356,9 @@ pub(crate) fn purchase_brief(p: &Value) -> String {
             ],
         ));
     }
+    if let Some(k) = p["kit"].as_str() {
+        parts.push(tf("the set: kit {}", &[&k]));
+    }
     parts.join(" · ")
 }
 
@@ -500,6 +503,10 @@ pub(crate) fn purchase_line(p: &Value) -> String {
             ],
         ));
     }
+    // Bought as a kit's line: the whole set, for every part of it.
+    if let Some(k) = p["kit"].as_str() {
+        parts.push(tf("the set: kit {}", &[&k]));
+    }
     parts.join("  ")
 }
 
@@ -509,7 +516,15 @@ fn purchase_state(p: &Value) -> String {
         return tf("[dismissed: {}]", &[&d]);
     }
     let open = p["open_qty"].as_i64().unwrap_or(0);
-    let mut st = if open > 0 {
+    let kits: Vec<&str> = p["kits"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let mut st = if !kits.is_empty() {
+        tf("[bought as kit {}]", &[&kits.join(", ")])
+    } else if open > 0 {
         tf("[{} open]", &[&open])
     } else {
         t("[linked]").to_string()
@@ -2693,6 +2708,10 @@ fn kit_parts(out: &mut String, v: &Value, kit: &Value, parts: &[Value]) {
             &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
         )
     );
+    // The line the whole set was bought as.
+    if let Some(p) = kit.get("purchase").filter(|p| p.is_object()) {
+        let _ = writeln!(out, "  {}: {}", t("bought"), purchase_line(p));
+    }
     for p in parts {
         let mark = match (p["open"].as_i64(), p["lost"].as_i64()) {
             (Some(0), Some(0)) => "✓",

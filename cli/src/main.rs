@@ -530,6 +530,18 @@ enum KitCmd {
         note: Option<String>,
         #[arg(long = "part")]
         parts: Vec<String>,
+        /// The purchase line the whole kit was bought as (see `ev kit purchase`).
+        #[arg(long, value_parser = record_id)]
+        purchase: Option<i64>,
+    },
+    /// The purchase line the whole kit was bought as: it settles the line, and every record
+    /// linked to the kit sees it as its purchase and is offered no other. `--clear` takes it back.
+    Purchase {
+        kit: String,
+        #[arg(value_parser = record_id, required_unless_present = "clear")]
+        line: Option<i64>,
+        #[arg(long, conflicts_with = "line")]
+        clear: bool,
     },
     /// Add parts to the end of a kit's list: `<name>` or `<name>=<how many in one copy>`.
     Part {
@@ -1640,7 +1652,15 @@ fn run(cli: Cli) -> Result<Value> {
             copies,
             note,
             parts,
-        }) => inv.kit_add(&name, copies, note.as_deref(), &kit_parts(&parts)?),
+            purchase,
+        }) => inv.kit_add(
+            &name,
+            copies,
+            note.as_deref(),
+            &kit_parts(&parts)?,
+            purchase,
+        ),
+        Cmd::Kit(KitCmd::Purchase { kit, line, .. }) => inv.kit_purchase(&kit, line),
         Cmd::Kit(KitCmd::Part { kit, parts }) => inv.kit_parts_add(&kit, &kit_parts(&parts)?),
         Cmd::Kit(KitCmd::Link { kit, n, references }) => inv.kit_link(&kit, n, &references),
         Cmd::Kit(KitCmd::Unlink { kit, n, reference }) => inv.kit_unlink(&kit, n, &reference),

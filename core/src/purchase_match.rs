@@ -470,9 +470,16 @@ impl Inventory {
             }
         }
         let parent: HashMap<i64, Option<i64>> = nodes.iter().map(|n| (n.id, n.parent_id)).collect();
-        let linked: HashSet<i64> = ids(conn, "SELECT DISTINCT node_id FROM purchase_links", [])?
-            .into_iter()
-            .collect();
+        // Linked to a line, or a part of a kit bought as one (spec/kit-purchase.md).
+        let linked: HashSet<i64> = ids(
+            conn,
+            "SELECT node_id FROM purchase_links
+             UNION SELECT l.node_id FROM kit_links l JOIN kits k ON k.id = l.kit_id
+                    WHERE k.purchase_id IS NOT NULL",
+            [],
+        )?
+        .into_iter()
+        .collect();
         let toured = |id: i64| {
             let mut cur = parent.get(&id).copied().flatten();
             for _ in 0..10_000 {

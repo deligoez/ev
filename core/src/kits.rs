@@ -75,6 +75,38 @@ fn part(conn: &Connection, kit: i64, n: i64) -> Result<String> {
     })
 }
 
+/// Sets the purchase line a kit was bought as (`None` clears it), with a `kit_purchase` event on
+/// every record linked to the kit, so each one's history says where its purchase came from.
+fn set_purchase(conn: &Connection, kit: i64, line: Option<i64>) -> Result<()> {
+    if let Some(l) = line {
+        let found: Option<i64> = conn
+            .query_row("SELECT id FROM purchases WHERE id = ?1", [l], |r| r.get(0))
+            .optional()?;
+        if found.is_none() {
+            return Err(Error::NotFound(format!("no purchase with id {l}")));
+        }
+    }
+    let name: String =
+        conn.query_row("SELECT name FROM kits WHERE id = ?1", [kit], |r| r.get(0))?;
+    conn.execute(
+        "UPDATE kits SET purchase_id = ?1 WHERE id = ?2",
+        params![line, kit],
+    )?;
+    for node in crate::store::ids(
+        conn,
+        "SELECT DISTINCT node_id FROM kit_links WHERE kit_id = ?1 ORDER BY node_id",
+        [kit],
+    )? {
+        event(
+            conn,
+            node,
+            "kit_purchase",
+            json!({ "kit": name, "purchase": line }),
+        )?;
+    }
+    Ok(())
+}
+
 /// A part's counts from the records linked to it: `found` (here, not lost), `lost`, and
 /// `open` — expected but not recorded yet. A record without a count is one thing; a gone one
 /// counts for nothing.
@@ -101,13 +133,14 @@ fn tally(conn: &Connection, kit: i64, n: i64) -> Result<(Vec<Value>, i64, i64)> 
 
 impl Inventory {
     /// Records a kit: its name, how many of it were bought (`copies`), and its parts, each
-    /// with how many come in one copy.
+    /// with how many come in one copy; with `purchase`, the line it was bought as.
     pub fn kit_add(
         &mut self,
         name: &str,
         copies: Option<i64>,
         note: Option<&str>,
         parts: &[(String, i64)],
+        purchase: Option<i64>,
     ) -> Result<Value> {
         let name = name.trim();
         if name.is_empty() {
@@ -133,6 +166,9 @@ impl Inventory {
         })?;
         let id = tx.last_insert_rowid();
         add_parts(&tx, id, parts)?;
+        if purchase.is_some() {
+            set_purchase(&tx, id, purchase)?;
+        }
         tx.commit()?;
         self.kit_show(&id.to_string())
     }
@@ -178,6 +214,16 @@ impl Inventory {
         self.kit_show(&id.to_string())
     }
 
+    /// Links a kit to the purchase line it was bought as (spec/kit-purchase.md), or clears it
+    /// with `None`. Every record linked to the kit gets a `kit_purchase` event.
+    pub fn kit_purchase(&mut self, kit: &str, line: Option<i64>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = kit_id(&tx, kit)?;
+        set_purchase(&tx, id, line)?;
+        tx.commit()?;
+        self.kit_show(&id.to_string())
+    }
+
     /// Undoes a link: the record is not that part after all.
     pub fn kit_unlink(&mut self, kit: &str, n: i64, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
@@ -209,11 +255,22 @@ impl Inventory {
     /// that part and where they are, how many are found or lost, and how many are still open.
     pub fn kit_show(&self, kit: &str) -> Result<Value> {
         let id = kit_id(&self.conn, kit)?;
-        let (name, copies, note): (String, i64, Option<String>) = self.conn.query_row(
-            "SELECT name, copies, note FROM kits WHERE id = ?1",
-            [id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )?;
+        let (name, copies, note, purchase): (String, i64, Option<String>, Option<i64>) =
+            self.conn.query_row(
+                "SELECT name, copies, note, purchase_id FROM kits WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )?;
+        // The line the set was bought as, in short: `ev buy show` has the rest.
+        let purchase = purchase
+            .map(|p| -> Result<Value> {
+                let l = crate::purchases::purchase_row(&self.conn, p)?;
+                Ok(json!({
+                    "id": p, "name": l["name"], "shop": l["shop"], "ordered_at": l["ordered_at"],
+                    "paid": l["paid"], "currency": l["currency"],
+                }))
+            })
+            .transpose()?;
         let mut stmt = self.conn.prepare(
             "SELECT position, text, qty FROM kit_parts WHERE kit_id = ?1 ORDER BY position",
         )?;
@@ -242,7 +299,7 @@ impl Inventory {
             }));
         }
         Ok(json!({
-            "kit": { "id": id, "name": name, "copies": copies, "note": note },
+            "kit": { "id": id, "name": name, "copies": copies, "note": note, "purchase": purchase },
             "counts": {
                 "expected": expected_all, "found": found_all, "lost": lost_all, "open": open_all,
             },

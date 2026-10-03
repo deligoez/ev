@@ -2200,6 +2200,10 @@ fn offer_purchases(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
     {
         return Ok(v);
     }
+    // A part of a kit bought as one line has that line (spec/kit-purchase.md).
+    if !crate::purchases::kit_purchases_of(conn, id)?.is_empty() {
+        return Ok(v);
+    }
     let offered: Vec<Value> =
         crate::purchase_match::candidates_for(conn, id, crate::purchase_match::OFFER_AT, 3)?
             .into_iter()

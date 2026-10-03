@@ -56,6 +56,7 @@ fn a_kit_counts_each_part_found_lost_and_still_missing_across_its_copies() {
                 ("Beyaz kart".into(), 1),
                 ("Step motor 28BYJ-48".into(), 1),
             ],
+            None,
         )
         .unwrap();
     // Nothing linked yet: everything is still missing, two of each for two copies.
@@ -93,7 +94,7 @@ fn a_kit_counts_each_part_found_lost_and_still_missing_across_its_copies() {
 #[test]
 fn a_link_is_in_the_records_history_and_details_and_can_be_undone() {
     let (_d, mut inv) = setup();
-    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)])
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)], None)
         .unwrap();
     inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
     let shown = inv.show("RC522 okuyucu", false).unwrap();
@@ -128,10 +129,15 @@ fn a_link_is_in_the_records_history_and_details_and_can_be_undone() {
 #[test]
 fn kits_refuse_what_they_cannot_mean() {
     let (_d, mut inv) = setup();
-    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 1)])
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 1)], None)
         .unwrap();
     // One name, one kit (compared folded).
-    assert_eq!(inv.kit_add("SET", None, None, &[]).unwrap_err().code(), 2);
+    assert_eq!(
+        inv.kit_add("SET", None, None, &[], None)
+            .unwrap_err()
+            .code(),
+        2
+    );
     assert_eq!(inv.kit_show("Yok").unwrap_err().code(), 3);
     assert_eq!(
         inv.kit_link("Set", 9, &["RC522 okuyucu".into()])
@@ -165,7 +171,7 @@ fn kits_refuse_what_they_cannot_mean() {
 #[test]
 fn a_part_that_left_the_home_no_longer_counts_as_found() {
     let (_d, mut inv) = setup();
-    inv.kit_add("Set", None, None, &[("Kart".into(), 1)])
+    inv.kit_add("Set", None, None, &[("Kart".into(), 1)], None)
         .unwrap();
     let v = inv.kit_link("Set", 1, &["Beyaz kart".into()]).unwrap();
     assert_eq!(part(&v, 1)["found"], 1);
@@ -188,14 +194,14 @@ fn a_database_error_is_not_reported_as_a_name_already_taken() {
         .unwrap()
         .execute_batch("ALTER TABLE kits RENAME TO kits_away")
         .unwrap();
-    let err = inv.kit_add("Set", None, None, &[]).unwrap_err();
+    let err = inv.kit_add("Set", None, None, &[], None).unwrap_err();
     assert_eq!(err.code(), 1, "{err}");
 }
 
 #[test]
 fn linking_a_part_again_writes_no_second_history_event() {
     let (_d, mut inv) = setup();
-    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)])
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)], None)
         .unwrap();
     inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
     inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();

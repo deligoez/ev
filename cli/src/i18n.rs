@@ -493,6 +493,8 @@ static TR: &[(&str, &str)] = &[
     ("[dismissed: {}]", "[kapatıldı: {}]"),
     ("[{} open]", "[{} açık]"),
     ("[linked]", "[bağlı]"),
+    ("[bought as kit {}]", "[{} kiti olarak alındı]"),
+    ("the set: kit {}", "setin tamamı: {} kiti"),
     ("[returned]", "[iade]"),
     ("({} units each)", "(her biri {} adet)"),
     ("seller", "satıcı"),

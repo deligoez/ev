@@ -346,6 +346,9 @@ impl Inventory {
         .into_iter()
         .collect();
         let mut nodes = Vec::new();
+        // With `empty`: a container nothing is in only counts as empty when that is known (see
+        // `known_empty`); one never gone through is listed apart, as not known.
+        let mut unknown = Vec::new();
         for id in ids(&self.conn, "SELECT id FROM nodes ORDER BY id", [])? {
             let n = load(&self.conn, id)?;
             // A digitized thing left as paper but stays findable: its copy is why it was kept.
@@ -356,6 +359,10 @@ impl Inventory {
                 || empty
                     && (n.kind != Kind::Container || n.state == State::Gone || filled.contains(&id))
             {
+                continue;
+            }
+            if empty && !known_empty(&self.conn, id)? {
+                unknown.push(n);
                 continue;
             }
             nodes.push(n);
@@ -378,10 +385,27 @@ impl Inventory {
                         "in_use": th["in_use"], "spare": th["spare"],
                     });
                 }
+                if empty {
+                    v["slot"] = json!(is_slot(&self.conn, &n)?);
+                }
                 Ok(v)
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(json!({ "query": text, "results": results }))
+        let mut v = json!({ "query": text, "results": results });
+        if empty {
+            let unknown: Vec<i64> = if query.is_empty() {
+                unknown.iter().map(|n| n.id).collect()
+            } else {
+                query.rank(&unknown).into_iter().map(|(id, _)| id).collect()
+            };
+            v["not_known"] = json!(
+                unknown
+                    .iter()
+                    .map(|id| brief_json(&self.conn, *id))
+                    .collect::<Result<Vec<_>>>()?
+            );
+        }
+        Ok(v)
     }
 
     /// Applies `field=value` assignments (spec §6, §11.6).
@@ -1346,6 +1370,36 @@ pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
         [id],
         |r| r.get(0),
     )?)
+}
+
+/// Whether a container nothing is in is known to be empty, not just never counted: its place has
+/// been counted (`toured`, its own review or inherited; `kept` is left uncounted), or something was once
+/// recorded in it (created there or moved there) and has left. An uncounted carton in a room
+/// never toured has no records inside because nobody looked, not because it is empty.
+pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
+    let review = crate::plan::review_inherited(conn, id)?;
+    if review["status"] == "toured" {
+        return Ok(true);
+    }
+    let held: Option<i64> = conn
+        .query_row(
+            "SELECT 1 FROM events
+              WHERE (type = 'create' AND json_extract(data, '$.parent') = ?1)
+                 OR json_extract(data, '$.to') = ?1
+              LIMIT 1",
+            [id],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(held.is_some())
+}
+
+/// A slot of a piece of furniture (a drawer, a compartment) rather than a box that moves.
+pub(crate) fn is_slot(conn: &Connection, n: &Node) -> Result<bool> {
+    let Some(parent) = n.parent_id else {
+        return Ok(false);
+    };
+    Ok(load(conn, parent)?.kind == Kind::Furniture)
 }
 
 /// A node's live children in the order a person reads a shelf: rooms, furniture, containers,

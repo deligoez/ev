@@ -722,4 +722,8 @@ fn a_line_added_to_a_note_shows_only_that_line() {
     let s = h.text(&["edit", "D-B1", "note=+ikinci satır"]);
     assert!(s.contains("+ ikinci satır"), "{s}");
     assert!(!s.contains("ilk satır"), "{s}");
+    // A theme written out longer is replaced, not added to: shown before and after.
+    h.text(&["edit", "D-B1", "theme=Dremel"]);
+    let s = h.text(&["edit", "D-B1", "theme=Dremel ve parçaları"]);
+    assert!(s.contains("Dremel → Dremel ve parçaları"), "{s}");
 }

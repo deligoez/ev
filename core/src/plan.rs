@@ -228,24 +228,6 @@ fn all_reviews(conn: &Connection) -> Result<HashMap<i64, (String, String)>> {
     Ok(rows)
 }
 
-/// Latest `updated_at` anywhere below and at `id`, to tell a toured place that changed since.
-fn last_change(id: i64, kids: &HashMap<i64, Vec<&Node>>, by_id: &HashMap<i64, &Node>) -> String {
-    let mut latest = by_id
-        .get(&id)
-        .map(|n| n.updated_at.clone())
-        .unwrap_or_default();
-    let mut stack = vec![id];
-    while let Some(c) = stack.pop() {
-        for k in kids.get(&c).into_iter().flatten() {
-            if k.updated_at > latest {
-                latest = k.updated_at.clone();
-            }
-            stack.push(k.id);
-        }
-    }
-    latest
-}
-
 pub(crate) fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
         .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
@@ -706,7 +688,6 @@ impl Inventory {
     /// changed since.
     pub fn progress(&self) -> Result<Value> {
         let all = live_nodes(&self.conn)?;
-        let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
         let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
         let mut kids: HashMap<i64, Vec<&Node>> = HashMap::new();
         for n in &all {
@@ -734,7 +715,10 @@ impl Inventory {
             v["planned"] = json!(planned.contains(&u));
             match effective_review(u, &parent, &reviews) {
                 Some((from, status, at)) => {
-                    let changed = last_change(u, &kids, &by_id) > at;
+                    // Only a change to what the place holds dates a tour: re-coding a box,
+                    // linking a document or editing a note leaves the count as it was.
+                    let changed =
+                        crate::marks::contents_changed_at(&self.conn, u)?.is_some_and(|c| c > at);
                     match status.as_str() {
                         "toured" => toured += 1,
                         "counting" => counting += 1,

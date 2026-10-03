@@ -1374,7 +1374,8 @@ pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
 
 /// Whether a container nothing is in is known to be empty, not just never counted: its place has
 /// been counted (`toured`, its own review or inherited; `kept` is left uncounted), or something was once
-/// recorded in it (created there or moved there) and has left. An uncounted carton in a room
+/// recorded in it (created there or moved there) and has left, or the person said it is empty
+/// (`ev empty`). An uncounted carton in a room
 /// never toured has no records inside because nobody looked, not because it is empty.
 pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
     let review = crate::plan::review_inherited(conn, id)?;
@@ -1386,6 +1387,7 @@ pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
             "SELECT 1 FROM events
               WHERE (type = 'create' AND json_extract(data, '$.parent') = ?1)
                  OR json_extract(data, '$.to') = ?1
+                 OR (type = 'empty' AND node_id = ?1)
               LIMIT 1",
             [id],
             |r| r.get(0),

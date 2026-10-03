@@ -387,6 +387,47 @@ impl Inventory {
         self.labels_needed()
     }
 
+    /// On the person's word, these boxes are empty: they count as known to be empty
+    /// (`ev find --empty`, `suggest`'s `empty`, `regroup`'s spares) though their place was never
+    /// toured. Kept as an `empty` event with what was said; a box with something in it is
+    /// refused, and one that gets something later is simply no longer empty. All or none.
+    pub fn mark_empty(&mut self, references: &[String], note: Option<&str>) -> Result<Value> {
+        if references.is_empty() {
+            return Err(Error::Usage("name the boxes that are empty".into()));
+        }
+        let tx = self.conn.transaction()?;
+        let mut marked = Vec::new();
+        for r in references {
+            let id = resolve(&tx, r, false)?;
+            let kind: String =
+                tx.query_row("SELECT kind FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
+            if kind != Kind::Container.to_string() {
+                return Err(refused(
+                    format!("{r} is a {kind}, not a box: only a container is said to be empty"),
+                    Value::Null,
+                ));
+            }
+            let inside = ids(
+                &tx,
+                "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone'",
+                [id],
+            )?;
+            if !inside.is_empty() {
+                return Err(refused(
+                    format!(
+                        "{r} has {} record(s) in it; move them out first if it is empty",
+                        inside.len()
+                    ),
+                    json!({ "inside": inside }),
+                ));
+            }
+            crate::store::event(&tx, id, "empty", json!({ "note": note }))?;
+            marked.push(brief(&tx, id)?);
+        }
+        tx.commit()?;
+        Ok(json!({ "empty": marked }))
+    }
+
     fn labels_needed(&self) -> Result<Value> {
         let list = ids(
             &self.conn,

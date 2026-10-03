@@ -672,6 +672,19 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let mut node = load(&tx, resolve(&tx, reference, false)?)?;
         let target = resolve(&tx, to, false)?;
+        // A move to where it already is says nothing, and as a plan it waits forever. A lost
+        // thing moved to where it was last seen is found there, so that one goes on.
+        if !node.lost && node.parent_id == Some(target) {
+            return Err(refused(
+                format!(
+                    "{} is already in {}; a place inside it (a compartment) is a grid cell \
+                     (`ev grid`, `ev cell`) or a holder of its own",
+                    label(&node),
+                    label(&load(&tx, target)?)
+                ),
+                Value::Null,
+            ));
+        }
         if let Some(count) = crate::portions::part_of(&node, qty)? {
             let id = crate::portions::split_off(&tx, &node, count)?;
             node = load(&tx, id)?;

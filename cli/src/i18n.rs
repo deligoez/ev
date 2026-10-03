@@ -872,8 +872,8 @@ static TR: &[(&str, &str)] = &[
     ("{} more than bought", "alınandan {} fazla"),
     ("accounted: {}", "hesap: {}"),
     (
-        "“{}” in more than one place: one thing? `ev join`",
-        "“{}” birden çok yerde: tek eşya mı? `ev join`",
+        "The same name in more than one place, one thing? `ev join`:",
+        "Aynı ad birden çok yerde, tek eşya mı? `ev join`:",
     ),
     (
         "×{} in {} places · in use {} · spare {}",

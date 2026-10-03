@@ -2512,15 +2512,21 @@ fn audit(out: &mut String, v: &Value) {
         for p in x["places"].as_array().into_iter().flatten() {
             let _ = writeln!(out, "    {}", s(p, "path_text"));
         }
-        for name in x["same_name"].as_array().into_iter().flatten() {
-            let _ = writeln!(
-                out,
-                "    {}",
-                tf(
-                    "“{}” in more than one place: one thing? `ev join`",
-                    &[&name.as_str().unwrap_or_default()]
-                )
-            );
+    }
+    if let Some(list) = v["same_name"].as_array().filter(|l| !l.is_empty()) {
+        let _ = writeln!(
+            out,
+            "{}",
+            t("The same name in more than one place, one thing? `ev join`:")
+        );
+        for x in list {
+            let ids: Vec<String> = x["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|n| format!("#{}", n["id"]))
+                .collect();
+            let _ = writeln!(out, "  {}  {}", s(x, "name"), ids.join(" "));
         }
     }
     let _ = writeln!(out, "{}", t("Holders without a theme:"));

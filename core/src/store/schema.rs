@@ -585,3 +585,11 @@ CREATE INDEX nodes_thing ON nodes(thing);
 PRAGMA user_version = 30;
 COMMIT;
 ";
+
+/// Schema 31: a kit bought as one purchase line (spec/kit-purchase.md).
+pub(super) const SCHEMA_V31: &str = "
+BEGIN;
+ALTER TABLE kits ADD COLUMN purchase_id INTEGER REFERENCES purchases(id);
+PRAGMA user_version = 31;
+COMMIT;
+";

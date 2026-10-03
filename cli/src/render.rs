@@ -1452,15 +1452,31 @@ pub fn json(v: &Value) -> String {
 
 /// A result as a program reads it: below the top level, a field with no value is left out, so
 /// a missing field reads as null; the top-level keys stay, a payload's sections always there to
-/// look for (spec/output.md).
+/// look for — except in the node payload (`show`, and the commands answering with the node they
+/// changed), which keeps `node` and only the sections with something in them (spec/output.md).
 pub fn for_program(v: &Value) -> Value {
     let mut v = v.clone();
     match &mut v {
-        Value::Object(m) => m.values_mut().for_each(drop_nulls),
+        Value::Object(m) => {
+            if m.contains_key("node") && m.contains_key("children") {
+                m.retain(|k, x| k == "node" || has_something(x));
+            }
+            m.values_mut().for_each(drop_nulls);
+        }
         Value::Array(a) => a.iter_mut().for_each(drop_nulls),
         _ => {}
     }
     v
+}
+
+/// A value that says something: not null, and not a list or an object of nothing.
+fn has_something(v: &Value) -> bool {
+    match v {
+        Value::Null => false,
+        Value::Array(a) => !a.is_empty(),
+        Value::Object(m) => m.values().any(has_something),
+        _ => true,
+    }
 }
 
 fn drop_nulls(v: &mut Value) {

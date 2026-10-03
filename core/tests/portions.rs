@@ -435,3 +435,18 @@ fn a_used_up_record_joins_its_replacement_and_two_gone_ones_are_refused() {
     let e = inv.join(&["4".into(), id(&again)]).unwrap_err();
     assert!(e.to_string().contains("gone"), "{e}");
 }
+
+#[test]
+fn a_box_given_to_more_of_is_refused_for_being_a_box_not_for_a_serial() {
+    let (_d, mut inv) = setup();
+    let e = inv
+        .add(NewNode {
+            of: Some("D1".into()),
+            parent: Some("Oda".into()),
+            ..Default::default()
+        })
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("is a container") && e.contains("--take"), "{e}");
+    assert!(!e.contains("serial"), "{e}");
+}

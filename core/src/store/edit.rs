@@ -75,8 +75,12 @@ fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
 
 /// One record's `field=value` assignments inside the caller's transaction, recorded as one
 /// `edit` event with each field's value before the first and after the last assignment (so
-/// `tags=+a` then `tags=+b` reads as one change).
-pub(super) fn edit_in(conn: &Connection, reference: &str, assignments: &[String]) -> Result<i64> {
+/// `tags=+a` then `tags=+b` reads as one change). Returns the record and those changes.
+pub(super) fn edit_in(
+    conn: &Connection,
+    reference: &str,
+    assignments: &[String],
+) -> Result<(i64, serde_json::Map<String, Value>)> {
     // A gone node is found by id only, and only its note may change: the record of why it
     // left belongs on it, while every other field describes a thing no longer here.
     let id = match resolve(conn, reference, false) {
@@ -117,11 +121,11 @@ pub(super) fn edit_in(conn: &Connection, reference: &str, assignments: &[String]
     }
     if !changes.is_empty() {
         touch(conn, id)?;
-        event(conn, id, "edit", Value::Object(changes))?;
+        event(conn, id, "edit", Value::Object(changes.clone()))?;
     }
     // What the thing is, set on one portion, is set on all of them (spec/portions.md §3).
     crate::portions::share_identity(conn, id, assignments)?;
-    Ok(id)
+    Ok((id, changes))
 }
 
 pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) -> Result<()> {

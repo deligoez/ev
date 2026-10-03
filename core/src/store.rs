@@ -411,9 +411,11 @@ impl Inventory {
     /// Applies `field=value` assignments (spec §6, §11.6).
     pub fn edit(&mut self, reference: &str, assignments: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let id = edit_in(&tx, reference, assignments)?;
+        let (id, changed) = edit_in(&tx, reference, assignments)?;
         tx.commit()?;
-        let v = show(&self.conn, id)?;
+        // What changed, each field before and after, and the record by name and place: the rest
+        // the caller knew already, and `show` has it (spec/output.md).
+        let v = json!({ "node": brief(&self.conn, id)?, "changed": changed });
         // A make or model just learned is what matches a purchase best: ask now, as `add` does.
         if sets_identity(assignments) {
             return offer_purchases(&self.conn, id, v);
@@ -440,9 +442,10 @@ impl Inventory {
         let nodes = edited
             .iter()
             .zip(lines)
-            .map(|(id, (_, assignments))| {
-                let v = serde_json::to_value(brief(&self.conn, *id)?)
+            .map(|((id, changed), (_, assignments))| {
+                let mut v = serde_json::to_value(brief(&self.conn, *id)?)
                     .map_err(|e| Error::Internal(e.to_string()))?;
+                v["changed"] = Value::Object(changed.clone());
                 if sets_identity(assignments) {
                     offer_purchases(&self.conn, *id, v)
                 } else {

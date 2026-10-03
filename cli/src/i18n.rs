@@ -869,6 +869,7 @@ static TR: &[(&str, &str)] = &[
         "götür {} · iade {} · geri al {}",
     ),
     ("(none)", "(yok)"),
+    ("(nothing changed)", "(değişen bir şey yok)"),
     // Statistics
     ("OVERVIEW", "GENEL"),
     ("{} records of things, {} units", "{} eşya kaydı, {} adet"),

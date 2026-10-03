@@ -1985,6 +1985,16 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    // `ev edit`: the record, then each field it changed.
+    if let (Some(node), Some(_)) = (v.get("node"), v.get("changed").and_then(Value::as_object)) {
+        let _ = writeln!(out, "{}", line(node));
+        changed_lines(&mut out, &v["changed"]);
+        if let Some(c) = v.get("purchase_candidates") {
+            let _ = writeln!(out, "  {}", t("Could be one of these purchases:"));
+            candidate_lines(&mut out, c);
+        }
+        return out;
+    }
     for key in ["results", "created", "edited"] {
         if let Some(list) = v.get(key).and_then(Value::as_array) {
             if list.is_empty() {
@@ -2019,6 +2029,7 @@ pub fn human(v: &Value) -> String {
                     continue;
                 }
                 let _ = writeln!(out, "{}", line(n));
+                changed_lines(&mut out, &n["changed"]);
                 // An `ev edit --stdin` line that set make or model, asked as a single edit is.
                 if let Some(c) = n.get("purchase_candidates") {
                     let _ = writeln!(out, "  {}", t("Could be one of these purchases:"));
@@ -2153,6 +2164,36 @@ pub fn human(v: &Value) -> String {
     }
     let _ = writeln!(out, "{v}");
     out
+}
+
+/// What an edit changed, a field a line: `note: old → new`; `(nothing changed)` for none.
+fn changed_lines(out: &mut String, changed: &Value) {
+    let Some(fields) = changed.as_object() else {
+        return;
+    };
+    if fields.is_empty() {
+        let _ = writeln!(out, "  {}", t("(nothing changed)"));
+    }
+    let shown = |v: &Value| match v {
+        Value::Null => "—".to_string(),
+        // A note of several lines stays on its one line here.
+        Value::String(s) => s.replace('\n', " · "),
+        Value::Array(a) if a.is_empty() => "—".to_string(),
+        Value::Array(a) => a
+            .iter()
+            .map(|x| x.as_str().map_or_else(|| x.to_string(), str::to_string))
+            .collect::<Vec<_>>()
+            .join(", "),
+        other => other.to_string(),
+    };
+    for (field, c) in fields {
+        let _ = writeln!(
+            out,
+            "  {field}: {} → {}",
+            shown(&c["before"]),
+            shown(&c["after"])
+        );
+    }
 }
 
 /// A node's photos, one per line by the number other commands take: the file, the crop when

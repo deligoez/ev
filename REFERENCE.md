@@ -9,17 +9,18 @@
 | parent | `--in`, `move` | not editable; rooms only in homes/rooms |
 | code | `--code`, `edit code=`, `recode` | unique among non-gone nodes, folded; not digits only; `code=` clears; a code ending in `*` takes the next free number of its series (`GF1x1-*` after `GF1x1-007` is `GF1x1-008`, padded like the series, 3 digits for a new one, gone nodes' numbers never reused) in `add`, `edit` and `edit --stdin`; `ev recode A=X B=Y …` sets several at once, checking uniqueness against the codes they end up with (swap or rotate codes when boxes change places) |
 | address | `--address`, `edit address=` | homes only |
-| qty | `--qty`, `edit qty=` | ≥ 1; empty clears |
+| qty | `--qty`, `edit qty=` | ≥ 1; empty clears. `--qty n` on `move`, `lend`, `dispose`, `gone` and `lost` acts on n of an item's units (see **One thing in several places**) |
 | note, theme | `--note`, `--theme`, `edit note=` | empty clears; `note=+text` appends on a new line |
 | make, model, serial | `--make`, `--model`, `--serial`, `edit make=` | what the thing is beyond its name, as on its label (`make=Bosch model=GSB 13 RE`); searched by `ev find` as strongly as a code; empty clears |
 | fill | `--fill`, `edit fill=` | 0–100 estimate |
 | size | `--size`, `edit size=` | `WxDxH` or `WxD` in grid units, e.g. `1x2x0.5` (`×` and a decimal comma accepted); empty clears. What `regroup` compares when it offers a bigger spare box |
 | tags | `--tag` (repeatable), `edit tags=+x` / `tags=-x` | stored lowercase |
-| photos | `--photo` (repeatable), `edit photos=+p` / `photos=-p` | stored as absolute paths |
+| photos | `--photo` (repeatable), `edit photos=+p` / `photos=-p` | a file in the store (`photos/`) is kept relative to the database and output as a full path; one outside it stays absolute until `ev photo adopt` |
 | to | `--to`, `edit to=` | place the node should be taken to; empty clears |
 | owner | `--owner`, `edit owner=` | place the node belongs to when it is not ours |
 | with | `lend --to`, `back`, `edit with=` | place holding our lent node |
-| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, digitize, give, sell, return, mistake; `--shred` (trash, digitize) marks it `shred` |
+| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, digitize, give, sell, return, mistake, used (used up; `gone` only) and merged (ev's own, for a portion that joined another); `--shred` (trash, digitize) marks it `shred` |
+| thing | `move --qty`, `add --of`, `join`, `unjoin` | the thing a record is a portion of, when it is kept in several places: the id of the thing's first record; not set by hand (see **One thing in several places**) |
 | lost | `--lost`, `lost`, `found [--in]`, any move | its place is not known: out of where it was last seen (kept as the parent), listed under "Unknown place" in `ev tree` and `ev ui`, not counted in that place's `items`; a thing added with `--lost` and no place was never seen |
 | temporary | `--temporary`, `edit temporary=true/false` | a parking place: what is put straight into it waits for its final place (`ev todo` lists it as `parked`, `ev suggest` never offers the place or anything inside it, listing them under `parking`); on an item, that one thing waits where it is. A move clears an item's own mark (the event says `was_temporary`); a place keeps its mark until set back |
 
@@ -27,7 +28,8 @@
 
 One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `code`,
 `address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`,
-`temporary`, `make`, `model`, `serial`) plus optional `key`.
+`temporary`, `make`, `model`, `serial`) plus optional `key`, and `of`: more of a thing already
+recorded (`{"of": "#647", "qty": 4, "in": "K4x4-13-Ü"}`; name and kind come from it).
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
 ## Edit lines (`ev edit --stdin`)
@@ -36,7 +38,8 @@ One JSON object per line: `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["
 `ref` is a name, code, id or `#id`; each `set` entry is one `field=value` of `ev edit` (an
 array is one per item, `null` clears). Blank lines are skipped. All or nothing: a failing line
 is named (`line 2: …`) and nothing is changed. Each record gets one `edit` event, a field set
-several times showing its value before the first and after the last. Output: `edited`.
+several times showing its value before the first and after the last. Output: `edited`; a line
+that set `make` or `model` carries `purchase_candidates`, as a single `ev edit` does.
 
 ## Output
 
@@ -112,10 +115,10 @@ one, its name otherwise.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage) |
+| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage), `thing` (a portion of a thing kept in several places, see **One thing in several places**) |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
-| find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`) |
+| find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag` or `--kind` to list every match of the filter (`ev find --tag "3d yazıcı"`). A portion of a thing kept in several places carries `thing`: `{id, total, places, in_use, spare}`; the text shows a thing's portions together under one line |
 | tree | `tree` (nested, each with `children`, and `theme`, `fill`, `size`, `tags` when set; `count` on a place gone through on its own: `raw`, `counting`, `toured` or `kept`; lost things are not among the children or in `items`), `lost` (without a reference: every lost thing, with `last_seen`, null when never seen) |
 | recode | `recoded`: `[{id, name, before, after}]` |
 | pending | `pending`: `[{node, to}]` |
@@ -131,7 +134,7 @@ Errors print nothing on stdout; stderr carries
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), grid, cell, observe, unobserve,
 review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
-kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`), coverage_added and coverage_removed (`coverage`, `kind`), track (`subject`, `decision`, `why`).
+kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`), coverage_added and coverage_removed (`coverage`, `kind`), track (`subject`, `decision`, `why`); for a thing kept in several places portion_out (`qty`, `to`) and portion_in (`qty`, `from`), merged (`into`, `qty`) and joined (`from`, `qty`), more_of (`of`), join (`thing`) and unjoin (`thing`), and an `edit` reaching a portion through another (`via`, `fields`).
 
 ## `ev ui`
 
@@ -154,6 +157,7 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | Documents tab: [ / ], O / o, click | pick a document or link, open it in the program the system gives it (`open`, `xdg-open`) |
 | E | the Summary also lists make, model and serial still empty, as “—” |
 | y | copy what is picked on the Documents tab (a file's path, an address), else the thing's `#id` and name |
+| p | a thing kept in several places: open its next place in the tree (the Summary lists them all, under its total) |
 | + | widen the details as far as the list allows, and back |
 | click a details line | Photos: show that photo; Documents: open it; Contents and History: open that thing in the tree; a drawer's own Grid: open the box clicked (a box's view of its drawer does not react, so a stray click stays put). These tabs cut long lines with … instead of wrapping |
 | J / K, wheel over the details | scroll the details |
@@ -279,12 +283,56 @@ creates the place.
 
 | Command | Does |
 |---|---|
-| `ev split <ref> <name>=<qty>… [--rename <name>] [--qty n]` | one record becomes several kinds of thing: each `<name>=<qty>` (or `<name>` without a count) is a new record beside it, with its kind and tags and a note naming where it came from; the original keeps what is left, renamed and recounted with `--rename` / `--qty`. A set recorded as one thing becomes a record per part (`ev split 598 "LM393 kart=3" "Kablo=3" --rename "HW-080 prob"`); straight and angled headers in one record become two. Events: `split` on the original, `split_from` on each new one. Photos stay on the original and are listed, to crop each part from. Each new part in `into` carries `purchase_candidates` like a fresh `ev add`. A holder with things inside is refused (exit 5); all or nothing |
+| `ev split <ref> <name>=<qty>… [--rename <name>] [--qty n \| --take]` | one record becomes several kinds of thing: each `<name>=<qty>` (or `<name>` without a count) is a new record beside it, with its kind and tags and a note naming where it came from; the original is renamed and recounted with `--rename` / `--qty`. By default the parts are what each unit is made of and the original keeps its count (3 sets: `kart=3`, `kablo=3`); with `--take` they are some of its units and their counts come off its count (2 of 4 cells are another make: `ev split 650 "AA beyaz=2" --take` leaves 2), refused when they would take all of it. For the same thing in another place, move part of it instead (`ev move <ref> --qty n`). A set recorded as one thing becomes a record per part (`ev split 598 "LM393 kart=3" "Kablo=3" --rename "HW-080 prob"`); straight and angled headers in one record become two. Events: `split` on the original, `split_from` on each new one. Photos stay on the original and are listed, to crop each part from. Each new part in `into` carries `purchase_candidates` like a fresh `ev add`. A holder with things inside is refused (exit 5); all or nothing |
 | `ev kit add <name> [--copies n] [--note t] [--part "<name>[=<per copy>]"]…` | a kit: a bought set, how many of it were bought, and its parts numbered from 1, each with how many come in one copy (1 by default). Names are compared folded and are unique |
 | `ev kit part <kit> "<name>[=<per copy>]"…` | add parts to the end of the list |
 | `ev kit link <kit> <n> <ref>…` / `ev kit unlink <kit> <n> <ref>` | these records are part n (or are not); each record's history gets `kit_link` / `kit_unlink`, and `ev show` lists its `kits` |
 | `ev kit show <kit>` | `kit` (`id`, `name`, `copies`, `note`), `counts`, `parts`: `[{n, text, qty, expected, found, lost, open, nodes}]`. `expected` is `qty × copies`; `found` sums the counts of the linked records that are here (no count is 1), `lost` those marked lost, gone ones count for nothing; `open` is what is expected and not recorded at all. Computed from the records every time, so finding or moving a record updates the kit |
 | `ev kit list` / `ev kit remove <kit>` | every kit with its `counts`, most still open first; removing a kit keeps the records |
+
+## One thing in several places
+
+A thing kept in several places (20 cells: 2 in a flashlight, 2 in a toy, 16 in a drawer) is one
+thing whose **portions** are ordinary records, each with its own place and count, tied by
+`thing` (spec/portions.md). Only items without a serial are spread, and a holder with things
+inside moves whole.
+
+- **Shared:** name, kind, make, model, size and tags are equal on every live portion; setting
+  one on any portion sets it on all (each gets an `edit` with `via`). `edit kind=` or `serial=`
+  on a portion is refused (exit 5): `ev unjoin` it first.
+- **Per portion:** place, count, note, photos, code, cells, lost, pending move, lending and
+  owner, state and disposition, marks.
+- **Across the thing:** purchases, documents, coverage, values, links and declined purchase
+  candidates are written on the portion named and read over every portion (gone ones too), each
+  entry marked `on` with the portion it is on when that is not this one.
+- **Joining:** a portion that arrives (`move`, `done`, `back`, `found`, `add --of`) where a live
+  portion of the same thing already is, in the same condition (active, not lost, not lent, no
+  pending move, same disposition and owner), joins it: the counts add up, the arriving record
+  ends as gone with disposition `merged`, keeping its photos and history, and its tasks and kit
+  parts move to the one that holds the units.
+
+| Command | Does |
+|---|---|
+| `ev move <ref> --qty n --to <place> [--plan]` | n of the record's units go (or, with `--plan`, are set apart beside the rest with the planned move, which `ev done` takes); the rest stay. All of them is a plain move; more is refused (exit 5) |
+| `ev lend <ref> --to <place> --qty n` · `ev dispose <ref> --as … --qty n` · `ev gone <ref> --as … --qty n` · `ev lost <ref> --qty n` | the verb acts on n of the units, split off as a portion in the same transaction: a refused verb leaves nothing split |
+| `ev add --of <ref> [--qty n] --in <place> [--note t]` | more of a thing already recorded: name, kind, make, model, size and tags come from it; a portion of the same thing, joining one already in the place. Also `of` in `ev add --stdin` |
+| `ev join <ref> <ref>…` | records made separately are one thing: name from the first, a make, model or size only another has filled in, the tags of all; a make or model that differs is refused (exit 5) with the values in `details`. A record already a portion brings its thing's portions along; records in one place join |
+| `ev unjoin <ref>` | a portion is a thing of its own after all; it keeps what it is and what is linked to it |
+
+`ev show` of a portion carries `thing`: `id`, `total` (units here, lost ones left out),
+`places`, `in_use` (units inside an item: a device, a toy), `spare`, `lost`, `elsewhere` (each
+other live portion: NodeRef with `qty` and `in_use`), `bought` (the units its purchase links
+name, null without one), `gone` (units gone by disposition: `{"trash": 2, "used": 1}`; merged
+ones are not gone) and `unaccounted` (bought − here − lost − gone: above zero some are missing,
+below zero more are here than were bought). A last portion with units gone beside it keeps
+`thing` for that account. The text reads `thing: ×20 in 3 places · in use 4 · spare 16`, each
+other place, and `accounted: bought 20 · here 18 · gone: used up 2`.
+
+Purchase candidates treat a line linked to any portion as linked to the thing, and a "not this
+one" said of one portion as said of all. `ev add --of`, a split and a found portion ask about a
+purchase only while the thing has more units here than its purchases account for. `ev audit`
+counts a thing in one place only and, for a name recorded in more than one place, hints
+`ev join` (`same_name`).
 
 ## Placement
 
@@ -389,7 +437,7 @@ belong to. The copy outlives the file it came from.
 
 | Command | Payload |
 |---|---|
-| `ev doc add <file> --kind k [--for <ref>]… [--number n] [--ettn u] [--issued d] [--issuer i] [--note t]` | `document`, `existing`. `kind`: `invoice`, `warranty`, `manual`, `service`, `appraisal`, `policy`, `scan` (the copy of a paper thrown out, see `--as digitize`), `other`; `issued`: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. The same file again is the same document: `existing: true`, its fields are kept, only new links are added. Anything refused stores nothing |
+| `ev doc add <file> --kind k [--for <ref>]… [--number n] [--ettn u] [--issued d] [--issuer i] [--note t]` | `document`, `existing`. `kind`: `invoice`, `warranty`, `manual`, `service`, `appraisal`, `policy`, `scan` (the copy of a paper thrown out, see `--as digitize`), `image` (a shop's picture of the product, brought from a purchase; never the thing's own photo), `other`; `issued`: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. The same file again is the same document: `existing: true`, its fields are kept, only new links are added. Anything refused stores nothing |
 | `ev doc list [<ref>]` | `documents`: every document (each with `nodes`), or one thing's, newest issue first |
 | `ev doc show <id>` | `document`: `id`, `kind`, `file` (the stored copy), `original_name`, `number`, `ettn`, `issued_at`, `issuer`, `note`, `added_at`, `nodes` |
 | `ev doc link <id> <ref>` / `ev doc unlink <id> <ref>` | `document`; unlinking keeps it in the store |
@@ -445,10 +493,14 @@ One JSON object per line; `type` is `purchase` (the default) or `document`.
 - Attachments, hung on lines by `purchase` (one key) or `purchases`, brought to a thing with
   `ev buy bring`: `link` (`url`, `kind`, `archive`, `note`), `valuation` (`amount`, `currency`,
   `at`, `approximate`, `from`: where the figure came from, `note`), `coverage` (`kind`, `term`,
-  `from`, `ends`, `issuer`, `number`, `note`).
+  `from`, `ends`, `issuer`, `number`, `note`), `image` (`file`: a saved product picture,
+  `note`; brought as a document of kind `image`, never as a photo).
 
 Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
-outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`. There is one
+outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`. Put
+`tools/purchases/images.py` between them to hang each line's saved pictures
+(`raw/images/<sku>-NN.jpg`, `<order>-line-<item>.jpg`) on it as `image` attachments; a picture
+named by an id no line carries is left out rather than guessed. There is one
 for each of AliExpress, Amazon.com.tr, Amazon.de, Decathlon, GittiGidiyor, Hepsiburada, idefix,
 IKEA, Kitapyurdu, n11, Robo90, Robotistan, sahibinden, Trendyol and Vivense, and `umr.py` reads
 Under My Roof's own store (a copy of it; the app's data is never written): each item becomes a

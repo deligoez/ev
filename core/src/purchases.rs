@@ -107,7 +107,7 @@ pub(crate) fn purchase_json(conn: &Connection, id: i64) -> Result<Value> {
 }
 
 /// A purchase line: its own fields, what it is linked to and what is left of it.
-fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
+pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
     let row = conn
         .query_row(
             "SELECT source, source_key, shop, merchant, order_no, order_url, product_url, shop_sku,

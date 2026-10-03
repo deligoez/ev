@@ -13,7 +13,7 @@ use crate::Result;
 use crate::fold;
 use crate::model::Node;
 use crate::placement::{candidates, terms};
-use crate::purchases::purchase_json;
+use crate::purchases::purchase_row;
 use crate::store::{Inventory, ids, load, resolve};
 
 /// Below this a line is not offered when a thing is recorded. Measured on one shop's 158 lines
@@ -508,9 +508,10 @@ struct Matcher {
 
 impl Matcher {
     fn new(conn: &Connection, nodes: &[Node]) -> Result<Matcher> {
+        // A line's own fields and links are all scoring reads: not its attachments or documents.
         let all = ids(conn, "SELECT id FROM purchases ORDER BY id", [])?
             .into_iter()
-            .map(|p| purchase_json(conn, p))
+            .map(|p| purchase_row(conn, p))
             .collect::<Result<Vec<_>>>()?;
         // How rare a word is, among the lines and the records together: "sensör" or "vida" are
         // rare among purchases but common in a workshop's records, and say little about which.

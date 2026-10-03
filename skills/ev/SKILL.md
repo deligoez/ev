@@ -481,7 +481,9 @@ left on an older photo. The corners are your estimate: run the same command with
 first (nothing is cut; every box is drawn framed on its cells) and look before cutting.
 Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
 <item>=x,y,w,h …` puts the whole view on the holder and a crop on each box or item named
-(`ev photo add <node> <photo> --crop x,y,w,h` does one); a crop named by hand wins over the
+(`--place` is optional: a photo that is one crop of one thing, a card's front, is cut with
+`ev photo cut <photo> <thing>=x,y,w,h` too, which gives the `sheet` and `--preview` that
+`ev photo add <node> <photo> --crop x,y,w,h` does not); a crop named by hand wins over the
 grid's for the same box. **Look at every crop you cut:** the cut (and its `--preview`) returns
 a `sheet`, one image with every crop small and labelled with its cell — open it and redo any
 crop that shows the wrong thing (a hand crop wins for its box). The coordinates are your

@@ -559,8 +559,9 @@ finds `K4x4-07-Ü`.
 
 - `ev find <text> [--tag t] [--kind k] [--empty]` — where is it? `ev find --tag t` alone lists all tagged
   t: tag things that belong together but are scattered (`3d yazıcı`) so they can be gathered.
-  `ev find --empty` lists the boxes nothing is in, worked out from the records: never tag a box
-  empty.
+  `ev find --empty` lists the boxes known to be empty (their place toured, or something left
+  them), worked out from the records: never tag a box empty. Boxes with nothing recorded only
+  because nobody counted them come apart (`not_known`): open them before calling them empty.
 - `ev show <ref>` — one node, its path, children, pending move, disposition.
 - `ev tree [<ref>] [--depth n]` — the whole picture.
 - `ev history <ref> [--contents]` — what happened to it; `--contents` adds what came in, went out

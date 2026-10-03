@@ -430,8 +430,11 @@ fn a_cut_numbers_what_it_recognised_and_show_sends_it_to_ev_ui() {
     // A preview's note shows the preview and the numbered photo together.
     assert_eq!(v["shown"]["note"], "bak");
     assert_eq!(v["shown"]["files"].as_array().unwrap().len(), 2);
-    // Without --show nothing is sent; the numbered photo is there all the same.
+    // A cut shows its numbered photo by default; --no-show sends nothing, and the numbered
+    // photo is there all the same.
     let v = ev.ok(&pieces);
+    assert_eq!(v["shown"]["files"].as_array().unwrap().len(), 1);
+    let v = ev.ok(&[&pieces[..], &["--no-show"]].concat());
     assert!(v["shown"].is_null());
     assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
     assert_eq!(v["legend"][2]["ref"]["code"], "D-B1");

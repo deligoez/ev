@@ -37,8 +37,9 @@ its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` here (`GF
 `GF1x2-003`), one series per footprint; the prefix is the household's choice (another may
 use `G1x1-012`), and a series is whatever comes before the number. Use codes exactly as the
 person gives them; for a new box, `code=GF1x1-*` takes the next free number of its series —
-say it, since it goes on the
-label. A node leaves in two steps (`dispose --as` then `gone`) or one (`gone --as`). A node
+say it, since it goes on the label. When labels themselves change (two slots trade labels, a
+series is renumbered), give all the new codes in one `ev recode A=B B=A …`, never one `edit` at
+a time. A node leaves in two steps (`dispose --as` then `gone`) or one (`gone --as`). A node
 whose place is unknown is `lost`. **One thing can be kept in several places**: each place holds
 a portion, an ordinary record with its own count, and the portions share what the thing is
 (name, make, model, size, tags) — item 8.
@@ -50,7 +51,8 @@ a portion, an ordinary record with its own count, and the portions share what th
    `"in":"@b"`). Batches are all or nothing.
 2. **Propose, don't assume a move happened.** Plan it with `ev move <x> --to <y> --plan`,
    tell the person where it goes, and only after they say they did it run `ev done <x>`.
-   `ev pending` is the checklist. A planned move is also how you park a thing whose right
+   `ev pending` is the checklist; a move the person turns down is dropped with `ev cancel <x>`.
+   A planned move is also how you park a thing whose right
    place is not settled yet: plan it towards the likeliest holder, and when you later go
    through that holder, bring up everything planned to arrive there so the person decides
    whether it really belongs.
@@ -117,7 +119,9 @@ a portion, an ordinary record with its own count, and the portions share what th
 7. **Lost = place unknown.** `ev lost <x>` takes it out of where it was (that place is kept
    as "last seen") and lists it under "Unknown place" in the tree; `ev lost` lists them. `ev
    found <x>` puts it back where it was last seen, `ev found <x> --in <place>` where it turned
-   up; any move clears it too. A thing whose place was never known is added `--lost`.
+   up; any move clears it too. A thing whose place was never known is added `--lost`; given an
+   `in`, that place is only where it was last seen and does not count as holding it (a box with
+   only lost things recorded in it can still be called empty).
 8. **One thing in several places: never copy a record.** When some of a counted thing are
    elsewhere (two of the twenty cells are in the flashlight), the person reports a fact:
    `ev move <x> --qty 2 --to <flashlight>` records it now (a move you only propose is still
@@ -127,7 +131,8 @@ a portion, an ordinary record with its own count, and the portions share what th
    used up, a new one put in): `ev gone <old> --as used`, then `ev add --of <old> --in <place>`;
    `--of` takes the gone record. Two records you see are one thing (the same name in two places, which
    `ev audit` points out with `ev join`): propose it, and on the person's word
-   `ev join <a> <b>`; a different make or model is refused — ask which is right first. Portions
+   `ev join <a> <b>`; a different make or model is refused — ask which is right first; one
+   that turns out a thing of its own after all leaves with `ev unjoin <x>`. Portions
    that meet in one place join on their own, so moving units back and forth is safe. Fix what
    the thing is on any portion and it is fixed on all; a note stays the portion's own ("the
    flashlight's, charged in September"). `ev show` tells the whole thing (`×20 in 3 places · in
@@ -178,13 +183,15 @@ places, and how far the whole home is (`progress`). Then:
 - **Close only on the person's word.** Before you ask, give the place its theme (see **Give
   every place a theme**). When they say the place is done: `ev review <place>
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
-  A toured place that changed later shows in `progress` as `changed_since`; mention it.
+  A toured place that changed later shows in `ev progress` (every place and how far it is) as
+  `changed_since`; mention it.
 
 **How many, how much, how far: `ev stats`.** When the person asks how big the inventory is,
 what it cost, how far the counting has come or where the purchases stand, read `ev stats` and
 answer from it (numbers, never a score); `ev ui` shows the same on its Statistics tab (`9`).
 Say what a sum covers: the cost is only that of things with a linked purchase ("known for 12
 of 300 records").
+
 ## Everything waiting: `ev todo`
 
 When the person asks what is left, or a session starts with no clear task, run `ev todo` and
@@ -222,9 +229,11 @@ Record the kinds that have their own verbs as you meet them:
   the final layout. Each box keeps its code: it is the box's serial label, not its place.
 - **A box with fixed compartments** (a tool case of four, an organiser) is a grid too: give it
   its layout once (`ev grid <box> --cols 2 --rows 2`) and put each thing in its compartment
-  with `ev cell "<thing>"=A1`. `ev grid <box>` then shows which thing is in which compartment,
-  to check against a photo. A compartment is a record of its own only when it is a box that
-  comes out. A move within one box is a new cell, never `ev move` to the same box (refused).
+  with `ev cell "<thing>"=A1 "<other thing>"=A1 …`: things share a compartment (two kinds of
+  disc in one), a box keeps its cells to itself. Agree with the person which corner is A1 (row
+  1 is the far side seen from above). `ev grid <box>` then lists what is in each compartment, to
+  check against a photo. A compartment is a record of its own only when it is a box that comes
+  out. A move within one box is a new cell, never `ev move` to the same box (refused).
 - **The map:** `ev map <place>`, and `M` in `ev ui`, show a place as tiles: its grid, its
   sketch, or furniture stacked front on. Record how furniture stands as the person says it
   (`ev sketch <top> --on <bottom>` for a Kallax on another), give a piece of furniture a grid of
@@ -283,7 +292,7 @@ in this order:
 7. **Turn corrections into data.** When the person picks another place, record why: a `theme`
    on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
    miss was two words for one thing. Give boxes a `size` (`1x2x0.5`), so regrouping can offer
-   the empty ones (empty is worked out: nothing in it, no theme); a size written only in a box's name is not read —
+   the empty ones (a box with a size, no theme and nothing in it, known to be empty); a size written only in a box's name is not read —
    `ev audit` lists those under `size_drift`.
 
 At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
@@ -501,9 +510,12 @@ Otherwise `ev photo cut <photo> --place <holder> <box>=x,y,w,h
 `ev photo cut <photo> <thing>=x,y,w,h` too, which gives the `sheet` and `--preview` that
 `ev photo add <node> <photo> --crop x,y,w,h` does not); a crop named by hand wins over the
 grid's for the same box. **Look at every crop you cut:** the cut (and its `--preview`) returns
-a `sheet`, one image with every crop small and labelled with its cell — open it and redo any
-crop that shows the wrong thing (a hand crop wins for its box). The coordinates are your
-estimate, the check is what makes them right.
+a `sheet`, every crop small and labelled with its cell, to see that each shows the right thing,
+and `marked`, the whole photo with each crop framed and numbered, to see that no frame cuts its
+part off — the sheet is too small to show a cut edge. An estimate cuts edges off (a disc's rim,
+a bit's shank) far more often than it takes in too much: give hand crops a margin with
+`--pad 0.1`. Redo any crop that is wrong (a hand crop wins for its box). The coordinates are
+your estimate, the check is what makes them right.
 **A group photo goes whole on one node only — the place — and every thing in it gets its own
 crop.** `ev photo add` refuses a whole photo that is already attached whole elsewhere; when it
 does, cut the crop — do not reach for `--whole` to get past it. `shared_photos` in `ev todo`
@@ -547,7 +559,7 @@ Suggest `ev ui` in a second terminal at the start of a session: it is read-only 
 refreshes on its own, highlighting whatever you just changed, so the person sees each
 record land as you make it. To look at a photo they press `o` (full screen, `[` `]` to step
 through the node's photos) or `O` (system viewer); on the search tab `x` clears the search;
-`J`/`K` scroll the details and `H`/`L` switch their tabs (summary, photos, grid, contents, suggestions,
+`J`/`K` scroll the details and `H`/`L` switch their tabs (summary, photos, documents, grid, contents, suggestions,
 history); the panes resize by dragging their dividers or with `<` `>` `{` `}`. The details start
 with the node's `#id`: when the person says "#534", run commands on `#534` as it is. When they
 ask what happened to a place, its History tab shows the same as `ev history <x> --contents`.

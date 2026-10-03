@@ -8,3 +8,10 @@ caught that it was skipped. `ev photo cut`, its `--preview` and `ev photo mark` 
 they drew to a running `ev ui` by default; `--no-show` keeps it off the screen (a script, or a
 picture the person should keep looking at). `--show` is still accepted, and `--show <note>` on
 `photo mark` still titles it.
+
+## A longer value is not shown as an addition
+
+0.24.0 printed a line added to a note as `note: + <the line>`, but read any value that began
+with the old one as an addition: a theme written out longer showed as `theme: +  ve bağlantı
+parçaları`. Only a value that goes on with a new line, as `field=+text` adds it, is shown as an
+addition now; any other change is `old → new`.

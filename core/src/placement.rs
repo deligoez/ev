@@ -532,14 +532,19 @@ impl Inventory {
             }
         }
 
-        // Spare boxes: things tagged "boş kap" (or "spare box") with a size.
+        // Spare boxes: boxes with a size that nothing is in, worked out from the records. The
+        // old "boş kap" (or "spare box") tag still marks a spare that is not a container, but a
+        // box with something in it is never one, whatever its tag says.
         let spares: Vec<&Node> = all
             .iter()
             .filter(|n| {
                 n.size.is_some()
-                    && n.tags
-                        .iter()
-                        .any(|t| matches!(fold(t).as_str(), "bos kap" | "spare box"))
+                    && n.theme.is_none()
+                    && !all.iter().any(|c| c.parent_id == Some(n.id))
+                    && (n.kind == Kind::Container
+                        || n.tags
+                            .iter()
+                            .any(|t| matches!(fold(t).as_str(), "bos kap" | "spare box")))
             })
             .collect();
 

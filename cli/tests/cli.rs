@@ -87,6 +87,32 @@ fn json_is_one_line() {
 }
 
 #[test]
+fn a_mistyped_argument_is_a_json_usage_error_and_help_stays_text() {
+    let ev = seeded();
+    let (code, out, err) = ev.run(&["show", "Salon", "--no-such-flag"]);
+    assert_eq!((code, out), (2, Value::Null));
+    let e: Value = serde_json::from_str(err.trim()).unwrap();
+    assert_eq!(e["error"]["kind"], "usage");
+    assert!(
+        e["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("unexpected argument '--no-such-flag'"),
+        "{e}"
+    );
+    let help = Command::cargo_bin("ev")
+        .unwrap()
+        .args(["show", "--help"])
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8(help.stdout)
+            .unwrap()
+            .contains("Usage: ev show")
+    );
+}
+
+#[test]
 fn a_row_names_its_place_once_and_the_node_keeps_its_ancestors() {
     let ev = seeded();
     let row = &ev.ok(&["find", "anten"])["results"][0];

@@ -120,7 +120,8 @@ pub struct PathSegment {
     pub name: String,
 }
 
-/// The short form of a node used inside every payload (spec §11.2).
+/// The short form of a node used inside every payload (spec §11.2): a row names its place once,
+/// by `path_text`; `lost` appears only when true (spec/output.md).
 #[derive(Debug, Clone, Serialize)]
 pub struct NodeRef {
     pub id: i64,
@@ -128,12 +129,12 @@ pub struct NodeRef {
     pub name: String,
     pub kind: Kind,
     pub state: State,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub lost: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disposition: Option<Disposition>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub qty: Option<i64>,
-    pub path: Vec<PathSegment>,
     pub path_text: String,
 }
 

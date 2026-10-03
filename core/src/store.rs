@@ -1319,7 +1319,6 @@ pub(crate) fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {
         disposition: n.disposition,
         qty: n.qty,
         path_text: path_text(&segments),
-        path: segments,
     })
 }
 

@@ -192,6 +192,32 @@ fn merge(conn: &Connection, from: &Node, into: i64) -> Result<()> {
     Ok(())
 }
 
+/// Why `n` cannot be a portion of a thing kept in several places, in words that name the real
+/// reason; `None` when it can. Only items are, and not one with a serial (it is one unit).
+pub(crate) fn not_a_portion(n: &Node) -> Option<crate::Error> {
+    if n.kind != Kind::Item {
+        return Some(refused(
+            format!(
+                "{} is a {}, and only items are kept in several places; to make one record of \
+                 several boxes into two, take some off with `ev split <box> <name>=<n> --take`",
+                label(n),
+                n.kind
+            ),
+            Value::Null,
+        ));
+    }
+    if n.serial.is_some() {
+        return Some(refused(
+            format!(
+                "{} has a serial number: it is one unit, not kept in several places",
+                label(n)
+            ),
+            Value::Null,
+        ));
+    }
+    None
+}
+
 /// `ev join` (spec §4.3): records made separately are one thing. What it is comes from the
 /// first, a make, model or size only the others know filling in, and the tags of all of them;
 /// a make or model that differs is refused with every value, for the person to settle. A record
@@ -201,14 +227,8 @@ fn merge(conn: &Connection, from: &Node, into: i64) -> Result<()> {
 /// units of the first live one.
 pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
     for n in nodes {
-        if n.kind != Kind::Item || n.serial.is_some() {
-            return Err(refused(
-                format!(
-                    "{}: only items without a serial are kept in several places",
-                    label(n)
-                ),
-                Value::Null,
-            ));
+        if let Some(e) = not_a_portion(n) {
+            return Err(e);
         }
     }
     if nodes.iter().all(|n| n.state == State::Gone) {

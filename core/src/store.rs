@@ -1904,14 +1904,8 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
 /// and the used-up one is often its only record.
 fn add_of(conn: &Connection, new: &NewNode, of: &str, parent: Option<i64>) -> Result<i64> {
     let src = load(conn, resolve(conn, of, true)?)?;
-    if src.kind != Kind::Item || src.serial.is_some() {
-        return Err(refused(
-            format!(
-                "{}: only items without a serial are kept in several places",
-                label(&src)
-            ),
-            Value::Null,
-        ));
+    if let Some(e) = crate::portions::not_a_portion(&src) {
+        return Err(e);
     }
     if parent.is_none() {
         return Err(Error::Usage("say where they are with --in".into()));

@@ -497,16 +497,12 @@ One JSON object per line; `type` is `purchase` (the default) or `document`.
   `from`, `ends`, `issuer`, `number`, `note`), `image` (`file`: a saved product picture,
   `note`; brought as a document of kind `image`, never as a photo).
 
-Adapters live in `tools/purchases/` and read a shop's raw export from `~/.ev/purchases/<shop>/`,
-outside every repository: `tools/purchases/hepsiburada.py | ev buy import --stdin`. Put
-`tools/purchases/images.py` between them to hang each line's saved pictures
-(`raw/images/<sku>-NN.jpg`, `<order>-line-<item>.jpg`) on it as `image` attachments; a picture
-named by an id no line carries is left out rather than guessed. There is one
-for each of AliExpress, Amazon.com.tr, Amazon.de, Decathlon, GittiGidiyor, Hepsiburada, idefix,
-IKEA, Kitapyurdu, n11, Robo90, Robotistan, sahibinden, Trendyol and Vivense, and `umr.py` reads
-Under My Roof's own store (a copy of it; the app's data is never written): each item becomes a
-line with its value, warranties and info link as attachments, and its receipts and attachments
-as documents.
+ev reads no shop. An **adapter**, a script the inventory agent writes and keeps next to the
+raw export it reads (`~/.ev/purchases/<shop>/`, outside every repository), turns a shop's saved
+order history into these lines: `~/.ev/purchases/<shop>/adapter.py | ev buy import --stdin`.
+The adapter knows which product picture belongs to which line and emits the `image` lines
+itself. `examples/purchases/` holds a worked adapter over an invented export, and its README
+walks through writing one for a new shop (a test runs it, so it stays true).
 
 ## Coverage
 

@@ -803,6 +803,11 @@ static TR: &[(&str, &str)] = &[
         "No holder matches what this thing is: it likely needs a new group.",
         "Bu şeyin ne olduğuna uyan bir kap yok: büyük ihtimalle yeni bir grup gerekiyor.",
     ),
+    (
+        "Empty boxes to start it in:",
+        "Başlatılabilecek boş kaplar:",
+    ),
+    ("  (same room)", "  (aynı oda)"),
     ("Best matches:", "En iyi eşleşmeler:"),
     ("score {} · covers {} · {}", "puan {} · kapsama {} · {}"),
     ("matched: {}", "eşleşen: {}"),

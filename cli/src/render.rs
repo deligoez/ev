@@ -1186,6 +1186,18 @@ fn suggestion(out: &mut String, v: &Value) {
             "{}",
             t("No holder matches what this thing is: it likely needs a new group.")
         );
+        let empty = v["empty"].as_array().cloned().unwrap_or_default();
+        if !empty.is_empty() {
+            let _ = writeln!(out, "{}", t("Empty boxes to start it in:"));
+        }
+        for b in &empty {
+            let here = if b["same_room"] == true {
+                t("  (same room)")
+            } else {
+                ""
+            };
+            let _ = writeln!(out, "  #{} {}{here}", b["id"], s(b, "path_text"));
+        }
     }
     let rules = v["rules"].as_array().cloned().unwrap_or_default();
     if !rules.is_empty() {

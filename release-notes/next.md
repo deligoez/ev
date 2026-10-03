@@ -69,3 +69,11 @@ shank of a bit. `--pad 0.1` on `ev photo cut` (and `ev photo add --crop`) grows 
 by hand on each side by a tenth of its own size, inside the photo; the crops of a grid already
 have a margin. `ev photo add`'s help now points to `ev photo cut … --preview` for a crop to be
 checked first.
+
+## A move to where it already is is refused
+
+`ev move <x> --to <its own box> --plan` made a pending move to the same box, which waited forever
+(it was meant as a move between two compartments of the box). A move to where a thing already
+is, planned or not, is now refused, and the message points to a grid: a box with fixed
+compartments takes `ev grid <box> --cols 2 --rows 2` and `ev cell "<thing>"=A1`, which already
+worked for any holder. A lost thing moved to where it was last seen is still found there.

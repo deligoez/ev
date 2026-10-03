@@ -44,6 +44,9 @@ pub struct Inventory {
     /// Where `ev focus` leaves its request for `ev ui`: beside the database (`ev.db-focus.json`),
     /// since a message to the UI is no change to the inventory.
     pub(crate) focus_file: std::path::PathBuf,
+    /// The word index of every live holder (placement), with the state of the data it was
+    /// built from: see `Inventory::word_index`.
+    pub(crate) word_index: crate::placement::WordIndex,
 }
 
 impl Drop for Inventory {
@@ -191,6 +194,7 @@ impl Inventory {
             conn,
             photo_dir: home.join("photos"),
             doc_dir: home.join("docs"),
+            word_index: std::cell::RefCell::new(None),
             focus_file: home.join(format!(
                 "{}-focus.json",
                 path.file_name()

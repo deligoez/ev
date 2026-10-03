@@ -27,6 +27,9 @@ mod vocab;
 use index::Lexicon;
 use index::{COLORS, FILLER, weighted};
 pub(crate) use index::{Index, Scored, Term, candidates, terms};
+
+/// The word index kept between calls, with the state of the data it was built from.
+pub(crate) type WordIndex = std::cell::RefCell<Option<((i64, i64), std::sync::Arc<Index>)>>;
 use vocab::Facets;
 
 /// How much a match in each field counts.
@@ -184,6 +187,23 @@ weigh more than common ones (IDF), repeats count less and less (BM25, k1=1.2, b=
 endings are cut, codes like KY-018 are kept whole; ties go to the lower id";
 
 impl Inventory {
+    /// The word index of every live holder (`all`, as `live_nodes` gives them), built once per
+    /// state of the data: `suggest`, `regroup` and `themes` each built it again, stemming the
+    /// whole house's vocabulary (20 ms on one household), and `ev ui` asks on every new place it
+    /// shows. The state is the database's data version (writes by other connections) and this
+    /// connection's own write count, so a change from anywhere builds it anew.
+    pub(crate) fn word_index(&self, all: &[Node]) -> Result<std::sync::Arc<Index>> {
+        let key = (self.data_version()?, self.conn.total_changes() as i64);
+        if let Some((k, index)) = self.word_index.borrow().as_ref()
+            && *k == key
+        {
+            return Ok(index.clone());
+        }
+        let index = std::sync::Arc::new(Index::build(all));
+        *self.word_index.borrow_mut() = Some((key, index.clone()));
+        Ok(index)
+    }
+
     /// Where could this go: holders ranked by how well they match the description (or an
     /// existing node's own words, with `for_ref`), the rules, and every holder in the tree.
     pub fn suggest_with(
@@ -218,7 +238,7 @@ impl Inventory {
                     .into(),
             ));
         }
-        let index = Index::build(&all);
+        let index = self.word_index(&all)?;
         let groups: Vec<(i64, Vec<Term>)> = synonym_groups(&self.conn)?
             .into_iter()
             .map(|(id, ts)| (id, index.keyed(ts)))
@@ -385,7 +405,7 @@ impl Inventory {
             .filter(|n| is_holder(n, &has_children) && !holder_ids.contains(&n.id))
             .map(|n| n.id)
             .collect();
-        let index = Index::build(&all);
+        let index = self.word_index(&all)?;
         let groups: Vec<(i64, Vec<Term>)> = synonym_groups(&self.conn)?
             .into_iter()
             .map(|(id, ts)| (id, index.keyed(ts)))

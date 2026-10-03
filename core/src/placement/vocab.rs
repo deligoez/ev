@@ -123,7 +123,7 @@ impl Inventory {
             Some(r) => subtree(&all, resolve(&self.conn, r, false)?),
             None => all.iter().map(|n| n.id).collect(),
         };
-        let index = Index::build(&all);
+        let index = self.word_index(&all)?;
         let unthemed = |n: &Node| n.theme.as_deref().is_none_or(|t| t.trim().is_empty());
         let mut out = Vec::new();
         for h in all.iter().filter(|n| {

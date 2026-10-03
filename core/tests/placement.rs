@@ -498,3 +498,31 @@ fn the_tree_carries_theme_fill_size_and_tags() {
     assert_eq!(a1["size"], "1x1x1");
     assert_eq!(a1["tags"][0], "çıplak");
 }
+
+#[test]
+fn a_thing_with_no_group_is_offered_the_empty_boxes_its_own_room_first() {
+    let (_d, mut inv) = setup();
+    let mut more = vec![
+        node("Mutfak", "room", "Ev"),
+        node("Samla 5 L", "container", "Mutfak"),
+        node("RFID okuyucu", "item", "Mutfak"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    let v = inv.suggest_with("", None, Some("RFID okuyucu")).unwrap();
+    assert_eq!(v["new_group_likely"], true);
+    let names: Vec<&str> = v["empty"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["name"].as_str().unwrap())
+        .collect();
+    // No tag needed: a box nothing is in is empty, the one in the thing's room first.
+    assert_eq!(names, ["Samla 5 L", "Boş kutu 1x2x1"]);
+    assert_eq!(v["empty"][0]["same_room"], true);
+    // A thing that has a group is offered no empty box.
+    let ds = inv.suggest("DS18B20 sıcaklık sensörü", None).unwrap();
+    assert_eq!(ds["empty"], serde_json::json!([]));
+}

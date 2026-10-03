@@ -15,8 +15,9 @@ npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx 
 ```
 
 The database lives at `~/.ev/ev.db` (`--db` or `EV_DB` to change it), photos next to it in
-`~/.ev/photos`. Output is JSON when piped and readable text on a terminal (`--json` / `--text`
-to choose either way); errors go to stderr with a distinct exit code (see `REFERENCE.md`).
+`~/.ev/photos`. Output is JSON when piped (one line, without the fields that have no value) and
+readable text on a terminal (`--json` / `--text` to choose either way); errors go to stderr with
+a distinct exit code (see `REFERENCE.md`).
 Several agents, `ev ui` and the CLI can use one inventory at the same time; after every write
 `ev.db` alone holds everything, so it can be committed or copied as one file (back it up with
 `sqlite3 ev.db ".backup …"`, see `REFERENCE.md`).

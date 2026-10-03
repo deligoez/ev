@@ -1038,7 +1038,7 @@ enum PhotoCmd {
     Mark {
         /// A photo file, or a place whose newest whole photo is marked.
         target: String,
-        #[arg(required = true)]
+        #[arg(required_unless_present = "codes")]
         marks: Vec<String>,
         /// The grid's corners in the photo, when it did not keep them (see `photo cut --grid`).
         #[arg(long)]
@@ -1049,6 +1049,10 @@ enum PhotoCmd {
         /// Also show it full screen in a running `ev ui`, titled with this note.
         #[arg(long)]
         show: Option<String>,
+        /// Also draw each placed box's code on its own cells (TARGET a place with a grid): which
+        /// label goes on which box.
+        #[arg(long)]
+        codes: bool,
     },
     /// A node's photos, numbered from 1.
     List { reference: String },
@@ -1882,12 +1886,13 @@ fn run(cli: Cli) -> Result<Value> {
             grid,
             out,
             show,
+            codes,
         }) => {
             let grid = grid
                 .as_deref()
                 .map(str::parse::<ev_core::GridCorners>)
                 .transpose()?;
-            let marks = marks
+            let mut marks = marks
                 .iter()
                 .map(|m| {
                     let (label, at) = m.split_once('=').ok_or_else(|| {
@@ -1896,6 +1901,21 @@ fn run(cli: Cli) -> Result<Value> {
                     Ok((label.trim().to_string(), at.trim().to_string()))
                 })
                 .collect::<Result<Vec<_>>>()?;
+            // Each placed box's code on its own cells: which label goes on which box.
+            if codes {
+                let g = inv.grid(&target)?;
+                let before = marks.len();
+                for b in g["grid"]["boxes"].as_array().into_iter().flatten() {
+                    if let (Some(code), Some(cells)) = (b["code"].as_str(), b["cells"].as_str()) {
+                        marks.push((code.to_string(), cells.to_string()));
+                    }
+                }
+                if marks.len() == before {
+                    return Err(Error::Usage(format!(
+                        "no box with a code is placed in {target}'s grid"
+                    )));
+                }
+            }
             let mut v = inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref())?;
             if let (Some(note), Some(path)) = (show, v["marked"].as_str().map(PathBuf::from)) {
                 v["shown"] = inv.focus_file(&[path], Some(&note))?["focus"].clone();

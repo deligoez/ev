@@ -110,7 +110,10 @@ a portion, an ordinary record with its own count, and the portions share what th
    "<name>" --copies <n> --part "<part>[=<per copy>]"…` — and `ev kit link <kit> <n> <record>`
    each part as it turns up. `ev kit show <kit>` then answers "what is still missing from the
    set" from the records; a part missing from its bag is a record marked `ev lost` and linked,
-   so it is counted as lost, not forgotten.
+   so it is counted as lost, not forgotten. **A set bought as one purchase line** is linked to
+   that line once, on the kit (`ev kit purchase <kit> <line>`, or `--purchase` on `ev kit add`),
+   never part by part and never by `ev buy pack`: the line is settled, and every linked part
+   shows it as its purchase and is offered no other.
 7. **Lost = place unknown.** `ev lost <x>` takes it out of where it was (that place is kept
    as "last seen") and lists it under "Unknown place" in the tree; `ev lost` lists them. `ev
    found <x>` puts it back where it was last seen, `ev found <x> --in <place>` where it turned

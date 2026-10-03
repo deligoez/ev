@@ -38,7 +38,8 @@ One JSON object per line: `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["
 `ref` is a name, code, id or `#id`; each `set` entry is one `field=value` of `ev edit` (an
 array is one per item, `null` clears). Blank lines are skipped. All or nothing: a failing line
 is named (`line 2: …`) and nothing is changed. Each record gets one `edit` event, a field set
-several times showing its value before the first and after the last. Output: `edited`; a line
+several times showing its value before the first and after the last. Output: `edited`, each a
+NodeRef with its `changed` as `ev edit` gives it; a line
 that set `make` or `model` carries `purchase_candidates`, as a single `ev edit` does.
 
 ## Output
@@ -119,7 +120,8 @@ from the home down, the ancestors' ids to step up with.
 
 | Command | Top-level keys |
 |---|---|
-| show, add, edit, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage), `thing` (a portion of a thing kept in several places, see **One thing in several places**). In JSON a section with nothing in it is left out: `node` is always there, `children` only when it has some |
+| edit | `node` (NodeRef, as it is now) and `changed`: `{<field>: {before, after}}`, each field the edit changed with its value before the first and after the last assignment (a missing `before` or `after` was empty); `{}` when nothing changed. `ev show` has the rest. A make or model just set adds `purchase_candidates` |
+| show, add, move, done, cancel, dispose, restore, gone, lost `<ref>`, found | `node` (all fields + `path`, `path_text`; `lost` and `temporary` only when true), `children`, `pending`, `last_seen`; `show` also `cells`, `grid`, `parent_grid` (the grid a placed box stands in), `room` (with a fill: `room`, `fill`, `fill_at`, `stale`), `kits` (the kit parts it is: `[{kit, n, text}]`), `documents` (see Documents), `purchases` (see Purchases), `coverages`, `coverage_proposal` and `tracking` (see Coverage), `thing` (a portion of a thing kept in several places, see **One thing in several places**). In JSON a section with nothing in it is left out: `node` is always there, `children` only when it has some |
 | split | `node` (the original, after), `into` (the records split off), `photos` (the original's, to crop each part from) |
 | add --batch | `created` |
 | find | `query`, `results`, best first; every word of the text must match name, code, note, theme or tags in any order, by its Turkish stem or a synonym group too, and a word that matches nothing is retried allowing a typo; the text may be left out with `--tag`, `--kind` or `--empty` to list every match of the filter (`ev find --tag "3d yazıcı"`). `--empty` keeps only the containers no live record is in and known to be empty: their place was toured, something was once recorded in them and left, or the person said so (`ev empty`); each carries `slot` (a slot of furniture, not a box that moves), and those with nothing recorded only because they were never counted come apart under `not_known`. Worked out from the records, so no "empty" tag has to be kept (`ev find --empty`). A portion of a thing kept in several places carries `thing`: `{id, total, places, in_use, spare}`; the text shows a thing's portions together under one line |

@@ -620,3 +620,37 @@ fn a_purchase_names_its_dates_the_order_first_then_the_delivery() {
         "{s}"
     );
 }
+
+#[test]
+fn buy_bring_says_what_it_brought_and_what_it_left_and_why() {
+    let h = Home::new();
+    h.run(
+        &["buy", "import", "--stdin"],
+        Some(
+            "{\"source\":\"s\",\"key\":\"1\",\"name\":\"Aktif buzzer\",\"paid\":\"99\"}\n\
+             {\"type\":\"valuation\",\"source\":\"s\",\"purchase\":\"1\",\"amount\":\"120\"}\n\
+             {\"type\":\"link\",\"source\":\"s\",\"purchase\":\"1\",\
+              \"url\":\"https://shop.example/buzzer\"}\n",
+        ),
+    );
+    h.run(&["buy", "link", "1", "Aktif buzzer"], None);
+    let s = h.text(&[
+        "buy",
+        "bring",
+        "1",
+        "Aktif buzzer",
+        "--only",
+        "1,2",
+        "--type",
+        "link",
+    ]);
+    assert!(
+        s.starts_with("Brought from purchase #1: link ×1\n  left, of another type: #1 value\n\n"),
+        "{s}"
+    );
+    let again = h.text(&["buy", "bring", "1", "Aktif buzzer", "--type", "link"]);
+    assert!(
+        again.starts_with("Nothing brought from purchase #1.\n  already brought: #2 link\n"),
+        "{again}"
+    );
+}

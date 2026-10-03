@@ -558,3 +558,34 @@ fn a_spare_box_is_one_nothing_is_in_whatever_its_tag_says() {
         .unwrap();
     assert_eq!(spares(&inv), 0);
 }
+
+#[test]
+fn boxes_with_codes_of_their_own_come_before_the_drawers_of_furniture() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Dolap", "furniture", "Oda", "K4"),
+        coded("Bölme", "container", "K4", "K4-09"),
+        // A drawer: its code extends its compartment's.
+        coded("Çekmece", "container", "K4-09", "K4-09-A"),
+        // A box standing on the furniture keeps a code of its own.
+        coded("Gridfinity", "container", "K4", "G1x1-001"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    inv.mark_empty(&["K4-09-A".into(), "G1x1-001".into()], None)
+        .unwrap();
+    let v = inv.suggest("RFID okuyucu kartı", None).unwrap();
+    let order: Vec<(&str, bool)> = v["empty"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|b| Some((b["code"].as_str()?, b["slot"].as_bool()?)))
+        .collect();
+    assert_eq!(order, [("G1x1-001", false), ("K4-09-A", true)]);
+}

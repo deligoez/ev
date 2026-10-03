@@ -107,7 +107,7 @@ Labelling a gridded drawer is one question asked many times: which code goes on 
 
 `ev tree`, `ev show` and `ev ui` listed what is in a place in the order it was recorded, so a
 series of boxes was split whenever a piece of furniture was recorded between them
-(`S5-01`…`S5-07`, the desk, then `S5-08`…). Siblings now come rooms, furniture, containers,
+(`S5-01`…`S5-04`, the desk, then `S5-05`…). Siblings now come rooms, furniture, containers,
 then things; within each, the coded ones by their code read naturally (`S5-2` before `S5-10`,
 the `S5` series before `S45`), then the rest by name.
 

@@ -50,7 +50,7 @@ ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing 
 ev find flipper                  # word search over name, code, note, theme, tags
 ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
 ev find --empty                  # the boxes known to be empty, worked out, no tag to keep
-ev empty S5-07 --note "came empty" # a box the person opened and found empty
+ev empty S5-12 --note "came empty" # a box the person opened and found empty
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows
 ev tree Salon --depth 2          # the picture, with item totals; a series of boxes in code order

@@ -13,10 +13,12 @@ that fixes them.
   `cıvata`) and those an ending cannot follow (`varta`, `sabun`, `güneş`, `türkiye`) were fixed
   in v0.18.0. Expected: a root stays whole. The rest needs a dictionary and waits for
   Çözgü's embeddable core. Measure with `tools/measure/stems.py` (1,736/1,919 after the fix).
-- **Some shops' saved pictures match no line.** `tools/purchases/images.py` matched none of the
-  files in three shops' `raw/images` (decathlon 93 files, robo90 14, sahibinden 4): their names
-  carry another id than the line's `sku` or `key`. Three shops have no `raw/images` at all
-  (amazon-de, robotistan, idefix). One shop had 629 files and 489 attached; the rest may be
-  cancelled or consumable lines, unchecked. Expected: each adapter names its pictures by an id
-  its lines carry (or emits the `image` lines itself), and the tool says which files it matched
-  to nothing. (Reported by the inventory agent.)
+- **`ev focus` writes to the database.** The focus request (file paths, a note, a time) is kept
+  in the `settings` table of `ev.db`, so every `ev focus` leaves the data repository with a
+  changed `ev.db` and a commit about nothing in the inventory. Expected: transient ui state
+  lives outside the database, like `ui-state.json`. (Reported by the inventory agent.)
+- **A re-import that changes nothing still changes `ev.db`.** Importing the same lines again
+  (0 new, 0 updated, 0 attachments) raised `sqlite_sequence` for `purchase_attachments` by
+  ~500; the attachments' ids and `brought_to` stay. "The same lines change nothing" does not
+  hold at the file level, so every import makes a commit. Expected: an unchanged line writes
+  nothing. (Reported by the inventory agent.)

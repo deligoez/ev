@@ -110,7 +110,9 @@ cells are another make), `--take` takes their count off the original. A bought k
 checklist: `ev kit add "Proje seti" --copies 2
 --part "RC522 okuyucu" --part "Kablo=3"`, `ev kit link "Proje seti" 1 <record>…` as its parts
 turn up, and `ev kit show "Proje seti"` counts each part found, lost and still missing, from
-the records themselves: find or move one and the kit follows.
+the records themselves: find or move one and the kit follows. A set bought as one purchase line
+is linked to it once, on the kit (`ev kit purchase "Proje seti" 412`): the line is settled and
+every part shows that purchase, instead of each part being asked which line it was.
 
 **Other households.** Places have aliases (`ev place add|alias|list|merge`). A node can be
 meant for a place (`to=`), belong to one (`owner=`) or be lent out (`ev lend X --to P`,

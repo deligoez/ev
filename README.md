@@ -192,7 +192,8 @@ A3=0.1,0.3,0.3,0.1 B4=…` does a whole drawer in one step: the whole view on th
 on each box. A group photo goes whole on one place only: attaching it whole to a second node is
 refused (`--whole` when that is really meant), and `ev todo` lists older slips. One cut can
 give the same record several crops (`ev photo cut sets.jpg 598=… 598=…`), one per set in the
-photo. `ev photo list|remove|adopt`; a removed photo stays in the history.
+photo. `ev photo list|remove|adopt`; a removed photo stays in the history, and a removed crop
+no record uses any more leaves the store with it (a whole photo stays: it may be the only copy).
 
 **One drawer photo, every box cut from it.** For a drawer with a grid, `ev photo cut drawer.jpg
 --place 07-A --grid 0.07,0.09,0.95,0.09,0.93,0.83,0.07,0.83` takes the grid's four corners in the

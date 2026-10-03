@@ -61,3 +61,11 @@ line is settled and named by the kit in `ev buy list` and `ev buy show`, every l
 it under its purchases in `ev show`, and none of them is asked for a purchase again. `--clear`
 takes it back. **Schema 31**: this version adds `kits.purchase_id` when it first opens an
 inventory of 30.
+
+## A crop with a margin
+
+Crops cut by an estimate cut off the edge of the part again and again: the rim of a disc, the
+shank of a bit. `--pad 0.1` on `ev photo cut` (and `ev photo add --crop`) grows every crop named
+by hand on each side by a tenth of its own size, inside the photo; the crops of a grid already
+have a margin. `ev photo add`'s help now points to `ev photo cut … --preview` for a crop to be
+checked first.

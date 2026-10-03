@@ -2181,7 +2181,8 @@ pub fn human(v: &Value) -> String {
     out
 }
 
-/// What an edit changed, a field a line: `note: old → new`; `(nothing changed)` for none.
+/// What an edit changed, a field a line: `note: old → new`, or `note: + added` when the new
+/// value only adds to the old (a line appended to a note); `(nothing changed)` for none.
 fn changed_lines(out: &mut String, changed: &Value) {
     let Some(fields) = changed.as_object() else {
         return;
@@ -2189,6 +2190,13 @@ fn changed_lines(out: &mut String, changed: &Value) {
     if fields.is_empty() {
         let _ = writeln!(out, "  {}", t("(nothing changed)"));
     }
+    let added = |c: &Value| -> Option<String> {
+        let (before, after) = (c["before"].as_str()?, c["after"].as_str()?);
+        let rest = after
+            .strip_prefix(before)
+            .filter(|r| !r.is_empty() && !before.is_empty())?;
+        Some(rest.trim_start_matches('\n').replace('\n', " · "))
+    };
     let shown = |v: &Value| match v {
         Value::Null => "—".to_string(),
         // A note of several lines stays on its one line here.
@@ -2202,12 +2210,15 @@ fn changed_lines(out: &mut String, changed: &Value) {
         other => other.to_string(),
     };
     for (field, c) in fields {
-        let _ = writeln!(
-            out,
-            "  {field}: {} → {}",
-            shown(&c["before"]),
-            shown(&c["after"])
-        );
+        let _ = match added(c) {
+            Some(rest) => writeln!(out, "  {field}: + {rest}"),
+            None => writeln!(
+                out,
+                "  {field}: {} → {}",
+                shown(&c["before"]),
+                shown(&c["after"])
+            ),
+        };
     }
 }
 

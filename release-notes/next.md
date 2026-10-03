@@ -66,3 +66,19 @@ hand into a new record, which then counted as a different thing. `ev add --of` n
 record as what the thing is, so the new units are a portion of it and the thing reads "here 1 ·
 gone: used 1". `ev join` takes a gone record too, as long as one live record is among them, so
 pairs already made apart can be joined.
+
+## Empty boxes are worked out, not tagged
+
+An empty box used to be one tagged `boş kap` by hand, and the tag went stale both ways: a box
+recorded empty without it was missed, and a box that had something put in it kept the tag and
+still looked empty (`ev regroup` even offered it as a spare). Empty is now worked out from the
+records: a container no live record is in.
+
+- `ev find --empty` lists them (also `empty` on the MCP `find` tool).
+- When a thing has no group here (`new_group_likely`), `ev suggest` lists the empty boxes with
+  no theme yet under `empty`, those in the thing's own room first (`--for`), so the agent does
+  not have to remember a separate search to start a new group.
+- `ev regroup` takes a spare box to be one with a size, no theme and nothing in it; the old tag
+  still marks a spare that is not a container, but a box with something in it is never one.
+
+The tag can be dropped from boxes that carry it; nothing reads it as "empty" any more.

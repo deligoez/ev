@@ -113,6 +113,21 @@ fn a_mistyped_argument_is_a_json_usage_error_and_help_stays_text() {
 }
 
 #[test]
+fn an_edit_answers_with_what_changed_not_the_whole_record() {
+    let ev = seeded();
+    ev.ok(&["edit", "Salon", "note=uzun bir not"]);
+    let v = ev.ok(&["edit", "Salon", "note=+ikinci satır", "code=SL"]);
+    assert_eq!(v["node"]["path_text"], "Ev › SL");
+    assert_eq!(v["changed"]["note"]["before"], "uzun bir not");
+    assert_eq!(v["changed"]["note"]["after"], "uzun bir not\nikinci satır");
+    assert!(v["changed"]["code"].get("before").is_none(), "{v}");
+    assert!(
+        v["node"].get("note").is_none() && v.get("children").is_none(),
+        "{v}"
+    );
+}
+
+#[test]
 fn a_tree_node_says_lost_only_when_it_is() {
     let ev = seeded();
     let home = &ev.ok(&["tree"])["tree"][0];

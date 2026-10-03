@@ -1,1 +1,10 @@
 Draft for the next release.
+
+## The numbered photo goes to the screen on its own
+
+An agent cut three batches of photos and a drawer, checked every frame itself, and never sent
+a single numbered photo to the person's `ev ui`: showing was opt-in (`--show`), and nothing
+caught that it was skipped. `ev photo cut`, its `--preview` and `ev photo mark` now send what
+they drew to a running `ev ui` by default; `--no-show` keeps it off the screen (a script, or a
+picture the person should keep looking at). `--show` is still accepted, and `--show <note>` on
+`photo mark` still titles it.

@@ -108,3 +108,12 @@ series of boxes was split whenever a piece of furniture was recorded between the
 (`S5-01`…`S5-07`, the desk, then `S5-08`…). Siblings now come rooms, furniture, containers,
 then things; within each, the coded ones by their code read naturally (`S5-2` before `S5-10`,
 the `S5` series before `S45`), then the rest by name.
+
+## An empty box off a box of several
+
+Two battery cases recorded as one (`qty 2`) with the cells in them could not lose an emptied
+case: `ev split` refused a holder with things in it, and `ev add --of` refused a container with
+a message about serial numbers the case did not have. `ev split <cases> "<name>=1" --take` now
+takes empty units off a box of several, the contents staying in the original, and a record
+that cannot be kept in several places is refused for its real reason: it is not an item
+(pointing to `split --take` for boxes), or it has a serial number.

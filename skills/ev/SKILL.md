@@ -8,7 +8,8 @@ description: Agent-first home inventory. Use when the user talks about where thi
 The person stands at the shelves and reports; you record through `ev`; either of you asks
 `ev` where something is. `ev` prints JSON when piped — parse it when you need ids or fields
 to act on, and add `--text` when you only need to read the result — and its stderr is the
-error channel.
+error channel. The JSON is one line and leaves out what has no value: a missing field is null,
+a row names its place by `path_text`, and `show` carries only the sections it has.
 
 ## Two ways in: the CLI and MCP
 

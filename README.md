@@ -257,18 +257,19 @@ resets), or widen the details with `+`; the sizes and the tab are kept.
 **What it cost, what proves it, what still covers it.** A thing carries its make, model and
 serial (`ev edit X make=Bosch model="GSB 13 RE"`), searched like a code. Invoices, manuals and
 policies are copied into the store (`ev doc add invoice.pdf --kind invoice --for X`).
-Purchases are a list of their own, never things in the tree: an adapter turns a shop's saved
-export into lines (`tools/purchases/<shop>.py | ev buy import --stdin`; fifteen shops and
-Under My Roof), and a line is linked to a thing only on the person's word (`ev buy link`);
+Purchases are a list of their own, never things in the tree: an adapter the agent writes for
+each shop turns its saved export into lines (`… | ev buy import --stdin`; a worked example and
+how to write one are in `examples/purchases/`), and a line is linked to a thing only on the
+person's word (`ev buy link`);
 `ev buy for --toured` asks it for the things of toured places at once, and `ev buy decline`
 records a "not this one" so the line is not offered to that thing again.
 `ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
 (`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line
-(a link, a value, a warranty, the shop's product pictures hung on it by
-`tools/purchases/images.py`) comes along with `ev buy bring` (`--type image` for the pictures,
-`--all` for every linked line at once), the pictures as documents, never as the thing's own
-photos, and ev says what it brought, what it left and why. Warranties and insurance have a computed status
+(a link, a value, a warranty, the shop's product pictures) comes along with `ev buy bring`
+(`--type image` for the pictures, `--all` for every linked line at once), the pictures as
+documents shown with the photos in `ev ui`, never as the thing's own photos, and ev says what
+it brought, what it left and why. Warranties and insurance have a computed status
 (`ev cover add X --kind manufacturer --term 2y`; repair time extends it), values are dated
 observations (`ev value X 2500 --source "listing"`), links keep an archive copy
 (`ev link add X <url> --archive page.html`), and "don't track this" or "not now" is never asked

@@ -608,12 +608,17 @@ impl Inventory {
                     .filter(|(_, mh, c)| mh == h && c.is_some())
                     .map(|(m, _, c)| (m.id, c.unwrap())),
             );
+            // A box takes its cells for itself; things lie together in a compartment (two kinds of
+            // cutting disc in one of a case's four), so only an overlap with a box is refused.
+            let item = |id: i64| -> Result<bool> { Ok(load(&tx, id)?.kind == crate::Kind::Item) };
             for (i, (a, ca)) in after.iter().enumerate() {
-                if let Some((b, cb)) = after[i + 1..].iter().find(|(_, cb)| ca.overlaps(cb)) {
-                    return Err(refused(
-                        format!("{} and {} would share cells", ca.name(), cb.name()),
-                        json!({ "boxes": [brief_json(&tx, *a)?, brief_json(&tx, *b)?] }),
-                    ));
+                for (b, cb) in &after[i + 1..] {
+                    if ca.overlaps(cb) && !(item(*a)? && item(*b)?) {
+                        return Err(refused(
+                            format!("{} and {} would share cells", ca.name(), cb.name()),
+                            json!({ "boxes": [brief_json(&tx, *a)?, brief_json(&tx, *b)?] }),
+                        ));
+                    }
                 }
             }
         }

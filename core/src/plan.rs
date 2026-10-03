@@ -503,8 +503,15 @@ impl Inventory {
     /// clears the request. The UI is read-only; it remembers which request it has shown.
     pub fn focus(&mut self, reference: Option<&str>, photo: Option<usize>) -> Result<Value> {
         let Some(r) = reference else {
-            self.conn
-                .execute("DELETE FROM settings WHERE key = 'focus'", [])?;
+            match std::fs::remove_file(&self.focus_file) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(Error::Internal(format!(
+                        "cannot clear {}: {e}",
+                        self.focus_file.display()
+                    )));
+                }
+                _ => {}
+            }
             return Ok(json!({ "focus": null }));
         };
         let id = resolve(&self.conn, r, true)?;
@@ -524,11 +531,7 @@ impl Inventory {
         // Milliseconds, so two requests in the same second are still two requests.
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         let value = json!({ "id": id, "photo": photo, "at": at });
-        self.conn.execute(
-            "INSERT INTO settings (key, value) VALUES ('focus', ?1)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            [value.to_string()],
-        )?;
+        self.send_focus(&value)?;
         Ok(json!({ "focus": value }))
     }
 
@@ -553,17 +556,26 @@ impl Inventory {
         }
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         let value = json!({ "files": paths, "note": note, "at": at });
-        self.conn.execute(
-            "INSERT INTO settings (key, value) VALUES ('focus', ?1)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            [value.to_string()],
-        )?;
+        self.send_focus(&value)?;
         Ok(json!({ "focus": value }))
+    }
+
+    /// Writes a focus request beside the database (`ev.db-focus.json`), never into it: it is a
+    /// message to a running `ev ui`, not a change to the inventory, so it leaves `ev.db` as it
+    /// was. Written whole and renamed into place, so the UI never reads half of one.
+    fn send_focus(&self, value: &Value) -> Result<()> {
+        let io = |e: std::io::Error| {
+            Error::Internal(format!("cannot write {}: {e}", self.focus_file.display()))
+        };
+        let part = self.focus_file.with_extension("json.part");
+        std::fs::write(&part, value.to_string()).map_err(io)?;
+        std::fs::rename(&part, &self.focus_file).map_err(io)
     }
 
     /// The pending focus request, if any.
     pub fn focus_request(&self) -> Result<Value> {
-        Ok(get_setting(&self.conn, "focus")?
+        Ok(std::fs::read_to_string(&self.focus_file)
+            .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or(Value::Null))
     }

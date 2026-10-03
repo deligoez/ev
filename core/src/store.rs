@@ -41,6 +41,9 @@ pub struct Inventory {
     photo_dir: std::path::PathBuf,
     /// Where documents are copied (purchases spec §3.5), beside the photos.
     pub(crate) doc_dir: std::path::PathBuf,
+    /// Where `ev focus` leaves its request for `ev ui`: beside the database (`ev.db-focus.json`),
+    /// since a message to the UI is no change to the inventory.
+    pub(crate) focus_file: std::path::PathBuf,
 }
 
 impl Drop for Inventory {
@@ -188,6 +191,11 @@ impl Inventory {
             conn,
             photo_dir: home.join("photos"),
             doc_dir: home.join("docs"),
+            focus_file: home.join(format!(
+                "{}-focus.json",
+                path.file_name()
+                    .map_or_else(|| "ev.db".into(), |n| n.to_string_lossy())
+            )),
         })
     }
 

@@ -225,8 +225,8 @@ toured` is refused while the drawer or any box in it shows an older state than i
 **Showing what goes where.** When the agent proposes where the parts on the table go,
 `ev photo mark parts.jpg "1 → A6"=0.10,0.20,0.15,0.12 "2 → C1"=… --show "batch 3"` draws numbered
 red frames on the parts in a copy of the photo, and `ev photo mark 07-A 1=A6 2=C1 --show "where"`
-frames the target cells on the drawer's own photo, by cell name. `--show` puts them full screen
-in a running `ev ui` at once; `ev focus --file a.jpg --file b.jpg --note "…"` sends several
+frames the target cells on the drawer's own photo, by cell name. Each goes full screen in a
+running `ev ui` at once, as every cut and preview does (`--no-show` to keep it off the screen); `ev focus --file a.jpg --file b.jpg --note "…"` sends several
 together, stepped with `[` `]`. Esc closes them (a stray click does not), and `m` opens the last
 ones again, even after a restart. The marked copies are scratch: never stored, never attached,
 no history, cleared after a day. `ev focus X [--photo n]` does the same for a recorded node,

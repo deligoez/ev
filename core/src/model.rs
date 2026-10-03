@@ -91,6 +91,8 @@ pub struct Node {
     pub photos: Vec<String>,
     pub state: State,
     pub disposition: Option<Disposition>,
+    /// Like `temporary`, printed only when true (spec/output.md).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub lost: bool,
     pub pending_to: Option<i64>,
     /// Place the node belongs to when it is not ours (spec §13).
@@ -100,6 +102,7 @@ pub struct Node {
     /// Place the node should be taken to.
     pub to: Option<String>,
     /// A parking place: what is in it waits for its final place (spec §30).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub temporary: bool,
     pub created_at: String,
     pub updated_at: String,

@@ -86,10 +86,22 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
     Ok(Value::Object(d).to_string())
 }
 
-/// Stores an attachment on a line; true when it was not there yet.
+/// Stores an attachment on a line; true when it was not there yet. Looked up first: an ignored
+/// `INSERT OR IGNORE` still advances the table's AUTOINCREMENT counter, so a re-import of the
+/// same lines would change the database file while changing nothing in it.
 pub(crate) fn attach(conn: &Connection, purchase: i64, kind: &str, data: &str) -> Result<bool> {
+    let there: Option<i64> = conn
+        .query_row(
+            "SELECT 1 FROM purchase_attachments WHERE purchase_id = ?1 AND kind = ?2 AND data = ?3",
+            params![purchase, kind, data],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if there.is_some() {
+        return Ok(false);
+    }
     Ok(conn.execute(
-        "INSERT OR IGNORE INTO purchase_attachments (purchase_id, kind, data) VALUES (?1, ?2, ?3)",
+        "INSERT INTO purchase_attachments (purchase_id, kind, data) VALUES (?1, ?2, ?3)",
         params![purchase, kind, data],
     )? > 0)
 }

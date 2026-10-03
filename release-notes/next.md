@@ -56,3 +56,13 @@ leave the file alone. Two did not, and each made a commit about nothing:
   by one per attachment, because an ignored `INSERT OR IGNORE` still advances it. An attachment
   is now looked up first; a re-import that changes nothing leaves the file byte for byte as it
   was.
+
+## A used-up thing and its replacement are one thing
+
+A consumable used up and replaced with the same one (a label maker's tape cassette, a battery)
+was recorded as `ev gone <old> --as used`, and then `ev add --of <old>` refused, because the
+used-up record was gone and often the thing's only record. The agent had to copy the fields by
+hand into a new record, which then counted as a different thing. `ev add --of` now takes a gone
+record as what the thing is, so the new units are a portion of it and the thing reads "here 1 ·
+gone: used 1". `ev join` takes a gone record too, as long as one live record is among them, so
+pairs already made apart can be joined.

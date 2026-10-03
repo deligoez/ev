@@ -696,6 +696,7 @@ impl Inventory {
             }
         }
         let reviews = all_reviews(&self.conn)?;
+        let changes = crate::marks::ContentChanges::load(&self.conn)?;
         let planned: HashSet<i64> = ids(
             &self.conn,
             "SELECT DISTINCT tn.node_id FROM task_nodes tn JOIN tasks t ON t.id = tn.task_id
@@ -717,8 +718,7 @@ impl Inventory {
                 Some((from, status, at)) => {
                     // Only a change to what the place holds dates a tour: re-coding a box,
                     // linking a document or editing a note leaves the count as it was.
-                    let changed =
-                        crate::marks::contents_changed_at(&self.conn, u)?.is_some_and(|c| c > at);
+                    let changed = changes.at(u).is_some_and(|c| c > at);
                     match status.as_str() {
                         "toured" => toured += 1,
                         "counting" => counting += 1,

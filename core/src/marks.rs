@@ -10,7 +10,7 @@
 use chrono::{Datelike, NaiveDate};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::error::refused;
 use crate::model::{Disposition, Kind, Node, State};
@@ -215,6 +215,77 @@ pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<S
     )?)
 }
 
+/// When what every place holds last changed, from one read of the events: the same answer as
+/// `contents_changed_at` for every node at once. Lists that ask it of every place (`progress`,
+/// the photos `todo` asks for) used to run that query per place, each a scan of every event.
+pub(crate) struct ContentChanges(HashMap<i64, String>);
+
+impl ContentChanges {
+    pub(crate) fn load(conn: &Connection) -> Result<Self> {
+        let mut parent: HashMap<i64, i64> = HashMap::new();
+        let mut stmt =
+            conn.prepare("SELECT id, parent_id FROM nodes WHERE parent_id IS NOT NULL")?;
+        for row in stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))? {
+            let (id, p) = row?;
+            parent.insert(id, p);
+        }
+        let split_born: HashSet<i64> = ids(
+            conn,
+            "SELECT DISTINCT node_id FROM events WHERE type = 'split_from'",
+            [],
+        )?
+        .into_iter()
+        .collect();
+        let mut out: HashMap<i64, String> = HashMap::new();
+        // `id` and every holder above it get `at`, the latest kept.
+        let mut bump_up = |from: i64, at: &str| {
+            let mut cur = Some(from);
+            for _ in 0..10_000 {
+                let Some(c) = cur else { break };
+                let e = out.entry(c).or_default();
+                if at > e.as_str() {
+                    *e = at.to_string();
+                }
+                cur = parent.get(&c).copied();
+            }
+        };
+        let mut stmt = conn.prepare(&format!(
+            "SELECT node_id, type, at, json_extract(data, '$.from'), json_extract(data, '$.as')
+               FROM events WHERE type IN ({CONTENT_EVENTS})"
+        ))?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<i64>>(3).ok().flatten(),
+                r.get::<_, Option<String>>(4).ok().flatten(),
+            ))
+        })?;
+        for row in rows {
+            let (node, kind, at, from, how) = row?;
+            let skipped = (kind == "create" && split_born.contains(&node))
+                || (kind == "gone" && how.as_deref() == Some("mistake"));
+            // Every holder above the node; the node itself is not changed by its own event.
+            if !skipped && let Some(&p) = parent.get(&node) {
+                bump_up(p, &at);
+            }
+            // What was moved out changed the place it left and every holder above it.
+            if matches!(kind.as_str(), "move" | "done")
+                && let Some(f) = from
+            {
+                bump_up(f, &at);
+            }
+        }
+        Ok(ContentChanges(out))
+    }
+
+    /// When what `id` holds last changed, if ever.
+    pub(crate) fn at(&self, id: i64) -> Option<String> {
+        self.0.get(&id).filter(|s| !s.is_empty()).cloned()
+    }
+}
+
 /// Why a node's photos no longer show it, and when its newest photo was taken and its contents
 /// last changed.
 pub(crate) type Stale = (&'static str, Option<String>, Option<String>);
@@ -222,6 +293,11 @@ pub(crate) type Stale = (&'static str, Option<String>, Option<String>);
 /// Why a node's photos no longer show it, if they do not: `none` (no photo at all) or
 /// `changed` (its contents changed after its newest photo), with both times.
 pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
+    photo_stale_given(conn, id, contents_changed_at(conn, id)?)
+}
+
+/// `photo_stale`, with when the contents last `changed` already known.
+fn photo_stale_given(conn: &Connection, id: i64, changed: Option<String>) -> Result<Option<Stale>> {
     let photo_at: Option<Option<String>> = conn
         .query_row(
             // A photo from before photos carried a date is the one the place was first
@@ -241,7 +317,6 @@ pub(crate) fn photo_stale(conn: &Connection, id: i64) -> Result<Option<Stale>> {
         (Some(p), Some(a)) => Some(p.max(a)),
         (p, a) => p.or(a),
     };
-    let changed = contents_changed_at(conn, id)?;
     // The person may also say the newest photo no longer shows the place, for a change the
     // records never saw (a drawer emptied before it was recorded); a newer photo answers it.
     let marked = mark(conn, id, "photo_stale")?["at"]
@@ -280,6 +355,7 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
     // A box in a grid is cut from its drawer's photo, so the drawer's photo counts too: a box
     // added or changed after it leaves the drawer's photo out of date, though the drawer
     // itself is no unit of its own.
+    let changes = ContentChanges::load(conn)?;
     let mut grids = Vec::new();
     for u in units {
         let id = u["id"].as_i64().unwrap_or_default();
@@ -301,14 +377,14 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
             continue;
         }
         let empty = u["children"].as_u64().unwrap_or(0) == 0;
-        if let Some(s) = photo_stale(conn, id)?
+        if let Some(s) = photo_stale_given(conn, id, changes.at(id))?
             && !(empty && s.0 == "none")
         {
             out.push(stale_entry(u.clone(), s)?);
         }
     }
     for g in grids {
-        if let Some(s) = photo_stale(conn, g)? {
+        if let Some(s) = photo_stale_given(conn, g, changes.at(g))? {
             let mut v = brief_value(conn, g)?;
             v["grid"] = json!(true);
             out.push(stale_entry(v, s)?);

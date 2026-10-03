@@ -714,3 +714,12 @@ fn photo_mark_codes_puts_each_placed_boxs_code_on_its_cells() {
         serde_json::json!([{"label": "D-A1", "at": "A1"}, {"label": "D-B1", "at": "B1"}])
     );
 }
+
+#[test]
+fn a_line_added_to_a_note_shows_only_that_line() {
+    let h = Home::new();
+    h.text(&["edit", "D-B1", "note=uzun bir not, ilk satır"]);
+    let s = h.text(&["edit", "D-B1", "note=+ikinci satır"]);
+    assert!(s.contains("+ ikinci satır"), "{s}");
+    assert!(!s.contains("ilk satır"), "{s}");
+}

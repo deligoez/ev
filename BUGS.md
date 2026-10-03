@@ -16,9 +16,3 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **"Changed since its tour" fires on bookkeeping, so it fires almost everywhere.** In one
-  household, 47 of 49 toured places read as changed since their tour. What came after the
-  tours was mostly not a change to what is in the place: re-coding a box (most of it), linking a
-  document or a purchase, editing a note, a name or a theme, a photo. Only what moves things in
-  or out (add, move, gone, split, join, done) changes what a tour counted. Expected: the signal
-  follows contents only, so a place that reads as changed is worth going back to.

@@ -296,6 +296,15 @@ enum Cmd {
     /// Everything waiting, in one list: tasks, moves, errands, disposals, labels, needs, repairs,
     /// use-by dates, lost things, uninventoried and changed places, unclear records.
     Todo,
+    /// On the person's word, these boxes are empty (opened, nothing inside), though their place
+    /// was never toured: `find --empty`, `suggest` and `regroup` then count them as empty.
+    Empty {
+        #[arg(required = true)]
+        references: Vec<String>,
+        /// What the person said.
+        #[arg(long)]
+        note: Option<String>,
+    },
     /// Labels to print; with references, mark those printed (or --needed again).
     Label {
         references: Vec<String>,
@@ -1615,6 +1624,7 @@ fn run(cli: Cli) -> Result<Value> {
             inv.focus(reference.as_deref(), photo)
         }
         Cmd::Label { references, needed } => inv.label(&references, !needed),
+        Cmd::Empty { references, note } => inv.mark_empty(&references, note.as_deref()),
         Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
         Cmd::Fixed { reference } => inv.broken(&reference, None, true),
         Cmd::Expires {

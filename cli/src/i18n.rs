@@ -867,6 +867,7 @@ static TR: &[(&str, &str)] = &[
         "götür {} · iade {} · geri al {}",
     ),
     ("(none)", "(yok)"),
+    ("Empty, on the person's word:", "Kişinin sözüyle boş:"),
     (
         "Nothing recorded in these, but never counted: empty is not known",
         "Bunlarda kayıtlı bir şey yok ama hiç sayılmadılar: boş oldukları bilinmiyor",

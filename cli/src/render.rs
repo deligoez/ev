@@ -1455,6 +1455,18 @@ pub fn human(v: &Value) -> String {
         bring_all(&mut out, v);
         return out;
     }
+    // `ev empty`: the boxes now known to be empty on the person's word.
+    if let Some(list) = v
+        .get("empty")
+        .and_then(Value::as_array)
+        .filter(|_| v.as_object().is_some_and(|o| o.len() == 1))
+    {
+        let _ = writeln!(out, "{}", t("Empty, on the person's word:"));
+        for n in list {
+            let _ = writeln!(out, "  {}", line(n));
+        }
+        return out;
+    }
     if v.get("item").is_some()
         && v.get("declined").is_some()
         && v.as_object().is_some_and(|o| o.len() == 2)

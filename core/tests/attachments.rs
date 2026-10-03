@@ -255,3 +255,22 @@ fn bringing_all_brings_each_line_to_its_thing_and_names_a_gone_one() {
         json!({"valuation": 1, "coverage": 1})
     );
 }
+
+#[test]
+fn importing_the_same_lines_again_leaves_the_database_file_as_it_was() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("ev.db");
+    let all: Vec<Value> = shop().into_iter().chain(other_app()).collect();
+    let import = || {
+        let mut inv = Inventory::open(&db).unwrap();
+        inv.buy_import(&lines(&all)).unwrap();
+        drop(inv);
+        std::fs::read(&db).unwrap()
+    };
+    let first = import();
+    assert_eq!(
+        import(),
+        first,
+        "a re-import that changes nothing writes nothing"
+    );
+}

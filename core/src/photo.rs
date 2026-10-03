@@ -634,10 +634,11 @@ mod tests {
     }
 
     #[test]
-    fn label_letters_fold_turkish_and_lowercase_and_mark_the_unknown() {
-        assert_eq!(glyph('ü'), glyph('U'));
-        assert_eq!(glyph('ş'), glyph('S'));
-        assert_eq!(glyph('a'), glyph('A'));
+    fn label_letters_keep_their_case_fold_turkish_and_mark_the_unknown() {
+        assert_eq!(glyph('ü'), glyph('u'));
+        assert_eq!(glyph('Ş'), glyph('S'));
+        // A code is copied from the picture by hand: `G1x1` must not read `G1X1`.
+        assert_ne!(glyph('x'), glyph('X'));
         assert_eq!(glyph('€'), glyph('?'));
         assert_ne!(glyph('1'), glyph('?'));
     }

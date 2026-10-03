@@ -662,6 +662,17 @@ mod tests {
     }
 
     #[test]
+    fn grid_corners_turn_with_the_photo_and_keep_their_names() {
+        let g: GridCorners = "0.1,0.2,0.9,0.2,0.95,0.9,0.05,0.9".parse().unwrap();
+        // A clockwise quarter turn: (x, y) → (1 - y, x); back-left stays first.
+        let t = g.turned(1);
+        assert!(close(t.0[0], (0.8, 0.1)), "{t}");
+        assert!(close(t.0[2], (0.1, 0.95)), "{t}");
+        let back = g.turned(1).turned(3);
+        assert!(g.0.iter().zip(back.0).all(|(a, b)| close(*a, b)));
+    }
+
+    #[test]
     fn grid_corners_read_eight_fractions_and_write_them_back() {
         let g: GridCorners = "0.1,0.2,0.9,0.2,0.95,0.9,0.05,0.9".parse().unwrap();
         assert_eq!(

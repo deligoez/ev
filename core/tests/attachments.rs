@@ -202,3 +202,24 @@ fn an_attachment_the_line_does_not_carry_is_refused_not_skipped() {
         .to_string();
     assert!(e.contains("#9999"), "{e}");
 }
+
+#[test]
+fn bringing_again_says_each_attachment_is_already_brought_and_where() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(&lines(&shop())).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    let first = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
+    let node = first["node"]["id"].clone();
+    let again = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
+    assert_eq!(again["brought_types"], json!({}));
+    let skipped = again["skipped"].as_array().unwrap();
+    assert_eq!(skipped.len(), 3);
+    assert!(
+        skipped
+            .iter()
+            .all(|s| s["why"] == "brought" && s["to"] == node),
+        "{skipped:?}"
+    );
+}

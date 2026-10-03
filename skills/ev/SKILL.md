@@ -19,7 +19,7 @@ same command is the `ev` tool with the same arguments: `ev move #12 --to S5-01 -
 `--stdin` go in `input`. The tool returns the readable text by default (`format: "json"` for
 the JSON). The commonest reads have tools of their own, read-only so the person's client can
 let them run unasked: `next`, `todo`, `find`, `show`, `suggest`, `history`, `tree`; `photo`
-returns a node's photo as an image. A numbered photo a command makes (`photo cut … --show`,
+returns a node's photo as an image. A numbered photo a command makes (`photo cut`,
 `photo mark`) comes back as an image in the tool result: the person sees it in the
 conversation, so show it there too when no `ev ui` is open. A refused call returns its reason
 (`isError`); read it and change the call. Everything else in this skill holds either way.
@@ -427,10 +427,11 @@ batch at once: number the photos in the order they arrived across the messages (
 recognise (what the person handles as one: a stack of LR44 cards of two makes is one group,
 though records may be per make) with a numbered red frame, put that photo on their screen, and
 talk in those numbers in a table. A photo cut among records: `ev photo cut <file>
-<ref>=x,y,w,h… --show --note "<what this is>"` numbers the crops in the order given (then the
-grid's boxes), sends it to `ev ui` and returns `legend` (`n` → record). A photo you do not
-attach: `ev photo mark <file> 1=x,y,w,h 2=…` (bare numbers; the meaning goes in your text), then
-`ev focus --file <marked> --note "<what this is>"`. **Open every marked file and check each
+<ref>=x,y,w,h… --note "<what this is>"` numbers the crops in the order given (then the grid's
+boxes), puts it on their `ev ui` and returns `legend` (`n` → record). A photo you do not attach:
+`ev photo mark <file> 1=x,y,w,h 2=… --show "<what this is>"` (bare numbers; the meaning goes in
+your text). Cuts, previews and marks go to the screen on their own; never `--no-show` one the
+person should see. **Open every marked file and check each
 frame sits on its part before sending** — the coordinates are your estimate.
 **Name every part by where it is in the photo, every time** — "left, the two on paper tape",
 "top right, the big black one", "2nd from the left in the middle row" — in tables, proposals

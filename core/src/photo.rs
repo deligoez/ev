@@ -435,8 +435,19 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
             .filter(|&j| j != i)
             .map(|j| bounds[j])
             .collect();
-        let room = (bounds[i].2 - 2.0 * t).max(short / 8.0).min(w);
-        let (lines, s) = fit_label(text, base, room);
+        let (lines, s) = match shape {
+            Shape::Rect(_) => {
+                let room = (bounds[i].2 - 2.0 * t).max(short / 8.0).min(w);
+                fit_label(text, base, room)
+            }
+            // A cell is a box the person is looking into: its label is no taller than about a
+            // third of the cell and no wider than it, so the box stays visible under it.
+            Shape::Quad(_) => {
+                let (cw, ch) = (bounds[i].2 - 4.0 * t, bounds[i].3 - 4.0 * t);
+                let cap = (ch * 0.3 / 11.0).floor().clamp(1.0, base);
+                fit_label(text, cap, cw.max(1.0))
+            }
+        };
         let (lw, lh) = label_size(&lines, s);
         let (x, y) = match shape {
             Shape::Rect(_) => {
@@ -452,9 +463,13 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
                 label_spot(&tries, &placed, &others, (lw, lh), (w, h))
             }
             Shape::Quad(_) => {
+                // In the cell's top-left corner, inside the frame; the middle when that is taken.
                 let cx = px.iter().map(|p| p.0).sum::<f64>() / 4.0;
                 let cy = px.iter().map(|p| p.1).sum::<f64>() / 4.0;
-                let tries = [(cx - lw / 2.0, cy - lh / 2.0)];
+                let tries = [
+                    (px[0].0 + 1.5 * t, px[0].1 + 1.5 * t),
+                    (cx - lw / 2.0, cy - lh / 2.0),
+                ];
                 label_spot(&tries, &placed, &others, (lw, lh), (w, h))
             }
         };

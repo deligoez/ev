@@ -1056,14 +1056,16 @@ enum PhotoCmd {
         #[arg(long)]
         grid: Option<String>,
         /// Cut nothing: draw every crop it would make (each grid box on its cells) on a
-        /// temporary copy, to check the corners by eye; with a note, also show it in a running
-        /// `ev ui`.
+        /// temporary copy, to check the corners by eye; the note titles it in `ev ui`.
         #[arg(long, num_args = 0..=1)]
         preview: Option<Option<String>>,
-        /// Also show the photo with a numbered frame on each crop full screen in a running
-        /// `ev ui`, titled with --note (else with what each number is).
-        #[arg(long)]
+        /// Shown by default: kept so older calls still parse.
+        #[arg(long, hide = true)]
         show: bool,
+        /// Do not send the numbered photo (and the preview) to a running `ev ui`, which a cut
+        /// does by default, titled with --note (else with what each number is).
+        #[arg(long, conflicts_with = "show")]
+        no_show: bool,
         /// Turn the photo clockwise first (90, 180 or 270) and store it turned; the crops and
         /// --grid are fractions of the turned photo.
         #[arg(long)]
@@ -1087,9 +1089,12 @@ enum PhotoCmd {
         /// Where to write the marked copy; a scratch folder otherwise.
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Also show it full screen in a running `ev ui`, titled with this note.
+        /// The title it is shown under in a running `ev ui` (the labels by default).
         #[arg(long)]
         show: Option<String>,
+        /// Do not send it to a running `ev ui`, which it is by default.
+        #[arg(long, conflicts_with = "show")]
+        no_show: bool,
         /// Also draw each placed box's code on its own cells (TARGET a place with a grid): which
         /// label goes on which box.
         #[arg(long)]
@@ -1986,6 +1991,7 @@ fn run(cli: Cli) -> Result<Value> {
             grid,
             out,
             show,
+            no_show,
             codes,
         }) => {
             let grid = grid
@@ -2017,7 +2023,16 @@ fn run(cli: Cli) -> Result<Value> {
                 }
             }
             let mut v = inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref())?;
-            if let (Some(note), Some(path)) = (show, v["marked"].as_str().map(PathBuf::from)) {
+            // Shown in the person's `ev ui` unless asked not to, titled with --show's note or
+            // else with the labels.
+            if let (false, Some(path)) = (no_show, v["marked"].as_str().map(PathBuf::from)) {
+                let note = show.unwrap_or_else(|| {
+                    marks
+                        .iter()
+                        .map(|(l, _)| l.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" · ")
+                });
                 v["shown"] = inv.focus_file(&[path], Some(&note))?["focus"].clone();
             }
             Ok(v)
@@ -2029,7 +2044,8 @@ fn run(cli: Cli) -> Result<Value> {
             note,
             grid,
             preview,
-            show,
+            show: _,
+            no_show,
             rotate,
             pad,
         }) => {
@@ -2067,14 +2083,15 @@ fn run(cli: Cli) -> Result<Value> {
                     None,
                 ),
             };
-            // A preview's note shows the preview; --show adds the numbered photo, both stepped
-            // through with `[` `]` in one request.
+            // What the cut drew goes to the person's `ev ui` unless asked not to: the preview
+            // and the numbered photo, stepped through with `[` `]` in one request. Showing was
+            // opt-in, and an agent that checked the frames itself never put them on the screen.
             let path = |k: &str| v[k].as_str().map(PathBuf::from);
             let mut files: Vec<PathBuf> = Vec::new();
-            if title.is_some() {
-                files.extend(path("preview"));
-            }
-            if show {
+            if !no_show {
+                if preview.is_some() {
+                    files.extend(path("preview"));
+                }
                 files.extend(path("marked"));
             }
             if !files.is_empty() {

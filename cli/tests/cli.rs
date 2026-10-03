@@ -113,6 +113,14 @@ fn a_mistyped_argument_is_a_json_usage_error_and_help_stays_text() {
 }
 
 #[test]
+fn a_tree_node_says_lost_only_when_it_is() {
+    let ev = seeded();
+    let home = &ev.ok(&["tree"])["tree"][0];
+    assert!(home.get("lost").is_none(), "{home}");
+    assert!(home["children"][0].get("lost").is_none(), "{home}");
+}
+
+#[test]
 fn a_row_names_its_place_once_and_the_node_keeps_its_ancestors() {
     let ev = seeded();
     let row = &ev.ok(&["find", "anten"])["results"][0];

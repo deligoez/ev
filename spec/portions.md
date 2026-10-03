@@ -99,11 +99,14 @@ the two lent to a neighbour are not the spare ones.
 - **`ev add --of <ref> [--qty n] --in <place>`**: more of a thing already recorded: a new portion
   with the thing's identity (or *n* more on its portion already there). For a tour that finds 4
   more cells in a drawer, and for the second lot that today starts as an empty record. Also a
-  field of `ev add --stdin` lines: `{"of": "<ref>", "qty": 4, "in": "<place>"}`.
+  field of `ev add --stdin` lines: `{"of": "<ref>", "qty": 4, "in": "<place>"}`. The record may
+  be gone (decided 2026-10-03): a consumable used up and replaced with the same one is the same
+  thing, and the used-up record is often its only one.
 - **`ev join <ref> <ref>…`**: records made separately are one thing: copies made before this
   existed, or a pair `ev audit` lists as alike. The identity comes from the first; a make or
   model that differs is refused (exit 5) with both values, so the agent asks the person and
-  edits first. Portions that end up in one place join (§4.2).
+  edits first. Portions that end up in one place join (§4.2). A gone record may be among them
+  as long as one lives; it keeps what it was.
 - **`ev unjoin <ref>`**: a portion is a thing of its own after all. It keeps its identity and
   leaves the key. A thing left with one portion keeps its key: purchases and documents linked
   on its gone or merged portions are read through it, and dropping the key would cut them off.

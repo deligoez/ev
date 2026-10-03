@@ -654,3 +654,28 @@ fn buy_bring_says_what_it_brought_and_what_it_left_and_why() {
         "{again}"
     );
 }
+
+#[test]
+fn buy_bring_all_lists_each_line_it_brought_from_with_the_thing() {
+    let h = Home::new();
+    h.run(
+        &["buy", "import", "--stdin"],
+        Some(
+            "{\"source\":\"s\",\"key\":\"1\",\"name\":\"Aktif buzzer\",\"paid\":\"99\"}\n\
+             {\"type\":\"link\",\"source\":\"s\",\"purchase\":\"1\",\
+              \"url\":\"https://shop.example/buzzer\"}\n",
+        ),
+    );
+    h.run(&["buy", "link", "1", "Aktif buzzer"], None);
+    let s = h.text(&["buy", "bring", "--all", "--type", "image,link"]);
+    let id = h.run(&["show", "Aktif buzzer"], None);
+    let id: serde_json::Value = serde_json::from_str(&id).unwrap();
+    assert_eq!(
+        s,
+        format!(
+            "Brought from 1 purchases: link ×1\n  #1 → #{} Aktif buzzer: link ×1\n",
+            id["node"]["id"]
+        )
+    );
+    assert_eq!(h.text(&["buy", "bring", "--all"]), "Nothing brought.\n");
+}

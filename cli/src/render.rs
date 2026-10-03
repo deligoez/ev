@@ -1081,8 +1081,23 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
         "  {}",
         tf("free ({}): {}", &[&free.len(), &free.join(" ")])
     );
-    for b in grid["boxes"].as_array().into_iter().flatten() {
-        let _ = writeln!(out, "  {:<7} {}", s(b, "cells"), s(b, "name"));
+    // Each box by its cells, then its code (what its label says, for sticking labels on), then
+    // its name.
+    let boxes = grid["boxes"].as_array().cloned().unwrap_or_default();
+    let width = boxes
+        .iter()
+        .filter_map(|b| b["code"].as_str())
+        .map(|c| c.chars().count())
+        .max()
+        .unwrap_or(0);
+    for b in &boxes {
+        let code = b["code"].as_str().unwrap_or_default();
+        let line = if width == 0 {
+            format!("{:<7} {}", s(b, "cells"), s(b, "name"))
+        } else {
+            format!("{:<7} {code:<width$}  {}", s(b, "cells"), s(b, "name"))
+        };
+        let _ = writeln!(out, "  {}", line.trim_end());
     }
     let unplaced: Vec<String> = grid["unplaced"]
         .as_array()

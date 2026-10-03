@@ -139,3 +139,23 @@ fn siblings_come_by_kind_then_by_code_read_naturally_then_by_name() {
         .collect();
     assert_eq!(order, ["Masa", "S5-2", "S5-10", "S45-1", "Kutu", "Kalem"]);
 }
+
+#[test]
+fn a_box_the_person_calls_empty_is_known_empty_and_one_with_things_is_refused() {
+    let (_d, mut inv) = setup();
+    let results = |inv: &Inventory| -> Vec<String> {
+        inv.find_with("", None, None, false, true).unwrap()["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert!(results(&inv).is_empty(), "never counted, never said");
+    inv.mark_empty(&["Kablo çantası".into()], Some("açtık, boş"))
+        .unwrap();
+    assert_eq!(results(&inv), ["Kablo çantası"]);
+    // A box with records in it is not said to be empty, nor is a thing that is no box.
+    assert!(inv.mark_empty(&["LED kutusu".into()], None).is_err());
+    assert!(inv.mark_empty(&["Tablo".into()], None).is_err());
+}

@@ -614,6 +614,27 @@ mod tests {
     use super::{Crop, Shape, draw_marks, fit_label, glyph, label_size, label_spot};
 
     #[test]
+    fn a_padded_crop_grows_on_every_side_and_stays_inside_the_photo() {
+        let c = Crop {
+            x: 0.2,
+            y: 0.05,
+            w: 0.4,
+            h: 0.5,
+        }
+        .padded(0.1);
+        assert!((c.x - 0.16).abs() < 1e-9 && c.y.abs() < 1e-9, "{c}");
+        assert!((c.w - 0.48).abs() < 1e-9 && (c.h - 0.6).abs() < 1e-9, "{c}");
+        let edge = Crop {
+            x: 0.9,
+            y: 0.9,
+            w: 0.1,
+            h: 0.1,
+        }
+        .padded(0.5);
+        assert!((edge.x + edge.w - 1.0).abs() < 1e-9 && (edge.y + edge.h - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
     fn a_long_label_shrinks_or_wraps_to_its_frame_and_a_number_keeps_its_size() {
         let long = "1 LR44 Mettzchrom x17 (#484)";
         for max_w in [120.0, 300.0, 600.0] {

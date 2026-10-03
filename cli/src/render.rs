@@ -602,6 +602,78 @@ fn purchase(out: &mut String, p: &Value) {
     }
 }
 
+fn attachment_type(kind: &str) -> &'static str {
+    match kind {
+        "link" => t("link"),
+        "valuation" => t("value"),
+        "coverage" => t("coverage"),
+        _ => t("product image"),
+    }
+}
+
+/// What `ev buy bring` did, above the thing: what it brought by type, what it left and why.
+fn bring_summary(out: &mut String, v: &Value) {
+    let line = &v["from_purchase"];
+    let brought: Vec<String> = v["brought_types"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(k, n)| format!("{} ×{n}", attachment_type(k)))
+        .collect();
+    let skipped = v["skipped"].as_array().cloned().unwrap_or_default();
+    if !brought.is_empty() {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "Brought from purchase #{}: {}",
+                &[line, &brought.join(", ")]
+            )
+        );
+    } else if skipped.is_empty() {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "Nothing brought: purchase #{} carries nothing to bring.",
+                &[line]
+            )
+        );
+    } else {
+        let _ = writeln!(out, "{}", tf("Nothing brought from purchase #{}.", &[line]));
+    }
+    let ids = |why: &str| -> Vec<String> {
+        skipped
+            .iter()
+            .filter(|s| s["why"] == why)
+            .map(|s| {
+                format!(
+                    "#{} {}",
+                    s["id"],
+                    attachment_type(s["type"].as_str().unwrap_or_default())
+                )
+            })
+            .collect()
+    };
+    let before = ids("brought");
+    if !before.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("already brought: {}", &[&before.join(", ")])
+        );
+    }
+    let other = ids("type");
+    if !other.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("left, of another type: {}", &[&other.join(", ")])
+        );
+    }
+    let _ = writeln!(out);
+}
+
 /// `  1. #12 2024-05-03  Amazon  Bosch GSB 13 RE ×1  1999.00 TRY  (73: model gsb13re 60, …)`.
 fn candidate_lines(out: &mut String, list: &Value) {
     for (i, c) in list.as_array().into_iter().flatten().enumerate() {
@@ -1632,6 +1704,9 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
+        if v.get("brought").is_some() {
+            bring_summary(&mut out, v);
+        }
         show(&mut out, v, node);
         return out;
     }

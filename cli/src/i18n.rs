@@ -565,6 +565,23 @@ static TR: &[(&str, &str)] = &[
     ("brought to #{}", "#{} eşyasına aktarıldı"),
     ("to bring", "aktarılacak"),
     ("attachment", "ek"),
+    (
+        "Brought from purchase #{}: {}",
+        "#{} alımından aktarıldı: {}",
+    ),
+    (
+        "Nothing brought: purchase #{} carries nothing to bring.",
+        "Hiçbir şey aktarılmadı: #{} alımında aktarılacak bir şey yok.",
+    ),
+    (
+        "Nothing brought from purchase #{}.",
+        "#{} alımından hiçbir şey aktarılmadı.",
+    ),
+    ("already brought: {}", "zaten aktarılmış: {}"),
+    (
+        "left, of another type: {}",
+        "başka türde olduğu için bırakıldı: {}",
+    ),
     // Values and links
     ("  (+{} earlier)", "  (+{} önceki)"),
     ("(no links)", "(bağlantı yok)"),

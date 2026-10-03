@@ -91,6 +91,8 @@ pub(crate) struct FindArgs {
     kind: Option<String>,
     /// Also things that left the home.
     include_gone: Option<bool>,
+    /// Only the containers nothing is in, worked out from the records.
+    empty: Option<bool>,
     #[serde(default)]
     format: Format,
 }
@@ -263,6 +265,7 @@ and tags, best match first, each with its #id and full path. Act on a result by 
                 flag("--tag", p.tag),
                 flag("--kind", p.kind),
                 switch("--include-gone", p.include_gone),
+                switch("--empty", p.empty),
             ],
             p.text.into_iter().collect(),
         );

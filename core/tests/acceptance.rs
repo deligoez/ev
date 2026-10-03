@@ -718,6 +718,28 @@ fn a_place_is_not_counted_until_it_is_counted() {
 }
 
 #[test]
+fn a_tour_goes_out_of_date_when_the_contents_change_not_the_bookkeeping() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let id = inv
+        .add(node("Karton kutu", "container", Some("Kiler"), None))
+        .unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap()
+        .to_string();
+    inv.review(&id, "toured", None).unwrap();
+    let changed = |inv: &Inventory| inv.progress().unwrap()["changed_since_tour"].clone();
+    // Times are kept to the second: what follows comes after the tour.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.edit(&id, &["code=K-01".into(), "note=etiketlendi".into()])
+        .unwrap();
+    assert_eq!(changed(&inv), 0, "a new code and a note count nothing");
+    inv.add(node("Uzatma kablosu", "item", Some(&id), None))
+        .unwrap();
+    assert_eq!(changed(&inv), 1, "a thing put in it does");
+}
+
+#[test]
 fn a_mistaken_gone_can_be_corrected_with_a_reason() {
     let (_d, mut inv) = inv();
     home(&mut inv);

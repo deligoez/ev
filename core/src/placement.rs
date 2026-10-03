@@ -62,6 +62,8 @@ const Q_NOTE: f64 = 0.4;
 const Q_SYNONYM: f64 = 0.8;
 /// Below this share of the query matched by the best holder, the thing has no group yet.
 const GROUP_COVERAGE: f64 = 0.5;
+/// How many empty boxes `suggest` offers when the thing has no group yet.
+const EMPTY_OFFERED: usize = 10;
 
 fn round(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
@@ -297,14 +299,43 @@ impl Inventory {
                 words.push(&t.surface);
             }
         }
+        // No holder matched on a word that says what the thing is: it has no group yet.
+        let new_group = ranked.first().is_none_or(|s| s.coverage < GROUP_COVERAGE);
+        // A new group starts in an empty box: those in the thing's own room first. Empty is
+        // worked out from the records, never from a tag.
+        let empty = if new_group {
+            let near = for_node["id"].as_i64().and_then(|id| room_of(&by_id, id));
+            let mut boxes: Vec<&Node> = all
+                .iter()
+                .filter(|n| {
+                    n.kind == Kind::Container
+                        && !has_children.contains(&n.id)
+                        && !skip.contains(&n.id)
+                        && parking_of(&by_id, n.id).is_none()
+                })
+                .collect();
+            let here = |n: &Node| near.is_some() && room_of(&by_id, n.id) == near;
+            boxes.sort_by_key(|n| (!here(n), n.id));
+            boxes
+                .iter()
+                .take(EMPTY_OFFERED)
+                .map(|n| {
+                    let mut c = holder_json(&self.conn, n, &all)?;
+                    c["same_room"] = json!(here(n));
+                    Ok(c)
+                })
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            Vec::new()
+        };
         Ok(json!({
             "query": text,
             "for": for_node,
             "words": words,
             "synonyms_added": synonyms,
             "facet": facets.names(&want),
-            // No holder matched on a word that says what the thing is: it has no group yet.
-            "new_group_likely": ranked.first().is_none_or(|s| s.coverage < GROUP_COVERAGE),
+            "new_group_likely": new_group,
+            "empty": empty,
             "considered": CONSIDERED,
             "rules": rules_json(&self.conn)?,
             "similar": similar,
@@ -673,6 +704,17 @@ impl Inventory {
 }
 
 /// Declined moves: the thing, the holder it was to stay in, and why.
+/// The room `id` is in (itself when it is one), walking up the tree.
+fn room_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {
+    let mut cur = Some(id);
+    while let Some(n) = cur.and_then(|c| by_id.get(&c)) {
+        if n.kind == Kind::Room {
+            return Some(n.id);
+        }
+        cur = n.parent_id;
+    }
+    None
+}
 fn declines_of(conn: &Connection) -> Result<HashMap<i64, (i64, Option<String>)>> {
     let mut stmt = conn.prepare("SELECT node_id, holder_id, why FROM declines")?;
     let rows = stmt.query_map([], |r| Ok((r.get(0)?, (r.get(1)?, r.get(2)?))))?;

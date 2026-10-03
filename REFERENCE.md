@@ -45,7 +45,9 @@ that set `make` or `model` carries `purchase_candidates`, as a single `ev edit` 
 
 JSON when piped, readable text on a terminal. `--json` forces JSON on a terminal; `--text`
 forces the text through a pipe — to read a result, not to parse it. JSON is one line, here and
-over MCP (pipe it through `jq` to read it). A reader that stops early (`| head`) is no error.
+over MCP (pipe it through `jq` to read it). Below a payload's top-level keys, a field with no
+value is left out: where this reference says a field is null, it is missing, which reads as null
+(`jq '.x'`, `d.get("x")`). A reader that stops early (`| head`) is no error.
 
 A record that is not a node (a purchase line, a task, a document, an observation, a value) is
 named by its id, as ev prints it or bare: `ev task done '#21'` and `ev task done 21` are the
@@ -106,8 +108,8 @@ language`. See `spec/mcp.md` for the reasons.
 Every node reference (`NodeRef`), a row in any list, is:
 
 ```json
-{"id": 5, "code": null, "name": "Flipper Zero", "kind": "item", "state": "active",
- "path_text": "Ev › Salon › K4x4 › K4x4-15-A › Flipper Zero"}
+{"id": 5, "code": "FZ-1", "name": "Flipper Zero", "kind": "item", "state": "active",
+ "path_text": "Ev › Salon › K4x4 › K4x4-15-A › FZ-1"}
 ```
 
 `lost` (true), `disposition` and `qty` appear when set. `path_text` names each place from the

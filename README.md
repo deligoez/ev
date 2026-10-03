@@ -266,8 +266,9 @@ records a "not this one" so the line is not offered to that thing again.
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
 (`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line
 (a link, a value, a warranty, the shop's product pictures hung on it by
-`tools/purchases/images.py`) comes along with `ev buy bring`, the pictures as documents, never
-as the thing's own photos. Warranties and insurance have a computed status
+`tools/purchases/images.py`) comes along with `ev buy bring` (`--type image` for the pictures,
+`--all` for every linked line at once), the pictures as documents, never as the thing's own
+photos, and ev says what it brought, what it left and why. Warranties and insurance have a computed status
 (`ev cover add X --kind manufacturer --term 2y`; repair time extends it), values are dated
 observations (`ev value X 2500 --source "listing"`), links keep an archive copy
 (`ev link add X <url> --archive page.html`), and "don't track this" or "not now" is never asked

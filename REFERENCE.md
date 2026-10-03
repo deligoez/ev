@@ -606,7 +606,9 @@ back to the price paid in the home currency.
 
 `ev review <ref> --as toured` is refused (exit 5) while the place, or a placed box in its grid,
 has no photo or only one older than its last change; `details.stale` lists them
-(`node`, `reason`: `none`|`changed`, `photo_at`, `changed_at`).
+(`node`, `reason`: `none`|`changed`|`marked`, `photo_at`, `changed_at`). An empty place with no
+photo at all needs none; an emptied one whose photo still shows what left needs a photo of it
+empty, so its picture does not mislead.
 
 In `ev ui`, the newest photo shows first, with its note in the panel title; `[` / `]` or the wheel
 over the photo step through the selected node's photos, `o` or a click shows the current one full

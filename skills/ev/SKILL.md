@@ -32,9 +32,11 @@ positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says w
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial
 code** (`S5-01`, a Samla box; `GF1x1-001`, a gridfinity box): it says which box, and it stays
 when the box moves to another drawer or room — where it is lives in the record (its parent,
-its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` (`GF1x1-012`,
-`GF1x2-003`), one series per footprint. Use codes exactly as the person gives them; for a new
-box, `code=GF1x1-*` takes the next free number of its series — say it, since it goes on the
+its cell), never in its code. Gridfinity boxes are `GF<footprint>-NNN` here (`GF1x1-012`,
+`GF1x2-003`), one series per footprint; the prefix is the household's choice (another may
+use `G1x1-012`), and a series is whatever comes before the number. Use codes exactly as the
+person gives them; for a new box, `code=GF1x1-*` takes the next free number of its series —
+say it, since it goes on the
 label. A node leaves in two steps (`dispose --as` then `gone`) or one (`gone --as`). A node
 whose place is unknown is `lost`. **One thing can be kept in several places**: each place holds
 a portion, an ordinary record with its own count, and the portions share what the thing is
@@ -184,7 +186,9 @@ Record the kinds that have their own verbs as you meet them:
 
 - **A code you set** needs a label: after adding or re-coding a holder, say it goes on the
   label list (`ev label` prints it for the label maker); `ev label <ref>` only when the person
-  says the label is on.
+  says the label is on. While the person sticks labels on a gridded drawer's boxes, show them
+  which goes where: `ev photo mark <drawer> --codes --show "labels"` draws each box's code on its
+  own cells of the drawer's photo, and `ev grid <drawer>` lists cell, code and name.
 - **Something to buy or make** (a box ran out, a battery is low, a gridfinity bin to print):
   `ev need add "<what>" [--qty n] [--make] [--for <place>]`; `ev need got <id>` when it
   arrived, then record it in the tree.

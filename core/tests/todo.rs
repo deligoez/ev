@@ -503,3 +503,48 @@ fn a_record_closed_as_a_mistake_leaves_the_place_photo_current() {
         .unwrap();
     assert!(stale(&inv));
 }
+
+#[test]
+fn marked_photos_pile_up_in_one_series_and_a_new_copy_of_one_takes_its_place() {
+    let (d, mut inv) = setup();
+    let pic = |name: &str| {
+        let p = d.path().join(name);
+        image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+            .save(&p)
+            .unwrap();
+        p
+    };
+    let files = |inv: &Inventory| -> Vec<String> {
+        inv.focus_request().unwrap()["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| {
+                let p = std::path::PathBuf::from(f.as_str().unwrap());
+                p.file_name().unwrap().to_string_lossy().into_owned()
+            })
+            .collect()
+    };
+    inv.focus_file(&[pic("a-marked-1.png")], Some("parts"))
+        .unwrap();
+    let v = inv
+        .focus_file(&[pic("b-marked-2.png")], Some("drawer"))
+        .unwrap();
+    assert_eq!(v["focus"]["series"], 2);
+    assert_eq!(inv.focus_request().unwrap()["show"], 1);
+    // A new copy of the first photo takes its place, with its own note, and is the one shown.
+    inv.focus_file(&[pic("a-marked-3.png")], Some("parts again"))
+        .unwrap();
+    assert_eq!(files(&inv), ["a-marked-3.png", "b-marked-2.png"]);
+    let req = inv.focus_request().unwrap();
+    assert_eq!(req["show"], 0);
+    assert_eq!(req["notes"][0], "parts again");
+    // Any other picture is its own.
+    inv.focus_file(&[pic("plan.png")], None).unwrap();
+    assert_eq!(files(&inv).len(), 3);
+    // A node asked for keeps the series beside it.
+    inv.focus(Some("Silikon"), None).unwrap();
+    assert_eq!(files(&inv).len(), 3);
+    inv.focus(None, None).unwrap();
+    assert!(inv.focus_request().unwrap().is_null());
+}

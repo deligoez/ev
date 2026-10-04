@@ -765,6 +765,10 @@ impl Inventory {
             {
                 let mut v = brief_value(&self.conn, n.id)?;
                 v["in"] = brief_value(&self.conn, p.id)?;
+                // What its place waits for (spec/waits-for.md), when it says.
+                if let Some(w) = n.waits_for {
+                    v["waits_for"] = brief_value(&self.conn, w)?;
+                }
                 parked.push(v);
             }
         }

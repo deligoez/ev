@@ -193,6 +193,8 @@ pub enum Shape {
 
 const MARK_RED: image::Rgb<u8> = image::Rgb([230, 30, 30]);
 const MARK_WHITE: image::Rgb<u8> = image::Rgb([255, 255, 255]);
+/// The edge around every red stroke and plate.
+const MARK_DARK: image::Rgb<u8> = image::Rgb([20, 20, 20]);
 
 /// A 5×7 bitmap of a label character, one row per byte, bit 4 the leftmost column. Labels are
 /// short (a number, a cell, an arrow), so a built-in font keeps marking free of font files.
@@ -307,17 +309,11 @@ fn dot(img: &mut image::RgbImage, x: f64, y: f64, t: f64, color: image::Rgb<u8>)
     }
 }
 
-fn line(img: &mut image::RgbImage, a: (f64, f64), b: (f64, f64), t: f64) {
+fn line(img: &mut image::RgbImage, a: (f64, f64), b: (f64, f64), t: f64, color: image::Rgb<u8>) {
     let steps = (b.0 - a.0).abs().max((b.1 - a.1).abs()).ceil().max(1.0);
     for i in 0..=steps as u32 {
         let k = f64::from(i) / steps;
-        dot(
-            img,
-            a.0 + (b.0 - a.0) * k,
-            a.1 + (b.1 - a.1) * k,
-            t,
-            MARK_RED,
-        );
+        dot(img, a.0 + (b.0 - a.0) * k, a.1 + (b.1 - a.1) * k, t, color);
     }
 }
 
@@ -381,7 +377,8 @@ fn fit_label(text: &str, base: f64, max_w: f64) -> (Vec<String>, f64) {
     (wrap(text, min, max_w).0, min)
 }
 
-/// White text on a red plate, its top-left corner at `(x, y)`, kept inside the image.
+/// White text on a red plate edged in dark, its top-left corner at `(x, y)`, kept inside the
+/// image.
 fn label(img: &mut image::RgbImage, lines: &[String], x: f64, y: f64, s: f64) {
     let (w, h) = label_size(lines, s);
     let (iw, ih) = (img.width() as f64, img.height() as f64);
@@ -389,6 +386,12 @@ fn label(img: &mut image::RgbImage, lines: &[String], x: f64, y: f64, s: f64) {
         x.clamp(0.0, (iw - w).max(0.0)),
         y.clamp(0.0, (ih - h).max(0.0)),
     );
+    let edge = (s / 2.0).round().max(1.0);
+    for py in (y - edge).max(0.0) as u32..((y + h + edge).min(ih)) as u32 {
+        for px in (x - edge).max(0.0) as u32..((x + w + edge).min(iw)) as u32 {
+            img.put_pixel(px, py, MARK_DARK);
+        }
+    }
     for py in y as u32..((y + h).min(ih)) as u32 {
         for px in x as u32..((x + w).min(iw)) as u32 {
             img.put_pixel(px, py, MARK_RED);
@@ -491,9 +494,14 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
             )
         })
         .collect();
-    for px in &corners {
-        for i in 0..4 {
-            line(&mut img, px[i], px[(i + 1) % 4], t);
+    // Every frame's dark edge first, then the red strokes over them, so no edge cuts into a
+    // red corner: a stroke reads on a red thing or background as well as on any other.
+    let edge = (t / 3.0).round().max(1.0);
+    for (width, color) in [(t + 2.0 * edge, MARK_DARK), (t, MARK_RED)] {
+        for px in &corners {
+            for i in 0..4 {
+                line(&mut img, px[i], px[(i + 1) % 4], width, color);
+            }
         }
     }
     let mut placed: Vec<Area> = Vec::new();

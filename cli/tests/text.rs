@@ -517,7 +517,7 @@ fn focus_says_what_ev_ui_was_asked_to_show_or_that_the_request_is_cleared() {
     let file = file.to_string_lossy().to_string();
     assert_eq!(
         h.text(&["focus", "--file", &file]),
-        "Sent to ev ui: 1 picture(s)\n"
+        "Sent to ev ui: 1 picture(s), 1 in the series\n"
     );
     assert_eq!(
         h.text(&["focus", "--clear"]),

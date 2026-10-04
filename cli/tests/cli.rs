@@ -394,7 +394,14 @@ fn a_grid_cut_previews_then_cuts_every_box_and_keeps_its_corners() {
     ]);
     assert_eq!(v["attached"].as_array().unwrap().len(), 3);
     // The corners were kept, so cells are marked by name.
-    let v = ev.ok(&["photo", "mark", "D", "1=A1", "2 → B1=B1-C1"]);
+    let v = ev.ok(&[
+        "photo",
+        "mark",
+        "D",
+        "1=A1",
+        "2 → B1=B1-C1",
+        "--keep-numbers",
+    ]);
     assert_eq!(v["marks"][1]["label"], "2 → B1");
     assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
     // A cell on a plain file, or a cell outside the grid, is a usage error.
@@ -438,10 +445,11 @@ fn a_cut_numbers_what_it_recognised_and_show_sends_it_to_ev_ui() {
     assert!(v["shown"].is_null());
     assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
     assert_eq!(v["legend"][2]["ref"]["code"], "D-B1");
-    // --show titles it with --note, else with what each number is.
+    // --show titles it with --note, else with what each number is. A new series numbers from 1.
     let other = ev._dir.path().join("other.png");
     std::fs::copy(&photo, &other).unwrap();
     let o = other.to_str().unwrap();
+    ev.ok(&["focus", "--clear"]);
     let v = ev.ok(&["photo", "cut", o, "Röle=0.5,0.5,0.2,0.2", "--show"]);
     assert_eq!(v["shown"]["note"], "1 Röle");
     let files = v["shown"]["files"].as_array().unwrap();

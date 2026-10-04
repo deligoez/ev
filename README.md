@@ -42,7 +42,8 @@ skills, the skill is the prompt `ev` and the resource `ev://skill`.
 
 **One tree.** `home` › `room` (rooms nest) › `furniture` › `container` › `item`, and any node can
 hold others. Codes are the physical labels (`K4x4-07-Ü`, `S5-01`) and compare case- and
-diacritic-insensitively.
+diacritic-insensitively, with `-` and `_` as one and a number's leading zeros ignored (`S05_12` is
+`S5-12`): a label maker that cannot print a hyphen is no reason to relabel.
 
 ```bash
 ev add Ev --kind home

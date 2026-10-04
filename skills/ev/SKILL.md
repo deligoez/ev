@@ -590,7 +590,9 @@ finds `K4x4-07-Ü`.
   them), worked out from the records: never tag a box empty. Boxes with nothing recorded only
   because nobody counted them come apart (`not_known`): open them before calling them empty.
   When the person says a box is empty (opened it, brought it empty), record it:
-  `ev empty <box>… --note "…"`; that also counts it (toured), so it leaves the tour.
+  `ev empty <box>… --note "…"`; that also counts it (toured), so it leaves the tour. A box called
+  empty that turns out to hold things nobody counted is set back with `ev review <box> --as raw`:
+  it is no longer known empty, and its contents wait for its tour.
 - `ev show <ref>`, `ev tree [<ref>] [--depth n]`, `ev history <ref> [--contents]` (`--contents`
   adds what came in, went out or was added there).
 

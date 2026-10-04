@@ -428,6 +428,9 @@ says more is coming ("devamı var"), answer only with a count ("aldım (5/…)")
 table, no questions — and wait. When the person says the batch is done ("bitti"), work the whole
 batch at once: number the photos in the order they arrived across the messages (1–5 the first,
 6–10 the second, …), keep each note with the photos it came with, and answer in one table.
+**Tell first, record after:** your first answer to a finished batch is short — what you see,
+what the person should get ready, with the marked photo on screen; recording and cutting come
+after it.
 
 **Show what you read from every photo before you talk about it.** Frame each group you
 recognise (what the person handles as one: a stack of LR44 cards of two makes is one group,

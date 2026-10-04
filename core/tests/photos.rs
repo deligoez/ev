@@ -336,3 +336,46 @@ fn numbers_in_a_series_never_repeat_and_a_photo_marked_again_keeps_its_own() {
     inv.focus(None, None).unwrap();
     assert_eq!(show_marked(&mut inv, &shelf, &two[..1]), ["1"]);
 }
+
+#[test]
+fn a_cut_of_a_photo_marked_in_the_series_takes_the_numbers_it_was_marked_with() {
+    let (dir, mut inv, photo) = setup();
+    for name in ["Pil", "Röle", "Kablo"] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Çekmece".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    let shelf = dir.path().join("shelf.png");
+    std::fs::copy(&photo, &shelf).unwrap();
+    show_marked(
+        &mut inv,
+        &shelf,
+        &["1=0.1,0.1,0.2,0.2", "2=0.5,0.5,0.2,0.2"],
+    );
+    show_marked(&mut inv, &photo, &["1=0,0,0.5,1", "2=0.5,0,0.5,1"]);
+    let crop = |s: &str| s.parse::<ev_core::Crop>().unwrap();
+    let crops = [
+        ("Pil".to_string(), crop("0,0,0.5,1")),
+        ("Röle".to_string(), crop("0.5,0,0.5,1")),
+        ("Kablo".to_string(), crop("0.4,0.4,0.2,0.2")),
+    ];
+    let v = inv
+        .photo_cut_in(&photo, None, &crops, None, None, true)
+        .unwrap();
+    let n: Vec<_> = v["legend"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["n"].clone())
+        .collect();
+    assert_eq!(n, [3, 4, 5]);
+    // Outside a series a cut numbers from 1.
+    let v = inv
+        .photo_cut(&photo, None, &crops[..1], None, None)
+        .unwrap();
+    assert_eq!(v["legend"][0]["n"], 1);
+}

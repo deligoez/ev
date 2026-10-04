@@ -55,9 +55,13 @@ struct Marked {
     frames: Vec<Value>,
 }
 
-/// The series a focus request holds, without the pictures no longer on disk. An older request
-/// has one note for all its pictures and no frames.
+/// The series a focus request holds, without the pictures no longer on disk. A request written
+/// before series existed (no `frames`) holds none: its pictures carry numbers the series never
+/// registered, so counting on from them would draw the same number twice.
 fn series_of(req: &Value) -> Vec<Marked> {
+    if !req["frames"].is_array() {
+        return Vec::new();
+    }
     req["files"]
         .as_array()
         .into_iter()

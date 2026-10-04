@@ -2345,4 +2345,11 @@ mod tests {
         }
         assert!(problems.is_empty(), "{}", problems.join("\n"));
     }
+
+    #[test]
+    fn a_list_of_tags_in_ndjson_adds_each_unless_it_says_otherwise() {
+        let lines =
+            super::edit_lines(r#"{"ref":"Kutu","set":{"tags":["vida","-m3","+uzun"]}}"#).unwrap();
+        assert_eq!(lines[0].1, ["tags=+vida", "tags=-m3", "tags=+uzun"]);
+    }
 }

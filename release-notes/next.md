@@ -42,3 +42,10 @@ the reason to the thing's note, as `gone --why` does.
 though the skill says a bring never stays silent. It now says what it looked at: how many linked
 lines it checked, how many carry that type at all, and how many of those were brought already
 (`checked: {lines, carrying, already}`).
+
+## A box called empty can be taken back
+
+A box marked empty turned out full of odds and ends nobody had counted; `ev review <box> --as
+raw` cleared its tour, but `ev find --empty` and `ev suggest` still offered it as empty, since an
+`empty` once said was kept for good. Setting a box back to `raw` now forgets what made it known
+empty up to then, so it lists among the boxes never counted until it is toured again.

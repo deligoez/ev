@@ -429,7 +429,8 @@ so the box under it stays visible. Photos cut among records
 are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).
 
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
-note. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
+note; `ev dispose <ref> --as d --why "<text>"` appends it to the note too (an `edit` event) when the
+thing is set aside. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
 `ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any
 other exits 5).
 

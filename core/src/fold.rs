@@ -15,6 +15,31 @@ pub fn fold(s: &str) -> String {
     lower.nfd().filter(|c| !is_combining_mark(*c)).collect()
 }
 
+/// Folds a code for comparison (spec/codes.md): as `fold`, and `_` is `-`, and a number loses
+/// its leading zeros, so `S05_12` and `S5-12` are one code however the label was printed.
+pub fn fold_code(s: &str) -> String {
+    let folded = fold(s).replace('_', "-");
+    let mut out = String::with_capacity(folded.len());
+    let mut digits = String::new();
+    let flush = |digits: &mut String, out: &mut String| {
+        if !digits.is_empty() {
+            let trimmed = digits.trim_start_matches('0');
+            out.push_str(if trimmed.is_empty() { "0" } else { trimmed });
+            digits.clear();
+        }
+    };
+    for c in folded.chars() {
+        if c.is_ascii_digit() {
+            digits.push(c);
+        } else {
+            flush(&mut digits, &mut out);
+            out.push(c);
+        }
+    }
+    flush(&mut digits, &mut out);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::fold;

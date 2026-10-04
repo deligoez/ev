@@ -473,7 +473,8 @@ enum Cmd {
         name: Option<String>,
         value: Option<String>,
     },
-    /// Make a running `ev ui` show a node and one of its photos (the last by default).
+    /// Make a running `ev ui` show a node and one of its photos (the last by default), or add
+    /// marked photos to its series (`--file`; `--list` reads it, `--clear` ends it).
     Focus {
         reference: Option<String>,
         #[arg(long)]
@@ -487,6 +488,10 @@ enum Cmd {
         /// The title shown over --file.
         #[arg(long, requires = "file")]
         note: Option<String>,
+        /// The series of marked photos in `ev ui`: each picture, its note and its frames
+        /// (number → where, or which record), and the next free number.
+        #[arg(long, conflicts_with_all = ["reference", "clear", "file"])]
+        list: bool,
     },
 }
 
@@ -1120,6 +1125,11 @@ enum PhotoCmd {
         /// label goes on which box.
         #[arg(long)]
         codes: bool,
+        /// Draw the numbers as given. A shown mark's numbered labels (`1`, `2 → A6`) otherwise
+        /// go on from the series in `ev ui`; this is for marks that point at frames already
+        /// numbered there (a destination: `4=A6`, frame 4 goes to A6).
+        #[arg(long, conflicts_with = "no_show")]
+        keep_numbers: bool,
     },
     /// A node's photos, numbered from 1.
     List { reference: String },
@@ -1725,6 +1735,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
         Cmd::Stats => inv.stats(),
+        Cmd::Focus { list: true, .. } => inv.focus_list(),
         Cmd::Focus { file, note, .. } if !file.is_empty() => inv.focus_file(&file, note.as_deref()),
         Cmd::Focus {
             reference,
@@ -1733,7 +1744,7 @@ fn run(cli: Cli) -> Result<Value> {
             ..
         } => {
             if reference.is_none() && !clear {
-                return Err(Error::Usage("name a node, --file, or --clear".into()));
+                return Err(Error::Usage("name a node, --file, --list or --clear".into()));
             }
             inv.focus(reference.as_deref(), photo)
         }
@@ -2028,6 +2039,7 @@ fn run(cli: Cli) -> Result<Value> {
             show,
             no_show,
             codes,
+            keep_numbers,
         }) => {
             let grid = grid
                 .as_deref()
@@ -2057,18 +2069,34 @@ fn run(cli: Cli) -> Result<Value> {
                     )));
                 }
             }
-            let mut v = inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref())?;
-            // Shown in the person's `ev ui` unless asked not to, titled with --show's note or
-            // else with the labels.
-            if let (false, Some(path)) = (no_show, v["marked"].as_str().map(PathBuf::from)) {
+            // Shown in the person's `ev ui` unless asked not to, as part of the series there:
+            // its numbers go on from the series' (spec/focus-stack.md).
+            if no_show {
+                return inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref());
+            }
+            let mut v = inv.photo_mark_numbered(
+                &target,
+                &marks,
+                grid.as_ref(),
+                out.as_deref(),
+                keep_numbers,
+            )?;
+            if let Some(path) = v["marked"].as_str().map(PathBuf::from) {
+                // Titled with --show's note, or else with the labels as drawn.
                 let note = show.unwrap_or_else(|| {
-                    marks
-                        .iter()
-                        .map(|(l, _)| l.as_str())
+                    v["marks"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|m| m["label"].as_str())
                         .collect::<Vec<_>>()
                         .join(" · ")
                 });
-                v["shown"] = inv.focus_file(&[path], Some(&note))?["focus"].clone();
+                let frames = v["frames"].as_array().cloned().unwrap_or_default();
+                v["shown"] = inv.focus_marked(&[path], Some(&note), &frames)?["focus"].clone();
+            }
+            if let Some(o) = v.as_object_mut() {
+                o.remove("frames");
             }
             Ok(v)
         }
@@ -2102,36 +2130,49 @@ fn run(cli: Cli) -> Result<Value> {
                     Ok((r.trim().to_string(), c.parse::<ev_core::Crop>()?.padded(pad)))
                 })
                 .collect::<Result<Vec<_>>>()?;
+            // Shown frames take their numbers in the series in `ev ui` — the ones this photo was
+            // marked with there, then the next free ones — so they match what the person was
+            // told (spec/focus-stack.md).
+            let series = !no_show;
             let (mut v, title) = match &preview {
                 Some(title) => (
-                    inv.photo_cut_preview(&file, place.as_deref(), &crops, grid.as_ref(), None)?,
+                    inv.photo_cut_preview_in(
+                        &file,
+                        place.as_deref(),
+                        &crops,
+                        grid.as_ref(),
+                        None,
+                        series,
+                    )?,
                     title.clone(),
                 ),
                 None => (
-                    inv.photo_cut(
+                    inv.photo_cut_in(
                         &file,
                         place.as_deref(),
                         &crops,
                         note.as_deref(),
                         grid.as_ref(),
+                        series,
                     )?,
                     None,
                 ),
             };
-            // What the cut drew goes to the person's `ev ui` unless asked not to: the preview
-            // and the numbered photo, stepped through with `[` `]` in one request. Showing was
-            // opt-in, and an agent that checked the frames itself never put them on the screen.
+            // What the cut drew goes to the person's `ev ui` unless asked not to: the numbered
+            // photo, and the preview when it framed a grid's boxes on their cells (otherwise it
+            // frames the same crops under record ids, not the numbers the person is told).
             let path = |k: &str| v[k].as_str().map(PathBuf::from);
             let mut files: Vec<PathBuf> = Vec::new();
             if !no_show {
-                if preview.is_some() {
+                if preview.is_some() && grid.is_some() {
                     files.extend(path("preview"));
                 }
                 files.extend(path("marked"));
             }
             if !files.is_empty() {
                 let note = title.or(note).unwrap_or_else(|| legend_note(&v["legend"]));
-                v["shown"] = inv.focus_file(&files, Some(&note))?["focus"].clone();
+                let frames = v["legend"].as_array().cloned().unwrap_or_default();
+                v["shown"] = inv.focus_marked(&files, Some(&note), &frames)?["focus"].clone();
             }
             Ok(v)
         }

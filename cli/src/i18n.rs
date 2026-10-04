@@ -1029,9 +1029,14 @@ static TR: &[(&str, &str)] = &[
     ),
     ("Sent to ev ui: #{}", "ev ui'a gönderildi: #{}"),
     (
-        "Sent to ev ui: {} picture(s)",
-        "ev ui'a gönderildi: {} resim",
+        "Sent to ev ui: {} picture(s), {} in the series",
+        "ev ui'a gönderildi: {} resim, seride {}",
     ),
+    (
+        "No marked photo series in ev ui.",
+        "ev ui'da işaretli foto serisi yok.",
+    ),
+    ("Next number: {}", "Sıradaki numara: {}"),
     (
         "The request to ev ui is cleared.",
         "ev ui'a gönderilen istek silindi.",

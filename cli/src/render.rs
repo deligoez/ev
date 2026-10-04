@@ -2155,10 +2155,38 @@ pub fn human(v: &Value) -> String {
         let said = match (f["id"].as_i64(), f["photo"].as_i64(), f["files"].as_array()) {
             (Some(id), Some(p), _) => tf("Sent to ev ui: #{}, photo {}", &[&id, &p]),
             (Some(id), None, _) => tf("Sent to ev ui: #{}", &[&id]),
-            (None, _, Some(files)) => tf("Sent to ev ui: {} picture(s)", &[&files.len()]),
+            (None, _, Some(files)) => tf(
+                "Sent to ev ui: {} picture(s), {} in the series",
+                &[
+                    &files.len(),
+                    &f["series"].as_u64().unwrap_or(files.len() as u64),
+                ],
+            ),
             _ => t("The request to ev ui is cleared.").to_string(),
         };
         let _ = writeln!(out, "{said}");
+        return out;
+    }
+    // `ev focus --list`: the series of marked photos on screen.
+    if let Some(series) = v.get("series")
+        && v.as_object().is_some_and(|o| o.len() == 1)
+    {
+        if series.is_null() {
+            let _ = writeln!(out, "{}", t("No marked photo series in ev ui."));
+            return out;
+        }
+        let _ = writeln!(out, "{}", tf("Next number: {}", &[&series["next"]]));
+        for p in series["pictures"].as_array().into_iter().flatten() {
+            let note = p["note"].as_str().unwrap_or("");
+            let _ = writeln!(out, "{}. {note}  {}", p["n"], s(p, "file"));
+            for f in p["frames"].as_array().into_iter().flatten() {
+                let what = match f["ref"].is_object() {
+                    true => line(&f["ref"]),
+                    false => s(f, "at"),
+                };
+                let _ = writeln!(out, "   {:<3} {what}", f["n"]);
+            }
+        }
         return out;
     }
     if let Some(list) = v.get("recoded").and_then(Value::as_array) {

@@ -59,3 +59,12 @@ finds `S5-11`, a second `S5_12` is refused where `S5-12` is in use, and `code=S5
 series after `S05_12`. Every record keeps its code as printed. **Schema 32**: the folded form of
 every code is worked out again when this version first opens an inventory of 31; nothing else
 changes.
+
+## A thing that waits for another
+
+Glue sticks were parked until the glue gun, recorded lost, turned up; the only link was a line
+in the gun's note, read by nothing. `ev edit <thing> waits_for=<other>` records it
+(spec/waits-for.md): `ev show` names the wait both ways, `ev todo` shows what each parked thing
+waits for, and `ev found <other>` lists what waited for it so the person can say where those go
+now. A move of the waiting thing ends the wait. **Schema 33** adds `nodes.waits_for` when this
+version first opens an inventory of 32.

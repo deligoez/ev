@@ -49,3 +49,13 @@ A box marked empty turned out full of odds and ends nobody had counted; `ev revi
 raw` cleared its tour, but `ev find --empty` and `ev suggest` still offered it as empty, since an
 `empty` once said was kept for good. Setting a box back to `raw` now forgets what made it known
 empty up to then, so it lists among the boxes never counted until it is toured again.
+
+## A code is the same however its label is printed
+
+The household's label maker cannot print a hyphen with its cassette, so new labels come out with
+`_` while the old ones have `-`, and a new box of the `S5` series was printed `S05_12`. Codes now
+compare with `-` and `_` as one and a number's leading zeros ignored (spec/codes.md): `S5_11`
+finds `S5-11`, a second `S5_12` is refused where `S5-12` is in use, and `code=S5_*` continues the
+series after `S05_12`. Every record keeps its code as printed. **Schema 32**: the folded form of
+every code is worked out again when this version first opens an inventory of 31; nothing else
+changes.

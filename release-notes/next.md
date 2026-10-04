@@ -29,3 +29,9 @@ Emptying a box before it was thrown out took one `ev move` per thing inside. `ev
 <c> --to <place>` (or `--plan`) now moves them together, all or none: one that is refused (it is
 already there) leaves every one where it was. In `ev edit --stdin`, a list of tags,
 `"tags": ["vida", "-m3"]`, adds each item that does not say `+` or `-` itself; it was refused.
+
+## A reason when setting a thing aside
+
+`ev gone --why` kept what the person said about a thing leaving, but `ev dispose` refused
+`--why`, though the skill names both together. `ev dispose <x> --as give --why "<text>"` now adds
+the reason to the thing's note, as `gone --why` does.

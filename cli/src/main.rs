@@ -601,6 +601,19 @@ fn edit_lines(text: &str) -> Result<Vec<(String, Vec<String>)>> {
         let mut assignments = Vec::new();
         for (field, value) in set {
             match value {
+                // `"tags": ["a", "-b"]`: each is added unless it says otherwise, as a list of
+                // tags reads in NDJSON; `"tags": "+a"` is the same as `["a"]`.
+                Value::Array(items) if field == "tags" || field == "photos" => {
+                    for item in items {
+                        let a = scalar(field, item)?;
+                        let v = &a[field.len() + 1..];
+                        assignments.push(if v.starts_with(['+', '-']) {
+                            a
+                        } else {
+                            format!("{field}=+{v}")
+                        });
+                    }
+                }
                 Value::Array(items) => {
                     for item in items {
                         assignments.push(scalar(field, item)?);

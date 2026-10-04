@@ -25,7 +25,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 32;
+pub const SCHEMA_VERSION: i64 = 33;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -34,7 +34,8 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      state, disposition, lost, pending_to, created_at, updated_at, \
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
-     (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial, thing";
+     (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial, thing, \
+     waits_for";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -210,6 +211,9 @@ impl Inventory {
             }
             tx.execute_batch("PRAGMA user_version = 32")?;
             tx.commit()?;
+        }
+        if version < 33 {
+            conn.execute_batch(SCHEMA_V33)?;
         }
         Ok(Self {
             conn,
@@ -1099,8 +1103,10 @@ impl Inventory {
         // Found where the rest of the same thing is: the units join them.
         let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        // Back in hand: the moment to ask which purchase it was, as for a new record.
-        offer_purchases(&self.conn, holder, show(&self.conn, holder)?)
+        // Back in hand: the moment to ask which purchase it was, as for a new record, and where
+        // the things that waited for it go now.
+        let v = offer_purchases(&self.conn, holder, show(&self.conn, holder)?)?;
+        with_waiting(&self.conn, node.id, v)
     }
 
     /// A lost node turned up somewhere else than where it was last seen: it moves there, which
@@ -1114,7 +1120,8 @@ impl Inventory {
             ));
         }
         let v = self.move_to(&format!("#{}", node.id), place, false)?;
-        offer_purchases(&self.conn, node.id, v)
+        let v = offer_purchases(&self.conn, node.id, v)?;
+        with_waiting(&self.conn, node.id, v)
     }
 
     pub fn lost_list(&self) -> Result<Value> {
@@ -1235,6 +1242,7 @@ fn node_row(r: &rusqlite::Row) -> rusqlite::Result<Node> {
         model: r.get(22)?,
         serial: r.get(23)?,
         thing: r.get(24)?,
+        waits_for: r.get(25)?,
     })
 }
 
@@ -1463,6 +1471,9 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "needs": needs,
         "node": node,
         "thing": crate::portions::thing_json(conn, &n)?,
+        // What its place waits for, and what waits for it (spec/waits-for.md).
+        "waits_for": n.waits_for.map(|w| brief(conn, w)).transpose()?,
+        "waited_for_by": waited_for_by(conn, id)?,
         "children": children,
         "pending": pending,
         "last_seen": last_seen,
@@ -1482,6 +1493,18 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
                 .map(|(v, why, on)| json!({ "decision": v, "why": why, "on": on })),
         },
     }))
+}
+
+/// The live records whose place waits for `id` (spec/waits-for.md).
+pub(crate) fn waited_for_by(conn: &Connection, id: i64) -> Result<Vec<NodeRef>> {
+    ids(
+        conn,
+        "SELECT id FROM nodes WHERE waits_for = ?1 AND state != 'gone' ORDER BY id",
+        [id],
+    )?
+    .into_iter()
+    .map(|w| brief(conn, w))
+    .collect()
 }
 
 /// Items anywhere below `id` that are not gone, counting each item's quantity.
@@ -2180,6 +2203,10 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
     if unparked {
         conn.execute("UPDATE nodes SET temporary = 0 WHERE id = ?1", [node.id])?;
     }
+    // A thing that waited for another has found its place by moving (spec/waits-for.md).
+    if node.waits_for.is_some() {
+        conn.execute("UPDATE nodes SET waits_for = NULL WHERE id = ?1", [node.id])?;
+    }
     // Cells are positions in the old holder's grid; they mean nothing anywhere else. A sketch
     // is in the old holder's frame too, but it can be carried: it is translated so the node
     // stays where it lies on the map.
@@ -2201,7 +2228,7 @@ fn apply_move(conn: &Connection, node: &Node, target: i64, kind: &str) -> Result
         kind,
         json!({
             "from": node.parent_id, "to": target, "dropped_pending": dropped,
-            "was_lost": node.lost, "was_temporary": unparked,
+            "was_lost": node.lost, "was_temporary": unparked, "waited_for": node.waits_for,
         }),
     )?;
     Ok(())
@@ -2289,6 +2316,16 @@ fn sets_identity(assignments: &[String]) -> bool {
 
 /// Adds the purchase lines a node could be (purchases spec §5) to a result, when there are any:
 /// asked while the thing is in hand, after `add`, `split`, `found` and a new make or model.
+/// A found thing's answer names what waited for it (spec/waits-for.md), so the agent asks
+/// where those go now.
+fn with_waiting(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
+    let waiting = waited_for_by(conn, id)?;
+    if !waiting.is_empty() {
+        v["waiting"] = serde_json::to_value(waiting).map_err(|e| Error::Internal(e.to_string()))?;
+    }
+    Ok(v)
+}
+
 fn offer_purchases(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
     // A portion of a thing its purchases already account for asks nothing (spec/portions.md
     // §6); a line linked to the thing is no question either.

@@ -20,6 +20,7 @@ pub(super) fn field_value(n: &Node, field: &str) -> Value {
         "owner" => json!(n.owner),
         "with" => json!(n.with),
         "temporary" => json!(n.temporary),
+        "waits_for" => json!(n.waits_for),
         "make" => json!(n.make),
         "model" => json!(n.model),
         "serial" => json!(n.serial),
@@ -268,6 +269,23 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 params![v, n.id],
             )?;
         }
+        "waits_for" => {
+            // What its place waits on (spec/waits-for.md): a record, lost or not; never itself or
+            // something inside it, which could not turn up apart from it.
+            let other = text(value).map(|r| resolve(conn, &r, false)).transpose()?;
+            if let Some(o) = other
+                && (o == n.id || is_descendant(conn, o, n.id)?)
+            {
+                return Err(refused(
+                    format!("{} cannot wait for itself or something inside it", label(n)),
+                    Value::Null,
+                ));
+            }
+            conn.execute(
+                "UPDATE nodes SET waits_for = ?1 WHERE id = ?2",
+                params![other, n.id],
+            )?;
+        }
         "to" | "owner" | "with" => {
             let column = format!("{field}_place");
             let place = text(value).map(|t| place_or_create(conn, &t)).transpose()?;
@@ -284,7 +302,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, make, model, serial (how far a place is counted is `ev review`)"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, waits_for, make, model, serial (how far a place is counted is `ev review`)"
             )));
         }
     }

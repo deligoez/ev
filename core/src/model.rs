@@ -114,6 +114,10 @@ pub struct Node {
     /// (spec/portions.md): the id of the thing's first record.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thing: Option<i64>,
+    /// The record this one's place waits for (spec/waits-for.md): glue sticks parked until the
+    /// lost glue gun turns up.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waits_for: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

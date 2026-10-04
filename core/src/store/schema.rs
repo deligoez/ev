@@ -593,3 +593,11 @@ ALTER TABLE kits ADD COLUMN purchase_id INTEGER REFERENCES purchases(id);
 PRAGMA user_version = 31;
 COMMIT;
 ";
+
+/// Schema 33: a thing that waits for another (spec/waits-for.md).
+pub(super) const SCHEMA_V33: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN waits_for INTEGER REFERENCES nodes(id);
+PRAGMA user_version = 33;
+COMMIT;
+";

@@ -225,12 +225,17 @@ toured` is refused while the drawer or any box in it shows an older state than i
 
 **Showing what goes where.** When the agent proposes where the parts on the table go,
 `ev photo mark parts.jpg "1 → A6"=0.10,0.20,0.15,0.12 "2 → C1"=… --show "batch 3"` draws numbered
-red frames on the parts in a copy of the photo, and `ev photo mark 07-A 1=A6 2=C1 --show "where"`
-frames the target cells on the drawer's own photo, by cell name. Each goes full screen in a
-running `ev ui` at once, as every cut and preview does (`--no-show` to keep it off the screen); `ev focus --file a.jpg --file b.jpg --note "…"` sends several
-together, stepped with `[` `]`. Esc closes them (a stray click does not), and `m` opens the last
-ones again, even after a restart. The marked copies are scratch: never stored, never attached,
-no history, cleared after a day. `ev focus X [--photo n]` does the same for a recorded node,
+red frames on the parts in a copy of the photo, and
+`ev photo mark 07-A 1=A6 2=C1 --show "where" --keep-numbers` frames the target cells on the
+drawer's own photo, by cell name. Each goes full screen in a running `ev ui` at once, as every
+cut and preview does (`--no-show` to keep it off the
+screen), into the **marked photo series**: everything shown piles up there, stepped with `[` `]`,
+until the person closes it with `X`. ev numbers the frames across a series, so "3 at, 7 ver"
+means one frame each until it is closed; a photo marked again keeps its numbers, and a cut of a
+marked photo draws the same ones. Esc only hides the series (a stray click does not), and `m`
+brings it back, even after a restart; `ev focus --list` reads it. The marked copies are scratch:
+never stored, never attached, no history, cleared after a day; their red frames are edged in dark,
+so they read on a red box too. `ev focus X [--photo n]` shows a recorded node,
 so "which one do you mean?" is answered on screen too. While labels go on a gridded drawer's
 boxes, `ev photo mark <drawer> --codes` writes each box's code in the corner of its own cells,
 so the person reads which label goes on which box; a label keeps the letters as given.

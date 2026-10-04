@@ -1053,3 +1053,20 @@ fn several_records_move_together_or_not_at_all() {
         "{a}"
     );
 }
+
+#[test]
+fn a_reason_given_when_setting_a_thing_aside_goes_into_its_note() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    let v = inv
+        .dispose_qty(
+            "Flipper Zero",
+            ev_core::Disposition::Give,
+            false,
+            None,
+            Some("kuzene verilecek"),
+        )
+        .unwrap();
+    assert_eq!(v["node"]["note"], "kuzene verilecek");
+    assert_eq!(v["node"]["state"], "candidate");
+}

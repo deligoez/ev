@@ -1495,3 +1495,49 @@ fn nine_opens_the_statistics_with_a_section_per_heading() {
     term.draw(|f| app.draw(f)).unwrap();
     assert!(!screen(&term).contains("eşya kaydı"));
 }
+
+/// A small picture on disk, as `photo mark` leaves one.
+fn picture(dir: &tempfile::TempDir, name: &str) -> std::path::PathBuf {
+    let p = dir.path().join(name);
+    image::RgbImage::from_pixel(8, 8, image::Rgb([230, 30, 30]))
+        .save(&p)
+        .unwrap();
+    p
+}
+
+#[test]
+fn marked_photos_join_the_series_and_x_ends_it() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let (a, b) = (picture(&dir, "a.png"), picture(&dir, "b.png"));
+    app.inv
+        .focus_file(std::slice::from_ref(&a), Some("parts"))
+        .unwrap();
+    app.apply_focus().unwrap();
+    app.inv.focus_file(&[b], Some("drawer")).unwrap();
+    app.apply_focus().unwrap();
+    // The second joins the first and is the one shown, under its own note.
+    let mut term = Terminal::new(TestBackend::new(100, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(
+        s.contains("drawer · 2/2") && s.contains("X close series"),
+        "{s}"
+    );
+    press(&mut app, KeyCode::Char('['));
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("parts · 1/2"));
+    // Esc only hides it: `m` brings the whole series back.
+    press(&mut app, KeyCode::Esc);
+    assert!(app.overlay.is_none());
+    press(&mut app, KeyCode::Char('m'));
+    assert_eq!(app.overlay.as_ref().unwrap().files.len(), 2);
+    // X ends it, on screen and in the request, and what comes next starts another.
+    press(&mut app, KeyCode::Char('X'));
+    assert!(app.overlay.is_none() && app.last_overlay.is_none());
+    assert!(app.inv.focus_request().unwrap().is_null());
+    assert_eq!(app.status, "marked photo series closed");
+    app.inv.focus_file(&[a], Some("next")).unwrap();
+    app.apply_focus().unwrap();
+    assert_eq!(app.overlay.as_ref().unwrap().files.len(), 1);
+}

@@ -754,7 +754,7 @@ fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(
-        s.contains("1 → A6 · 1/2") && s.contains("Esc/o close · [ ] ← → step"),
+        s.contains("1 → A6 · 1/2") && s.contains("Esc/o hide · [ ] ← → step"),
         "{s}"
     );
     // A stray click does not close it.
@@ -776,7 +776,7 @@ fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(
-        s.contains("Summary") && s.contains("m marked photos"),
+        s.contains("Summary") && s.contains("m marked photo series"),
         "{s}"
     );
     assert!(app.overlay.is_none());

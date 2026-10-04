@@ -42,7 +42,16 @@ pub fn fold_code(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::fold;
+    use super::{fold, fold_code};
+
+    #[test]
+    fn a_code_folds_its_separator_and_the_leading_zeros_of_its_numbers() {
+        assert_eq!(fold_code("S05_12"), fold_code("S5-12"));
+        assert_eq!(fold_code("G1x1_007"), "g1x1-7");
+        assert_eq!(fold_code("K4x4-07-Ü"), "k4x4-7-u");
+        assert_eq!(fold_code("A-00"), "a-0");
+        assert_ne!(fold_code("S5-12"), fold_code("S5-120"));
+    }
 
     #[test]
     fn spec_table() {

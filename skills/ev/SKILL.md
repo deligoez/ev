@@ -447,6 +447,10 @@ frame sits on its part before sending** — the coordinates are your estimate.
 and questions alike, even when you said it once further up: the person matches your words to
 the picture.
 
+**A question about one thing names it and shows it.** Before asking about a single thing ("where
+did this go?"), mark it on the photo it is in, or `ev focus` it, so the question is on their
+screen with the thing framed.
+
 **Show a placement proposal, don't only write it.** Mark both ends with the same numbers: the
 parts (`ev photo mark <file> "1 → A6"=x,y,w,h …`) and the destination's cells
 (`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a photo cut before corners were

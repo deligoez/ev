@@ -15,3 +15,10 @@ picture the person should keep looking at). `--show` is still accepted, and `--s
 with the old one as an addition: a theme written out longer showed as `theme: +  ve bağlantı
 parçaları`. Only a value that goes on with a new line, as `field=+text` adds it, is shown as an
 addition now; any other change is `old → new`.
+
+## Purchase lines found by their words
+
+"Is there a purchase of this pen?" had no answer without recording the pen first and asking
+`ev buy for` about it, or a script over `ev buy list`. `ev buy list --query "<words>"` keeps the
+lines with every word in their name, shop, brand, product code or order number, compared
+folded; with the other filters it narrows them further.

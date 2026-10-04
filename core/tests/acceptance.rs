@@ -1080,28 +1080,28 @@ fn a_code_is_the_same_whatever_its_separator_or_leading_zeros() {
         "Samla 11",
         "container",
         Some("Kiler"),
-        Some("S5-11"),
+        Some("S3-11"),
     );
     // Found as printed with the other separator, or with a leading zero.
-    let id = inv.show("S5-11", false).unwrap()["node"]["id"].clone();
-    assert_eq!(inv.show("s5_11", false).unwrap()["node"]["id"], id);
-    assert_eq!(inv.show("S05_11", false).unwrap()["node"]["id"], id);
+    let id = inv.show("S3-11", false).unwrap()["node"]["id"].clone();
+    assert_eq!(inv.show("s3_11", false).unwrap()["node"]["id"], id);
+    assert_eq!(inv.show("S03_11", false).unwrap()["node"]["id"], id);
     // The same code twice is refused, however it is written.
     let mut dup = node("Başka", "container", Some("Kiler"), None);
-    dup.code = Some("S5_11".into());
+    dup.code = Some("S3_11".into());
     assert_eq!(code_of(&inv.add(dup).unwrap_err()), 5);
-    // One series: a label printed `S05_12` is its 12th, and the next follows it, written as
+    // One series: a label printed `S03_12` is its 12th, and the next follows it, written as
     // asked and padded like the series.
     add(
         &mut inv,
         "Samla 12",
         "container",
         Some("Kiler"),
-        Some("S05_12"),
+        Some("S03_12"),
     );
     let mut next = node("Samla 13", "container", Some("Kiler"), None);
-    next.code = Some("S5_*".into());
-    assert_eq!(inv.add(next).unwrap()["node"]["code"], "S5_13");
+    next.code = Some("S3_*".into());
+    assert_eq!(inv.add(next).unwrap()["node"]["code"], "S3_13");
 }
 
 #[test]

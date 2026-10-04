@@ -16,7 +16,7 @@ pub fn fold(s: &str) -> String {
 }
 
 /// Folds a code for comparison (spec/codes.md): as `fold`, and `_` is `-`, and a number loses
-/// its leading zeros, so `S05_12` and `S5-12` are one code however the label was printed.
+/// its leading zeros, so `S03_12` and `S3-12` are one code however the label was printed.
 pub fn fold_code(s: &str) -> String {
     let folded = fold(s).replace('_', "-");
     let mut out = String::with_capacity(folded.len());
@@ -46,11 +46,11 @@ mod tests {
 
     #[test]
     fn a_code_folds_its_separator_and_the_leading_zeros_of_its_numbers() {
-        assert_eq!(fold_code("S05_12"), fold_code("S5-12"));
-        assert_eq!(fold_code("G1x1_007"), "g1x1-7");
+        assert_eq!(fold_code("S03_12"), fold_code("S3-12"));
+        assert_eq!(fold_code("GF2x1_007"), "gf2x1-7");
         assert_eq!(fold_code("K4x4-07-Ü"), "k4x4-7-u");
         assert_eq!(fold_code("A-00"), "a-0");
-        assert_ne!(fold_code("S5-12"), fold_code("S5-120"));
+        assert_ne!(fold_code("S3-12"), fold_code("S3-120"));
     }
 
     #[test]

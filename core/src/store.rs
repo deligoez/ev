@@ -1807,7 +1807,7 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
         .filter(|x| include_gone || x.3 != "gone")
         .collect();
 
-    // A code as printed: `S5_11` finds `S5-11`, `S05` finds `S5` (spec/codes.md).
+    // A code as printed: `S3_11` finds `S3-11`, `S03` finds `S3` (spec/codes.md).
     let wanted_code = crate::fold::fold_code(r);
     let code_hits: Vec<_> = visible
         .iter()
@@ -1886,8 +1886,8 @@ fn expand_code(conn: &Connection, code: &str) -> Result<String> {
             "`{c}`: a series is a prefix followed by one `*`, like GF1x1-*"
         )));
     }
-    // One series whatever its labels' separator and padding (spec/codes.md): `S5_*` continues
-    // after `S5-11` and `S05_12`; the padding is the printed one, the widest in the series.
+    // One series whatever its labels' separator and padding (spec/codes.md): `S3_*` continues
+    // after `S3-11` and `S03_12`; the padding is the printed one, the widest in the series.
     let folded_prefix = crate::fold::fold_code(prefix);
     let mut stmt = conn.prepare("SELECT code FROM nodes WHERE code IS NOT NULL")?;
     let codes = stmt

@@ -580,7 +580,7 @@ used is part of every session.
 A partial name never resolves (`flipper` does not find "Flipper Zero"): search first,
 then act by id. Codes and names compare case- and diacritic-insensitively, so `k4x4-07-u`
 finds `K4x4-07-Ü`; a code's `-` and `_` are one, and a number's leading zeros do not count
-(`S05_12` is `S5-12`). Record a code exactly as its label is printed; never relabel a box only to
+(`S03_12` is `S3-12`). Record a code exactly as its label is printed; never relabel a box only to
 change its separator.
 
 `#N` alone is a node. After a record's word it is that record's own number, not a node:

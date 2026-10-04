@@ -7,8 +7,8 @@ says the thing's place is to be settled when the other is at hand — glue stick
 the glue gun, recorded lost, turns up.
 
 - **When the awaited one turns up, ev says so.** `ev found <other>` (and `--in`) answers with
-  `waiting`: the records waiting for it, so the agent asks the person where they go now ("#793,
-  #794 were waiting for this: put them next to it?"). Nothing is moved on its own.
+  `waiting`: the records waiting for it, so the agent asks the person where they go now ("#41,
+  #42 were waiting for this: put them next to it?"). Nothing is moved on its own.
 - **`ev show <other>`** lists `waited_for_by`; `ev show <thing>` lists `waits_for`.
 - **`ev todo`** shows, on each parked (`temporary`) row, what it waits for.
 - **The wait ends when the thing moves**, as the `temporary` mark does: it has found its place.

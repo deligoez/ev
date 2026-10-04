@@ -42,8 +42,8 @@ skills, the skill is the prompt `ev` and the resource `ev://skill`.
 
 **One tree.** `home` › `room` (rooms nest) › `furniture` › `container` › `item`, and any node can
 hold others. Codes are the physical labels (`K4x4-07-Ü`, `S5-01`) and compare case- and
-diacritic-insensitively, with `-` and `_` as one and a number's leading zeros ignored (`S05_12` is
-`S5-12`): a label maker that cannot print a hyphen is no reason to relabel.
+diacritic-insensitively, with `-` and `_` as one and a number's leading zeros ignored (`S03_12` is
+`S3-12`): a label maker that cannot print a hyphen is no reason to relabel.
 
 ```bash
 ev add Ev --kind home
@@ -52,7 +52,7 @@ ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing 
 ev find flipper                  # word search over name, code, note, theme, tags
 ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
 ev find --empty                  # the boxes known to be empty, worked out, no tag to keep
-ev empty S5-12 --note "came empty" # a box the person opened and found empty
+ev empty S3-12 --note "came empty" # a box the person opened and found empty
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows
 ev tree Salon --depth 2          # the picture, with item totals; a series of boxes in code order

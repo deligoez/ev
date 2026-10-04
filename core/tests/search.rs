@@ -198,3 +198,24 @@ fn a_lost_thing_last_seen_in_a_box_does_not_keep_it_from_being_empty() {
     // Toured with no photo: there is nothing in it to show.
     inv.review("Kablo çantası", "toured", None).unwrap();
 }
+
+#[test]
+fn a_box_set_back_to_raw_is_no_longer_known_empty() {
+    let (_d, mut inv) = setup();
+    inv.mark_empty(&["Kablo çantası".into()], None).unwrap();
+    let names = |inv: &Inventory, key: &str| -> Vec<String> {
+        inv.find_with("", None, None, false, true).unwrap()[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert!(names(&inv, "results").contains(&"Kablo çantası".to_string()));
+    // Called empty a second ago, it turns out full of things nobody counted.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.review("Kablo çantası", "raw", Some("içi dolu, sayılmadı"))
+        .unwrap();
+    assert!(!names(&inv, "results").contains(&"Kablo çantası".to_string()));
+    assert!(names(&inv, "not_known").contains(&"Kablo çantası".to_string()));
+}

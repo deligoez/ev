@@ -23,6 +23,7 @@
 | thing | `move --qty`, `add --of`, `join`, `unjoin` | the thing a record is a portion of, when it is kept in several places: the id of the thing's first record; not set by hand (see **One thing in several places**) |
 | lost | `--lost`, `lost`, `found [--in]`, any move | its place is not known: out of where it was last seen (kept as the parent), listed under "Unknown place" in `ev tree` and `ev ui`, not counted in that place's `items`; a thing added with `--lost` and no place was never seen |
 | temporary | `--temporary`, `edit temporary=true/false` | a parking place: what is put straight into it waits for its final place (`ev todo` lists it as `parked`, `ev suggest` never offers the place or anything inside it, listing them under `parking`); on an item, that one thing waits where it is. A move clears an item's own mark (the event says `was_temporary`); a place keeps its mark until set back |
+| waits_for | `edit waits_for=<ref>` (`waits_for=` clears) | the record this one's place waits for (spec/waits-for.md): glue sticks parked until the lost glue gun turns up. Not itself or anything inside it. `ev show` gives `waits_for` (NodeRef) and, on the awaited one, `waited_for_by`; `ev found` of the awaited one adds `waiting` (what waited for it, to settle now; nothing moves on its own); `ev todo`'s `parked` rows carry `waits_for`. A move of the waiting thing ends the wait (the event says `waited_for`) |
 
 ## Batch lines (`ev add --batch file` / `--stdin`)
 

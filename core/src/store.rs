@@ -780,7 +780,7 @@ impl Inventory {
         disposition: Disposition,
         shred: bool,
     ) -> Result<Value> {
-        self.dispose_qty(reference, disposition, shred, None)
+        self.dispose_qty(reference, disposition, shred, None, None)
     }
 
     /// `dispose_with` for `qty` of a record's units: they are set apart as a portion of their
@@ -791,6 +791,7 @@ impl Inventory {
         disposition: Disposition,
         shred: bool,
         qty: Option<i64>,
+        why: Option<&str>,
     ) -> Result<Value> {
         check_shred(disposition, shred)?;
         not_merged(Some(disposition))?;
@@ -822,6 +823,23 @@ impl Inventory {
         set_candidate(&tx, node.id, disposition)?;
         if shred {
             crate::marks::mark_shred(&tx, node.id)?;
+        }
+        // What the person said about letting it go, as `gone --why` keeps it: in the note.
+        if let Some(w) = why.map(str::trim).filter(|w| !w.is_empty()) {
+            let note = match node.note.as_deref() {
+                Some(n) if !n.trim().is_empty() => format!("{n}\n{w}"),
+                _ => w.to_string(),
+            };
+            tx.execute(
+                "UPDATE nodes SET note = ?1 WHERE id = ?2",
+                params![note, node.id],
+            )?;
+            event(
+                &tx,
+                node.id,
+                "edit",
+                json!({ "note": { "before": node.note, "after": note } }),
+            )?;
         }
         tx.commit()?;
         show(&self.conn, node.id)

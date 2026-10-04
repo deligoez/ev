@@ -150,6 +150,9 @@ enum Cmd {
         /// Only this many of a counted item: they are set apart, the rest stay.
         #[arg(long)]
         qty: Option<i64>,
+        /// What the person said about letting it go; added to its note, as with `gone --why`.
+        #[arg(long)]
+        why: Option<String>,
     },
     /// Return a candidate to active; with --correction, undo a gone recorded by mistake.
     Restore {
@@ -1607,7 +1610,8 @@ fn run(cli: Cli) -> Result<Value> {
             disposition: d,
             shred,
             qty,
-        } => inv.dispose_qty(&reference, disposition(&d)?, shred, qty),
+            why,
+        } => inv.dispose_qty(&reference, disposition(&d)?, shred, qty, why.as_deref()),
         Cmd::Restore {
             reference,
             correction: Some(why),

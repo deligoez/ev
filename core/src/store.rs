@@ -1485,24 +1485,33 @@ pub(crate) fn item_total(conn: &Connection, id: i64) -> Result<i64> {
 /// been counted (`toured`, its own review or inherited; `kept` is left uncounted), or something was once
 /// recorded in it (created there or moved there) and has left, or the person said it is empty
 /// (`ev empty`). An uncounted carton in a room
-/// never toured has no records inside because nobody looked, not because it is empty.
+/// never toured has no records inside because nobody looked, not because it is empty. The box set
+/// back to `raw` (`ev review <box> --as raw`: it holds things never counted) forgets all of that
+/// up to then.
 pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
+    let reset: Option<String> = conn.query_row(
+        "SELECT MAX(at) FROM events
+          WHERE node_id = ?1 AND type = 'review' AND json_extract(data, '$.as') = 'raw'",
+        [id],
+        |r| r.get(0),
+    )?;
+    let after = |at: &str| reset.as_deref().is_none_or(|r| at > r);
     let review = crate::plan::review_inherited(conn, id)?;
-    if review["status"] == "toured" {
+    if review["status"] == "toured" && review["at"].as_str().is_none_or(after) {
         return Ok(true);
     }
-    let held: Option<i64> = conn
+    let held: Option<String> = conn
         .query_row(
-            "SELECT 1 FROM events
+            "SELECT MAX(at) FROM events
               WHERE (type = 'create' AND json_extract(data, '$.parent') = ?1)
                  OR json_extract(data, '$.to') = ?1
-                 OR (type = 'empty' AND node_id = ?1)
-              LIMIT 1",
+                 OR (type = 'empty' AND node_id = ?1)",
             [id],
             |r| r.get(0),
         )
-        .optional()?;
-    Ok(held.is_some())
+        .optional()?
+        .flatten();
+    Ok(held.as_deref().is_some_and(after))
 }
 
 /// A slot of a piece of furniture (a drawer, a compartment) rather than a box that moves: one

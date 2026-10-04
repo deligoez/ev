@@ -447,16 +447,25 @@ frame sits on its part before sending** — the coordinates are your estimate.
 and questions alike, even when you said it once further up: the person matches your words to
 the picture.
 
+**The marked photo series (işaretli foto serisi) is the person's, its numbers are ev's.**
+Everything you put on their screen joins one series in `ev ui` until the person closes it with
+`X`; Esc only hides it and `m` brings it back. Never decide where a series ends (`ev focus
+--clear` only when they ask). ev numbers the frames across the series: write each photo's labels
+from 1 and **quote the numbers ev returns** (`marks[].label`, the cut's `legend`) in your table,
+never your own count. A number means one frame until the series is closed: a photo marked again
+keeps its numbers and a frame added to it takes the next free one; a cut of a photo you marked
+draws the numbers it was marked with, so give its crops in the order of the marks.
+`ev focus --list` reads the series (each picture, its frames, the next number).
+
 **A question about one thing names it and shows it.** Before asking about a single thing ("where
 did this go?"), mark it on the photo it is in, or `ev focus` it, so the question is on their
 screen with the thing framed.
 
 **Show a placement proposal, don't only write it.** Mark both ends with the same numbers: the
-parts (`ev photo mark <file> "1 → A6"=x,y,w,h …`) and the destination's cells
-(`ev photo mark <drawer> 1=A6 2=B6 …`; `--grid <corners>` for a photo cut before corners were
-kept), and send both in one request, `ev focus --file <parts> --file <drawer> --note "…"` (sent
-one after the other, the second replaces the first). The person steps with `[` `]` and reopens
-them with `m`. Marked copies are temporary: nothing to undo after the move. The text still names
+parts (`ev photo mark <file> "1 → A6"=x,y,w,h …`), then the destination's cells with the numbers
+that mark returned, as drawn (`ev photo mark <drawer> 3=A6 4=B6 --keep-numbers`; `--grid
+<corners>` for a photo cut before corners were kept). Both join the series; the person steps
+with `[` `]`. Marked copies are temporary: nothing to undo after the move. The text still names
 each part and its destination by position.
 
 **Unpacking a bag: record in the bag, then plan.** When parts come out of a bag or box, record

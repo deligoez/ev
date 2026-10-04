@@ -379,3 +379,25 @@ fn a_cut_of_a_photo_marked_in_the_series_takes_the_numbers_it_was_marked_with() 
         .unwrap();
     assert_eq!(v["legend"][0]["n"], 1);
 }
+
+#[test]
+fn a_frame_is_edged_in_dark_so_it_reads_on_a_red_photo() {
+    // The setup photo is pure red and blue: nothing in it is dark.
+    let (_dir, inv, photo) = setup();
+    let v = inv
+        .photo_mark(
+            photo.to_str().unwrap(),
+            &[("1".into(), "0.1,0.1,0.3,0.6".into())],
+            None,
+            None,
+        )
+        .unwrap();
+    let marked = image::open(v["marked"].as_str().unwrap())
+        .unwrap()
+        .to_rgb8();
+    let dark = marked
+        .pixels()
+        .filter(|p| p.0.iter().all(|c| *c < 60))
+        .count();
+    assert!(dark > 100, "{dark} dark pixels");
+}

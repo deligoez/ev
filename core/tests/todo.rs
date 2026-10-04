@@ -548,3 +548,24 @@ fn marked_photos_pile_up_in_one_series_and_a_new_copy_of_one_takes_its_place() {
     inv.focus(None, None).unwrap();
     assert!(inv.focus_request().unwrap().is_null());
 }
+
+#[test]
+fn pictures_sent_before_series_existed_start_no_series_and_numbering_starts_at_one() {
+    let (d, mut inv) = setup();
+    let old = d.path().join("old-numbered-1.png");
+    let new = d.path().join("new.png");
+    for p in [&old, &new] {
+        image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+            .save(p)
+            .unwrap();
+    }
+    // A request an older ev wrote: its picture has a "1" drawn on it that no series registered.
+    let request = serde_json::json!({
+        "files": [old.to_string_lossy()], "note": "before", "at": "2026-01-01T00:00:00.000Z",
+    });
+    std::fs::write(d.path().join("ev.db-focus.json"), request.to_string()).unwrap();
+    assert!(inv.focus_list().unwrap()["series"].is_null());
+    assert_eq!(inv.focus_numbers(&new, 2).unwrap(), [1, 2]);
+    let v = inv.focus_file(&[new], Some("after")).unwrap();
+    assert_eq!(v["focus"]["series"], 1);
+}

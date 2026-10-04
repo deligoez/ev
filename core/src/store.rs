@@ -670,48 +670,33 @@ impl Inventory {
         qty: Option<i64>,
     ) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let mut node = load(&tx, resolve(&tx, reference, false)?)?;
-        let target = resolve(&tx, to, false)?;
-        // A move to where it already is says nothing, and as a plan it waits forever. A lost
-        // thing moved to where it was last seen is found there, so that one goes on.
-        if !node.lost && node.parent_id == Some(target) {
-            return Err(refused(
-                format!(
-                    "{} is already in {}; a place inside it (a compartment) is a grid cell \
-                     (`ev grid`, `ev cell`) or a holder of its own",
-                    label(&node),
-                    label(&load(&tx, target)?)
-                ),
-                Value::Null,
-            ));
-        }
-        if let Some(count) = crate::portions::part_of(&node, qty)? {
-            let id = crate::portions::split_off(&tx, &node, count)?;
-            node = load(&tx, id)?;
-        }
-        if plan {
-            if let Some(p) = node.pending_to {
-                return Err(refused(
-                    format!(
-                        "{} already has a pending move; cancel it first",
-                        label(&node)
-                    ),
-                    json!({ "pending": brief(&tx, p)? }),
-                ));
-            }
-            tx.execute(
-                "UPDATE nodes SET pending_to = ?1 WHERE id = ?2",
-                params![target, node.id],
-            )?;
-            touch(&tx, node.id)?;
-            event(&tx, node.id, "plan", json!({ "to": target }))?;
-            tx.commit()?;
-            return show(&self.conn, node.id);
-        }
-        apply_move(&tx, &node, target, "move")?;
-        let holder = crate::portions::join_here(&tx, node.id)?;
+        let id = move_in(&tx, reference, to, plan, qty)?;
         tx.commit()?;
-        show(&self.conn, holder)
+        show(&self.conn, id)
+    }
+
+    /// Several records to one place in one step, all or none (a box emptied before it goes):
+    /// each as `move_to` would move it, or plan it with `plan`. Answers with where each one is
+    /// now (or is planned to go) rather than a node payload for each.
+    pub fn move_many(&mut self, references: &[String], to: &str, plan: bool) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut moved = Vec::with_capacity(references.len());
+        for r in references {
+            let id = move_in(&tx, r, to, plan, None)?;
+            if !moved.contains(&id) {
+                moved.push(id);
+            }
+        }
+        let target = resolve(&tx, to, false)?;
+        tx.commit()?;
+        let key = if plan { "planned" } else { "moved" };
+        let rows = moved
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        let mut v = json!({ "to": brief(&self.conn, target)? });
+        v[key] = json!(rows);
+        Ok(v)
     }
 
     /// Records made separately are one thing kept in several places (spec/portions.md §4.3).
@@ -1325,6 +1310,57 @@ pub(crate) fn label(n: &Node) -> String {
         Some(c) => format!("{c} ({})", n.name),
         None => format!("#{} {}", n.id, n.name),
     }
+}
+
+/// One move inside the caller's transaction: `qty` of the record's units (all by default) to
+/// `to`, or planned there with `plan`. Returns the record that now holds them (a portion that
+/// joined one already there) or, planned, the one waiting.
+fn move_in(
+    tx: &Connection,
+    reference: &str,
+    to: &str,
+    plan: bool,
+    qty: Option<i64>,
+) -> Result<i64> {
+    let mut node = load(tx, resolve(tx, reference, false)?)?;
+    let target = resolve(tx, to, false)?;
+    // A move to where it already is says nothing, and as a plan it waits forever. A lost
+    // thing moved to where it was last seen is found there, so that one goes on.
+    if !node.lost && node.parent_id == Some(target) {
+        return Err(refused(
+            format!(
+                "{} is already in {}; a place inside it (a compartment) is a grid cell \
+                 (`ev grid`, `ev cell`) or a holder of its own",
+                label(&node),
+                label(&load(tx, target)?)
+            ),
+            Value::Null,
+        ));
+    }
+    if let Some(count) = crate::portions::part_of(&node, qty)? {
+        let id = crate::portions::split_off(tx, &node, count)?;
+        node = load(tx, id)?;
+    }
+    if plan {
+        if let Some(p) = node.pending_to {
+            return Err(refused(
+                format!(
+                    "{} already has a pending move; cancel it first",
+                    label(&node)
+                ),
+                json!({ "pending": brief(tx, p)? }),
+            ));
+        }
+        tx.execute(
+            "UPDATE nodes SET pending_to = ?1 WHERE id = ?2",
+            params![target, node.id],
+        )?;
+        touch(tx, node.id)?;
+        event(tx, node.id, "plan", json!({ "to": target }))?;
+        return Ok(node.id);
+    }
+    apply_move(tx, &node, target, "move")?;
+    crate::portions::join_here(tx, node.id)
 }
 
 pub(crate) fn brief(conn: &Connection, id: i64) -> Result<NodeRef> {

@@ -2028,6 +2028,16 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    // `ev move` of several: each record and where it went, or is planned to go.
+    for (key, arrow) in [("moved", "→"), ("planned", "⇢")] {
+        if let Some(list) = v.get(key).and_then(Value::as_array) {
+            let to = v["to"]["path_text"].as_str().unwrap_or_default();
+            for n in list {
+                let _ = writeln!(out, "#{} {}  {arrow} {to}", n["id"], s(n, "name"));
+            }
+            return out;
+        }
+    }
     for key in ["results", "created", "edited"] {
         if let Some(list) = v.get(key).and_then(Value::as_array) {
             if list.is_empty() {

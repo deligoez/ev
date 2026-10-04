@@ -109,11 +109,12 @@ enum Cmd {
         #[arg(required = true)]
         pairs: Vec<String>,
     },
-    /// Move now, or plan a move with --plan. With --qty, only that many of a counted item: they
-    /// become a portion of the same thing in the new place (joining one already there), and the
-    /// rest stay.
+    /// Move now, or plan a move with --plan; several records at once go to one place, all or
+    /// none. With --qty (one record), only that many of a counted item: they become a portion
+    /// of the same thing in the new place (joining one already there), and the rest stay.
     Move {
-        reference: String,
+        #[arg(required = true)]
+        references: Vec<String>,
         #[arg(long)]
         to: String,
         #[arg(long)]
@@ -1572,11 +1573,17 @@ fn run(cli: Cli) -> Result<Value> {
             inv.recode(&pairs)
         }
         Cmd::Move {
-            reference,
+            references,
             to,
             plan,
             qty,
-        } => inv.move_qty(&reference, &to, plan, qty),
+        } => match references.as_slice() {
+            [one] => inv.move_qty(one, &to, plan, qty),
+            _ if qty.is_some() => Err(Error::Usage(
+                "--qty moves part of one record; name one".into(),
+            )),
+            many => inv.move_many(many, &to, plan),
+        },
         Cmd::Join { references } => inv.join(&references),
         Cmd::Unjoin { reference } => inv.unjoin(&reference),
         Cmd::Pending => inv.pending(),

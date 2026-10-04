@@ -17,7 +17,7 @@ mod ui;
 
 /// Agent-first home inventory.
 #[derive(Parser)]
-#[command(name = "ev", version, about)]
+#[command(name = "ev", version = env!("EV_VERSION"), about)]
 struct Cli {
     /// Force JSON output even on a terminal.
     #[arg(long, global = true)]

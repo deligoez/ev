@@ -784,6 +784,10 @@ impl Series {
     /// The request's series, without the pictures no longer on disk, showing the first picture
     /// the request sent; `None` when nothing of it is left.
     fn of(req: &Value) -> Option<Self> {
+        // A request written before series existed is no series (see `focus_marked`).
+        if !req["frames"].is_array() {
+            return None;
+        }
         let show = req["show"].as_u64().unwrap_or(0) as usize;
         let (mut files, mut notes, mut at) = (Vec::new(), Vec::new(), 0);
         for (i, f) in req["files"].as_array().into_iter().flatten().enumerate() {

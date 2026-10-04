@@ -1027,3 +1027,29 @@ fn a_move_to_where_it_already_is_is_refused_and_plans_nothing() {
     inv.mark_lost("Flipper Zero").unwrap();
     inv.move_to("Flipper Zero", &here, false).unwrap();
 }
+
+#[test]
+fn several_records_move_together_or_not_at_all() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    for name in ["Vida A", "Vida B", "Vida C"] {
+        add(&mut inv, name, "item", Some("Kiler"), None);
+    }
+    let v = inv
+        .move_many(&["Vida A".into(), "Vida B".into()], "K4x4-15-A", false)
+        .unwrap();
+    assert_eq!(v["moved"].as_array().unwrap().len(), 2, "{v}");
+    // Vida C is already in Kiler: refused, and Vida A stays where it went.
+    let err = inv
+        .move_many(&["Vida A".into(), "Vida C".into()], "Kiler", false)
+        .unwrap_err();
+    assert_eq!(code_of(&err), 5);
+    let a = inv.show("Vida A", false).unwrap();
+    assert!(
+        a["node"]["path_text"]
+            .as_str()
+            .unwrap()
+            .ends_with("K4x4-15-A › Vida A"),
+        "{a}"
+    );
+}

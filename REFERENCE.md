@@ -174,7 +174,8 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | drag a divider; < >, { } | resize: the list against the right side (20–80%), the photo against the details (15–85%); a double click on a divider resets it. Kept in `ui-state.json` with the details tab |
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
-| m | the marked photos sent last with `ev focus --file`, again |
+| m | the marked photo series again, after Esc hid it |
+| X | close the marked photo series: it leaves the screen, and what the agent sends next starts a new one numbered from 1 |
 | M | the map (see **Maps**) full screen, from the home: its rooms first, the room on the way to the selected node chosen, and on every level Enter leads further down that way. ← ↑ ↓ → move to the nearest tile that way (Tab steps in reading order), Enter goes into the tile, Backspace / u goes up a level with the place left chosen, t closes the map on the chosen tile in the tree; a click chooses a tile and a second click goes in; Esc / q / M close. A tile shows its label, its theme (or name), how many things it holds, its fill, and what is in it as far as it has room; a place on a grid (a drawer, a Kallax) is drawn as its plate, column letters above and row numbers beside, a dot on every free cell; it follows the data as it changes |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
 | q / Esc | quit (Esc clears a search first) |
@@ -401,24 +402,37 @@ candidate to active.
 misreading, a duplicate): it keeps its history, is not a disposal, and the reason is required.
 
 `ev focus <ref> [--photo n]` makes a running `ev ui` jump to the node and show that photo full
-screen (the last one by default); `ev focus --file <picture>… [--note text]` shows pictures that
-are no record (marked photos; repeat `--file` for several, stepped with `[` `]`) full screen,
-titled with the note, until Esc (a click does not close them; `m` in `ev ui` opens the last ones
-again, also after a restart); `ev focus --clear`
-withdraws the request. Each request is shown once, without restarting `ev ui`. A request is a
-message to the UI, not a change to the inventory: it is kept beside the database in
-`ev.db-focus.json`, and `ev.db` stays as it was.
+screen (the last one by default). `ev focus --file <picture>… [--note text]` adds pictures that
+are no record (marked photos) to the **marked photo series** (spec/focus-stack.md): `photo mark`,
+`photo cut` and its preview add theirs on their own. A series holds every picture sent until the
+person closes it, each titled with its note and `n/total`, stepped with `[` `]`, the newest one
+sent shown; a new copy of a photo in it (marked again, or cut after it was marked) takes that
+photo's place. Esc hides it (a click does not), `m` brings it back, also after a restart, and `X`
+closes it: what is sent next starts a new series, numbered from 1. Within a series ev numbers the
+frames, so a number on screen means one frame until it is closed. `ev focus --list` reads it:
+`{series: {since, next, pictures: [{n, file, note, frames: [{n, at} | {n, ref, crop}]}]}}`
+(`series: null` when there is none); `ev focus --clear` closes it from outside, for an agent the
+person asked. The answer to `--file` is `{focus: {files, note, series, next, at}}`: this
+request's pictures and the series' size. Each request is shown once, without restarting `ev ui`.
+A request is a message to the UI, not a change to the inventory: it is kept beside the database
+in `ev.db-focus.json`, and `ev.db` stays as it was; `X` removing it is the one write `ev ui`
+makes.
 
-`ev photo mark <target> <label>=<where>… [--codes] [--grid corners] [--out file] [--show note | --no-show]` draws a
-red frame and a label for each mark on a copy of a photo: `<target>` is a photo file or a place
+`ev photo mark <target> <label>=<where>… [--codes] [--grid corners] [--out file] [--show note | --no-show] [--keep-numbers]` draws a
+red frame (edged in dark, so it reads on a red thing too) and a label for each mark on a copy of a photo: `<target>` is a photo file or a place
 (its newest whole photo), `<where>` is `x,y,w,h` in fractions of the upright photo or cells of
 the place's grid (`A6`, `A6-B7`). `--codes` adds a mark for every box placed in the place's grid
 that has a code, its code on its own cells (which label goes on which box). Cells are found through the grid corners the photo kept when
 it was cut with `--grid` (schema 11), or through `--grid`. The copy goes to `--out` or to
 `<temp>/ev-marks/` (files there older than a day are removed on each call); it is not stored,
-not attached and leaves no history. It is also sent to a running `ev ui` (titled with
-`--show <note>`, else with the labels) unless `--no-show` is given. Output:
-`marked`, `source`, `marks: [{label, at}]`, and `shown` when sent. A label keeps the
+not attached and leaves no history. It is also sent to a running `ev ui`, into the marked photo
+series (titled with `--show <note>`, else with the labels), unless `--no-show` is given. There a
+numbered label (`1`, `2 → A6`: a number, alone or followed by a space) counts this photo's frames
+and is drawn with the frame's number in the series: the photo's own numbers when it is in the
+series already, in order, then the series' next free ones — so `1=… 2=…` on the second photo of a
+series draws `3` and `4`. `--keep-numbers` draws the numbers as given, for marks that point at
+frames numbered already (a destination: `4=A6`, frame 4 goes to A6). Output:
+`marked`, `source`, `marks: [{label, at}]` (the labels as drawn), and `shown` when sent. A label keeps the
 letters as given (lowercase too; Turkish letters are drawn plain). A label on a frame is no wider
 than its frame (or an eighth of the photo, so a number on a small frame stays legible): a long
 one is drawn smaller, down to a third of the photo's size, and broken onto up to three lines at
@@ -606,7 +620,7 @@ back to the price paid in the home currency.
 | `ev photo remove <ref> <n>` | detach the n-th photo; the history keeps a `photo_remove` event with what it was. A whole photo's file stays in the store; a crop's file is deleted when no photo uses it any more as its picture or its source (`deleted_file`), since it can be cut again |
 | `ev photo rotate <ref> <n> <degrees>` | turn the n-th photo 90, 180 or 270 degrees clockwise for good (spec/rotate.md): it is stored turned; every record holding it whole gets the turned one, its grid corners turned (each keeps its name); every crop cut from it, on any record, has its rectangle turned and is cut again, so it shows the same part upright. When the n-th photo is a crop, its source photo turns, with all its crops. Each record gets a `photo_rotate` event. Output: the node's `photos`, and `rotated`: `{degrees, records: [NodeRef], deleted_files}` (the old photo and crops nothing uses any more) |
 | `ev photo add <ref> <file> --whole` | attach a whole photo that is already attached whole to another node; without `--whole` (and without `--crop`) that is refused with exit 5 and `details.attached_to` |
-| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--grid <corners>] [--note n] [--no-show] [--rotate 90\|180\|270] [--pad f]` | one photo cut up among several nodes in one step (`--place` is optional: one crop of one thing is a cut too, with its sheet and preview; `--rotate` turns the photo clockwise first and stores it turned, every crop and `--grid` then fractions of the turned photo; `--pad 0.1` grows every crop named by hand on each side by a tenth of its own size, inside the photo, so an edge the estimate cut off stays in): a crop for each `<ref>=` (the same `<ref>` may come several times, one crop each: the three probes of three sets in one photo are one record), and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `--grid blx,bly,brx,bry,frx,fry,flx,fly` (needs `--place`, a place with a grid) gives the grid's back-left, back-right, front-right and front-left corners as fractions of the upright photo and adds a crop for every placed box, mapped with the photo's perspective and widened by a margin that grows with the box's height from its `size` (`1x2x1.5`: a tall box's rim leans out of its cells), never below 0.15 of a cell; a crop named by hand wins for its box. `--preview [note]` cuts and attaches nothing: it draws every crop it would make (each grid box framed on its cells, labelled with its back-left cell) on a temporary copy, `{preview, framed, sheet, marked, legend}`; the note titles it in `ev ui`. `attached`: `[NodeRef + photo, crop, path]`, and `sheet`: a contact sheet of every crop — each small, six to a row, labelled with its box's cell (`B3`), else its code or `#id` — written to the scratch folder of `photo mark`, to check a whole cut at a glance. Every cut and preview also draws `marked`: the whole photo with a numbered red frame on each crop, numbered from 1 in the order the crops were given and then the grid's boxes, bare numbers as labels (null when nothing is cropped); `legend`: `[{n, ref: NodeRef, crop}]` says which record each number is, and the text output lists it as `1  #484 …`. Every cut and preview sends `marked` (and the preview) to a running `ev ui` as `ev focus --file <marked> --note <note>` does, titled with the preview's note or `--note`, else with each number and its code or name (`1 Düğme pil · 2 D-A1`), and adds `shown`. `--no-show` sends nothing (a script, or a picture the person should keep looking at); showing was opt-in once, and the person never saw what an agent that checked the frames itself had cut. `--show` is still accepted and changes nothing |
+| `ev photo cut <file> <ref>=x,y,w,h… [--place <ref>] [--grid <corners>] [--note n] [--no-show] [--rotate 90\|180\|270] [--pad f]` | one photo cut up among several nodes in one step (`--place` is optional: one crop of one thing is a cut too, with its sheet and preview; `--rotate` turns the photo clockwise first and stores it turned, every crop and `--grid` then fractions of the turned photo; `--pad 0.1` grows every crop named by hand on each side by a tenth of its own size, inside the photo, so an edge the estimate cut off stays in): a crop for each `<ref>=` (the same `<ref>` may come several times, one crop each: the three probes of three sets in one photo are one record), and the whole photo on `--place`; every reference is resolved and every crop cut first, then all are recorded in one transaction. `--grid blx,bly,brx,bry,frx,fry,flx,fly` (needs `--place`, a place with a grid) gives the grid's back-left, back-right, front-right and front-left corners as fractions of the upright photo and adds a crop for every placed box, mapped with the photo's perspective and widened by a margin that grows with the box's height from its `size` (`1x2x1.5`: a tall box's rim leans out of its cells), never below 0.15 of a cell; a crop named by hand wins for its box. `--preview [note]` cuts and attaches nothing: it draws every crop it would make (each grid box framed on its cells, labelled with its back-left cell) on a temporary copy, `{preview, framed, sheet, marked, legend}`; the note titles it in `ev ui`. `attached`: `[NodeRef + photo, crop, path]`, and `sheet`: a contact sheet of every crop — each small, six to a row, labelled with its box's cell (`B3`), else its code or `#id` — written to the scratch folder of `photo mark`, to check a whole cut at a glance. Every cut and preview also draws `marked`: the whole photo with a numbered red frame on each crop, numbered in the order the crops were given and then the grid's boxes — from 1, or, when it is shown, with the frames' numbers in the marked photo series (the numbers this photo was marked with there, then the next free ones; see `ev focus`) — bare numbers as labels (null when nothing is cropped); `legend`: `[{n, ref: NodeRef, crop}]` says which record each number is, and the text output lists it as `1  #484 …`. Every cut and preview sends `marked` (and the preview, when it framed a grid's boxes on their cells; otherwise it shows the same crops under record ids) to a running `ev ui` as `ev focus --file <marked> --note <note>` does, titled with the preview's note or `--note`, else with each number and its code or name (`1 Düğme pil · 2 D-A1`), and adds `shown`. `--no-show` sends nothing (a script, or a picture the person should keep looking at); showing was opt-in once, and the person never saw what an agent that checked the frames itself had cut. `--show` is still accepted and changes nothing |
 | `ev photo current <ref>` | the newest photo still shows the place well enough; off the photo-needed list until the next change |
 | `ev photo stale <ref> [--why t]` | the newest photo no longer shows the place, for a change the records never saw: a `photo_stale` mark (`note` = why); listed under `photos` with `photo_reason: "marked"` until a newer photo or `ev photo current`. An emptied place whose photo is older than its last change is listed too (`changed`); an empty place never photographed is not |
 | `ev photo adopt` | copy photos still referenced outside the store into it |

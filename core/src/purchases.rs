@@ -673,6 +673,26 @@ impl Inventory {
         shop: Option<&str>,
         since: Option<&str>,
     ) -> Result<Value> {
+        self.buy_list_matching(open, bucket, shop, since, None)
+    }
+
+    /// `buy_list`, with `query`: only the lines where every word of it is in the name, the
+    /// shop, the brand, the shop's product code or the order number, compared folded. Answers
+    /// "is there a purchase of X?" without a record to rank lines for.
+    pub fn buy_list_matching(
+        &self,
+        open: bool,
+        bucket: Option<&str>,
+        shop: Option<&str>,
+        since: Option<&str>,
+        query: Option<&str>,
+    ) -> Result<Value> {
+        let words: Vec<String> = query
+            .map(crate::fold)
+            .unwrap_or_default()
+            .split_whitespace()
+            .map(str::to_string)
+            .collect();
         let all = ids(
             &self.conn,
             "SELECT id FROM purchases ORDER BY COALESCE(delivered_at, ordered_at) DESC, id DESC",
@@ -696,6 +716,16 @@ impl Inventory {
                         .or(p["delivered_at"].as_str())
                         .is_none_or(|x| x < d)
                 })
+                || !words.is_empty() && {
+                    let text = crate::fold(
+                        &["name", "shop", "brand", "shop_sku", "order_no"]
+                            .iter()
+                            .filter_map(|k| p[*k].as_str())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    );
+                    !words.iter().all(|w| text.contains(w.as_str()))
+                }
             {
                 continue;
             }

@@ -757,6 +757,10 @@ enum BuyCmd {
         /// Bought on or after YYYY-MM-DD.
         #[arg(long)]
         since: Option<String>,
+        /// Only lines with every word of it in the name, shop, brand, product code or order
+        /// number: is there a purchase of X, before or without a record.
+        #[arg(long)]
+        query: Option<String>,
     },
     /// One line with what it is linked to and its documents.
     Show {
@@ -1822,7 +1826,14 @@ fn run(cli: Cli) -> Result<Value> {
             bucket,
             shop,
             since,
-        }) => inv.buy_list(open, bucket.as_deref(), shop.as_deref(), since.as_deref()),
+            query,
+        }) => inv.buy_list_matching(
+            open,
+            bucket.as_deref(),
+            shop.as_deref(),
+            since.as_deref(),
+            query.as_deref(),
+        ),
         Cmd::Cover(CoverCmd::Add(a)) => {
             let a = *a;
             inv.cover_add(

@@ -527,15 +527,24 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
         let (x, y) = match shape {
             Shape::Rect(_) => {
                 // Above the frame, else below it, else inside its top, else inside its bottom.
+                // A frame inside another frame takes its label inside itself first: outside it,
+                // the label would stand in the other frame and read as that one's.
                 let (top, bottom) = (px[0].1, px[2].1);
                 let x = px[0].0 - t / 2.0;
-                let tries = [
-                    (x, top - lh - t),
-                    (x, bottom + t),
-                    (px[0].0 + t, top + t),
-                    (px[0].0 + t, bottom - lh - t),
-                ];
-                label_spot(&tries, &placed, &others, (lw, lh), (w, h))
+                let outside = [(x, top - lh - t), (x, bottom + t)];
+                let inside = [(px[0].0 + t, top + t), (px[0].0 + t, bottom - lh - t)];
+                let (bx, by, bw, bh) = bounds[i];
+                let nested = others.iter().any(|&(ox, oy, ow, oh)| {
+                    ox <= bx && oy <= by && bx + bw <= ox + ow && by + bh <= oy + oh
+                });
+                if nested {
+                    let tries: Vec<(f64, f64)> = inside.iter().chain(&outside).copied().collect();
+                    // Every spot lies in the other frame: only the labels are to keep clear of.
+                    label_spot(&tries, &placed, &[], (lw, lh), (w, h))
+                } else {
+                    let tries: Vec<(f64, f64)> = outside.iter().chain(&inside).copied().collect();
+                    label_spot(&tries, &placed, &others, (lw, lh), (w, h))
+                }
             }
             Shape::Quad(_) => {
                 // In the cell's top-left corner, inside the frame; the middle when that is taken.

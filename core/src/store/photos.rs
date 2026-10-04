@@ -41,6 +41,19 @@ fn scratch_path(file: &Path, what: &str) -> PathBuf {
     dir.join(format!("{stem}-{what}-{ms}.jpg"))
 }
 
+/// A label's leading number and the rest: `2 → A6` is (2, " → A6"), `3` is (3, ""). A label
+/// whose digits run into letters (`12A`) is no number.
+fn leading_number(label: &str) -> Option<(usize, &str)> {
+    let end = label
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(label.len());
+    let rest = &label[end..];
+    if end == 0 || !(rest.is_empty() || rest.starts_with(char::is_whitespace)) {
+        return None;
+    }
+    Some((label[..end].parse().ok()?, rest))
+}
+
 /// What a crop is called on a contact sheet: its cell when it stands in a grid (`B3`), else its
 /// code, else its `#id`.
 fn tile_label(conn: &Connection, id: i64) -> Result<String> {
@@ -50,21 +63,22 @@ fn tile_label(conn: &Connection, id: i64) -> Result<String> {
     Ok(load(conn, id)?.code.unwrap_or_else(|| format!("#{id}")))
 }
 
-/// The whole photo with a numbered red frame on each crop, numbered 1… in the order given, and
-/// the legend that says which record each number is: `[{n, ref, crop}]`. The person sees what
-/// was recognised and answers by number. A copy that cannot be drawn leaves `marked` empty: by
-/// then a cut is recorded already.
+/// The whole photo with a numbered red frame on each crop, numbered with `numbers` in the order
+/// given, and the legend that says which record each number is: `[{n, ref, crop}]`. The person
+/// sees what was recognised and answers by number. A copy that cannot be drawn leaves `marked`
+/// empty: by then a cut is recorded already.
 fn numbered(
     conn: &Connection,
     name: &Path,
     photo: &Path,
     crops: &[(i64, crate::Crop)],
+    numbers: &[usize],
 ) -> Result<(Option<String>, Vec<Value>)> {
     let legend = crops
         .iter()
-        .enumerate()
-        .map(|(i, (id, c))| {
-            Ok(json!({ "n": i + 1, "ref": brief_json(conn, *id)?, "crop": c.to_string() }))
+        .zip(numbers)
+        .map(|((id, c), n)| {
+            Ok(json!({ "n": n, "ref": brief_json(conn, *id)?, "crop": c.to_string() }))
         })
         .collect::<Result<Vec<_>>>()?;
     if crops.is_empty() {
@@ -72,8 +86,8 @@ fn numbered(
     }
     let shapes: Vec<(String, crate::photo::Shape)> = crops
         .iter()
-        .enumerate()
-        .map(|(i, (_, c))| ((i + 1).to_string(), crate::photo::Shape::Rect(*c)))
+        .zip(numbers)
+        .map(|((_, c), n)| (n.to_string(), crate::photo::Shape::Rect(*c)))
         .collect();
     let out = scratch_path(name, "numbered");
     let marked = crate::photo::draw_marks(photo, &shapes, &out)
@@ -182,6 +196,30 @@ impl Inventory {
         crops: &[(String, crate::Crop)],
         note: Option<&str>,
         grid: Option<&crate::GridCorners>,
+    ) -> Result<Value> {
+        self.photo_cut_in(file, place, crops, note, grid, false)
+    }
+
+    /// The numbers a copy of `file` with `count` frames draws: in the series on screen when
+    /// `series` (spec/focus-stack.md), so a batch's numbers never repeat; else 1…
+    fn frame_numbers(&self, file: &Path, count: usize, series: bool) -> Result<Vec<usize>> {
+        if series {
+            self.focus_numbers(file, count)
+        } else {
+            Ok((1..=count).collect())
+        }
+    }
+
+    /// `photo_cut` whose numbered copy takes its numbers in the series on screen when `series`:
+    /// the numbers this photo was marked with there, then the series' next free ones.
+    pub fn photo_cut_in(
+        &mut self,
+        file: &Path,
+        place: Option<&str>,
+        crops: &[(String, crate::Crop)],
+        note: Option<&str>,
+        grid: Option<&crate::GridCorners>,
+        series: bool,
     ) -> Result<Value> {
         if place.is_none() && crops.is_empty() {
             return Err(Error::Usage(
@@ -309,7 +347,8 @@ impl Inventory {
             .iter()
             .filter_map(|(id, _, _, crop, _)| crop.map(|c| (*id, c)))
             .collect();
-        let (marked, legend) = numbered(&self.conn, file, &original, &crops)?;
+        let numbers = self.frame_numbers(file, crops.len(), series)?;
+        let (marked, legend) = numbered(&self.conn, file, &original, &crops, &numbers)?;
         Ok(json!({
             "attached": attached,
             "sheet": sheet,
@@ -330,6 +369,20 @@ impl Inventory {
         crops: &[(String, crate::Crop)],
         grid: Option<&crate::GridCorners>,
         out: Option<&Path>,
+    ) -> Result<Value> {
+        self.photo_cut_preview_in(file, place, crops, grid, out, false)
+    }
+
+    /// `photo_cut_preview` whose numbered copy takes its numbers in the series on screen when
+    /// `series` (spec/focus-stack.md).
+    pub fn photo_cut_preview_in(
+        &self,
+        file: &Path,
+        place: Option<&str>,
+        crops: &[(String, crate::Crop)],
+        grid: Option<&crate::GridCorners>,
+        out: Option<&Path>,
+        series: bool,
     ) -> Result<Value> {
         use crate::photo::Shape;
         if !file.is_file() {
@@ -368,7 +421,8 @@ impl Inventory {
         let out = out.map_or_else(|| scratch_copy(file), Path::to_path_buf);
         crate::photo::draw_marks(file, &shapes, &out)?;
         let crops: Vec<(i64, crate::Crop)> = tiles.iter().map(|(id, _, c)| (*id, *c)).collect();
-        let (marked, legend) = numbered(&self.conn, file, file, &crops)?;
+        let numbers = self.frame_numbers(file, crops.len(), series)?;
+        let (marked, legend) = numbered(&self.conn, file, file, &crops, &numbers)?;
         let tiles: Vec<(String, crate::Crop)> =
             tiles.into_iter().map(|(_, label, c)| (label, c)).collect();
         let sheet = scratch_path(file, "sheet");
@@ -395,6 +449,34 @@ impl Inventory {
         marks: &[(String, String)],
         corners: Option<&crate::GridCorners>,
         out: Option<&Path>,
+    ) -> Result<Value> {
+        self.photo_mark_in(target, marks, corners, out, None)
+    }
+
+    /// `photo_mark` for the series on screen (spec/focus-stack.md): a numbered label (`1`,
+    /// `2 → A6`) counts this photo's frames, and takes the frame's number in the series — the
+    /// photo's own numbers when it is there already, then the next free ones — so every number
+    /// on screen means one frame until the person closes the series. The marks
+    /// returned carry the numbers drawn, and `frames` lists them for the series. `keep` draws the
+    /// numbers as given: marks that point at frames already numbered (where frame 4 goes).
+    pub fn photo_mark_numbered(
+        &self,
+        target: &str,
+        marks: &[(String, String)],
+        corners: Option<&crate::GridCorners>,
+        out: Option<&Path>,
+        keep: bool,
+    ) -> Result<Value> {
+        self.photo_mark_in(target, marks, corners, out, Some(keep))
+    }
+
+    fn photo_mark_in(
+        &self,
+        target: &str,
+        marks: &[(String, String)],
+        corners: Option<&crate::GridCorners>,
+        out: Option<&Path>,
+        numbered: Option<bool>,
     ) -> Result<Value> {
         use crate::photo::Shape;
         if marks.is_empty() {
@@ -431,10 +513,25 @@ impl Inventory {
             };
             (PathBuf::from(path), Some(id), grid)
         };
+        let mut marks = marks.to_vec();
+        // The labels' numbers are this photo's 1, 2, …: each becomes its number in the series.
+        if numbered == Some(false) {
+            let count = marks
+                .iter()
+                .filter_map(|(l, _)| leading_number(l).map(|n| n.0))
+                .max()
+                .unwrap_or(0);
+            let numbers = self.focus_numbers(&file, count)?;
+            for (label, _) in &mut marks {
+                if let Some((k, rest)) = leading_number(label).filter(|n| n.0 > 0) {
+                    *label = format!("{}{rest}", numbers[k - 1]);
+                }
+            }
+        }
         let stored: Option<crate::GridCorners> = stored.map(|g| g.parse()).transpose()?;
         let corners = corners.or(stored.as_ref());
         let mut shapes = Vec::new();
-        for (text, spec) in marks {
+        for (text, spec) in &marks {
             let shape = if by_cell(spec) {
                 let cells = crate::grid::Cells::parse(spec)?;
                 let (Some(h), Some(c)) = (holder, corners) else {
@@ -450,11 +547,24 @@ impl Inventory {
         }
         let out = out.map_or_else(|| scratch_copy(&file), Path::to_path_buf);
         crate::photo::draw_marks(&file, &shapes, &out)?;
-        Ok(json!({
+        let mut v = json!({
             "marked": out.to_string_lossy(),
             "source": file.to_string_lossy(),
             "marks": marks.iter().map(|(l, s)| json!({ "label": l, "at": s })).collect::<Vec<_>>(),
-        }))
+        });
+        if numbered.is_some() {
+            v["frames"] = marks
+                .iter()
+                .filter_map(|(l, s)| {
+                    let mut f = json!({ "n": leading_number(l)?.0, "at": s });
+                    if numbered == Some(true) {
+                        f["kept"] = json!(true);
+                    }
+                    Some(f)
+                })
+                .collect();
+        }
+        Ok(v)
     }
 
     pub fn photo_list(&self, reference: &str) -> Result<Value> {

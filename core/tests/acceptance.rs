@@ -1103,3 +1103,25 @@ fn a_code_is_the_same_whatever_its_separator_or_leading_zeros() {
     next.code = Some("S5_*".into());
     assert_eq!(inv.add(next).unwrap()["node"]["code"], "S5_13");
 }
+
+#[test]
+fn a_thing_waits_for_another_until_it_turns_up_and_the_thing_moves() {
+    let (_d, mut inv) = inv();
+    home(&mut inv);
+    add(&mut inv, "Çubuk", "item", Some("Kiler"), None);
+    inv.mark_lost("Flipper Zero").unwrap();
+    inv.edit("Çubuk", &["waits_for=Flipper Zero".into()])
+        .unwrap();
+    assert!(
+        inv.edit("Çubuk", &["waits_for=Çubuk".into()]).is_err(),
+        "a thing does not wait for itself"
+    );
+    let shown = inv.show("Flipper Zero", false).unwrap();
+    assert_eq!(shown["waited_for_by"][0]["name"], "Çubuk");
+    // Found, it names what waited for it; nothing moves on its own.
+    let v = inv.found("Flipper Zero").unwrap();
+    assert_eq!(v["waiting"][0]["name"], "Çubuk");
+    // The thing moves to its place: the wait is over.
+    inv.move_to("Çubuk", "K4x4-15-A", false).unwrap();
+    assert!(inv.show("Çubuk", false).unwrap()["waits_for"].is_null());
+}

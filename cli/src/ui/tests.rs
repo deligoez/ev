@@ -1541,3 +1541,18 @@ fn marked_photos_join_the_series_and_x_ends_it() {
     app.apply_focus().unwrap();
     assert_eq!(app.overlay.as_ref().unwrap().files.len(), 1);
 }
+
+#[test]
+fn a_series_the_agent_ends_leaves_the_screen() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    app.inv
+        .focus_file(&[picture(&dir, "a.png")], Some("parts"))
+        .unwrap();
+    app.apply_focus().unwrap();
+    assert!(app.overlay.is_some());
+    app.inv.focus(None, None).unwrap();
+    app.apply_focus().unwrap();
+    assert!(app.overlay.is_none() && app.last_overlay.is_none());
+    assert!(!app.fullscreen);
+}

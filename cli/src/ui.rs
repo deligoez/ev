@@ -715,7 +715,7 @@ struct App {
     plan_title: String,
     /// Collapsed Yapılacak sections, by their (negative) header id.
     collapsed: HashSet<i64>,
-    /// The time of the last `ev focus` request shown, so each is shown once.
+    /// The last `ev focus` request shown, so each is shown once.
     focus_seen: Option<String>,
     /// Display settings, their file, and the file's modification time when last read, so a
     /// change made with `ev settings` shows up without restarting.
@@ -762,13 +762,43 @@ struct App {
     /// The grid on the Grid tab, whose boxes open with a click: a drawer's own, or the one a
     /// box stands in.
     grid_hit: Option<Vec<Vec<Option<i64>>>>,
-    /// Pictures sent together with `ev focus --file`, the one shown, and their note; full
-    /// screen until closed.
-    overlay: Option<(Vec<String>, usize, Option<String>)>,
-    /// The marked photos closed last, for `m` to open again.
-    last_overlay: Option<(Vec<String>, usize, Option<String>)>,
+    /// The series of marked photos sent with `ev focus --file` (and by `photo mark`/`cut`), the
+    /// one shown; full screen until hidden.
+    overlay: Option<Series>,
+    /// The series hidden last, for `m` to open again.
+    last_overlay: Option<Series>,
     /// The map (`M`) over the whole screen while open.
     map_view: Option<MapView>,
+}
+
+/// The series of marked photos a focus request holds (spec/focus-stack.md): each picture with
+/// the note it was sent with, and the one shown.
+#[derive(Clone)]
+struct Series {
+    files: Vec<String>,
+    notes: Vec<Option<String>>,
+    at: usize,
+}
+
+impl Series {
+    /// The request's series, without the pictures no longer on disk, showing the first picture
+    /// the request sent; `None` when nothing of it is left.
+    fn of(req: &Value) -> Option<Self> {
+        let show = req["show"].as_u64().unwrap_or(0) as usize;
+        let (mut files, mut notes, mut at) = (Vec::new(), Vec::new(), 0);
+        for (i, f) in req["files"].as_array().into_iter().flatten().enumerate() {
+            let Some(f) = f.as_str().filter(|f| std::path::Path::new(f).is_file()) else {
+                continue;
+            };
+            if i <= show {
+                at = files.len();
+            }
+            files.push(f.to_string());
+            let note = req["notes"].get(i).unwrap_or(&req["note"]);
+            notes.push(note.as_str().map(str::to_string));
+        }
+        (!files.is_empty()).then_some(Self { files, notes, at })
+    }
 }
 
 /// What the terminal said about pictures, gathered until its status report ends the answers.
@@ -896,18 +926,12 @@ impl App {
         app.apply_prefs();
         // A request made before this UI started is old news.
         let req = app.inv.focus_request()?;
-        app.focus_seen = req["at"].as_str().map(str::to_string);
-        // ...but its marked photos, while still on disk, are one `m` away.
-        let files: Vec<String> = req["files"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|f| f.as_str().map(str::to_string))
-            .filter(|f| std::path::Path::new(f).is_file())
-            .collect();
-        if !files.is_empty() {
-            app.last_overlay = Some((files, 0, req["note"].as_str().map(str::to_string)));
-        }
+        app.focus_seen = req["at"].is_string().then(|| req.to_string());
+        // ...but its series of marked photos, while still on disk, is one `m` away.
+        app.last_overlay = Series::of(&req).map(|mut s| {
+            s.at = 0;
+            s
+        });
         // The details wait for the node `ev ui` resumes at (see `run`): the first row's would
         // be thrown away at once, and the home's cost a whole-house regroup.
         app.rebuild_rows()?;
@@ -1075,31 +1099,35 @@ impl App {
     /// instead of clearing it.
     fn apply_focus(&mut self) -> Result<()> {
         let req = self.inv.focus_request()?;
-        let at = req["at"].as_str().map(str::to_string);
-        if at.is_none() || at == self.focus_seen {
+        // The whole request, not only its time: two sent in the same millisecond are two.
+        let seen = req["at"].is_string().then(|| req.to_string());
+        // The request is gone after one was seen: the series was ended (`ev focus --clear`).
+        if seen.is_none() {
+            if self.focus_seen.is_some() {
+                self.forget_series();
+            }
             return Ok(());
         }
-        self.focus_seen = at;
-        let files: Vec<String> = match req["files"].as_array() {
-            Some(a) => a
-                .iter()
-                .filter_map(|f| f.as_str().map(str::to_string))
-                .collect(),
-            None => req["file"]
-                .as_str()
-                .map(str::to_string)
-                .into_iter()
-                .collect(),
-        };
-        if !files.is_empty() {
-            let note = req["note"].as_str().map(str::to_string);
-            self.status = tf(
-                "showing: {}",
-                &[&note.clone().unwrap_or_else(|| files[0].clone())],
-            );
-            self.overlay = Some((files, 0, note));
-            self.fullscreen = true;
+        if seen == self.focus_seen {
             return Ok(());
+        }
+        self.focus_seen = seen;
+        let series = Series::of(&req);
+        if req["id"].is_null() {
+            if let Some(s) = series {
+                let shown = s.notes[s.at]
+                    .clone()
+                    .unwrap_or_else(|| s.files[s.at].clone());
+                self.status = tf("showing: {}", &[&shown]);
+                self.overlay = Some(s);
+                self.fullscreen = true;
+            }
+            return Ok(());
+        }
+        // A node asked for keeps the series one `m` away.
+        self.close_fullscreen();
+        if series.is_some() {
+            self.last_overlay = series;
         }
         let Some(id) = req["id"].as_i64() else {
             return Ok(());
@@ -1297,11 +1325,11 @@ impl App {
         self.photo_idx = (cur + delta).clamp(0, last as isize) as usize;
     }
 
-    /// The picture on screen full screen: a marked photo sent with `ev focus --file`, else the
-    /// selected node's current photo.
+    /// The picture on screen full screen: a marked photo of the series, else the selected
+    /// node's current photo.
     fn shown_picture(&self) -> Option<String> {
         match &self.overlay {
-            Some((files, i, _)) => files.get(*i).cloned(),
+            Some(s) => s.files.get(s.at).cloned(),
             None => self.current_photo(),
         }
     }
@@ -1313,23 +1341,45 @@ impl App {
         }
     }
 
-    /// `m`: the marked photos shown last, again — closed in this session, or sent before this
-    /// `ev ui` started (it treats that request as seen, but keeps its pictures at hand).
+    /// `m`: the series of marked photos again, after it was hidden — in this session, or sent
+    /// before this `ev ui` started (it treats that request as seen, but keeps the series).
     fn reopen_marked(&mut self) {
         match self.last_overlay.clone() {
             Some(o) => {
                 self.overlay = Some(o);
                 self.fullscreen = true;
             }
-            None => self.status = t("no marked photos to show").to_string(),
+            None => self.status = t("no marked photo series to show").to_string(),
         }
     }
 
-    /// `[` `]` over pictures sent together: the previous or next one, stopping at the ends.
+    /// `X`: the person is done with the series of marked photos. It is gone from the screen and
+    /// from the request, so what the agent sends next starts a new series numbered from 1. The
+    /// one write `ev ui` makes, and to no inventory data (spec/focus-stack.md).
+    fn close_series(&mut self) -> Result<()> {
+        if self.overlay.is_none() && self.last_overlay.is_none() {
+            self.status = t("no marked photo series to show").to_string();
+            return Ok(());
+        }
+        self.inv.focus(None, None)?;
+        self.forget_series();
+        self.status = t("marked photo series closed").to_string();
+        Ok(())
+    }
+
+    fn forget_series(&mut self) {
+        if self.overlay.take().is_some() {
+            self.fullscreen = false;
+        }
+        self.last_overlay = None;
+        self.focus_seen = None;
+    }
+
+    /// `[` `]` over the series: the previous or next picture, stopping at the ends.
     fn step_overlay(&mut self, delta: isize) {
-        if let Some((files, i, _)) = &mut self.overlay {
-            let last = files.len().saturating_sub(1) as isize;
-            *i = (*i as isize + delta).clamp(0, last) as usize;
+        if let Some(s) = &mut self.overlay {
+            let last = s.files.len().saturating_sub(1) as isize;
+            s.at = (s.at as isize + delta).clamp(0, last) as usize;
         }
     }
 

@@ -20,6 +20,7 @@ impl App {
                 KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => self.step_overlay(1),
                 KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => self.step_overlay(-1),
                 KeyCode::Char('O') => self.open_external(),
+                KeyCode::Char('X') if !photos => self.close_series()?,
                 KeyCode::Char('r') => self.rotate(1),
                 KeyCode::Char('R') => self.rotate(3),
                 _ => {}
@@ -92,6 +93,7 @@ impl App {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
             KeyCode::Char('m') => self.reopen_marked(),
+            KeyCode::Char('X') => self.close_series()?,
             KeyCode::Char('M') => self.open_map(),
             KeyCode::Char('/') => {
                 self.searching = true;

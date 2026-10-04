@@ -35,9 +35,8 @@ impl App {
         );
     }
 
-    /// Pictures sent with `ev focus --file` (marked photos) over the whole screen, titled with
-    /// their note and, when there are several, which one this is. They are no record: closing
-    /// forgets them.
+    /// The series of marked photos over the whole screen, each titled with its note and which
+    /// one of the series it is. They are no record: `Esc` hides them, `X` ends the series.
     pub(super) fn draw_overlay(
         &mut self,
         f: &mut Frame,
@@ -70,11 +69,12 @@ impl App {
                 inner,
             );
         }
-        let mut parts = vec![(0, t("Esc/o close"))];
+        let mut parts = vec![(0, t("Esc/o hide"))];
         if at.1 > 1 {
             parts.push((0, t("[ ] ← → step")));
         }
-        parts.push((1, t("m opens it again later")));
+        parts.push((0, t("X close series")));
+        parts.push((1, t("m shows it again")));
         parts.push((2, t("r/R rotate")));
         parts.push((3, t("O open outside")));
         let keys = fit_hints(parts, bottom.width as usize, "");
@@ -83,10 +83,11 @@ impl App {
 
     pub(super) fn draw(&mut self, f: &mut Frame) {
         if self.fullscreen {
-            if let Some((files, i, note)) = self.overlay.clone() {
-                let i = i.min(files.len().saturating_sub(1));
-                if let Some(path) = files.get(i) {
-                    return self.draw_overlay(f, path, note, (i, files.len()));
+            if let Some(s) = self.overlay.clone() {
+                let i = s.at.min(s.files.len().saturating_sub(1));
+                if let Some(path) = s.files.get(i) {
+                    let note = s.notes.get(i).cloned().flatten();
+                    return self.draw_overlay(f, path, note, (i, s.files.len()));
                 }
             }
             if let Some(path) = self.current_photo() {
@@ -352,9 +353,10 @@ impl App {
             Tab::Plan => parts.push((1, t("Enter open/close section"))),
             _ => parts.push((1, t("Enter show in tree"))),
         }
-        // Marked photos closed are one key away; said early, so a narrow screen keeps it.
+        // The hidden series is one key away; said early, so a narrow screen keeps it.
         if self.last_overlay.is_some() {
-            parts.push((1, t("m marked photos")));
+            parts.push((1, t("m marked photo series")));
+            parts.push((1, t("X close series")));
         }
         parts.push((2, t("/ search")));
         parts.push((2, t("M map")));

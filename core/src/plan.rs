@@ -25,6 +25,74 @@ const REVIEWS: [&str; 3] = ["counting", "toured", "kept"];
 
 const TASK_STATES: [&str; 4] = ["open", "doing", "done", "dropped"];
 
+/// The kinds of picture `ev` draws on a copy of a photo, named `<photo>-<kind>-<ms>.jpg`.
+const MARKED_KINDS: [&str; 4] = ["marked", "numbered", "preview", "sheet"];
+
+/// Which photo a marked picture shows, for its place in the stack on screen: its folder and
+/// file name without a trailing `-<kind>-<ms>` — so a photo marked again, or cut after it was
+/// marked, replaces its earlier copy. Any other picture is its own path.
+fn stack_key(path: &str) -> String {
+    let p = std::path::Path::new(path);
+    let stem = p
+        .file_stem()
+        .map(|s| s.to_string_lossy())
+        .unwrap_or_default();
+    let photo = stem.rsplit_once('-').and_then(|(head, ms)| {
+        let (photo, kind) = head.rsplit_once('-')?;
+        (!ms.is_empty() && ms.bytes().all(|b| b.is_ascii_digit()) && MARKED_KINDS.contains(&kind))
+            .then_some(photo)
+    });
+    match photo {
+        Some(photo) => p.with_file_name(photo).to_string_lossy().into_owned(),
+        None => path.to_string(),
+    }
+}
+
+/// One picture of the series on screen.
+struct Marked {
+    file: String,
+    note: Value,
+    frames: Vec<Value>,
+}
+
+/// The series a focus request holds, without the pictures no longer on disk. An older request
+/// has one note for all its pictures and no frames.
+fn series_of(req: &Value) -> Vec<Marked> {
+    req["files"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter_map(|(i, f)| {
+            let note = match req["notes"].get(i) {
+                Some(n) => n.clone(),
+                None => req["note"].clone(),
+            };
+            let frames = req["frames"]
+                .get(i)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            Some(Marked {
+                file: f.as_str()?.to_string(),
+                note,
+                frames,
+            })
+        })
+        .filter(|m| std::path::Path::new(&m.file).is_file())
+        .collect()
+}
+
+/// The key a marked copy of `file` would have: copies go to `<temp>/ev-marks`.
+fn source_key(file: &std::path::Path) -> String {
+    let stem = file
+        .file_stem()
+        .map(|s| s.to_string_lossy())
+        .unwrap_or_default();
+    let dir = std::path::absolute(std::env::temp_dir().join("ev-marks")).unwrap_or_default();
+    dir.join(stem.as_ref()).to_string_lossy().into_owned()
+}
+
 pub(crate) fn review_of(conn: &Connection, id: i64) -> Result<Value> {
     Ok(conn
         .query_row(
@@ -521,7 +589,15 @@ impl Inventory {
         // Milliseconds, so two requests in the same second are still two requests.
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         let value = json!({ "id": id, "photo": photo, "at": at });
-        self.send_focus(&value)?;
+        // The marked photos waiting on screen stay beside the node, for `m` to open.
+        let mut sent = value.clone();
+        let req = self.focus_request()?;
+        for k in ["files", "notes", "frames", "next", "since"] {
+            if !req[k].is_null() {
+                sent[k] = req[k].clone();
+            }
+        }
+        self.send_focus(&sent)?;
         Ok(json!({ "focus": value }))
     }
 
@@ -532,6 +608,20 @@ impl Inventory {
         &mut self,
         files: &[std::path::PathBuf],
         note: Option<&str>,
+    ) -> Result<Value> {
+        self.focus_marked(files, note, &[])
+    }
+
+    /// Like `focus_file`, for pictures whose numbered `frames` ev drew (`[{n, …}]`): they join
+    /// the series on screen instead of replacing it (spec/focus-stack.md), the newest shown,
+    /// and a new copy of a photo in the series takes its place. The series keeps each picture's
+    /// frames and the next free number, so a batch's numbers never repeat (`focus_numbers`).
+    /// The person ends it in `ev ui`; `ev focus --clear` does too.
+    pub fn focus_marked(
+        &mut self,
+        files: &[std::path::PathBuf],
+        note: Option<&str>,
+        frames: &[Value],
     ) -> Result<Value> {
         if files.is_empty() {
             return Err(Error::Usage("name at least one picture".into()));
@@ -544,10 +634,103 @@ impl Inventory {
             let abs = std::path::absolute(file).unwrap_or_else(|_| file.clone());
             paths.push(abs.to_string_lossy().into_owned());
         }
+        let req = self.focus_request()?;
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        let value = json!({ "files": paths, "note": note, "at": at });
-        self.send_focus(&value)?;
-        Ok(json!({ "focus": value }))
+        let mut series = series_of(&req);
+        // Only a picture sent before is replaced, and once: a cut's preview and its numbered
+        // copy are two pictures of the same photo.
+        let mut taken = vec![false; series.len()];
+        let mut show = None;
+        for p in &paths {
+            let entry = Marked {
+                file: p.clone(),
+                note: json!(note),
+                frames: frames.to_vec(),
+            };
+            let found =
+                (0..taken.len()).find(|&i| !taken[i] && stack_key(&series[i].file) == stack_key(p));
+            let i = match found {
+                Some(i) => {
+                    taken[i] = true;
+                    series[i] = entry;
+                    i
+                }
+                None => {
+                    series.push(entry);
+                    series.len() - 1
+                }
+            };
+            show = Some(show.map_or(i, |s: usize| s.min(i)));
+        }
+        let last = frames.iter().filter_map(|f| f["n"].as_u64()).max();
+        let next = req["next"].as_u64().max(last.map(|l| l + 1));
+        let since = match req["since"].as_str() {
+            Some(s) if !req["files"].is_null() => json!(s),
+            _ => json!(at),
+        };
+        let count = series.len();
+        let mut sent = json!({
+            "files": series.iter().map(|m| m.file.clone()).collect::<Vec<_>>(),
+            "notes": series.iter().map(|m| m.note.clone()).collect::<Vec<_>>(),
+            "frames": series.into_iter().map(|m| m.frames).collect::<Vec<_>>(),
+            "show": show, "note": note, "next": next, "since": since, "at": at,
+        });
+        if next.is_none() {
+            sent.as_object_mut().map(|o| o.remove("next"));
+        }
+        self.send_focus(&sent)?;
+        Ok(json!({ "focus": {
+            "files": paths, "note": note, "series": count, "next": next, "at": at,
+        } }))
+    }
+
+    /// The numbers `count` frames of a picture of `file` take in the series, so every number on
+    /// screen means one frame until the person closes the series: the photo's own numbers first
+    /// when it is in the series already (marked again, or cut after it was marked), in order,
+    /// and the series' next free numbers for frames beyond them. Nothing is renumbered.
+    pub fn focus_numbers(&self, file: &std::path::Path, count: usize) -> Result<Vec<usize>> {
+        let req = self.focus_request()?;
+        let key = source_key(file);
+        let mut own: Vec<usize> = series_of(&req)
+            .into_iter()
+            .find(|m| stack_key(&m.file) == key)
+            .map(|m| {
+                // Not the numbers a mark only pointed at (`--keep-numbers`): they are another
+                // photo's frames.
+                m.frames
+                    .iter()
+                    .filter(|f| f["kept"] != true)
+                    .filter_map(|f| f["n"].as_u64().map(|n| n as usize))
+                    .collect()
+            })
+            .unwrap_or_default();
+        own.sort_unstable();
+        own.dedup();
+        let next = req["next"].as_u64().map_or(1, |n| n as usize);
+        Ok((0..count)
+            .map(|i| match own.get(i) {
+                Some(n) => *n,
+                None => next + i - own.len().min(i),
+            })
+            .collect())
+    }
+
+    /// The series of marked photos on screen: each picture with its note and frames, and the
+    /// next free number (`ev focus --list`), so the agent quotes the numbers ev drew.
+    pub fn focus_list(&self) -> Result<Value> {
+        let req = self.focus_request()?;
+        let series = series_of(&req);
+        if series.is_empty() {
+            return Ok(json!({ "series": null }));
+        }
+        let pictures: Vec<Value> = series
+            .into_iter()
+            .enumerate()
+            .map(|(i, m)| json!({ "n": i + 1, "file": m.file, "note": m.note, "frames": m.frames }))
+            .collect();
+        Ok(json!({ "series": {
+            "since": req["since"], "next": req["next"].as_u64().unwrap_or(1), "pictures": pictures,
+        } }))
     }
 
     /// Writes a focus request beside the database (`ev.db-focus.json`), never into it: it is a

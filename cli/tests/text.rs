@@ -677,7 +677,11 @@ fn buy_bring_all_lists_each_line_it_brought_from_with_the_thing() {
             id["node"]["id"]
         )
     );
-    assert_eq!(h.text(&["buy", "bring", "--all"]), "Nothing brought.\n");
+    // Run again, it says why nothing came: the one line's link is brought already.
+    assert_eq!(
+        h.text(&["buy", "bring", "--all"]),
+        "Nothing brought: 1 linked lines checked, 1 carry that type, 1 of it brought already.\n"
+    );
 }
 
 #[test]

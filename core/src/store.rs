@@ -25,7 +25,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 31;
+pub const SCHEMA_VERSION: i64 = 32;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -192,6 +192,24 @@ impl Inventory {
         }
         if version < 31 {
             conn.execute_batch(SCHEMA_V31)?;
+        }
+        if version < 32 {
+            // Codes compare by what the label means (spec/codes.md): `_` is `-`, a number's
+            // leading zeros go. Each code's folded form is worked out again; the code stays.
+            let tx = conn.unchecked_transaction()?;
+            let codes: Vec<(i64, String)> = {
+                let mut stmt = tx.prepare("SELECT id, code FROM nodes WHERE code IS NOT NULL")?;
+                stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                    .collect::<rusqlite::Result<_>>()?
+            };
+            for (id, code) in codes {
+                tx.execute(
+                    "UPDATE nodes SET code_folded = ?1 WHERE id = ?2",
+                    params![crate::fold::fold_code(&code), id],
+                )?;
+            }
+            tx.execute_batch("PRAGMA user_version = 32")?;
+            tx.commit()?;
         }
         Ok(Self {
             conn,
@@ -1766,9 +1784,11 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
         .filter(|x| include_gone || x.3 != "gone")
         .collect();
 
+    // A code as printed: `S5_11` finds `S5-11`, `S05` finds `S5` (spec/codes.md).
+    let wanted_code = crate::fold::fold_code(r);
     let code_hits: Vec<_> = visible
         .iter()
-        .filter(|x| x.1.as_deref().map(fold) == Some(wanted.clone()))
+        .filter(|x| x.1.as_deref().map(crate::fold::fold_code) == Some(wanted_code.clone()))
         .collect();
     if !code_hits.is_empty() {
         if code_hits.len() == 1 {
@@ -1843,14 +1863,16 @@ fn expand_code(conn: &Connection, code: &str) -> Result<String> {
             "`{c}`: a series is a prefix followed by one `*`, like GF1x1-*"
         )));
     }
-    let folded_prefix = fold(prefix);
+    // One series whatever its labels' separator and padding (spec/codes.md): `S5_*` continues
+    // after `S5-11` and `S05_12`; the padding is the printed one, the widest in the series.
+    let folded_prefix = crate::fold::fold_code(prefix);
     let mut stmt = conn.prepare("SELECT code FROM nodes WHERE code IS NOT NULL")?;
     let codes = stmt
         .query_map([], |r| r.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let (mut last, mut width) = (0u64, None::<usize>);
     for code in codes {
-        let folded = fold(&code);
+        let folded = crate::fold::fold_code(&code);
         let Some(rest) = folded.strip_prefix(&folded_prefix) else {
             continue;
         };
@@ -1859,7 +1881,8 @@ fn expand_code(conn: &Connection, code: &str) -> Result<String> {
         }
         if let Ok(n) = rest.parse::<u64>() {
             last = last.max(n);
-            width = Some(width.unwrap_or(0).max(rest.len()));
+            let printed = code.chars().rev().take_while(char::is_ascii_digit).count();
+            width = Some(width.unwrap_or(0).max(printed));
         }
     }
     let width = width.unwrap_or(3);
@@ -1878,7 +1901,7 @@ fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<Stri
             json!({ "code": c }),
         ));
     }
-    let folded = fold(c);
+    let folded = crate::fold::fold_code(c);
     let clash: Option<i64> = conn
         .query_row(
             "SELECT id FROM nodes WHERE code_folded = ?1 AND state != 'gone' AND id != ?2",

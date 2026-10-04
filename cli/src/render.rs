@@ -631,7 +631,16 @@ fn type_counts(counts: &Value) -> String {
 fn bring_all(out: &mut String, v: &Value) {
     let from = v["brought_from"].as_array().cloned().unwrap_or_default();
     if from.is_empty() {
-        let _ = writeln!(out, "{}", t("Nothing brought."));
+        // Why nothing came: what was looked at and what it carried.
+        let c = &v["checked"];
+        let _ = writeln!(
+            out,
+            "{}",
+            tf(
+                "Nothing brought: {} linked lines checked, {} carry that type, {} of it brought already.",
+                &[&c["lines"], &c["carrying"], &c["already"]]
+            )
+        );
     } else {
         let _ = writeln!(
             out,

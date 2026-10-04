@@ -329,12 +329,21 @@ impl Inventory {
         let mut brought_from = Vec::new();
         let mut left = Vec::new();
         let mut totals = Map::new();
+        // What was looked at, so an empty run says why it is empty: no line carries the type,
+        // or what it carries is brought already.
+        let (mut checked, mut carrying, mut already) = (0, 0, 0);
         for (line, node, name, state, things) in lines {
-            let pending: Vec<Value> = attachments_of(&tx, line)?
+            checked += 1;
+            let of_type: Vec<Value> = attachments_of(&tx, line)?
                 .into_iter()
-                .filter(|a| a["brought_to"].is_null())
                 .filter(|a| types.is_empty() || types.iter().any(|t| a["type"] == *t.as_str()))
                 .collect();
+            if !of_type.is_empty() {
+                carrying += 1;
+            }
+            let (pending, done): (Vec<Value>, Vec<Value>) =
+                of_type.into_iter().partition(|a| a["brought_to"].is_null());
+            already += done.len();
             if pending.is_empty() {
                 continue;
             }
@@ -362,7 +371,10 @@ impl Inventory {
                                      "brought_types": counts, "brought": brought}));
         }
         tx.commit()?;
-        Ok(json!({"brought_from": brought_from, "brought_types": totals, "left": left}))
+        Ok(
+            json!({"brought_from": brought_from, "brought_types": totals, "left": left,
+                  "checked": {"lines": checked, "carrying": carrying, "already": already}}),
+        )
     }
 }
 

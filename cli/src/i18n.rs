@@ -588,7 +588,10 @@ static TR: &[(&str, &str)] = &[
         "left, of another type: {}",
         "başka türde olduğu için bırakıldı: {}",
     ),
-    ("Nothing brought.", "Hiçbir şey aktarılmadı."),
+    (
+        "Nothing brought: {} linked lines checked, {} carry that type, {} of it brought already.",
+        "Hiçbir şey aktarılmadı: {} bağlı satıra bakıldı, {} tanesinde bu türden ek var, {} ek zaten aktarılmış.",
+    ),
     ("Brought from {} purchases: {}", "{} alımdan aktarıldı: {}"),
     ("#{} {} is gone", "#{} {} gitmiş"),
     ("linked to several things", "birden çok eşyaya bağlı"),

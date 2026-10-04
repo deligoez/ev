@@ -337,6 +337,13 @@ static TR: &[(&str, &str)] = &[
         "Adında yazan boyutu size alanında olmayan kutular:",
     ),
     ("kit", "set"),
+    ("waits for", "bekliyor"),
+    ("waited for by", "bunu bekleyen"),
+    (
+        "{} waited for this: where do they go now?",
+        "{} bunu bekliyordu: şimdi nereye gidecekler?",
+    ),
+    ("  waits for #{} {}", "  bekliyor: #{} {}"),
     (
         "{} of {} found · {} lost · {} still missing",
         "{} / {} bulundu · {} kayıp · {} eksik",

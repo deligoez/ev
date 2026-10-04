@@ -886,11 +886,17 @@ fn todo(out: &mut String, v: &Value) {
                 let extra = match key {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
-                    "parked" => Some(tf(
-                        "  (parked in {})",
-                        &[&n["in"]["code"]
-                            .as_str()
-                            .map_or_else(|| s(&n["in"], "path_text"), str::to_string)],
+                    "parked" => Some(format!(
+                        "{}{}",
+                        tf(
+                            "  (parked in {})",
+                            &[&n["in"]["code"]
+                                .as_str()
+                                .map_or_else(|| s(&n["in"], "path_text"), str::to_string)],
+                        ),
+                        n.get("waits_for")
+                            .map(|w| tf("  waits for #{} {}", &[&w["id"], &s(w, "name")]))
+                            .unwrap_or_default()
                     )),
                     _ => None,
                 }
@@ -2732,6 +2738,25 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             s(k, "kit"),
             k["n"],
             s(k, "text")
+        );
+    }
+    // What its place waits for, and what waits for it.
+    if v["waits_for"].is_object() {
+        let _ = writeln!(out, "  {}: {}", t("waits for"), line(&v["waits_for"]));
+    }
+    for w in v["waited_for_by"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("waited for by"), line(w));
+    }
+    // Found: the things that waited for it, to settle now.
+    if let Some(list) = v["waiting"].as_array().filter(|l| !l.is_empty()) {
+        let ids: Vec<String> = list.iter().map(|w| format!("#{}", w["id"])).collect();
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "{} waited for this: where do they go now?",
+                &[&ids.join(", ")]
+            )
         );
     }
     if let Some(c) = v["cells"].as_str() {

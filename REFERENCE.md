@@ -36,7 +36,8 @@ recorded (`{"of": "#647", "qty": 4, "in": "K4x4-13-Ü"}`; name and kind come fro
 
 One JSON object per line: `{"ref": "#551", "set": {"size": "1x2x1.5", "tags": ["+modül", "-boş kap"], "note": null}}`.
 `ref` is a name, code, id or `#id`; each `set` entry is one `field=value` of `ev edit` (an
-array is one per item, `null` clears). Blank lines are skipped. All or nothing: a failing line
+array is one per item, `null` clears; in `tags` and `photos` an item without `+` or `-` is
+added: `["modül"]` is `["+modül"]`). Blank lines are skipped. All or nothing: a failing line
 is named (`line 2: …`) and nothing is changed. Each record gets one `edit` event, a field set
 several times showing its value before the first and after the last. Output: `edited`, each a
 NodeRef with its `changed` as `ev edit` gives it; a line
@@ -323,6 +324,7 @@ inside moves whole.
 | Command | Does |
 |---|---|
 | `ev move <ref> --qty n --to <place> [--plan]` | n of the record's units go (or, with `--plan`, are set apart beside the rest with the planned move, which `ev done` takes); the rest stay. All of them is a plain move; more is refused (exit 5) |
+| `ev move <ref> <ref>… --to <place> [--plan]` | several records to one place in one call (a box emptied before it goes), all or none: one refused leaves every one where it was. `moved` (or `planned`): `[NodeRef]`, and `to`. `--qty` takes one record only |
 | `ev move <ref> --to <where it is>` | refused (exit 5), with or without `--plan`: a move to where it already is says nothing, and a planned one would wait forever. A compartment inside a holder is a grid cell (`ev grid`, `ev cell`). A lost thing moved to where it was last seen is found there |
 | `ev lend <ref> --to <place> --qty n` · `ev dispose <ref> --as … --qty n` · `ev gone <ref> --as … --qty n` · `ev lost <ref> --qty n` | the verb acts on n of the units, split off as a portion in the same transaction: a refused verb leaves nothing split |
 | `ev add --of <ref> [--qty n] --in <place> [--note t]` | more of a thing already recorded: name, kind, make, model, size and tags come from it; a portion of the same thing, joining one already in the place. `<ref>` may be gone (a cassette used up and replaced with the same one): the thing then reads "here 1 · gone: used 1". Also `of` in `ev add --stdin` |

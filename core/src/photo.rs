@@ -758,6 +758,32 @@ mod tests {
     }
 
     #[test]
+    fn a_frame_inside_another_has_its_label_inside_itself() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("p.png");
+        image::RgbImage::from_pixel(2000, 1500, image::Rgb([128, 128, 128]))
+            .save(&file)
+            .unwrap();
+        let out = dir.path().join("m.jpg");
+        let rect = |x, y, w, h| Shape::Rect(Crop { x, y, w, h });
+        // A cable inside the headphones' frame, in its top-left corner: above it is label 1.
+        let marks = [
+            ("1".to_string(), rect(0.2, 0.2, 0.6, 0.6)),
+            ("2".to_string(), rect(0.21, 0.21, 0.2, 0.2)),
+        ];
+        draw_marks(&file, &marks, &out).unwrap();
+        let img = image::open(&out).unwrap().to_rgb8();
+        let red = |x: u32, y: u32| {
+            let p = img.get_pixel(x, y);
+            p[0] > 180 && p[1] < 90 && p[2] < 90
+        };
+        // The inner frame spans x 420–820, y 315–615: its label is in its top-left corner, not
+        // below it in the outer frame, where it would read as the outer one's.
+        assert!(red(450, 345), "the label is inside its frame");
+        assert!(!red(450, 660), "nothing below the inner frame");
+    }
+
+    #[test]
     fn a_label_steps_aside_from_one_already_drawn_and_stays_in_the_photo() {
         let size = (100.0, 40.0);
         let photo = (1000.0, 800.0);

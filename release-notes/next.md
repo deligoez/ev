@@ -35,3 +35,10 @@ already there) leaves every one where it was. In `ev edit --stdin`, a list of ta
 `ev gone --why` kept what the person said about a thing leaving, but `ev dispose` refused
 `--why`, though the skill names both together. `ev dispose <x> --as give --why "<text>"` now adds
 the reason to the thing's note, as `gone --why` does.
+
+## An empty bring says why
+
+`ev buy bring --all --type image` after linking three old lines printed only "Nothing brought",
+though the skill says a bring never stays silent. It now says what it looked at: how many linked
+lines it checked, how many carry that type at all, and how many of those were brought already
+(`checked: {lines, carrying, already}`).

@@ -836,3 +836,28 @@ fn a_thing_used_up_leaves_as_used_and_neither_used_nor_merged_is_set_aside() {
     assert_eq!(v["node"]["state"], "gone");
     assert_eq!(v["node"]["disposition"], "used");
 }
+
+#[test]
+fn focus_list_reads_the_series_marks_built_and_clear_starts_a_new_one() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    assert!(ev.ok(&["focus", "--list"])["series"].is_null());
+    let v = ev.ok(&["photo", "mark", p, "1=0.1,0.1,0.2,0.2"]);
+    assert_eq!(v["marks"][0]["label"], "1");
+    let other = ev._dir.path().join("other.png");
+    std::fs::copy(&photo, &other).unwrap();
+    let o = other.to_str().unwrap();
+    let v = ev.ok(&["photo", "mark", o, "1=0.1,0.1,0.2,0.2", "2=0.5,0.5,0.2,0.2"]);
+    assert_eq!(v["marks"][1]["label"], "3");
+    assert_eq!(v["shown"]["series"], 2);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    assert_eq!(s["next"], 4);
+    assert_eq!(s["pictures"][1]["frames"][1]["n"], 3);
+    assert_eq!(s["pictures"][1]["frames"][1]["at"], "0.5,0.5,0.2,0.2");
+    // A mark that points at frames already numbered keeps its numbers.
+    let v = ev.ok(&["photo", "mark", p, "3=0.2,0.2,0.1,0.1", "--keep-numbers"]);
+    assert_eq!(v["marks"][0]["label"], "3");
+    ev.ok(&["focus", "--clear"]);
+    let v = ev.ok(&["photo", "mark", o, "1=0.1,0.1,0.2,0.2"]);
+    assert_eq!(v["marks"][0]["label"], "1");
+}

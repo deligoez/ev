@@ -323,7 +323,10 @@ it: `ev edit <place> temporary=true` when the whole place is a parking place, or
 temporary=true` for one thing waiting among things that do belong there. `ev todo` then lists
 what waits (`parked`) and `ev suggest` stops offering the parking place. A thing's own mark
 goes when it moves (like `lost`); a place's stays until you set it back — when the person says
-the place is now final. What is not recorded is lost at the end of the conversation.
+the place is now final. **When its place waits for another thing** (glue sticks parked until the
+lost glue gun turns up), say so with `ev edit <thing> waits_for=<other>`, never only in a note:
+`ev found <other>` then lists it under `waiting` — ask the person where it goes now. Its move
+ends the wait. What is not recorded is lost at the end of the conversation.
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the
 place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
 `ev next` brings it up when that place's turn comes. Do not edit the records of a place that

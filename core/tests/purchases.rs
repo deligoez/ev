@@ -240,3 +240,22 @@ fn a_purchase_entered_by_hand_is_linked_at_once() {
             .is_err()
     );
 }
+
+#[test]
+fn lines_are_found_by_words_of_their_name_shop_or_code() {
+    let (d, mut inv) = setup();
+    inv.buy_import(&export(&d, "1999.00")).unwrap();
+    let names = |q: &str| -> Vec<String> {
+        inv.buy_list_matching(false, None, None, None, Some(q))
+            .unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    // Every word must be there, in any order and case.
+    assert_eq!(names("matkap BOSCH"), ["Bosch GSB 13 RE Darbeli Matkap"]);
+    assert_eq!(names("sku-b"), ["Kingston 128 GB microSD"]);
+    assert!(names("matkap kingston").is_empty());
+}

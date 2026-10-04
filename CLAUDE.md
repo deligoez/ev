@@ -57,12 +57,20 @@ purchase data (`~/.ev/purchases/`) never enters any repository. Scan the diff be
 
 ## Installing for the inventory agent
 
-The person and the inventory agent use the ev installed on this Mac. While we work locally, it
-is built from source and shadows the Homebrew one (`~/.cargo/bin/ev` comes first on PATH):
+The person and the inventory agent use the ev installed on this Mac, and **between releases
+they use the development build, never the last release**: the inventory agent is on this
+machine, so a fix reaches it the moment it is pushed, not when a release is cut. After every
+pushed change to code, install it right away and tell the inventory agent what changed (and the
+skill lines to re-read, when the skill changed):
 
 ```bash
 CARGO_TARGET_DIR=$PWD/target/install cargo install --locked --path cli --force
 ```
+
+`~/.cargo/bin/ev` comes first on PATH and shadows the Homebrew one. `ev --version` tells them
+apart: a build of a release tag prints `0.24.0`, any other build `0.24.0 (dev v0.24.0-9-g…)`
+(`cli/build.rs`); check it after installing. A change of schema still waits for the steps below
+before it is installed.
 
 (Stale `ev-core` "method not found": `cargo clean --target-dir target/install`.)
 

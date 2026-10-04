@@ -438,7 +438,9 @@ than its frame (or an eighth of the photo, so a number on a small frame stays le
 one is drawn smaller, down to a third of the photo's size, and broken onto up to three lines at
 spaces. It goes above its frame, else below it, else inside it, at the first of those that
 stays in the photo and off every other label and frame; with no such place it may cover a
-frame, and moves down its column before it covers another label. A label on cells sits inside
+frame, and moves down its column before it covers another label. A frame inside another frame
+takes its label inside itself first, since outside it the label would read as the outer one's.
+A label on cells sits inside
 them, in the top-left corner, no taller than about a third of the cells and no wider than them,
 so the box under it stays visible. Photos cut among records
 are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).

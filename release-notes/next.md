@@ -22,3 +22,10 @@ addition now; any other change is `old → new`.
 `ev buy for` about it, or a script over `ev buy list`. `ev buy list --query "<words>"` keeps the
 lines with every word in their name, shop, brand, product code or order number, compared
 folded; with the other filters it narrows them further.
+
+## Several records move in one call
+
+Emptying a box before it was thrown out took one `ev move` per thing inside. `ev move <a> <b>
+<c> --to <place>` (or `--plan`) now moves them together, all or none: one that is refused (it is
+already there) leaves every one where it was. In `ev edit --stdin`, a list of tags,
+`"tags": ["vida", "-m3"]`, adds each item that does not say `+` or `-` itself; it was refused.

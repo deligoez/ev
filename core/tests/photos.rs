@@ -281,3 +281,58 @@ fn a_photo_added_turned_is_stored_turned() {
     );
     assert!(inv.turned_copy(&photo, 45).is_err());
 }
+
+/// Marks `marks` on `file` for the series on screen and sends the copy there, as `ev photo mark`
+/// does; the labels as drawn.
+fn show_marked(inv: &mut Inventory, file: &std::path::Path, marks: &[&str]) -> Vec<String> {
+    let marks: Vec<(String, String)> = marks
+        .iter()
+        .map(|m| {
+            let (l, a) = m.split_once('=').unwrap();
+            (l.to_string(), a.to_string())
+        })
+        .collect();
+    let v = inv
+        .photo_mark_numbered(file.to_str().unwrap(), &marks, None, None, false)
+        .unwrap();
+    let frames = v["frames"].as_array().unwrap().clone();
+    let marked = std::path::PathBuf::from(v["marked"].as_str().unwrap());
+    inv.focus_marked(&[marked], None, &frames).unwrap();
+    v["marks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["label"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn numbers_in_a_series_never_repeat_and_a_photo_marked_again_keeps_its_own() {
+    let (dir, mut inv, photo) = setup();
+    let shelf = dir.path().join("shelf.png");
+    std::fs::copy(&photo, &shelf).unwrap();
+    let two = ["1=0.1,0.1,0.2,0.2", "2=0.5,0.5,0.2,0.2"];
+    assert_eq!(show_marked(&mut inv, &photo, &two), ["1", "2"]);
+    assert_eq!(
+        show_marked(
+            &mut inv,
+            &shelf,
+            &["1=0.1,0.1,0.2,0.2", "2 → A6=0.5,0.5,0.2,0.2"]
+        ),
+        ["3", "4 → A6"]
+    );
+    // Marked again with one frame more: its own numbers stay, the new frame takes the next.
+    let three = [
+        "1=0.1,0.1,0.3,0.3",
+        "2=0.5,0.5,0.2,0.2",
+        "3=0.7,0.1,0.2,0.2",
+    ];
+    assert_eq!(show_marked(&mut inv, &photo, &three), ["1", "2", "5"]);
+    let series = &inv.focus_list().unwrap()["series"];
+    assert_eq!(series["pictures"].as_array().unwrap().len(), 2);
+    assert_eq!(series["pictures"][0]["frames"][2]["n"], 5);
+    assert_eq!(series["next"], 6);
+    // Once the series ends, the next one starts at 1.
+    inv.focus(None, None).unwrap();
+    assert_eq!(show_marked(&mut inv, &shelf, &two[..1]), ["1"]);
+}

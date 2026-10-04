@@ -60,7 +60,8 @@ a portion, an ordinary record with its own count, and the portions share what th
    "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
    reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.
 4. **Leaving the home.** Set aside: `ev dispose <x> --as trash|give|sell|digitize`. Actually gone:
-   `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot). Record
+   `ev gone <x>` (or `ev gone <x> --as trash` when it is thrown out on the spot). A box that goes
+   while its contents stay is emptied first in one call, `ev move <a> <b> <c> --to <place>`. Record
    what the person said about it with `--why "<text>"` ("probably thrown out" is a reason,
    not certainty). A gone node is still reachable by id: `ev show <id> --include-gone`,
    `ev history <id>`, and `ev edit <id> note=…` to annotate it later.

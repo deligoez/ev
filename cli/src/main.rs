@@ -1275,6 +1275,19 @@ struct AddArgs {
     /// the --in place).
     #[arg(long, conflicts_with_all = ["name", "kind", "make", "model", "serial"])]
     of: Option<String>,
+    /// A past thing, recorded already gone: how it left (sell, give, trash, used, left,
+    /// stolen, unknown). It is in no holder; --kind defaults to item.
+    #[arg(long, conflicts_with_all = ["parent", "lost", "of"])]
+    gone: Option<String>,
+    /// With --gone: when it left, as remembered (2016, 2016-06, 2016-06-14).
+    #[arg(long, requires = "gone")]
+    at: Option<String>,
+    /// With --gone: where it was then, a place (a former home), made when new.
+    #[arg(long = "where", requires = "gone")]
+    place: Option<String>,
+    /// When it came, as remembered (2014, 2014-03).
+    #[arg(long)]
+    came: Option<String>,
     /// NDJSON file, one node per line.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,
@@ -2511,7 +2524,9 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         None => (
             a.name
                 .ok_or_else(|| Error::Usage("a name is required".into()))?,
+            // A past thing is a thing, unless said otherwise.
             a.kind
+                .or_else(|| a.gone.as_ref().map(|_| "item".to_string()))
                 .ok_or_else(|| Error::Usage("--kind is required".into()))?,
         ),
     };
@@ -2538,6 +2553,10 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         model: a.model,
         serial: a.serial,
         of: a.of,
+        gone: a.gone,
+        at: a.at,
+        came: a.came,
+        place: a.place,
     })
 }
 

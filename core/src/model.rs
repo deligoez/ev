@@ -201,4 +201,15 @@ pub struct NewNode {
     /// size and tags come from this record, and the new units are a portion of the same thing.
     #[serde(default)]
     pub of: Option<String>,
+    /// A past thing (spec/past-belongings.md): how it left, recorded already gone, in no holder.
+    #[serde(default)]
+    pub gone: Option<String>,
+    /// When it left (with `gone`) and when it came, as remembered: `2016`, `2016-06`.
+    #[serde(default)]
+    pub at: Option<String>,
+    #[serde(default)]
+    pub came: Option<String>,
+    /// Where it was when it left: a place, made when new.
+    #[serde(default, rename = "where")]
+    pub place: Option<String>,
 }

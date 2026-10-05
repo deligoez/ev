@@ -2192,7 +2192,34 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     if address.is_some() && kind != Kind::Home {
         return Err(refused("only a home has an address", Value::Null));
     }
-    check_placement(conn, kind, parent, new.lost, None)?;
+    // A past thing is recorded already gone, in no holder (spec/past-belongings.md).
+    let gone: Option<Disposition> = non_empty(&new.gone).map(|g| g.parse()).transpose()?;
+    if let Some(g) = gone {
+        if matches!(
+            g,
+            Disposition::Mistake | Disposition::Merged | Disposition::Digitize
+        ) {
+            return Err(Error::Usage(format!(
+                "a past thing is not added as {}: give how it left (sell, give, trash, used, left, stolen, unknown)",
+                g.as_str()
+            )));
+        }
+        if kind == Kind::Home || parent.is_some() || new.lost {
+            return Err(Error::Usage(
+                "a past thing is added on its own: no --in, --lost, or home".into(),
+            ));
+        }
+    } else if non_empty(&new.at).is_some() || non_empty(&new.place).is_some() {
+        return Err(Error::Usage(
+            "--at and --where say how a thing left: add it with --gone".into(),
+        ));
+    }
+    let came = non_empty(&new.came)
+        .map(|c| past::partial_date(&c))
+        .transpose()?;
+    if gone.is_none() {
+        check_placement(conn, kind, parent, new.lost, None)?;
+    }
     let code = non_empty(&new.code)
         .map(|c| expand_code(conn, &c))
         .transpose()?;
@@ -2279,6 +2306,25 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         "create",
         json!({ "name": name, "kind": kind, "parent": parent, "code": code, "lost": new.lost }),
     )?;
+    if let Some(c) = came {
+        conn.execute(
+            "UPDATE nodes SET came_at = ?1 WHERE id = ?2",
+            params![c, id],
+        )?;
+    }
+    if let Some(g) = gone {
+        conn.execute(
+            "UPDATE nodes SET state = 'gone', disposition = ?1 WHERE id = ?2",
+            params![g.as_str(), id],
+        )?;
+        event(conn, id, "gone", json!({ "as": g, "past": true }))?;
+        past::set_departure(
+            conn,
+            id,
+            non_empty(&new.at).as_deref(),
+            non_empty(&new.place).as_deref(),
+        )?;
+    }
     Ok(id)
 }
 

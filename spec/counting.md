@@ -23,8 +23,12 @@ calls knowing each container's state ev's main job; this was the opposite.
 
 ## What counts as work in a place
 
-A not-counted place (`raw`, inherited from nothing above it) becomes `counting` the moment one of
-these is written for it or for something inside it:
+A not-counted place (`raw`, inherited from nothing above it) that the task in progress is about
+(the place, or a holder above it such as its cabinet, is on the task) becomes `counting` the
+moment one of these is written for it or for something inside it. Work outside a tour counts
+nothing: one thing put away in a drawer on an errand does not mean the drawer was gone through,
+the very false "being counted" this spec removes (measured: without this condition, every place
+a test fixture added a thing to read "counting").
 
 | Event | Counts when |
 |---|---|

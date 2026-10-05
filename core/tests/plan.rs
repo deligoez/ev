@@ -321,25 +321,28 @@ fn count(inv: &Inventory, r: &str) -> Value {
 }
 
 #[test]
-fn a_task_begun_counts_its_places_and_one_left_unfinished_uncounts_them() {
+fn a_task_begun_counts_nothing_until_work_in_its_place_starts() {
     let (_d, mut inv) = setup();
     let t = inv
         .task_add("Kutuyu say", "hiç açılmadı", &["Karton kutu".into()], None)
         .unwrap()["id"]
         .as_i64()
         .unwrap();
-    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    // Started, nobody has opened it yet (spec/counting.md).
     inv.task_set(t, "doing", None).unwrap();
+    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    assert_eq!(inv.progress().unwrap()["counting"], 0);
+    // Something recorded inside it: it is being counted.
+    add(&mut inv, "Pense", "item", Some("Karton kutu"), None);
     assert_eq!(count(&inv, "Karton kutu"), "counting");
-    assert_eq!(inv.progress().unwrap()["counting"], 1);
-    // Dropped half way: it is not counted after all.
+    // Dropped half way: what was begun stays begun.
     inv.task_set(t, "dropped", None).unwrap();
-    assert_eq!(count(&inv, "Karton kutu"), "raw");
-    // A place counted during the task stays counted when the task closes.
+    assert_eq!(count(&inv, "Karton kutu"), "counting");
+    // A place settled stays so when its task closes.
     inv.task_set(t, "doing", None).unwrap();
-    inv.review("Karton kutu", "toured", None).unwrap();
+    inv.review("Karton kutu", "kept", None).unwrap();
     inv.task_set(t, "done", None).unwrap();
-    assert_eq!(count(&inv, "Karton kutu"), "toured");
+    assert_eq!(count(&inv, "Karton kutu"), "kept");
 }
 
 #[test]
@@ -369,6 +372,7 @@ fn next_and_todo_say_how_many_places_are_being_counted() {
         .as_i64()
         .unwrap();
     inv.task_set(t, "doing", None).unwrap();
+    add(&mut inv, "Pense", "item", Some("Karton kutu"), None);
     // The summary both carry is the full progress, not a part of it.
     assert_eq!(inv.next().unwrap()["progress"]["counting"], 1);
     assert_eq!(inv.todo().unwrap()["progress"]["counting"], 1);

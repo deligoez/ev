@@ -4,7 +4,7 @@
 use super::*;
 
 /// What a gone record still lets change: what it was, never where it stands.
-const GONE_FIELDS: [&str; 6] = ["note", "came", "qty", "make", "model", "serial"];
+const GONE_FIELDS: [&str; 7] = ["name", "note", "came", "qty", "make", "model", "serial"];
 
 pub(super) fn field_value(n: &Node, field: &str) -> Value {
     match field {

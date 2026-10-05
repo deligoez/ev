@@ -3,6 +3,9 @@
 
 use super::*;
 
+/// What a gone record still lets change: what it was, never where it stands.
+const GONE_FIELDS: [&str; 6] = ["note", "came", "qty", "make", "model", "serial"];
+
 pub(super) fn field_value(n: &Node, field: &str) -> Value {
     match field {
         "name" => json!(n.name),
@@ -83,17 +86,28 @@ pub(super) fn edit_in(
     reference: &str,
     assignments: &[String],
 ) -> Result<(i64, serde_json::Map<String, Value>)> {
-    // A gone node is found by id only, and only its note may change: the record of why it
-    // left belongs on it, while every other field describes a thing no longer here.
+    // A gone node is found by id only, and only what it was may change: its note (why it left),
+    // when it came, how many there were and what it is beyond its name, so a past thing
+    // (spec/past-belongings.md) can be completed as it is remembered. Where it stands describes
+    // a thing no longer here.
     let id = match resolve(conn, reference, false) {
-        Err(Error::NotFound(_)) if reference.trim().chars().all(|c| c.is_ascii_digit()) => {
+        Err(Error::NotFound(_))
+            if reference
+                .trim()
+                .trim_start_matches('#')
+                .chars()
+                .all(|c| c.is_ascii_digit()) =>
+        {
             let id = resolve(conn, reference, true)?;
-            if let Some(a) = assignments
-                .iter()
-                .find(|a| a.split_once('=').is_none_or(|(f, _)| f.trim() != "note"))
-            {
+            if let Some(a) = assignments.iter().find(|a| {
+                a.split_once('=')
+                    .is_none_or(|(f, _)| !GONE_FIELDS.contains(&f.trim()))
+            }) {
                 return Err(refused(
-                    format!("node {id} is gone; only its note can change, not `{a}`"),
+                    format!(
+                        "node {id} is gone; only {} can change, not `{a}`",
+                        GONE_FIELDS.join(", ")
+                    ),
                     Value::Null,
                 ));
             }

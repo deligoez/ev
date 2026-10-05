@@ -646,9 +646,11 @@ back to the price paid in the home currency.
 `ev review <ref> --as toured` is refused (exit 5) while the place, or a placed box in its grid,
 has no photo or only one older than its last change; `details.stale` lists them
 (`node`, `reason`: `none`|`changed`|`marked`, `photo_at`, `changed_at`, `minutes_after`: how long
-after the photo the records changed). When every change came within two hours of its photo, the
-message says the records may only have caught up with what the photo already shows, and puts
-`ev photo current <ref>` first; ev does not decide that on its own. An empty place with no
+after the photo the records changed). The message names each place on a line of its own (`G-01
+has no photo`, `K2-01-A's photo is 12 min older than its last change`), then what to do: a photo
+to attach where there is none (the grid cut when the place has a grid), and `ev photo current
+<ref>` only where a photo exists — first when every change came within two hours of its photo,
+since the records may only have caught up with what it shows; ev does not decide that on its own. An empty place with no
 photo at all needs none; an emptied one whose photo still shows what left needs a photo of it
 empty, so its picture does not mislead.
 

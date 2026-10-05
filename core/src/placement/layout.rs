@@ -351,7 +351,26 @@ impl Inventory {
                 })
                 .map(|(_, t)| t.id)
                 .collect();
-            out["proposal"] = self.draft_layout(&index, &places, &stays, &common, &form)?;
+            // A place not counted yet is left out: its records may still be wrong.
+            let counted: Vec<bool> = places
+                .iter()
+                .map(|p| {
+                    crate::plan::review_inherited(&self.conn, p.node.id)
+                        .map(|r| r["status"] == "toured" || r["status"] == "kept")
+                })
+                .collect::<Result<_>>()?;
+            let mut proposal =
+                self.draft_layout(&index, &places, &counted, &stays, &common, &form)?;
+            let not_counted = places
+                .iter()
+                .zip(&counted)
+                .filter(|(_, c)| !**c)
+                .map(|(p, _)| brief(p.node))
+                .collect::<Result<Vec<_>>>()?;
+            if !not_counted.is_empty() {
+                proposal["not_counted"] = json!(not_counted);
+            }
+            out["proposal"] = proposal;
         }
         Ok(out)
     }
@@ -365,6 +384,7 @@ impl Inventory {
         &self,
         index: &Index,
         places: &[Place],
+        counted: &[bool],
         stays: &HashSet<i64>,
         common: &dyn Fn(&str) -> bool,
         form: &dyn Fn(&str) -> String,
@@ -372,7 +392,7 @@ impl Inventory {
         // (place index, thing) per kind; a kind of fewer than `GROUP` things in the whole
         // furniture is no group to give a place and a theme, and stays where it is.
         let mut groups: BTreeMap<String, Vec<(usize, &Node)>> = BTreeMap::new();
-        for (pi, p) in places.iter().enumerate() {
+        for (pi, p) in places.iter().enumerate().filter(|(pi, _)| counted[*pi]) {
             for t in p.things.iter().filter(|t| !stays.contains(&t.id)) {
                 if let Some((k, _)) = kind_of(index, &t.name).filter(|(k, _)| !common(k)) {
                     groups.entry(k).or_default().push((pi, t));
@@ -382,7 +402,11 @@ impl Inventory {
         groups.retain(|_, members| members.len() >= GROUP);
         let mut order: Vec<(String, Vec<(usize, &Node)>)> = groups.into_iter().collect();
         order.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
-        let mut taken: Vec<bool> = places.iter().map(|p| p.node.temporary).collect();
+        let mut taken: Vec<bool> = places
+            .iter()
+            .zip(counted)
+            .map(|(p, c)| p.node.temporary || !c)
+            .collect();
         let (mut moves, mut themes, mut kept) = (Vec::new(), Vec::new(), Vec::new());
         for (word, members) in order {
             let mut held: BTreeMap<usize, usize> = BTreeMap::new();

@@ -632,6 +632,10 @@ fn layout_drafts_one_kind_per_drawer_from_the_contents_alone() {
         l.key = None;
     }
     inv.add_batch(more).unwrap();
+    // A draft reads counted places only.
+    for c in ["K2-A", "K2-B", "K2-C", "K2-D"] {
+        inv.review(c, "kept", None).unwrap();
+    }
 
     let v = inv.layout("K2", true).unwrap();
     assert_eq!(v["places"], 4);
@@ -701,6 +705,9 @@ fn layout_keeps_a_noun_compound_whole_so_a_lens_cap_is_no_pen_cap() {
         l.key = None;
     }
     inv.add_batch(more).unwrap();
+    for c in ["K3-A", "K3-B"] {
+        inv.review(c, "kept", None).unwrap();
+    }
     let v = inv.layout("K3", true).unwrap();
     let mut spread: Vec<&str> = v["spread"]
         .as_array()
@@ -769,6 +776,9 @@ fn a_draft_leaves_bins_devices_and_kits_alone_and_themes_no_parking_place() {
     inv.kit_add("Set", None, None, &[("Jumper".into(), 1)], None)
         .unwrap();
     inv.kit_link("Set", 1, &["Kablo, jumper".into()]).unwrap();
+    for c in ["K4-A", "K4-B", "K4-C", "K4-D", "K4-E", "K4-P"] {
+        inv.review(c, "kept", None).unwrap();
+    }
 
     let p = inv.layout("K4", true).unwrap()["proposal"].clone();
     let themes: Vec<(&str, &str)> = p["themes"]

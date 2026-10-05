@@ -202,6 +202,9 @@ fn layout_lists_spread_kinds_and_drafts_a_layout_with_its_moves() {
 "#,
         ),
     );
+    for c in ["K2-A", "K2-B", "K2-C"] {
+        h.run(&["review", c, "--as", "kept"], None);
+    }
     let s = h.text(&["layout", "K2", "--propose"]);
     assert!(s.starts_with("K2  Raf: 3 places, 6 things\n"), "{s}");
     assert!(

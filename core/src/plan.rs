@@ -979,10 +979,14 @@ impl Inventory {
             .into_iter()
             .enumerate()
             .map(|(i, m)| {
-                json!({
-                    "n": i + 1, "f": format!("f{}", i + 1), "file": m.file, "source": m.source,
-                    "note": m.note, "frames": m.frames,
-                })
+                let mut p = json!({
+                    "f": format!("f{}", i + 1), "file": m.file, "note": m.note, "frames": m.frames,
+                });
+                // The photo it was drawn on, when that is not the picture itself.
+                if m.source != m.file {
+                    p["source"] = json!(m.source);
+                }
+                p
             })
             .collect();
         Ok(json!({ "series": {

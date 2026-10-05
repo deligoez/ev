@@ -24,3 +24,91 @@ that fixes them.
   review x` answers `Usage: ev review --as <STATUS> --db <DB> <REFERENCE>`; without `EV_DB` the
   line has no `--db`. An agent reading it may think `--db` is needed. Expected: the same usage
   line either way. Minor. (QA round.)
+- **`ev photo add` attaches part of a refused call.** `ev photo add #12 f2 f3`, where f3 is
+  already attached whole to another record, exits 5 with "this photo is already attached whole
+  to 1 other node(s)", yet f2 is now on #12 (`ev photo list #12` shows it). The same with
+  `ev photo add --stdin`: line 1 was attached, line 2 refused, exit 5. The message names
+  neither the `f` number nor the line that was refused. Expected: all or nothing, like
+  `ev add --stdin`, and the refusal says which photo or line (`line 2: f3 …`). (QA round.)
+- **`ev todo` lists the contents of a parked thing as parked.** A label maker marked
+  `temporary=true` puts its tape cassette and its batteries under "Nihai yerini bekleyenler"
+  too, each "waiting in" the label maker; a glasses case does the same with the glasses and the
+  cloth inside it. They travel with their holder and wait for nothing on their own. `parked[]`
+  in the JSON also does not say why a row is there (its own mark, its place's mark, or
+  `waits_for`). Expected: a thing marked temporary is listed, not what is inside it; each row
+  carries its reason. (QA round.)
+- **A thing with only `waits_for` never shows in `ev todo`.** `ev edit #12 waits_for=#40`
+  (no `temporary`) is accepted, but #12 is in no list until `ev found #40`. The skill says to
+  record a wait this way so it is not lost. Expected: a waiting thing is listed under parked
+  with what it waits for, or the edit says it also needs `temporary=true`. (QA round.)
+- **`ev buy unlink` leaves the brought product pictures on the thing.** After `ev buy bring
+  <line> #12 --type image` and then `ev buy unlink <line> #12` (the link was wrong), #12 keeps
+  the line's 7 pictures as documents and the line's attachments still say `brought_to: 12`.
+  The pictures show another product. Expected: unlink takes back what the link brought (or
+  says what stayed and offers to remove it). (QA round.)
+- **`ev kit part` cannot be undone, and answers with the whole kit.** A part added by mistake
+  (`ev kit part 1 "Wrong part=2"`) stays in the list for good and counts as missing; there is no
+  remove or rename for one part, only `ev kit remove` for the whole kit. The answer is the full
+  `kit show` JSON (every part with every node and path, ~10 KB for a 36-part kit), while
+  `kit link` / `unlink` answer with only the part touched. Expected: a way to drop or rename a
+  part; `kit part` answers with the new parts and their numbers. (QA round.)
+- **`ev review --as toured` refusal is wrong for a box with no photo.** On a new box with no photo
+  at all (`details.stale[].reason: "none"`, `photo_at: null`) the message is still "1 photo(s)
+  are older than what they show", it suggests `ev photo current`, which cannot apply, and
+  `photo cut --grid` for a drawer with no grid. In text mode the message names no place, so the
+  agent cannot tell which box needs a photo without `--json`. Expected: "G-01 has no photo" /
+  "K2-01-A's photo is older than its change", one line per place. (QA round.)
+- **A lost portion is counted as a place but not in the total.** Of `#12 Vida ×40`, `ev lost
+  #12 --qty 10` leaves `eşya: ×30, 2 yerde · … · kayıp 10` in `show` and `find`: "2 places",
+  though the lost 10 are in no place, and a total of 30 next to them. Expected: `×40, 1 yerde ·
+  kayıp 10` (or the lost portion not counted as a place). `ev found` joins them back correctly.
+  (QA round.)
+- **`ev empty` ignores what the records say against it.** `ev empty S-11 --note "opened, empty"`
+  on a box whose note says "full of odds and ends, not empty" and which an open task (#29
+  "count the contents of S-11") covers is accepted without a word; the task stays open and still
+  asks to count an empty box. Also `ev tree --text` shows no `[boş]` for it (only `(sayıldı)`);
+  the JSON has `empty: true`. Expected: mention the open task on the box (done or drop?) and show
+  `[boş]` in the text tree. (QA round.)
+- **A found container reads as counted empty.** `ev found <case> --in K2-15-U`, a carry case
+  lost with contents never counted, then `ev show` says `boş (sayıldı)` because the drawer it
+  turned up in was toured. Nobody looked inside the case. Expected: a box found in a toured
+  place is not known empty until it is opened (`not_known`, like an untoured box). (QA round.)
+- **JSON noise on the new reads.** `ev next --json`: every place under `task.places` carries
+  about ten empty fields (`arriving: []`, `coverages: []`, `kits: []`, `links: []`, `marks: {}`,
+  `needs: []`, `purchases: []`, `tracking`, `valuations`, `waited_for_by`, `while_there: {}`),
+  plus `hints: []`, against "the JSON leaves out what has no value"; a nine-place task is 64 KB.
+  `ev found --json` repeats the same list as `waited_for_by` and `waiting`. `ev focus --list`
+  carries both `f: "f1"` and `n: 1`, and `file` equal to `source` on every unmarked picture.
+  `ev focus --file a.jpg=… b.jpg=…` returns only `series: 3`, not the `f` numbers given.
+  `ev photo add` with series photos returns `shown: null`. A frame's label is a number in
+  `ev focus --list` (`"label": 1, "n": 2`) but a string holding the series number in
+  `ev photo mark` (`marks[].label: "2"`), so the same key means two things in two types.
+  Expected: empty fields left out, one of each duplicate, `focus --file` naming each new
+  picture's `f`, and one name and type per meaning. (QA round.)
+- **`ev add --stdin` with no `kind` says "unknown kind ``".** `line 2: unknown kind ``; expected
+  one of: …` for a line that has no `kind` at all; `ev add x --in y` says "--kind is required".
+  Expected: "line 2: kind is required". Minor. (QA round.)
+- **"Not linked" exits differently in two places.** `ev buy unlink <line> #12` on a link that
+  does not exist exits 2 (`usage`); `ev kit unlink 1 37 #12` exits 3 (`not_found`). Expected:
+  one code for the same case. Minor. (QA round.)
+- **`ev layout --propose` drafts from the last word alone, and it shows.** On a toured 32-drawer
+  Kallax with 400 records it proposes 153 moves and a theme for every drawer. Taken one by one:
+  kinds are raw head words in their possessive form and unstemmed (`ucu` and `uçları` are two
+  kinds; `adaptörü`, `kartı`, `kapağı`, `gövdesi`, `cihazı`, `seti` become themes), so a camera
+  body goes with a furniture lock nut and a cutter body (`gövdesi`), lens caps with pen caps
+  (`kapağı`), sensor boards and an RFID card with dev boards and a handheld whose name ends
+  in "info card" (`kartı`), memory-card adapters with power adapters, and a device is split
+  from its own test leads and adapter board. Things inside labelled, themed gridfinity bins are
+  moved out one by one, as if the bins were not there. A parking drawer (`temporary`) gets a
+  theme and things moved in. In `ev layout`, a colour (`bordo`) is the only shared word behind
+  a merge proposal. Expected: the kind is the noun phrase (stemmed, a compound like `lens
+  kapağı` kept whole), a box with a theme moves as a unit, records of one kit or one set stay
+  together, parking places are left out, and colour words do not count. As it stands the draft
+  cannot go to the person: every third line would need explaining away. (QA round.)
+- **Marking a series photo adds a second copy of it.** `ev focus --file a.jpg=…` (f1), then
+  `ev photo mark f1 1=… 2=…` adds f4, the marked copy; f1 stays unmarked next to it, so the
+  person steps through the same photo twice. (`photo cut … --preview` then the real cut
+  replaces the preview picture, which is the expected feel.) Expected: marking a picture already
+  in the series marks it in place, or says that a copy was added. Minor. (QA round.)
+- **`ev task drop` rewrites a done task.** `ev task done 29`, then `ev task drop 29` turns it to
+  `dropped` without a word. Expected: refuse, or say it was done. Minor. (QA round.)

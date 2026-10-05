@@ -68,7 +68,7 @@ it once", and whether a marketplace's sale mails could be a source too.
   add <mail> --kind receipt --for <x>`.
 - `ev buy link <line> <x>` works on a gone record: the line is settled and leaves the open
   lists. Today a line can only be dismissed, which says "never a thing", the wrong fact.
-- `ev past [--kind <word>] [--where <place>]`: the past things, last gone first: name, came and
+- `ev past [--name <word>] [--where <place>]`: the past things, last gone first: name, came and
   left, how, where, paid (its linked purchases) and got (its sale); and per year how many left
   and the money paid for them and got for them, by currency. Mistakes, joined portions and
   digitized papers are no past belongings and are left out.

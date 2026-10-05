@@ -470,6 +470,52 @@ pub(crate) fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>
         .optional()?)
 }
 
+/// The newest whole photo of a place checked against what is recorded in it, when a tour closes:
+/// which records are shown on it (a crop of theirs was cut from that photo) and which are not
+/// yet, so the agent says which record is which thing before the person calls it done. Null
+/// when the place has no whole photo or nothing in it.
+fn photo_check(conn: &Connection, place: i64) -> Result<Value> {
+    // As kept (to compare with the crops' source) and as a file to open.
+    let photo: Option<(String, String)> = conn
+        .query_row(
+            "SELECT path, ev_file(path) FROM photos WHERE node_id = ?1 AND crop IS NULL
+              ORDER BY added_at DESC, position DESC LIMIT 1",
+            [place],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let Some((photo, file)) = photo else {
+        return Ok(Value::Null);
+    };
+    let inside = ids(
+        conn,
+        "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0 ORDER BY id",
+        [place],
+    )?;
+    if inside.is_empty() {
+        return Ok(Value::Null);
+    }
+    let (mut located, mut not_located) = (Vec::new(), Vec::new());
+    for n in inside {
+        let shown: bool = conn.query_row(
+            "SELECT EXISTS (SELECT 1 FROM photos WHERE node_id = ?1 AND source = ?2)",
+            params![n, photo],
+            |r| r.get(0),
+        )?;
+        let b = brief(conn, n)?;
+        if shown {
+            located.push(b);
+        } else {
+            not_located.push(b);
+        }
+    }
+    Ok(json!({
+        "photo": file,
+        "located": located,
+        "not_located": not_located,
+    }))
+}
+
 /// Each node an open or in-progress task is about, with those tasks as `{id, title}`, in task
 /// order.
 fn open_tasks_by_node(conn: &Connection) -> Result<HashMap<i64, Vec<Value>>> {
@@ -1246,6 +1292,12 @@ impl Inventory {
             let left = self.left_around(id, &HashSet::from([id]))?;
             if !left["furniture"].is_null() || !left["room"].is_null() {
                 v["left_here"] = left;
+            }
+        }
+        if status == "toured" {
+            let check = photo_check(&self.conn, id)?;
+            if !check.is_null() {
+                v["photo_check"] = check;
             }
         }
         Ok(v)

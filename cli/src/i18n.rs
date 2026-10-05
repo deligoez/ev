@@ -1067,6 +1067,10 @@ static TR: &[(&str, &str)] = &[
     ("trade", "takas"),
     ("things", "eşya"),
     ("bought as", "satın alındığı satır"),
+    (
+        "Not shown on the final photo yet ({} of {}): say which is which",
+        "Son fotoğrafta yeri henüz gösterilmeyen ({} / {}): hangisi hangisi, söyle",
+    ),
     ("coverage bought as", "güvencenin satırı"),
     ("kit bought as", "setin satırı"),
     ("line", "satır"),

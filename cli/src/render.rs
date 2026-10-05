@@ -2329,6 +2329,25 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
         show(&mut out, v, node);
+        // `ev review --as toured`: which records the final photo shows, and which not yet.
+        let check = &v["photo_check"];
+        let unshown = check["not_located"].as_array().map_or(0, Vec::len);
+        if unshown > 0 {
+            let _ = writeln!(
+                out,
+                "\n{}",
+                tf(
+                    "Not shown on the final photo yet ({} of {}): say which is which",
+                    &[
+                        &unshown,
+                        &(unshown + check["located"].as_array().map_or(0, Vec::len))
+                    ]
+                )
+            );
+            for n in check["not_located"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  {}", line(n));
+            }
+        }
         // `ev review`: what is still not counted around the place (spec/counting.md).
         let left = &v["left_here"];
         for (key, head) in [

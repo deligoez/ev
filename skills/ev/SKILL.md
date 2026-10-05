@@ -317,6 +317,9 @@ details in `ev ui` show the same): for each place it lists the words its content
 themed place they read most like. Write a short theme in the person's words from that and from
 what you see ("Antenler ve anten kabloları"), say it, and record it with
 `ev edit <place> theme="…"` once they agree. Do not theme a place that has not been toured.
+**A theme describes the present, not the plan.** When the person reorganizes (merging drawers,
+splitting one, moving parts between them), never defend a move against today's themes: propose
+the layout that makes sense, then re-theme the places after the moves.
 **"For now" is data: `temporary`.** When the person puts something somewhere only until its
 place is decided ("şimdilik buraya", "nihai yeri burası değil"), mark it the moment they say
 it: `ev edit <place> temporary=true` when the whole place is a parking place, or `ev edit <thing>

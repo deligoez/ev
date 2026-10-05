@@ -1891,10 +1891,13 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
         return out;
     }
+    // `ev buy bring`: what was brought to the thing, what was left and why.
+    if let Some(node) = v.get("node").filter(|_| v.get("from_purchase").is_some()) {
+        bring_summary(&mut out, v);
+        let _ = writeln!(out, "{}", line(node));
+        return out;
+    }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
-        if v.get("brought").is_some() {
-            bring_summary(&mut out, v);
-        }
         show(&mut out, v, node);
         return out;
     }

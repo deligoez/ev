@@ -298,12 +298,14 @@ impl Inventory {
             .collect();
         let (brought, skipped) = bring_into(&tx, &self.doc_dir, node, &picked, types)?;
         tx.commit()?;
-        let mut v = crate::store::show(&self.conn, node)?;
-        v["brought_types"] = counts_by_type(&picked, &brought);
-        v["brought"] = json!(brought);
-        v["skipped"] = json!(skipped);
-        v["from_purchase"] = json!(id);
-        Ok(v)
+        // What was done, not the whole thing again: `ev show` has the rest.
+        Ok(json!({
+            "node": crate::store::brief(&self.conn, node)?,
+            "from_purchase": id,
+            "brought_types": counts_by_type(&picked, &brought),
+            "brought": brought,
+            "skipped": skipped,
+        }))
     }
 
     /// Brings what every linked line still carries (of `types` only, when given) to the thing

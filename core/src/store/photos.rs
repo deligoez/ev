@@ -514,17 +514,21 @@ impl Inventory {
             (PathBuf::from(path), Some(id), grid)
         };
         let mut marks = marks.to_vec();
-        // The labels' numbers are this photo's 1, 2, …: each becomes its number in the series.
+        // The labels' numbers count this photo's frames: in their order, each takes the next of
+        // this photo's numbers in the series. Their values only order them, so a lone `2` (the
+        // agent counting across photos) is not left a gap before it.
         if numbered == Some(false) {
-            let count = marks
+            let mut given: Vec<usize> = marks
                 .iter()
                 .filter_map(|(l, _)| leading_number(l).map(|n| n.0))
-                .max()
-                .unwrap_or(0);
-            let numbers = self.focus_numbers(&file, count)?;
+                .collect();
+            given.sort_unstable();
+            given.dedup();
+            let numbers = self.focus_numbers(&file, given.len())?;
             for (label, _) in &mut marks {
-                if let Some((k, rest)) = leading_number(label).filter(|n| n.0 > 0) {
-                    *label = format!("{}{rest}", numbers[k - 1]);
+                if let Some((k, rest)) = leading_number(label) {
+                    let rank = given.iter().position(|g| *g == k).unwrap_or(0);
+                    *label = format!("{}{rest}", numbers[rank]);
                 }
             }
         }

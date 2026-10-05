@@ -235,9 +235,18 @@ impl Inventory {
                 json!({
                     "word": form(k),
                     "things": total,
+                    // Each place with the records that make the kind there, to check by name.
                     "places": where_
                         .iter()
-                        .map(|(p, c)| Ok(json!({ "place": brief(p.node)?, "things": c })))
+                        .map(|(p, c)| {
+                            let records: Vec<Value> = p
+                                .things
+                                .iter()
+                                .filter(|t| kind_of(&index, &t.name).is_some_and(|(tk, _)| &tk == *k))
+                                .map(|t| json!({ "id": t.id, "name": t.name }))
+                                .collect();
+                            Ok(json!({ "place": brief(p.node)?, "things": c, "records": records }))
+                        })
                         .collect::<Result<Vec<_>>>()?,
                 }),
             ));

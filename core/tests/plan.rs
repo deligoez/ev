@@ -103,6 +103,23 @@ fn a_drawer_with_labelled_boxes_of_another_series_stays_one_place() {
 }
 
 #[test]
+fn a_lost_thing_found_elsewhere_leaves_its_last_seen_place_unchanged() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Gözlük", "item", Some("K1-01-U"), None);
+    inv.mark_lost("Gözlük").unwrap();
+    inv.photo_current("K1-01-U").unwrap();
+    inv.review("K1-01-U", "toured", None).unwrap();
+    // A second later the glasses turn up in the cardboard box.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    inv.found_in("Gözlük", "Karton kutu").unwrap();
+    let p = inv.progress().unwrap();
+    // The drawer never held them since it was counted: nothing in it changed.
+    assert_eq!(p["changed_since_tour"], 0, "{p}");
+    let tree = inv.tree(Some("K1-01"), None).unwrap();
+    assert!(!tree.to_string().contains("changed_since"), "{tree}");
+}
+
+#[test]
 fn a_review_covers_everything_below_and_notices_later_changes() {
     let (_d, mut inv) = setup();
     // No photo of the drawer: touring it needs one, or the person's word that none is needed.

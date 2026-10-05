@@ -83,3 +83,5 @@ carries no file paths; `ev focus f12` shows that picture again.
 - On a line in packs, `ev buy link` without `--qty` took every unit left for the first thing,
   and the next things found nothing to link: it now takes as many units as the thing stands for
   (its `qty`, else one).
+- `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
+  `skipped`), no longer the whole thing as `ev show` gives it.

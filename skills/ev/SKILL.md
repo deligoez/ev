@@ -311,12 +311,14 @@ plain words is not read by `suggest` or `regroup`. Make it a facet: `ev facet ad
 "modül, kart"`, `ev facet add çıplak`, and tag each holder with its facet (`ev edit <box>
 tags=+modül`). Things inherit their holder's facet and new things take it from their words;
 holders of another facet are listed apart under `other_facet`, never proposed.
+
 **Give every place a theme.** A theme is the summary every placement answer leans on: places
 without one are where suggestions go wrong. While touring, run `ev themes <drawer>` (the
 details in `ev ui` show the same): for each place it lists the words its contents share and the
 themed place they read most like. Write a short theme in the person's words from that and from
 what you see ("Antenler ve anten kabloları"), say it, and record it with
 `ev edit <place> theme="…"` once they agree. Do not theme a place that has not been toured.
+
 **A theme describes the present, not the plan.** When the person reorganizes (merging drawers,
 splitting one, moving parts between them), never defend a move against today's themes: propose
 the layout that makes sense, then re-theme the places after the moves. When the last drawer of a
@@ -325,6 +327,7 @@ over several drawers, drawers that read alike, nearly empty and full or mixed on
 photos of the drawers named; when the person wants a new layout, `ev layout <furniture> --propose`
 drafts one from the contents alone. It is a draft to change together, not a plan: plan each move
 (`ev move … --plan`) and write each new theme only on their word.
+
 **"For now" is data: `temporary`.** When the person puts something somewhere only until its
 place is decided ("şimdilik buraya", "nihai yeri burası değil"), mark it the moment they say
 it: `ev edit <place> temporary=true` when the whole place is a parking place, or `ev edit <thing>
@@ -335,6 +338,7 @@ the place is now final. **When its place waits for another thing** (glue sticks 
 lost glue gun turns up), say so with `ev edit <thing> waits_for=<other>`, never only in a note:
 `ev found <other>` then lists it under `waiting` — ask the person where it goes now. Its move
 ends the wait. What is not recorded is lost at the end of the conversation.
+
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the
 place is toured, a tag to add, a theme to decide: write it as `ev observe <place> "<text>"` so
 `ev next` brings it up when that place's turn comes. Do not edit the records of a place that
@@ -357,12 +361,14 @@ sold, `ev show` lists its documents: read them out before the person goes lookin
 **Import purchases into the person's inventory only when they ask.** The raw exports under
 `~/.ev/purchases/` stay outside `ev` until the person says to bring a shop in; running an
 adapter into their database on your own is not part of any other task.
+
 **What was bought is evidence, not a record.** Purchase lines come from a shop's export
 through an adapter you keep next to it, which also emits each line's product pictures as
 `image` lines (`~/.ev/purchases/<shop>/adapter.py | ev buy import --stdin`), or by hand
 (`ev buy add`); none of them is a thing in the tree. A new shop gets a new adapter: start from
 `examples/purchases/` in the ev repository (its README walks through it) and keep the adapter
 with the shop's raw export and its `RECIPE.md`.
+
 **Say the right date:** a line shows `ordered …` (the day it was
 bought, what the shop's order page says) and `delivered …` when it arrived; "bought on" is the
 order date. When the person holds a thing that matches a line ("this is the drill I
@@ -370,10 +376,12 @@ bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`.
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
 returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
 your own reading of a name; ask.
+
 **A pack or set whose units went into several records is one line, sized once.** When the
 person's 8-pack is kept in two boxes, or a charger set's AA and AAA cells are separate records,
 set the line's units per bought quantity with `ev buy pack <line> <n>` and link each record with
 `ev buy link <line> <ref> --qty <its units>`; never leave the purchase as prose in a note.
+
 **When `ev add`, `ev found` or an `ev edit` that sets make or model prints "Could be one of
 these purchases", ask about the first one while the thing is in hand** ("is this the one bought
 from <shop> on <date>?"); on a yes, `ev buy link`,
@@ -386,9 +394,11 @@ For the back-fill and at the end of each tour, `ev buy for --toured` lists every
 in a toured place with its one best line, numbered and best first: ask down that list by number
 instead of looping over records yourself. The reasons say why: a shared model code is strong,
 shared words are weak. Under My Roof is never imported; use it only to confirm a match.
+
 **When the person says a candidate is not the thing, record it:** `ev buy decline <line> <ref>
 --why "…"`. The line stays open for other things and is not offered to this one again; do not
 `dismiss` it, which settles it for every thing.
+
 **After a link, offer what came with the line in one question.** `ev buy link` shows the line's
 `attachments` (a product page, a value, a warranty from the source, the shop's product
 pictures): "bring along the invoice, 1 link, 3 product pictures, a value of 2,500 TRY
@@ -412,16 +422,19 @@ manufacturer|extended|store|statutory|insurance --term 2y [--from <date>|after:<
 policy goes in with `ev doc add <file> --kind warranty --coverage <id>`. `ev show` gives the
 status; when it shows `coverage_proposal` (a two-year statutory warranty from a linked
 purchase's delivery), offer it once; it is recorded only on a yes.
+
 **Ask about coverage and value once, and respect the answer.** `ev todo` counts valuable things
 with no coverage; ask about them while touring, dearest first. When the person says "don't
 track this" or "not now", record it with `ev track <ref> coverage|value no|later --why "…"`,
 on a whole box or drawer when they say so, and never bring it up again unless they ask.
+
 **Write a value with its source and date:** `ev value <ref> 2500 --source "sahibinden ilanı"
 --at <date>` when the person reports a price they saw; the purchase price is never a value.
 `ev todo` counts bought things with no value; ask while touring, dearest first, and respect
 "no" and "not now" as for coverage. A product page, manual or driver page goes in with
 `ev link add <ref> <url> --kind manual`; add `--archive` (a saved copy or a Wayback address)
 when the page may die.
+
 **Prices in today's money.** A bought thing shows `≈ <amount> in <month> money` when the index
 is cached; before quoting what something is worth, run `ev money status` and, if it is `stale`
 or rates are missing, pipe `ev money needs` through `tools/money/fetch.py` into
@@ -436,6 +449,7 @@ says more is coming ("devamı var"), answer only with a count ("aldım (5/…)")
 table, no questions — and wait. When the person says the batch is done ("bitti"), work the whole
 batch at once: number the photos in the order they arrived across the messages (1–5 the first,
 6–10 the second, …), keep each note with the photos it came with, and answer in one table.
+
 **Tell first, record after:** your first answer to a finished batch is short — what you see,
 what the person should get ready, with the marked photo on screen; recording and cutting come
 after it.
@@ -450,6 +464,7 @@ boxes), puts it on their `ev ui` and returns `legend` (`n` → record). A photo 
 your text). Cuts, previews and marks go to the screen on their own; never `--no-show` one the
 person should see. **Open every marked file and check each
 frame sits on its part before sending** — the coordinates are your estimate.
+
 **Name every part by where it is in the photo, every time** — "left, the two on paper tape",
 "top right, the big black one", "2nd from the left in the middle row" — in tables, proposals
 and questions alike, even when you said it once further up: the person matches your words to
@@ -472,6 +487,7 @@ never your own count. A number means one frame until the series is closed: a pho
 keeps its numbers and a frame added to it takes the next free one; a cut of a photo you marked
 draws the numbers it was marked with, so give its crops in the order of the marks.
 `ev focus --list` reads the series (each picture, its frames, the next number).
+
 **Three kinds of reference, never mixed:** a bare number is a frame in the open series (`3`), `f`
 and a number is a picture of the series (`f12`, as its title in `ev ui` reads), `#` and a number
 is a record (`#12`). Number your table's rows with the frames' numbers. Commands take `f12` for a
@@ -532,6 +548,7 @@ its side or upside down is turned before anything is cut — `--rotate 90|180|27
 `ev photo add` or `ev photo cut`, every coordinate then a fraction of the turned photo; one
 already attached turns for good with `ev photo rotate <ref> <n> <degrees>`, its crops with it
 (never by hand: turned coordinates are easy to get backwards).
+
 **A drawer with a grid is cut by its corners**:
 `ev photo cut <photo> --place <drawer> --grid blx,bly,brx,bry,frx,fry,flx,fly` takes the grid's
 four corners as fractions of the upright photo — back-left, back-right, front-right, front-left
@@ -550,6 +567,7 @@ part off — the sheet is too small to show a cut edge. An estimate cuts edges o
 a bit's shank) far more often than it takes in too much: give hand crops a margin with
 `--pad 0.1`. Redo any crop that is wrong (a hand crop wins for its box). The coordinates are
 your estimate, the check is what makes them right.
+
 **A group photo goes whole on one node only — the place — and every thing in it gets its own
 crop.** `ev photo add` refuses a whole photo that is already attached whole elsewhere; when it
 does, cut the crop — do not reach for `--whole` to get past it. `shared_photos` in `ev todo`

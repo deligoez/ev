@@ -2241,6 +2241,10 @@ fn run(cli: Cli) -> Result<Value> {
                 inv.focus_noted(&show, one.as_deref())?["focus"].clone()
             };
             if single {
+                // Only the photo added, with its number; every photo is `ev photo list`.
+                if let Some(p) = last["photos"].as_array().and_then(|p| p.last()).cloned() {
+                    last["photos"] = json!([p]);
+                }
                 if !shown.is_null() {
                     last["shown"] = shown;
                 }

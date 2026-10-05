@@ -402,6 +402,49 @@ fn a_box_added_after_the_drawer_photo_puts_the_drawer_back_on_the_photo_list() {
 }
 
 #[test]
+fn a_compartment_whose_drawers_have_their_own_photos_needs_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    add(&mut inv, "Ev", "home", None, None);
+    add(&mut inv, "Oda", "room", Some("Ev"), None);
+    add(&mut inv, "Kallax", "furniture", Some("Oda"), Some("K1"));
+    add(&mut inv, "Bölme", "container", Some("K1"), Some("K1-01"));
+    add(&mut inv, "Üst", "container", Some("K1-01"), Some("K1-01-U"));
+    add(&mut inv, "Alt", "container", Some("K1-01"), Some("K1-01-A"));
+    add(&mut inv, "Pil", "item", Some("K1-01-U"), None);
+    add(&mut inv, "Kablo", "item", Some("K1-01-A"), None);
+    inv.grid_set("K1-01", 1, 2).unwrap();
+    inv.cells_set(&pairs(&[("K1-01-U", "A1"), ("K1-01-A", "A2")]))
+        .unwrap();
+    let photo = dir.path().join("p.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&photo)
+        .unwrap();
+    let needing = |inv: &Inventory| -> Vec<String> {
+        inv.todo().unwrap()["photos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["code"].as_str().unwrap_or("?").to_string())
+            .collect()
+    };
+    // The lower drawer has no photo of its own: the compartment's photo would show it.
+    inv.photo_add("K1-01-U", &photo, None, None).unwrap();
+    assert!(needing(&inv).contains(&"K1-01".to_string()));
+    // Both drawers pictured on their own: the empty frame around them needs no photo.
+    let other = dir.path().join("q.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([4, 5, 6]))
+        .save(&other)
+        .unwrap();
+    inv.photo_add("K1-01-A", &other, None, None).unwrap();
+    assert!(
+        !needing(&inv).contains(&"K1-01".to_string()),
+        "{:?}",
+        needing(&inv)
+    );
+}
+
+#[test]
 fn a_cut_preview_frames_every_box_it_would_cut_and_attaches_nothing() {
     let (d, inv, photo) = photographed();
     let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();

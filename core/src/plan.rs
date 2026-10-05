@@ -844,6 +844,8 @@ impl Inventory {
         // copy are two pictures of the same photo.
         let mut taken = vec![false; series.len()];
         let mut show = None;
+        // Each picture of this request by its `f`, so the agent names them without a list.
+        let mut fs = Vec::new();
         let source = source
             .map(|s| std::path::absolute(s).unwrap_or_else(|_| s.to_path_buf()))
             .map(|s| s.to_string_lossy().into_owned());
@@ -868,6 +870,7 @@ impl Inventory {
                 }
             };
             show = Some(show.map_or(i, |s: usize| s.min(i)));
+            fs.push(format!("f{}", i + 1));
         }
         let last = frames.iter().filter_map(|f| f["n"].as_u64()).max();
         let next = req["next"].as_u64().max(last.map(|l| l + 1));
@@ -889,7 +892,7 @@ impl Inventory {
         self.send_focus(&sent)?;
         let files: Vec<&String> = paths.iter().map(|(p, _)| p).collect();
         Ok(json!({ "focus": {
-            "files": files, "note": note, "series": count, "next": next, "at": at,
+            "files": files, "f": fs, "note": note, "series": count, "next": next, "at": at,
         } }))
     }
 

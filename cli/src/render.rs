@@ -2421,6 +2421,16 @@ pub fn human(v: &Value) -> String {
             _ => t("The request to ev ui is cleared.").to_string(),
         };
         let _ = writeln!(out, "{said}");
+        // The pictures this request put in the series, by the name the person reads on screen.
+        let fs: Vec<&str> = f["f"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        if !fs.is_empty() {
+            let _ = writeln!(out, "  {}", fs.join(" "));
+        }
         return out;
     }
     // `ev focus --list`: the series of marked photos on screen.

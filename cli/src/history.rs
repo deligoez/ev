@@ -245,6 +245,20 @@ pub(crate) fn event_words(
             let why = str_of(d, "why");
             format!("{}  {why}", left_as(d["as"].as_str().unwrap_or_default()))
         }),
+        "coverage_purchase" => own(
+            "coverage bought as",
+            match d["purchase"].as_i64() {
+                Some(p) => format!("#{} → {} #{p}", d["coverage"], t("line")),
+                None => format!("#{}  {}", d["coverage"], t("taken back")),
+            },
+        ),
+        "kit_purchase" => own(
+            "kit bought as",
+            match d["purchase"].as_i64() {
+                Some(p) => format!("{} → {} #{p}", str_of(d, "kit"), t("line")),
+                None => format!("{}  {}", str_of(d, "kit"), t("taken back")),
+            },
+        ),
         "traded" => own(
             "traded",
             d["for"]

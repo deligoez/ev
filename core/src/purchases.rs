@@ -175,7 +175,16 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
     };
     // A line joined to another (the same purchase seen by a second source) is settled through
     // that line: nothing of it is left open.
-    p["open_qty"] = if p["same_as"].is_null() && kits.is_empty() {
+    // So does a coverage bought as this line (an extended warranty sold on its own).
+    let coverages = ids(
+        conn,
+        "SELECT id FROM coverages WHERE purchase_id = ?1 ORDER BY id",
+        [id],
+    )?;
+    if !coverages.is_empty() {
+        p["coverages"] = json!(coverages);
+    }
+    p["open_qty"] = if p["same_as"].is_null() && kits.is_empty() && coverages.is_empty() {
         json!((p["units"].as_i64().unwrap_or(0) - linked).max(0))
     } else {
         json!(0)

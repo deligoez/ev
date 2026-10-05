@@ -283,6 +283,19 @@ pub(crate) fn coverage_json(conn: &Connection, id: i64, warning: i64) -> Result<
             .map(|n| brief(conn, n))
             .collect::<Result<Vec<_>>>()?
     );
+    // The line it was bought as, in short: `ev buy show` has the rest.
+    let purchase: Option<i64> = conn.query_row(
+        "SELECT purchase_id FROM coverages WHERE id = ?1",
+        [id],
+        |r| r.get(0),
+    )?;
+    if let Some(p) = purchase {
+        let l = crate::purchases::purchase_row(conn, p)?;
+        v["purchase"] = json!({
+            "id": p, "name": l["name"], "shop": l["shop"], "ordered_at": l["ordered_at"],
+            "paid": l["paid"], "currency": l["currency"],
+        });
+    }
     v["documents"] = json!(
         ids(
             conn,
@@ -576,7 +589,8 @@ fn open_purchases(conn: &Connection) -> Result<i64> {
     Ok(conn.query_row(
         "SELECT COUNT(*) FROM purchases p
           WHERE p.bucket = 'durable' AND p.status = 'delivered' AND p.dismissed IS NULL
-            AND p.same_as IS NULL
+            AND p.same_as IS NULL AND NOT EXISTS (SELECT 1 FROM kits WHERE purchase_id = p.id)
+            AND NOT EXISTS (SELECT 1 FROM coverages WHERE purchase_id = p.id)
             AND p.qty * p.pack > COALESCE((SELECT SUM(qty) FROM purchase_links WHERE purchase_id = p.id), 0)",
         [],
         |r| r.get(0),
@@ -677,6 +691,51 @@ impl Inventory {
 
     pub fn cover_show(&self, id: i64) -> Result<Value> {
         Ok(json!({ "coverage": coverage_json(&self.conn, id, warning_days(&self.conn)?)? }))
+    }
+
+    /// The purchase line a coverage was bought as (an extended warranty sold as a line of its
+    /// own): it settles the line, and the coverage shows it; its price becomes the premium when
+    /// none was given. `None` takes the link back. A `coverage_purchase` event on each thing it
+    /// covers.
+    pub fn cover_purchase(&mut self, coverage: i64, line: Option<i64>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let found: Option<i64> = tx
+            .query_row("SELECT id FROM coverages WHERE id = ?1", [coverage], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if found.is_none() {
+            return Err(Error::NotFound(format!("no coverage with id {coverage}")));
+        }
+        if let Some(l) = line {
+            let (paid, currency): (Option<i64>, Option<String>) = tx
+                .query_row(
+                    "SELECT paid, currency FROM purchases WHERE id = ?1",
+                    [l],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?
+                .ok_or_else(|| Error::NotFound(format!("no purchase with id {l}")))?;
+            tx.execute(
+                "UPDATE coverages SET premium = COALESCE(premium, ?1),
+                   currency = COALESCE(currency, ?2) WHERE id = ?3",
+                params![paid, currency, coverage],
+            )?;
+        }
+        tx.execute(
+            "UPDATE coverages SET purchase_id = ?1 WHERE id = ?2",
+            params![line, coverage],
+        )?;
+        for n in nodes_of(&tx, coverage)? {
+            crate::store::event(
+                &tx,
+                n,
+                "coverage_purchase",
+                json!({ "coverage": coverage, "purchase": line }),
+            )?;
+        }
+        tx.commit()?;
+        self.cover_show(coverage)
     }
 }
 

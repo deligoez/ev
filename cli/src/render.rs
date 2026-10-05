@@ -1174,6 +1174,29 @@ fn coverage(out: &mut String, cv: &Value) {
     for n in cv["nodes"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  → #{} {}", n["id"], s(n, "path_text"));
     }
+    // The line it was bought as.
+    if let Some(p) = cv["purchase"].as_object() {
+        let paid = p
+            .get("paid")
+            .and_then(Value::as_str)
+            .map(|a| {
+                format!(
+                    " · {}",
+                    amount(
+                        a,
+                        p.get("currency").and_then(Value::as_str).unwrap_or("TRY")
+                    )
+                )
+            })
+            .unwrap_or_default();
+        let _ = writeln!(
+            out,
+            "  {}: #{} {}{paid}",
+            t("bought as"),
+            cv["purchase"]["id"],
+            s(&cv["purchase"], "name")
+        );
+    }
     for d in cv["documents"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("document"), doc_line(d));
     }

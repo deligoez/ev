@@ -88,6 +88,7 @@ fn schema_29_keeps_the_store_paths_of_an_older_inventory_relative() {
             "DROP INDEX nodes_thing; ALTER TABLE nodes DROP COLUMN thing;
              ALTER TABLE kits DROP COLUMN purchase_id; ALTER TABLE nodes DROP COLUMN waits_for;
              ALTER TABLE nodes DROP COLUMN came_at; DROP TABLE departures;
+             ALTER TABLE coverages DROP COLUMN purchase_id;
              PRAGMA user_version = 28;",
         )
         .unwrap();
@@ -117,6 +118,7 @@ fn a_migration_reaches_the_file_while_another_reader_is_open() {
         .unwrap()
         .execute_batch(
             "ALTER TABLE nodes DROP COLUMN came_at; DROP TABLE departures;
+             ALTER TABLE coverages DROP COLUMN purchase_id;
              PRAGMA user_version = 33;",
         )
         .unwrap();

@@ -621,10 +621,12 @@ COMMIT;
 ";
 
 /// Schema 35: a swap is a way of leaving (spec/past-belongings.md, decided 2026-10-06): what came
-/// in exchange for a thing traded away.
+/// in exchange for a thing traded away. And the purchase line a coverage was bought as (an
+/// extended warranty sold as a line of its own), which settles that line.
 pub(super) const SCHEMA_V35: &str = "
 BEGIN;
 ALTER TABLE departures ADD COLUMN traded_for INTEGER REFERENCES nodes(id);
+ALTER TABLE coverages ADD COLUMN purchase_id INTEGER REFERENCES purchases(id);
 PRAGMA user_version = 35;
 COMMIT;
 ";

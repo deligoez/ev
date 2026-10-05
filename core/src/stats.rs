@@ -429,7 +429,9 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
         "open_durable": count(
             "SELECT COUNT(*) FROM purchases WHERE same_as IS NULL AND dismissed IS NULL
                AND bucket = 'durable' AND status = 'delivered'
-               AND id NOT IN (SELECT purchase_id FROM purchase_links)",
+               AND id NOT IN (SELECT purchase_id FROM purchase_links)
+               AND NOT EXISTS (SELECT 1 FROM kits k WHERE k.purchase_id = purchases.id)
+               AND NOT EXISTS (SELECT 1 FROM coverages c WHERE c.purchase_id = purchases.id)",
         )?,
         "years": years,
         "shops": shops,

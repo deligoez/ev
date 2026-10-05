@@ -752,6 +752,10 @@ struct CoverAddArgs {
     scope: Option<String>,
     #[arg(long)]
     note: Option<String>,
+    /// The purchase line it was bought as (an extended warranty sold on its own): it settles
+    /// the line, and its price is the premium when none is given.
+    #[arg(long, value_parser = record_id)]
+    purchase: Option<i64>,
 }
 
 #[derive(Subcommand)]
@@ -772,6 +776,17 @@ enum CoverCmd {
     Remove {
         #[arg(value_parser = record_id)]
         id: i64,
+    },
+    /// The purchase line a coverage was bought as (an extended warranty sold as a line of its
+    /// own): it settles the line, the coverage shows it, and its price is the premium when none
+    /// was given. `--clear` takes it back.
+    Purchase {
+        #[arg(value_parser = record_id)]
+        coverage: i64,
+        #[arg(value_parser = record_id, required_unless_present = "clear")]
+        line: Option<i64>,
+        #[arg(long, conflicts_with = "line")]
+        clear: bool,
     },
 }
 
@@ -2077,7 +2092,11 @@ fn run(cli: Cli) -> Result<Value> {
         ),
         Cmd::Cover(CoverCmd::Add(a)) => {
             let a = *a;
-            inv.cover_add(
+            // The line is checked before the coverage is written, so a wrong id leaves nothing.
+            if let Some(l) = a.purchase {
+                inv.buy_show(l)?;
+            }
+            let v = inv.cover_add(
                 &a.references,
                 &ev_core::NewCoverage {
                     kind: a.kind,
@@ -2093,7 +2112,11 @@ fn run(cli: Cli) -> Result<Value> {
                     scope: a.scope,
                     note: a.note,
                 },
-            )
+            )?;
+            match (a.purchase, v["coverage"]["id"].as_i64()) {
+                (Some(l), Some(c)) => inv.cover_purchase(c, Some(l)),
+                _ => Ok(v),
+            }
         }
         Cmd::Cover(CoverCmd::List { ending }) => inv.cover_list(ending),
         Cmd::Money(MoneyCmd::Needs) => inv.money_needs(),
@@ -2109,6 +2132,7 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Cmd::Cover(CoverCmd::Show { id }) => inv.cover_show(id),
         Cmd::Cover(CoverCmd::Remove { id }) => inv.cover_remove(id),
+        Cmd::Cover(CoverCmd::Purchase { coverage, line, .. }) => inv.cover_purchase(coverage, line),
         Cmd::Track {
             reference,
             subject,

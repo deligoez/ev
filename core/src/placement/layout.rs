@@ -14,6 +14,9 @@ const FEW: usize = 3;
 /// A place of this many things or more is mixed when no word names this share of them.
 const MIXED_THINGS: usize = 8;
 const MIXED_SHARE: f64 = 0.4;
+/// A kind of this many things or more is a group a drafted layout gives a place of its own:
+/// two of a kind themed a drawer each and made the draft read as noise.
+const GROUP: usize = 3;
 /// A word in more than this share of the places says nothing about any of them.
 const COMMON_SHARE: f64 = 0.7;
 
@@ -348,8 +351,8 @@ impl Inventory {
         common: &dyn Fn(&str) -> bool,
         form: &dyn Fn(&str) -> String,
     ) -> Result<Value> {
-        // (place index, thing) per kind; a kind of one thing in the whole furniture is no group,
-        // and stays where it is.
+        // (place index, thing) per kind; a kind of fewer than `GROUP` things in the whole
+        // furniture is no group to give a place and a theme, and stays where it is.
         let mut groups: BTreeMap<String, Vec<(usize, &Node)>> = BTreeMap::new();
         for (pi, p) in places.iter().enumerate() {
             for t in p.things.iter().filter(|t| !stays.contains(&t.id)) {
@@ -358,7 +361,7 @@ impl Inventory {
                 }
             }
         }
-        groups.retain(|_, members| members.len() >= 2);
+        groups.retain(|_, members| members.len() >= GROUP);
         let mut order: Vec<(String, Vec<(usize, &Node)>)> = groups.into_iter().collect();
         order.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
         let mut taken: Vec<bool> = places.iter().map(|p| p.node.temporary).collect();

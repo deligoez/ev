@@ -10,7 +10,7 @@ them.
 ## Install
 
 ```bash
-brew install deligoez/tap/ev     # the `ev` binary (or: cargo install --path cli)
+brew install deligoez/tap/ev     # the `ev` binary (or: cargo install --locked --path cli)
 npx skills add -g deligoez/ev   # the agent skill (skills/ev); update with `npx skills update -g`
 ```
 

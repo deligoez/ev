@@ -107,3 +107,33 @@ fn schema_29_keeps_the_store_paths_of_an_older_inventory_relative() {
         .unwrap();
     assert_eq!(version, ev_core::SCHEMA_VERSION);
 }
+
+#[test]
+fn a_migration_reaches_the_file_while_another_reader_is_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("ev.db");
+    drop(Inventory::open(&db).unwrap());
+    rusqlite::Connection::open(&db)
+        .unwrap()
+        .execute_batch(
+            "ALTER TABLE nodes DROP COLUMN came_at; DROP TABLE departures;
+             PRAGMA user_version = 33;",
+        )
+        .unwrap();
+    // An open `ev ui` keeps SQLite from folding the log in when the migrating command closes.
+    let ui = rusqlite::Connection::open(&db).unwrap();
+    ui.query_row("SELECT count(*) FROM nodes", [], |r| r.get::<_, i64>(0))
+        .unwrap();
+    drop(Inventory::open(&db).unwrap());
+    // The file alone, as git commits it, is on the new schema.
+    let file = rusqlite::Connection::open_with_flags(
+        format!("file:{}?immutable=1", db.display()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .unwrap();
+    let version: i64 = file
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, ev_core::SCHEMA_VERSION);
+    drop(ui);
+}

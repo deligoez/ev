@@ -360,3 +360,23 @@ fn a_batch_of_past_things_goes_in_at_once_as_things() {
     assert_eq!(tablet["came"], "2013");
     assert_eq!(tablet["departure"]["where"], "Eski ev");
 }
+
+#[test]
+fn a_past_thing_is_completed_as_remembered_but_never_placed() {
+    let (_d, mut inv) = setup();
+    past_thing(&mut inv, "Yalıtım paneli", "trash", "2024", Some("2023-10"));
+    let id = inv.show("Yalıtım paneli", true).unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
+    let r = format!("#{id}");
+    inv.edit(&r, &["qty=10".into(), "model=XPS 30".into()])
+        .unwrap();
+    let v = inv.show(&r, true).unwrap();
+    assert_eq!(v["node"]["qty"], 10);
+    assert_eq!(v["node"]["model"], "XPS 30");
+    // Where it stands describes a thing no longer here.
+    assert_eq!(
+        inv.edit(&r, &["tags=+yalıtım".into()]).unwrap_err().code(),
+        5
+    );
+}

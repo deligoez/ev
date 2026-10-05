@@ -344,3 +344,17 @@ fn a_part_entered_by_mistake_is_dropped_once_nothing_is_linked_to_it() {
     assert_eq!(parts[0]["n"], 1);
     assert_eq!(inv.kit_part_drop("Set", 2).unwrap_err().code(), 3);
 }
+
+#[test]
+fn a_renamed_part_keeps_its_number_and_its_records() {
+    let (_d, mut inv) = setup();
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 1)], None)
+        .unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    let v = inv.kit_part_set("Set", 1, "RC522 okuyucu", 2).unwrap();
+    assert_eq!(v["part"]["n"], 1);
+    assert_eq!(v["part"]["text"], "RC522 okuyucu");
+    assert_eq!(v["part"]["expected"], 2);
+    assert_eq!(v["part"]["found"], 2);
+    assert_eq!(inv.kit_part_set("Set", 1, " ", 1).unwrap_err().code(), 2);
+}

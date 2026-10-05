@@ -72,3 +72,12 @@ money either waited forever or read as eaten. Lines now take a `service` bucket 
 `digital` (`ev buy add --bucket`, or the adapter's `bucket`); neither ever waits to be linked
 (`ev buy list --open` leaves them out), and `ev stats` shows what each bucket was paid, things,
 clothing, digital and services apart.
+
+## A warranty bought as its own line
+
+An appliance order often carries an extended warranty as a second line. That line could only be
+linked to the appliance, where it read as part of its price, or dismissed, where the money
+vanished. `ev cover purchase <coverage> <line>` (or `ev cover add … --purchase <line>`) makes it
+the coverage's line: the line is settled, the coverage shows what it was bought as, and its
+price becomes the premium when none was given. Lines settled by a kit are now also left out of
+`ev todo`'s and `ev stats`' open purchase counts, which still counted them.

@@ -482,9 +482,9 @@ enum Cmd {
         #[arg(long, conflicts_with = "reference")]
         clear: bool,
         /// Show pictures that are no record (marked photos) instead of a node; repeat for
-        /// several, stepped through with `[` `]`.
+        /// several, stepped through with `[` `]`. `a.jpg=<note>` titles that one on its own.
         #[arg(long, conflicts_with_all = ["reference", "clear"])]
-        file: Vec<PathBuf>,
+        file: Vec<String>,
         /// The title shown over --file.
         #[arg(long, requires = "file")]
         note: Option<String>,
@@ -1736,7 +1736,17 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Todo => inv.todo(),
         Cmd::Stats => inv.stats(),
         Cmd::Focus { list: true, .. } => inv.focus_list(),
-        Cmd::Focus { file, note, .. } if !file.is_empty() => inv.focus_file(&file, note.as_deref()),
+        Cmd::Focus { file, note, .. } if !file.is_empty() => {
+            // `a.jpg=<note>` gives that picture a note of its own; a name that is a file stays one.
+            let each: Vec<(PathBuf, Option<String>)> = file
+                .iter()
+                .map(|f| match f.split_once('=') {
+                    Some((p, n)) if !std::path::Path::new(f).is_file() => (PathBuf::from(p), Some(n.to_string())),
+                    _ => (PathBuf::from(f), None),
+                })
+                .collect();
+            inv.focus_noted(&each, note.as_deref())
+        }
         Cmd::Focus {
             reference,
             photo,

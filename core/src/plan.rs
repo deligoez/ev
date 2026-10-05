@@ -652,16 +652,37 @@ impl Inventory {
         note: Option<&str>,
         frames: &[Value],
     ) -> Result<Value> {
+        let each: Vec<(std::path::PathBuf, Option<String>)> =
+            files.iter().map(|f| (f.clone(), None)).collect();
+        self.focus_in(&each, note, frames)
+    }
+
+    /// `focus_file` with a note of its own on each picture that has one (`ev focus --file
+    /// a.jpg=<note>`); the others take `note`.
+    pub fn focus_noted(
+        &mut self,
+        files: &[(std::path::PathBuf, Option<String>)],
+        note: Option<&str>,
+    ) -> Result<Value> {
+        self.focus_in(files, note, &[])
+    }
+
+    fn focus_in(
+        &mut self,
+        files: &[(std::path::PathBuf, Option<String>)],
+        note: Option<&str>,
+        frames: &[Value],
+    ) -> Result<Value> {
         if files.is_empty() {
             return Err(Error::Usage("name at least one picture".into()));
         }
         let mut paths = Vec::new();
-        for file in files {
+        for (file, own) in files {
             if !file.is_file() {
                 return Err(Error::NotFound(format!("no file {}", file.display())));
             }
             let abs = std::path::absolute(file).unwrap_or_else(|_| file.clone());
-            paths.push(abs.to_string_lossy().into_owned());
+            paths.push((abs.to_string_lossy().into_owned(), own.as_deref().or(note)));
         }
         let req = self.focus_request()?;
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
@@ -670,10 +691,10 @@ impl Inventory {
         // copy are two pictures of the same photo.
         let mut taken = vec![false; series.len()];
         let mut show = None;
-        for p in &paths {
+        for (p, own) in &paths {
             let entry = Marked {
                 file: p.clone(),
-                note: json!(note),
+                note: json!(own),
                 frames: frames.to_vec(),
             };
             let found =
@@ -708,8 +729,9 @@ impl Inventory {
             sent.as_object_mut().map(|o| o.remove("next"));
         }
         self.send_focus(&sent)?;
+        let files: Vec<&String> = paths.iter().map(|(p, _)| p).collect();
         Ok(json!({ "focus": {
-            "files": paths, "note": note, "series": count, "next": next, "at": at,
+            "files": files, "note": note, "series": count, "next": next, "at": at,
         } }))
     }
 

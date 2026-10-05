@@ -35,7 +35,7 @@ struct Place<'a> {
 /// bağı`, `geliştirme kartı`) the compound is the kind: a lens cap is no pen cap. Adjectives
 /// (`mini`, `şeffaf`, `kutulu`) say what it is like, not what it is.
 fn kind_of(index: &Index, name: &str) -> Option<(String, String)> {
-    let head = name_words(index, &crate::purchase_match::head(name));
+    let head = name_words(index, &kind_head(name));
     let words = if head.is_empty() {
         name_words(index, name)
     } else {
@@ -53,6 +53,24 @@ fn kind_of(index: &Index, name: &str) -> Option<(String, String)> {
         }
     }
     Some((key, written))
+}
+
+/// The part of a name that says what it is: before the first comma or semicolon, without what
+/// is in brackets. Not cut at a dash: in `USB-A — mini USB kablo` the dash joins the two ends of
+/// a cable, and the thing is the cable.
+fn kind_head(name: &str) -> String {
+    let mut plain = String::new();
+    let mut depth = 0;
+    for c in name.chars() {
+        match c {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = (depth - 1).max(0),
+            ',' | ';' if depth == 0 => break,
+            _ if depth == 0 => plain.push(c),
+            _ => {}
+        }
+    }
+    plain
 }
 
 /// The stems of a thing's name, as `ev themes` reads them: words of three letters or more, no

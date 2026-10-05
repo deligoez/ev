@@ -133,6 +133,10 @@ the draft is something to change together, and each move is planned on the perso
   `waits_for` was in no list until the awaited one turned up. A thing parked itself is now
   listed alone, a waiting thing is listed under `parked`, and each row says `why` (`place`,
   `own`, `waits_for`).
+- `ev buy unlink` left the line's product pictures and pages on the thing, though they show
+  another product, and the line still said they were brought there. Unlinking now takes them
+  back (`taken_back`); a value or a coverage the line brought stays, listed under `left` with how
+  to remove it, since the person may have kept it.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

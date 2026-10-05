@@ -16,11 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev buy unlink` leaves the brought product pictures on the thing.** After `ev buy bring
-  <line> #12 --type image` and then `ev buy unlink <line> #12` (the link was wrong), #12 keeps
-  the line's 7 pictures as documents and the line's attachments still say `brought_to: 12`.
-  The pictures show another product. Expected: unlink takes back what the link brought (or
-  says what stayed and offers to remove it). (QA round.)
 - **`ev kit part` cannot be undone, and answers with the whole kit.** A part added by mistake
   (`ev kit part 1 "Wrong part=2"`) stays in the list for good and counts as missing; there is no
   remove or rename for one part, only `ev kit remove` for the whole kit. The answer is the full

@@ -438,7 +438,10 @@ On a yes, record the thing as remembered, in no place, and link its line:
 
 - **Never guess how it left.** `--as unknown` when the person is unsure whether it was sold or
   thrown out; `left` for left behind at a move, `stolen`, `used` for used up.
-- **A partial date is a date:** `--at 2016`, `--at 2016-06`. Never invent a day or a month.
+- **A partial date is a date:** `--at 2016`, `--at 2016-06`. Never invent a day or a month;
+  when the person does not know when it left, give no `--at` (it is listed as not known). A
+  past thing is completed later with `ev edit <id> qty=10 came=2023-10 model=…`; `--qty` on
+  `ev add --gone` says how many there were from the start.
 - **What a sale brought** is the person's word (`ev sold <x> --price n [--currency EUR]
   [--via "<marketplace>"]`); an asking price from a listing or a question mail is not it. A
   sale mail goes on the record with `ev doc add <mail> --kind other --for <x>`.

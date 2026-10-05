@@ -1076,7 +1076,7 @@ enum PhotoCmd {
         #[arg(long)]
         no_show: bool,
         /// Attach many at once, one JSON object a line on standard input:
-        /// `{"ref": "#344", "photo": "f2", "note": "…"}` (`photo` a file or `f12`).
+        /// `{"ref": "#12", "photo": "f2", "note": "…"}` (`photo` a file or `f12`).
         #[arg(long, conflicts_with_all = ["reference", "files", "crop", "rotate", "note"])]
         stdin: bool,
     },
@@ -1284,7 +1284,7 @@ fn usage_error(e: &clap::Error) -> Error {
     Error::Usage(text.trim().trim_start_matches("error: ").to_string())
 }
 
-/// `make=Nikon` given to a command that takes `--make`: `ev edit`'s form used out of habit. The
+/// `make=Optika` given to a command that takes `--make`: `ev edit`'s form used out of habit. The
 /// hint names the flag, so the next try is right.
 fn flag_hint(args: &[String]) -> Option<String> {
     use clap::CommandFactory;

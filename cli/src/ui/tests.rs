@@ -1652,3 +1652,49 @@ fn a_series_the_agent_ends_leaves_the_screen() {
     assert!(app.overlay.is_none() && app.last_overlay.is_none());
     assert!(!app.fullscreen);
 }
+
+#[test]
+fn g_shows_the_series_as_a_grid_moved_through_by_arrows_and_f_numbers() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let files: Vec<(std::path::PathBuf, Option<String>)> = (1..=5)
+        .map(|i| {
+            (
+                picture(&dir, &format!("p{i}.png")),
+                Some(format!("kutu {i}")),
+            )
+        })
+        .collect();
+    app.inv.focus_noted(&files, None).unwrap();
+    app.apply_focus().unwrap();
+    press(&mut app, KeyCode::Home);
+    press(&mut app, KeyCode::Char('g'));
+    assert!(app.series_grid);
+    // At 100 columns and 28-cell pictures, three a row; every tile titled `f… · note`.
+    let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(
+        s.contains("f1 · kutu 1") && s.contains("f5 · kutu 5"),
+        "{s}"
+    );
+    assert_eq!(app.grid_cols, 3);
+    let at = |app: &App| app.overlay.as_ref().unwrap().at;
+    press(&mut app, KeyCode::Right);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(at(&app), 4);
+    press(&mut app, KeyCode::Home);
+    assert_eq!(at(&app), 0);
+    // `f`, digits, Enter: straight to that picture.
+    for k in [KeyCode::Char('f'), KeyCode::Char('4'), KeyCode::Enter] {
+        press(&mut app, k);
+    }
+    assert_eq!(at(&app), 3);
+    // `+` widens the pictures for now; Enter opens the one selected on its own.
+    press(&mut app, KeyCode::Char('+'));
+    assert_eq!(app.tile, Some(32));
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.series_grid);
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("f4/5 · kutu 4"));
+}

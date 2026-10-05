@@ -49,27 +49,31 @@ last release (see `release-notes/next.md`); start there.
 
 ### New since the last release
 
-- **Places with labelled bins** — `ev progress`: a drawer whose bins carry another series'
-  labels is one place; the counts look like the household's own idea of its places.
-- **Counted without a word** — `ev ui` tree: a counted place is green with no word; "counted but
-  changed since" on one whose contents changed after its tour; `ev tree` has `changed_since`.
-  A lost thing found elsewhere does not mark the place it was last seen in as changed.
-- **Empty box** — `ev empty <box> --note …`, then `ev show` (`empty`), `ev tree` (`empty: true`),
-  `[boş]` in the tree and the badge in the details.
-- **Fewer photos asked** — `ev todo`: no compartment whose drawers all have photos of their own.
-- **Tree keys** — `d` opens two levels, `e`/`c` open or close everything below, `C` closes all
-  but the home; the bottom edge lists the keys.
-- **Every photo shown** — `ev photo add` puts the photo in the series with its note;
-  `--no-show` keeps it off; `ev focus --file a.jpg=<note>`.
-- **`f12`** — titles `f12/20 · <note>`; `ev focus --list` (`f`, `source`); `ev photo add <ref> f2
-  f3`, `--stdin` lines; `ev photo cut f12 …`, `ev photo mark f12 …`, `ev focus f12`. A wrong
-  `f` number or ref attaches nothing.
-- **Series grid** — `g`, arrows, Enter, `+`/`-`, Home/End, `f12` Enter, a resize; `ev settings
-  series_tile 40`; a series of 30–40 pictures stays quick.
-- **Layout** — `ev layout <furniture>` and `--propose` on a toured piece of furniture: are the
-  kinds sensible, the moves fewer than the things, the themes words a person would write?
-  Nothing moved (`ev pending` unchanged).
-- **Smaller fixes** — each line of "Smaller fixes" once.
+- **Past belongings** — `ev add "<name>" --gone <how> --at 2019-05 --came 2016 --where "<place>"`
+  (and batch lines with `gone`/`at`/`came`/`where`); `--gone` with no `--at` is "when not known";
+  `ev gone <x> --at … --where …`; `--as left|stolen|unknown`; `ev edit #id name=… qty=… came=…` on
+  a gone record (tags refused); `ev doc add … --for #id` and `ev photo add #id …` on a gone
+  record; `ev buy link` / `ev buy add --for` on one. Read back in the past tense everywhere.
+- **Sales and swaps** — `ev sold <x> --price n [--currency] [--via]`, said again corrects it;
+  a listed sale carries `via`, not the asking price; `--as trade --traded-for <y>`, `ev traded
+  <x> --for <y>` (also from `give`), `traded_from` on what came.
+- **`ev past`** — two lists, remembered first, each with years, "when not known" and money;
+  `--name`, `--where`, `--year Y` (owned that year; `unknown` apart); `ev stats` past section;
+  the Gidenler tab on `0` (both headings fold, years under them, details show came/left).
+- **Counting follows the work** — `ev task start` marks nothing; an add, move, photo or edit
+  inside a place of the task in progress marks it `counting`; nothing outside a task does;
+  closing a task resets nothing. `ev review --as toured|kept` gives `left_here`; `ev next`
+  `left_nearby`; `ev progress <furniture|room>` with each place's `tasks`; a task on a cabinet
+  plans its drawers.
+- **Final photo check** — `ev review --as toured` gives `photo_check` (`located`,
+  `not_located`); nothing refused over it.
+- **What is never a thing** — `ev buy add --bucket digital|service`; neither in `ev buy list
+  --open`; `ev stats` `purchases.buckets`.
+- **A warranty bought as its own line** — `ev cover add … --purchase <line>`, `ev cover purchase
+  <c> <line>` / `--clear`: the line settles, the premium comes from it, `ev todo` counts it no
+  more; a kit-settled line is no longer counted open either.
+- **Schema 35** — an older copy migrates on open, and the migration reaches `ev.db` itself even
+  with `ev ui` open (`ev.db-wal` empty after).
 
 ### Every area, briefly
 

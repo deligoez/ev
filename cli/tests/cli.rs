@@ -62,6 +62,44 @@ fn seeded() -> Ev {
 }
 
 #[test]
+fn a_batch_line_without_a_kind_says_the_kind_is_required() {
+    let ev = Ev::new();
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["add", "--stdin"])
+        .write_stdin("{\"name\":\"Ev\",\"kind\":\"home\"}\n{\"name\":\"Kutu\",\"in\":\"Ev\"}\n")
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let err = String::from_utf8(out.stderr).unwrap();
+    assert!(err.contains("line 2: kind is required"), "{err}");
+}
+
+#[test]
+fn a_usage_line_is_the_same_whether_ev_db_is_set_or_not() {
+    let ev = Ev::new();
+    let usage = |db: Option<&std::path::Path>| {
+        let mut cmd = Command::cargo_bin("ev").unwrap();
+        cmd.env_remove("EV_DB").env("EV_CONFIG", &ev.config);
+        if let Some(db) = db {
+            cmd.env("EV_DB", db);
+        }
+        let out = cmd.args(["review", "x"]).output().unwrap();
+        String::from_utf8(out.stderr).unwrap()
+    };
+    let with = usage(Some(&ev.db));
+    assert!(
+        with.contains("Usage: ev review --as <STATUS> <REFERENCE>"),
+        "{with}"
+    );
+    assert_eq!(with, usage(None));
+}
+
+#[test]
 fn stdout_is_json_when_piped() {
     let ev = seeded();
     let v = ev.ok(&["find", "anten"]);

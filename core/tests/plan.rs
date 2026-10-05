@@ -230,6 +230,22 @@ fn tasks_keep_an_order_and_one_is_in_progress() {
 }
 
 #[test]
+fn a_done_task_is_not_dropped_without_reopening_it() {
+    let (_d, mut inv) = setup();
+    let t = inv
+        .task_add("Tour Alt", "bags", &["K1-01-A".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "done", None).unwrap();
+    assert_eq!(inv.task_set(t, "dropped", None).unwrap_err().code(), 5);
+    assert_eq!(inv.task_show(t).unwrap()["status"], "done");
+    inv.task_set(t, "open", None).unwrap();
+    inv.task_set(t, "dropped", None).unwrap();
+    assert_eq!(inv.task_show(t).unwrap()["status"], "dropped");
+}
+
+#[test]
 fn a_node_shows_the_tasks_on_it_and_on_the_places_holding_it() {
     let (_d, mut inv) = setup();
     let drawer = inv

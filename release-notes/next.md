@@ -89,6 +89,9 @@ not sent to the screen again.
 - On a line in packs, `ev buy link` without `--qty` took every unit left for the first thing,
   and the next things found nothing to link: it now takes as many units as the thing stands for
   (its `qty`, else one).
+- A mark labelled with a number counted across photos (a lone `2` on the second photo) left a
+  gap in the series: the number skipped 2 and drew 3. A photo's labels now only order its
+  frames, which take the series' next free numbers in that order.
 - `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
   `skipped`), no longer the whole thing as `ev show` gives it.
 - A photo taken minutes before the records caught up with it (what it shows recorded right after)

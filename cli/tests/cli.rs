@@ -966,9 +966,14 @@ fn an_attached_photo_joins_the_series_unframed_unless_no_show() {
     assert_eq!(s["pictures"][0]["frames"], serde_json::json!([]));
     // Without a note it is titled with the record; --no-show sends nothing.
     let other = ev._dir.path().join("other.png");
-    std::fs::copy(&photo, &other).unwrap();
+    image::RgbImage::from_pixel(8, 8, image::Rgb([7, 7, 7]))
+        .save(&other)
+        .unwrap();
     let v = ev.ok(&["photo", "add", "D-B1", other.to_str().unwrap(), "--whole"]);
     assert_eq!(v["shown"]["note"], "D-B1");
+    // The same photo again keeps the title the screen already shows, and the answer says so.
+    let v = ev.ok(&["photo", "add", "D-B1", p, "--whole"]);
+    assert_eq!(v["shown"]["note"], "son hali");
     let v = ev.ok(&["photo", "add", "D-B1", p, "--whole", "--no-show"]);
     assert!(v["shown"].is_null());
 }

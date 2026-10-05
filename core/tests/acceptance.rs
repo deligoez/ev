@@ -817,13 +817,13 @@ fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
     let last = h["events"].as_array().unwrap().last().unwrap().clone();
     assert_eq!(last["data"]["why"], "broken screen");
 
-    // By name it stays out of reach; by id only the note may change.
+    // By name it stays out of reach; by id only what it was may change, not where it stands.
     assert_eq!(
         code_of(&inv.edit("Flipper Zero", &["note=x".into()]).unwrap_err()),
         3
     );
     assert_eq!(
-        code_of(&inv.edit(&id, &["name=Other".into()]).unwrap_err()),
+        code_of(&inv.edit(&id, &["tags=+other".into()]).unwrap_err()),
         5
     );
     let v = inv.edit(&id, &["note=probably thrown out".into()]).unwrap();

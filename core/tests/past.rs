@@ -369,9 +369,17 @@ fn a_past_thing_is_completed_as_remembered_but_never_placed() {
         .as_i64()
         .unwrap();
     let r = format!("#{id}");
-    inv.edit(&r, &["qty=10".into(), "model=XPS 30".into()])
-        .unwrap();
+    inv.edit(
+        &r,
+        &[
+            "qty=10".into(),
+            "model=XPS 30".into(),
+            "name=Yalıtım levhası".into(),
+        ],
+    )
+    .unwrap();
     let v = inv.show(&r, true).unwrap();
+    assert_eq!(v["node"]["name"], "Yalıtım levhası");
     assert_eq!(v["node"]["qty"], 10);
     assert_eq!(v["node"]["model"], "XPS 30");
     // Where it stands describes a thing no longer here.

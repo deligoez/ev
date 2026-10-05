@@ -407,3 +407,43 @@ fn an_edit_batch_line_that_sets_make_and_model_offers_the_purchases_too() {
     );
     assert!(edited[1].get("purchase_candidates").is_none(), "{v}");
 }
+
+#[test]
+fn a_bundle_line_naming_part_of_a_model_is_offered_for_that_component() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(
+        &json!({"source": "s", "key": "9", "shop": "Shop", "sku": "P9", "brand": "Optika",
+                "name": "Optika X100 fotoğraf makinesi (7,4 cm ekran) inkl. ZM 18-55 VR siyah"})
+        .to_string(),
+    )
+    .unwrap();
+    inv.add(NewNode {
+        name: "Optika ZM 18-55 mm objektif".into(),
+        kind: "item".into(),
+        parent: Some("Oda".into()),
+        make: Some("Optika".into()),
+        model: Some("ZM DX OPT 18-55mm f/3.5-5.6 VR".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let c = first(&inv, "Optika ZM 18-55 mm objektif");
+    assert!(
+        c["purchase"]["name"]
+            .as_str()
+            .unwrap()
+            .starts_with("Optika X100"),
+        "{c}"
+    );
+    let why: Vec<&str> = c["why"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|w| w["why"].as_str().unwrap())
+        .collect();
+    assert!(
+        why.iter().any(|w| w.starts_with("model in part")),
+        "{why:?}"
+    );
+    // The camera's screen size is the camera's, not a length that rules the lens out.
+    assert!(!why.iter().any(|w| w.ends_with("differs")), "{why:?}");
+}

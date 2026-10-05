@@ -1386,14 +1386,17 @@ fn e_and_c_open_and_close_all_below_and_capital_c_closes_the_tree() {
     press(&mut app, KeyCode::Char('c'));
     assert!(!shown(&app, "D-A1") && !shown(&app, "Pasif buzzer"));
     assert_eq!(app.selected_id(), Some(d));
-    // `C` takes the whole tree back to its first screen.
+    // `C` closes everything but the home: the room shows, closed, and the selection moves up
+    // to it from the thing that is hidden now.
     app.reveal(d).unwrap();
     press(&mut app, KeyCode::Char('e'));
+    assert!(app.rows.len() > first);
     let pasif = app.inv.resolve("Pasif buzzer", false).unwrap();
     app.reveal(pasif).unwrap();
     press(&mut app, KeyCode::Char('C'));
-    assert_eq!(app.rows.len(), first);
-    assert!(app.selected_id().is_some());
+    let oda = app.inv.resolve("Oda", false).unwrap();
+    assert!(shown(&app, "Oda") && !shown(&app, "D"));
+    assert_eq!(app.selected_id(), Some(oda));
     // The keys are on the tree's bottom edge, as H/L are on the details'.
     let mut term = Terminal::new(TestBackend::new(200, 20)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();

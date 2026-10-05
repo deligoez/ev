@@ -129,3 +129,42 @@ fn when_a_thing_came_is_edited_as_remembered() {
     inv.edit("Eski telefon", &["came=".into()]).unwrap();
     assert!(inv.show("Eski telefon", false).unwrap()["came"].is_null());
 }
+
+#[test]
+fn a_purchase_of_a_past_thing_is_settled_by_linking_it() {
+    let (_d, mut inv) = setup();
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Sell),
+        None,
+        false,
+        None,
+        Some("2015"),
+        None,
+    )
+    .unwrap();
+    let line = inv
+        .buy_add(
+            &serde_json::json!({"name": "Telefon", "qty": 1, "paid": "700.00", "currency": "EUR"}),
+            None,
+        )
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    let open = |inv: &Inventory| {
+        inv.buy_list(true, None, None, None).unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .len()
+    };
+    assert_eq!(open(&inv), 1);
+    inv.buy_link(line, "Eski telefon", None).unwrap();
+    assert_eq!(open(&inv), 0);
+    // A purchase entered by hand for a past thing links at once.
+    inv.buy_add(
+        &serde_json::json!({"name": "Ekran seti", "qty": 1, "paid": "40.00", "currency": "EUR"}),
+        Some("Eski telefon"),
+    )
+    .unwrap();
+    assert_eq!(open(&inv), 0);
+}

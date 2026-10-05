@@ -1012,6 +1012,9 @@ impl Inventory {
             params![final_disposition.as_str(), node.id],
         )?;
         past::set_departure(&tx, node.id, at, place)?;
+        if final_disposition == Disposition::Sell {
+            past::carry_sale(&tx, node.id)?;
+        }
         if let Some(w) = why {
             let note = match node.note.as_deref() {
                 Some(n) if !n.trim().is_empty() => format!("{n}\n{w}"),

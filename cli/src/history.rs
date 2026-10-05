@@ -228,6 +228,15 @@ pub(crate) fn event_words(
                 disposition_tr(d["as"].as_str().unwrap_or_default())
             )
         }),
+        "sold" => own(
+            "sold",
+            format!(
+                "{} {}  {}",
+                str_of(d, "price"),
+                str_of(d, "currency"),
+                str_of(d, "via")
+            ),
+        ),
         "restore" => own("restored", str_of(d, "correction")),
         "cell" => own(
             "cells",

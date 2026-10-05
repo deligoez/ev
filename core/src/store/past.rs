@@ -4,7 +4,8 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result};
+use super::{Inventory, event, resolve, show};
+use crate::error::{Error, Result, refused};
 
 /// A date as a person remembers it: a year (`2016`), a month (`2016-06`) or a day
 /// (`2016-06-14`). Never widened to a day nobody said.
@@ -115,4 +116,90 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
     Ok(json!({
         "at": at, "where": place, "price": price, "currency": currency, "via": via, "note": note,
     }))
+}
+
+/// Where a sale in progress was listed, carried into the departure of a thing gone `--as sell`
+/// as what it went through. The price it asked is not carried: an asking price is not what the
+/// sale brought, and the sale mark keeps it in sight until `ev sold` says.
+pub(super) fn carry_sale(conn: &Connection, node: i64) -> Result<()> {
+    let listed: Option<Option<String>> = conn
+        .query_row(
+            "SELECT note FROM marks WHERE node_id = ?1 AND kind = 'sale'",
+            [node],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let Some(Some(place)) = listed else {
+        return Ok(());
+    };
+    conn.execute(
+        "INSERT INTO departures (node_id, via) VALUES (?1, ?2)
+         ON CONFLICT(node_id) DO UPDATE SET via = COALESCE(via, excluded.via)",
+        params![node, place],
+    )?;
+    Ok(())
+}
+
+impl Inventory {
+    /// What a sale brought (spec/past-belongings.md), on a thing gone, or set aside, as `sell`:
+    /// the price and its currency (the home currency when not given), when (a partial date),
+    /// through what (a marketplace, a trade-in), and a note. Said again, it is corrected.
+    pub fn sold(
+        &mut self,
+        reference: &str,
+        price: &str,
+        currency: Option<&str>,
+        at: Option<&str>,
+        via: Option<&str>,
+        note: Option<&str>,
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = resolve(&tx, reference, true)?;
+        let (state, how): (String, Option<String>) = tx.query_row(
+            "SELECT state, disposition FROM nodes WHERE id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if how.as_deref() != Some("sell") || state == "active" {
+            return Err(refused(
+                format!(
+                    "node {id} did not leave as sold; `ev gone {id} --as sell` first (or `ev dispose {id} --as sell` while it is still here)"
+                ),
+                Value::Null,
+            ));
+        }
+        let cents = crate::purchases::parse_money(price)?;
+        if cents <= 0 {
+            return Err(Error::Usage("a sale brought more than nothing".into()));
+        }
+        let currency = match currency.map(|c| c.trim().to_uppercase()) {
+            Some(c) if c.len() == 3 && c.chars().all(|ch| ch.is_ascii_alphabetic()) => c,
+            Some(c) => return Err(Error::Usage(format!("`{c}` is no currency code like EUR"))),
+            None => crate::money::home_currency(&tx)?,
+        };
+        let at = at.map(partial_date).transpose()?;
+        let text = |t: Option<&str>| {
+            t.map(str::trim)
+                .filter(|t| !t.is_empty())
+                .map(str::to_string)
+        };
+        let (via, note) = (text(via), text(note));
+        let price = crate::purchases::money(cents);
+        tx.execute(
+            "INSERT INTO departures (node_id, at, price, currency, via, note)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(node_id) DO UPDATE SET at = COALESCE(excluded.at, at),
+               price = excluded.price, currency = excluded.currency,
+               via = COALESCE(excluded.via, via), note = COALESCE(excluded.note, note)",
+            params![id, at, price, currency, via, note],
+        )?;
+        event(
+            &tx,
+            id,
+            "sold",
+            json!({ "price": price, "currency": currency, "at": at, "via": via }),
+        )?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
 }

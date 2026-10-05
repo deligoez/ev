@@ -1057,6 +1057,8 @@ static TR: &[(&str, &str)] = &[
     ("left", "gitti"),
     ("in {}", "{} içinde"),
     ("sold for {}", "{} karşılığı satıldı"),
+    ("sold", "satıldı"),
+    ("via {}", "{} üzerinden"),
     (
         "thing: ×{} in {} places · in use {} · spare {}",
         "eşya: ×{}, {} yerde · kullanımda {} · yedek {}",

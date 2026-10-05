@@ -3077,18 +3077,17 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         if let Some(w) = d["where"].as_str() {
             parts.push(tf("in {}", &[&w]));
         }
-        if let Some(p) = d["price"].as_str() {
-            let via = d["via"]
-                .as_str()
-                .map(|v| format!(" ({v})"))
-                .unwrap_or_default();
-            parts.push(format!(
-                "{}{via}",
+        let via = d["via"].as_str();
+        match d["price"].as_str() {
+            Some(p) => parts.push(format!(
+                "{}{}",
                 tf(
                     "sold for {}",
                     &[&amount(p, d["currency"].as_str().unwrap_or("TRY"))]
-                )
-            ));
+                ),
+                via.map(|v| format!(" ({v})")).unwrap_or_default()
+            )),
+            None => parts.extend(via.map(|v| tf("via {}", &[&v]))),
         }
         let parts: Vec<String> = parts.into_iter().filter(|p| !p.is_empty()).collect();
         let _ = writeln!(out, "  {}: {}", t("left"), parts.join(" · "));

@@ -187,6 +187,24 @@ enum Cmd {
         #[arg(long = "where")]
         place: Option<String>,
     },
+    /// What a sale brought, on a thing gone (or set aside) as sell: --price 1500 [--currency
+    /// EUR] [--at 2019-05] [--via "a marketplace"] [--note "…"]. Said again, it is corrected.
+    Sold {
+        reference: String,
+        #[arg(long)]
+        price: String,
+        /// A currency code; the home currency when not given.
+        #[arg(long)]
+        currency: Option<String>,
+        /// When it was sold, as remembered: 2019, 2019-05 or 2019-05-14.
+        #[arg(long)]
+        at: Option<String>,
+        /// Through what: a marketplace, a shop's trade-in, a friend.
+        #[arg(long)]
+        via: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+    },
     /// Every candidate, grouped by disposition.
     Disposals {
         #[arg(long = "as")]
@@ -1742,6 +1760,21 @@ fn run(cli: Cli) -> Result<Value> {
             qty,
             at.as_deref(),
             place.as_deref(),
+        ),
+        Cmd::Sold {
+            reference,
+            price,
+            currency,
+            at,
+            via,
+            note,
+        } => inv.sold(
+            &reference,
+            &price,
+            currency.as_deref(),
+            at.as_deref(),
+            via.as_deref(),
+            note.as_deref(),
         ),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)

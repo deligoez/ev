@@ -150,7 +150,8 @@ the draft is something to change together, and each move is planned on the perso
   `×30, 1 place · lost 10`.
 - `ev empty` on a box whose note says it is full, with a task still open to count it, said
   nothing of either, and the text tree did not mark the box. It now reads the note back, names
-  the open task (done or drop is the person's word), and `ev tree --text` marks it `[boş]`.
+  the open task (done or drop is the person's word), and the text of `ev tree` marks it
+  `[boş]`.
 - A case found in a counted drawer read "empty (counted)": the drawer's tour stood for it, though
   nobody opened the case. A tour now counts only for what was there before it.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a

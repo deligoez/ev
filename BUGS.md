@@ -16,12 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev review --as toured` refusal is wrong for a box with no photo.** On a new box with no photo
-  at all (`details.stale[].reason: "none"`, `photo_at: null`) the message is still "1 photo(s)
-  are older than what they show", it suggests `ev photo current`, which cannot apply, and
-  `photo cut --grid` for a drawer with no grid. In text mode the message names no place, so the
-  agent cannot tell which box needs a photo without `--json`. Expected: "G-01 has no photo" /
-  "K2-01-A's photo is older than its change", one line per place. (QA round.)
 - **A lost portion is counted as a place but not in the total.** Of `#12 Vida ×40`, `ev lost
   #12 --qty 10` leaves `eşya: ×30, 2 yerde · … · kayıp 10` in `show` and `find`: "2 places",
   though the lost 10 are in no place, and a total of 30 next to them. Expected: `×40, 1 yerde ·

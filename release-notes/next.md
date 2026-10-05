@@ -141,6 +141,10 @@ the draft is something to change together, and each move is planned on the perso
   part` answered with the whole kit. `ev kit drop <kit> <n>` takes a part off (refused while
   records are linked to it), `ev kit rename <kit> <n> "<name>[=n]"` names it anew, and `ev kit
   part` answers with the parts it added.
+- The refusal of `ev review --as toured` said "photo(s) are older than what they show" for a box
+  with no photo at all, offered `ev photo current` (which cannot apply) and a grid cut for a
+  place with no grid, and named no place. It now names each place on its own line ("has no
+  photo", "photo is 12 min older than its last change") and offers only what applies.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

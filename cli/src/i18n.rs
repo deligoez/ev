@@ -861,6 +861,8 @@ static TR: &[(&str, &str)] = &[
         "{} / {} şey zaten en uygun yerinde.",
     ),
     ("Would fit better elsewhere:", "Başka yere daha iyi uyar:"),
+    ("Taken back from the thing: {}", "Eşyadan geri alındı: {}"),
+    ("Left on the thing: {} ({})", "Eşyada bırakıldı: {} ({})"),
     ("{}: {} places, {} things", "{}: {} yer, {} eşya"),
     (
         "Kinds spread over several places:",

@@ -1839,6 +1839,22 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("purchase").is_some_and(Value::is_object) {
         purchase(&mut out, &v["purchase"]);
+        // `ev buy unlink`: what it took back from the thing, and what it left there.
+        if let Some(taken) = v["taken_back"].as_array() {
+            let types: Vec<&str> = taken.iter().filter_map(|a| a["type"].as_str()).collect();
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("Taken back from the thing: {}", &[&types.join(", ")])
+            );
+        }
+        for l in v["left"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("Left on the thing: {} ({})", &[&s(l, "type"), &s(l, "how")])
+            );
+        }
         return out;
     }
     if let (Some(list), Some(node)) = (

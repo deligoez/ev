@@ -110,7 +110,8 @@ fn next_says_the_goal_how_far_the_home_is_and_the_task_with_its_places() {
         s.contains("\n    └ #5 Ev › Oda › D › D-B1  [Kutu]\n"),
         "{s}"
     );
-    assert!(s.contains("Raw places no task covers (2):"), "{s}");
+    // The task is on the drawer, so the boxes in it are planned through it.
+    assert!(!s.contains("Raw places no task covers"), "{s}");
 }
 
 #[test]

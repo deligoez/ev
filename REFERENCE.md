@@ -19,7 +19,8 @@
 | to | `--to`, `edit to=` | place the node should be taken to; empty clears |
 | owner | `--owner`, `edit owner=` | place the node belongs to when it is not ours |
 | with | `lend --to`, `back`, `edit with=` | place holding our lent node |
-| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, digitize, give, sell, return, mistake, used (used up; `gone` only) and merged (ev's own, for a portion that joined another); `--shred` (trash, digitize) marks it `shred` |
+| state | `dispose`, `restore`, `gone` | active, candidate, gone; dispositions trash, digitize, give, sell, return, mistake, used (used up), left (left behind), stolen and unknown (sold or thrown out, not sure) (the last four `gone` only) and merged (ev's own, for a portion that joined another); `--shred` (trash, digitize) marks it `shred` |
+| came | `--came`, `edit came=` | when it came, as remembered: `2014`, `2014-03` or `2014-03-08`; empty clears. When not given, a linked purchase's order date stands for it (see **Past belongings**) |
 | thing | `move --qty`, `add --of`, `join`, `unjoin` | the thing a record is a portion of, when it is kept in several places: the id of the thing's first record; not set by hand (see **One thing in several places**) |
 | lost | `--lost`, `lost`, `found [--in]`, any move | its place is not known: out of where it was last seen (kept as the parent), listed under "Unknown place" in `ev tree` and `ev ui`, not counted in that place's `items`; a thing added with `--lost` and no place was never seen |
 | temporary | `--temporary`, `edit temporary=true/false` | a parking place: what is put straight into it waits for its final place (`ev todo` lists it as `parked`, `ev suggest` never offers the place or anything inside it, listing them under `parking`); on an item, that one thing waits where it is. A move clears an item's own mark (the event says `was_temporary`); a place keeps its mark until set back |
@@ -29,7 +30,8 @@
 
 One JSON object per line with the fields above (`name`, `kind`, `in`, `lost`, `code`,
 `address`, `qty`, `note`, `theme`, `fill`, `size`, `tags`, `photos`, `to`, `owner`,
-`temporary`, `make`, `model`, `serial`) plus optional `key`, and `of`: more of a thing already
+`temporary`, `make`, `model`, `serial`, `came`, and for a past thing `gone`, `at`, `where`)
+plus optional `key`, and `of`: more of a thing already
 recorded (`{"of": "#647", "qty": 4, "in": "K4x4-13-Ü"}`; name and kind come from it).
 `"in": "@key"` points at an earlier line. Unknown fields are rejected. All or nothing.
 
@@ -143,7 +145,7 @@ argument too (`kind: usage`, exit 2, the message with the command's usage line).
 
 create, edit, move, plan, done, cancel, dispose, restore, gone, lost, found, back, photo,
 photo_remove (`path`, `crop`, `note`, `n`: what was detached), photo_rotate (`from`, `to`, `degrees`), grid, cell, observe, unobserve,
-review, split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
+review, sold (`price`, `currency`, `at`, `via`), split (`into`: the records split off) and split_from (`from`, `name`), kit_link and
 kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}` or null), grid_face (`before`, `after`), decline (`holder`, `why`) and decline_cleared, doc_linked and doc_unlinked (`document`, `kind`), purchase_linked (`purchase`, `qty`) and purchase_unlinked (`purchase`), coverage_added and coverage_removed (`coverage`, `kind`), track (`subject`, `decision`, `why`); for a thing kept in several places portion_out (`qty`, `to`) and portion_in (`qty`, `from`), merged (`into`, `qty`) and joined (`from`, `qty`), more_of (`of`), join (`thing`) and unjoin (`thing`), and an `edit` reaching a portion through another (`via`, `fields`).
 
 ## `ev ui`
@@ -161,7 +163,7 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | d | in the tree: open the selected node two levels down, the nodes in it opened and nothing further (a Kallax shows its compartments and the drawers in each); the selection stays |
 | e / c | in the tree: open the selected node and everything below it, or close them all; the selection stays |
 | C | in the tree: close everything but the home, so its rooms show closed; the selection moves up to what still shows |
-| Tab, Shift-Tab, 1–9 | tabs: layout (the tree of places and things), pending moves, leaving, lost, errands (take / return), search, everything waiting (To do), settings, statistics (`ev stats`, a collapsible section per heading; a line that names a record opens it) |
+| Tab, Shift-Tab, 1–9, 0 | tabs: layout (the tree of places and things), pending moves, leaving, lost, errands (take / return), search, everything waiting (To do), settings, statistics (`ev stats`, a collapsible section per heading; a line that names a record opens it), and on `0` the past (`ev past`: a collapsible heading per year with how many left and the money paid and got, each thing under it; its details say when it came and how it left) |
 | / | search (same folding as `ev find`), Enter to run; Esc clears the typed text, then closes the box; Ctrl-U clears |
 | x / Esc on the search tab, or click its title | clear the search and its results |
 | click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
@@ -485,6 +487,35 @@ once the paper is gone; `~/.ev` is backed up by whatever backs up the home folde
 says the thing is shredded rather than thrown out whole: an old ID card, a boarding pass, a
 statement. It is a `shred` mark (`marks.shred`), `shred: true` in `ev disposals`, `(shred)` in
 the pile; `--shred` with give or sell exits 2, and `ev restore` takes the mark back.
+
+## Past belongings
+
+A thing that left long ago, recorded as it is remembered (spec/past-belongings.md). It is an
+ordinary record in state `gone`: never in the tree, `ev todo`, `ev suggest`, placement or any
+count of today, and it holds purchases, documents, photos and a note like any other. Dates are
+partial: `2016`, `2016-06` or `2016-06-14`; anything else exits 2.
+
+| Command | Does |
+|---|---|
+| `ev add "<name>" --gone <how> [--at <date>] [--came <date>] [--where <place>]` | records a past thing in one step, in no holder (kind `item` unless `--kind`); `--in`, `--lost` and `--of` exit 2 with it, and `--at`/`--where` need it. `how` is any way of leaving but mistake, digitize and merged. Batch lines take `gone`, `at`, `came`, `where` |
+| `ev gone <ref> [--as d] [--at <date>] [--where <place>]` | a record here that left long ago: when it left and where it was then. `--where` names a place (`ev place`), made when new, so a former home is one place for all that was left there |
+| `ev gone <ref> --as left\|stolen\|unknown` | left behind, stolen, or "sold or thrown out, not sure"; `ev dispose` refuses them (exit 2), nothing is set aside to be stolen |
+| `ev edit <ref> came=<date>` | when it came, on any record (`came=` clears) |
+| `ev sold <ref> --price <n> [--currency C] [--at <date>] [--via "…"] [--note "…"]` | what a sale brought, on a record gone or set aside as `sell` (else exit 5); the currency is the home one when not given; said again, the price is replaced and what is not said again stays. A `sold` event |
+| `ev buy link <line> <ref>`, `ev buy add … --for <ref>` | work on a gone record: the line is settled and leaves the open lists |
+| `ev past [--name <word>] [--where <place>]` | the past things, last gone first, and per year how many left and the money paid for them (their linked purchases) and got for them (`ev sold`), by currency. Mistakes, joined portions and digitized papers are left out |
+| `ev past --year <y>` | what was ours in that year: every item and piece of furniture, past or present and not kept for someone else, that came by the end of the year and had not left before it began, oldest coming first; `unknown` counts those whose coming nothing says, never guessed in |
+
+When a record came is `came`, else the earliest order date of a purchase linked to it. When it
+left is `--at`, else the day it was recorded gone; the `gone` event keeps the moment it was
+written either way. A thing gone `--as sell` while a sale was listed (`ev sale --listed --where
+…`) takes where it was listed as what it went through (`via`); the asking price is not carried,
+since it is not what the sale brought.
+
+`ev show` gives `came` and `departure`: `{at, where, price, currency, via, note}` (null unless
+gone). `ev past`: `{past: [{id, name, came, left, how, where, paid: {CUR: amount}, got: {price,
+currency, via} | null}], years: [{year, left, paid, got}]}`. `ev past --year`: `{year, owned:
+[NodeRef + came, left], unknown}`. `ev stats` adds `past: {records, how: {d: n}, paid, got}`.
 ## Documents
 
 Invoices, warranty certificates, manuals, service forms, appraisals and policies, copied into

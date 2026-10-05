@@ -333,8 +333,8 @@ live in `~/.ev/settings.json`, outside the database; JSON output stays English.
 
 - `REFERENCE.md` — every command, field, key and payload shape
 - `skills/ev/SKILL.md` — how an agent should use it in conversation
-- `spec/0.1.0.md` — the decisions behind the model
-- `spec/purchases.md` — what a thing cost, what proves it, what still covers it
+- `spec/` — the decision behind each feature: `0.1.0.md` the model, `purchases.md` what a thing
+  cost, what proves it and what still covers it, `mcp.md` the MCP server, and one per feature since
 - `release-notes/` — what changed in each version; `next.md` is the draft of the coming one
 - `BUGS.md` — rough edges found in use, fixed in batches
 

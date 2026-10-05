@@ -114,3 +114,24 @@ fn an_emptied_place_is_toured_only_with_a_photo_of_it_empty() {
     inv.photo_add("Çekmece", &empty, None, None).unwrap();
     inv.review("Çekmece", "toured", None).unwrap();
 }
+
+#[test]
+fn a_place_with_no_photo_is_refused_by_name_without_offering_photo_current() {
+    let (_d, mut inv, _photo) = setup();
+    inv.add(NewNode {
+        name: "Vida".into(),
+        kind: "item".into(),
+        parent: Some("Çekmece".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let e = inv.review("Çekmece", "toured", None).unwrap_err();
+    assert_eq!(e.code(), 5);
+    let msg = e.to_string();
+    assert!(msg.contains("Çekmece has no photo"), "{msg}");
+    assert!(msg.contains("ev photo add"), "{msg}");
+    assert!(
+        !msg.contains("photo current") && !msg.contains("--grid"),
+        "{msg}"
+    );
+}

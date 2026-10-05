@@ -6,6 +6,10 @@ impl App {
     pub(super) fn key(&mut self, k: KeyEvent) -> Result<()> {
         if self.fullscreen {
             let photos = self.overlay.is_none();
+            // The series' own keys first: its grid, its ends, going to `f12`.
+            if !photos && self.series_key(k)? {
+                return Ok(());
+            }
             match k.code {
                 KeyCode::Esc | KeyCode::Char('q' | 'o') => self.close_fullscreen(),
                 KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {

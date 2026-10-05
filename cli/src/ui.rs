@@ -822,16 +822,30 @@ struct App {
     overlay: Option<Series>,
     /// The series hidden last, for `m` to open again.
     last_overlay: Option<Series>,
+    /// The series shown as a grid (`g`) rather than one picture at a time (spec/series-grid.md).
+    series_grid: bool,
+    /// The grid's picture width for now (`+` / `-`), in cells; the setting when none.
+    tile: Option<u16>,
+    /// The grid's first row on screen, and its columns when it was last drawn.
+    grid_top: usize,
+    grid_cols: usize,
+    /// Series pictures scaled down for the grid, and their terminal pictures by tile size: a
+    /// grid of forty would otherwise decode and encode every photo on every frame.
+    small: HashMap<String, Option<image::DynamicImage>>,
+    thumbs: HashMap<(String, u16, u16), Option<Protocol>>,
+    /// `f` then digits: the series picture to go to (`f12`), until Enter.
+    jump: Option<String>,
     /// The map (`M`) over the whole screen while open.
     map_view: Option<MapView>,
 }
 
 /// The series of marked photos a focus request holds (spec/focus-stack.md): each picture with
-/// the note it was sent with, and the one shown.
+/// the note it was sent with and how many numbered frames it carries, and the one shown.
 #[derive(Clone)]
 struct Series {
     files: Vec<String>,
     notes: Vec<Option<String>>,
+    frames: Vec<usize>,
     at: usize,
 }
 
@@ -844,7 +858,7 @@ impl Series {
             return None;
         }
         let show = req["show"].as_u64().unwrap_or(0) as usize;
-        let (mut files, mut notes, mut at) = (Vec::new(), Vec::new(), 0);
+        let (mut files, mut notes, mut frames, mut at) = (Vec::new(), Vec::new(), Vec::new(), 0);
         for (i, f) in req["files"].as_array().into_iter().flatten().enumerate() {
             let Some(f) = f.as_str().filter(|f| std::path::Path::new(f).is_file()) else {
                 continue;
@@ -855,8 +869,14 @@ impl Series {
             files.push(f.to_string());
             let note = req["notes"].get(i).unwrap_or(&req["note"]);
             notes.push(note.as_str().map(str::to_string));
+            frames.push(req["frames"][i].as_array().map_or(0, Vec::len));
         }
-        (!files.is_empty()).then_some(Self { files, notes, at })
+        (!files.is_empty()).then_some(Self {
+            files,
+            notes,
+            frames,
+            at,
+        })
     }
 }
 
@@ -968,6 +988,13 @@ impl App {
             grid_hit: None,
             overlay: None,
             last_overlay: None,
+            series_grid: false,
+            tile: None,
+            grid_top: 0,
+            grid_cols: 1,
+            small: HashMap::new(),
+            thumbs: HashMap::new(),
+            jump: None,
             map_view: None,
         };
         app.apply_prefs();
@@ -1058,6 +1085,7 @@ impl App {
             "split": self.split,
             "photo": self.photo_split,
             "details": self.detail_tab.key(),
+            "tile": self.tile,
         })
     }
 
@@ -1070,6 +1098,9 @@ impl App {
         }
         if let Some(t) = v["details"].as_str().and_then(DetailTab::from_key) {
             self.detail_tab = t;
+        }
+        if let Some(w) = v["tile"].as_u64() {
+            self.tile = Some((w as u16).max(settings::SERIES_TILE_MIN));
         }
     }
 
@@ -1479,6 +1510,63 @@ impl App {
             at = self.snap.parent.get(&x).copied();
         }
         Ok(())
+    }
+
+    /// The keys of the series in both its views (spec/series-grid.md): `g` grid ↔ single,
+    /// `Home` / `End`, `f` then digits then `Enter` to go to a picture, and in the grid the
+    /// arrows, `Enter` and `+` / `-`. Whether the key was the series'.
+    fn series_key(&mut self, k: KeyEvent) -> Result<bool> {
+        let Some(count) = self.overlay.as_ref().map(|s| s.files.len()) else {
+            return Ok(false);
+        };
+        if let Some(buf) = self.jump.as_mut() {
+            match k.code {
+                KeyCode::Char(c) if c.is_ascii_digit() => buf.push(c),
+                KeyCode::Backspace => {
+                    buf.pop();
+                }
+                KeyCode::Enter => {
+                    let n: usize = buf.parse().unwrap_or(0);
+                    self.jump = None;
+                    if (1..=count).contains(&n) {
+                        self.go_to_picture(n - 1);
+                    } else {
+                        self.status = tf("the series has no f{}", &[&n]);
+                    }
+                }
+                _ => self.jump = None,
+            }
+            return Ok(true);
+        }
+        let grid = self.series_grid;
+        let cols = self.grid_cols.max(1) as isize;
+        match k.code {
+            KeyCode::Char('f') => self.jump = Some(String::new()),
+            KeyCode::Char('g') => self.series_grid = !self.series_grid,
+            KeyCode::Home => self.go_to_picture(0),
+            KeyCode::End => self.go_to_picture(count - 1),
+            KeyCode::Enter if grid => self.series_grid = false,
+            KeyCode::Right | KeyCode::Char('l') if grid => self.step_overlay(1),
+            KeyCode::Left | KeyCode::Char('h') if grid => self.step_overlay(-1),
+            KeyCode::Down | KeyCode::Char('j') if grid => self.step_overlay(cols),
+            KeyCode::Up | KeyCode::Char('k') if grid => self.step_overlay(-cols),
+            KeyCode::Char('+' | '=') if grid => self.zoom_grid(4),
+            KeyCode::Char('-') if grid => self.zoom_grid(-4),
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
+    fn go_to_picture(&mut self, i: usize) {
+        if let Some(s) = &mut self.overlay {
+            s.at = i.min(s.files.len().saturating_sub(1));
+        }
+    }
+
+    /// `+` / `-` in the grid: wider or narrower pictures for now, kept with the screen's layout.
+    fn zoom_grid(&mut self, by: i16) {
+        let now = self.tile.unwrap_or(self.prefs.series_tile) as i16;
+        self.tile = Some((now + by).clamp(settings::SERIES_TILE_MIN as i16, 400) as u16);
     }
 
     /// `[` `]` over the series: the previous or next picture, stopping at the ends.

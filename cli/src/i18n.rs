@@ -405,6 +405,13 @@ static TR: &[(&str, &str)] = &[
     ("[ ] ← → step", "[ ] ← → gez"),
     ("m shows it again", "m yeniden gösterir"),
     ("X close series", "X seriyi kapat"),
+    ("g grid", "g ızgara"),
+    ("g single", "g tek resim"),
+    ("f12 go to · Home/End", "f12 git · Home/End"),
+    (" Marked photo series ", " İşaretli foto serisi "),
+    ("← ↑ → ↓ move · Enter open", "← ↑ → ↓ gez · Enter aç"),
+    ("+/- size", "+/- boyut"),
+    ("the series has no f{}", "seride f{} yok"),
     (
         "marked photo series closed",
         "işaretli foto serisi kapatıldı",

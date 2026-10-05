@@ -20,6 +20,10 @@ impl App {
     }
 
     pub(super) fn set_prefs(&mut self, prefs: Settings) -> Result<()> {
+        // A new grid size set by hand wins over the one zoomed to for now.
+        if prefs.series_tile != self.prefs.series_tile {
+            self.tile = None;
+        }
         self.prefs = prefs;
         self.apply_prefs();
         if self.starting {

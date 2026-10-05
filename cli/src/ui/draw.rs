@@ -71,18 +71,169 @@ impl App {
         let mut parts = vec![(0, t("Esc/o hide"))];
         if at.1 > 1 {
             parts.push((0, t("[ ] ← → step")));
+            parts.push((0, t("g grid")));
         }
         parts.push((0, t("X close series")));
+        parts.push((1, t("f12 go to · Home/End")));
         parts.push((1, t("m shows it again")));
         parts.push((2, t("r/R rotate")));
         parts.push((3, t("O open outside")));
-        let keys = fit_hints(parts, bottom.width as usize, "");
+        let keys = fit_hints(parts, bottom.width as usize, &self.jump_text());
         f.render_widget(Paragraph::new(keys).fg(pal().muted), bottom);
+    }
+
+    /// What `f` then digits has typed so far, else the last message, for the key line.
+    fn jump_text(&self) -> String {
+        self.jump
+            .as_ref()
+            .map_or_else(|| self.status.clone(), |b| format!("→ f{b}_"))
+    }
+
+    /// The series as a grid (spec/series-grid.md): as many pictures a row as the width holds at
+    /// the tile width, re-flowed on every draw, only the rows on screen drawn. Each tile is
+    /// titled `f12 · <note>` with its frames counted, the one selected stands out, and `Enter`
+    /// opens it in the single view.
+    pub(super) fn draw_series_grid(&mut self, f: &mut Frame, s: &Series) {
+        let [main, bottom] =
+            Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
+        let n = s.files.len();
+        let title = format!(" f{}/{} ·{}", s.at + 1, n, t(" Marked photo series "));
+        let block = Block::bordered()
+            .title(title)
+            .border_style(Style::new().fg(pal().lost).bold());
+        let inner = block.inner(main);
+        f.render_widget(block, main);
+        let want = self
+            .tile
+            .unwrap_or(self.prefs.series_tile)
+            .max(settings::SERIES_TILE_MIN);
+        let cols = (inner.width / want.min(inner.width.max(1))).max(1);
+        // The width shared evenly, so the grid fills the pane; a cell is about twice as tall
+        // as it is wide, so a 4:3 picture takes 3/8 of its width in rows, under a title line.
+        let tile_w = inner.width / cols;
+        let tile_h = (tile_w * 3 / 8).max(2) + 1;
+        let rows_fit = usize::from((inner.height / tile_h).max(1));
+        let cols = usize::from(cols);
+        self.grid_cols = cols;
+        let row = s.at / cols;
+        if row < self.grid_top {
+            self.grid_top = row;
+        } else if row >= self.grid_top + rows_fit {
+            self.grid_top = row + 1 - rows_fit;
+        }
+        let first = self.grid_top * cols;
+        for i in first..n.min(first + rows_fit * cols) {
+            let (r, c) = ((i - first) / cols, (i - first) % cols);
+            let x = inner.x + c as u16 * tile_w;
+            let y = inner.y + r as u16 * tile_h;
+            let w = tile_w.saturating_sub(1).max(1);
+            let mut label = format!("f{}", i + 1);
+            if let Some(note) = s.notes.get(i).cloned().flatten() {
+                label.push_str(" · ");
+                label.push_str(&note);
+            }
+            let frames = s.frames.get(i).copied().unwrap_or(0);
+            let badge = if frames > 0 {
+                format!(" ▣{frames}")
+            } else {
+                String::new()
+            };
+            let room = usize::from(w).saturating_sub(badge.chars().count());
+            let label: String = if label.chars().count() > room {
+                label
+                    .chars()
+                    .take(room.saturating_sub(1))
+                    .collect::<String>()
+                    + "…"
+            } else {
+                label
+            };
+            let style = if i == s.at {
+                Style::new().bold().reversed()
+            } else {
+                Style::new()
+            };
+            f.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled(label, style),
+                    Span::styled(badge, Style::new().fg(pal().lost)),
+                ])),
+                Rect::new(x, y, w, 1),
+            );
+            let pic = Rect::new(x, y + 1, w, tile_h - 1);
+            self.render_thumb(f, &s.files[i], pic);
+        }
+        let parts = vec![
+            (0, t("Esc/o hide")),
+            (0, t("← ↑ → ↓ move · Enter open")),
+            (0, t("g single")),
+            (0, t("X close series")),
+            (1, t("f12 go to · Home/End")),
+            (2, t("+/- size")),
+        ];
+        let keys = fit_hints(parts, bottom.width as usize, &self.jump_text());
+        f.render_widget(Paragraph::new(keys).fg(pal().muted), bottom);
+    }
+
+    /// One picture of the series grid, scaled down once and encoded once per tile size.
+    fn render_thumb(&mut self, f: &mut Frame, path: &str, area: Rect) {
+        if self.picker.is_none() || area.width == 0 || area.height == 0 {
+            return;
+        }
+        let key = (path.to_string(), area.width, area.height);
+        if !self.thumbs.contains_key(&key) {
+            let small = match self.small.get(path) {
+                Some(img) => img.clone(),
+                None => match (self.decoded.get(path), self.decoder.as_mut()) {
+                    (Some(full), _) => {
+                        let img = full.as_ref().map(|i| i.thumbnail(480, 480));
+                        self.small.insert(path.to_string(), img.clone());
+                        img
+                    }
+                    (None, Some(d)) => {
+                        if d.pending.insert(path.to_string()) {
+                            let _ = d.jobs.send(path.to_string());
+                        }
+                        f.render_widget(Paragraph::new("…").fg(pal().muted), area);
+                        return;
+                    }
+                    (None, None) => {
+                        let img = crate::ui::decode_photo(path).map(|i| i.thumbnail(480, 480));
+                        self.small.insert(path.to_string(), img.clone());
+                        img
+                    }
+                },
+            };
+            // Tiles of an old size are dropped wholesale once there are many.
+            if self.thumbs.len() > 400 {
+                self.thumbs.clear();
+            }
+            let Some(picker) = &self.picker else { return };
+            let proto = small.and_then(|img| {
+                picker
+                    .new_protocol(img, area.into(), Resize::Fit(None))
+                    .ok()
+            });
+            self.thumbs.insert(key.clone(), proto);
+        }
+        match self.thumbs.get(&key) {
+            Some(Some(proto)) => {
+                let size = proto.size();
+                let w = size.width.min(area.width);
+                let h = size.height.min(area.height);
+                let at = Rect::new(area.x + (area.width - w) / 2, area.y, w, h);
+                f.render_widget(Image::new(proto), at);
+            }
+            _ => f.render_widget(Paragraph::new("✕").fg(pal().muted), area),
+        }
     }
 
     pub(super) fn draw(&mut self, f: &mut Frame) {
         if self.fullscreen {
             if let Some(s) = self.overlay.clone() {
+                if self.series_grid && s.files.len() > 1 {
+                    return self.draw_series_grid(f, &s);
+                }
                 let i = s.at.min(s.files.len().saturating_sub(1));
                 if let Some(path) = s.files.get(i) {
                     let note = s.notes.get(i).cloned().flatten();

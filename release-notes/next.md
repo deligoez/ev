@@ -72,6 +72,12 @@ record. Each picture in `ev ui` is titled `f12/20 · <note>`, and `ev focus --li
 `ev photo cut`, `ev photo mark`, `ev focus --file`), meaning that photo unmarked, so the agent
 carries no file paths; `ev focus f12` shows that picture again.
 
+Attaching a batch that is already on screen took a shell loop, one `ev photo add` per photo with
+its upload path. `ev photo add` now takes several photos at once (`ev photo add <ref> f2 f3 f4`)
+and, with `--stdin`, one `{"ref", "photo", "note"}` a line for many records; every record and photo
+is checked before anything is attached. A series picture keeps the note it was sent with and is
+not sent to the screen again.
+
 ## Smaller fixes
 
 - A kit bought as one purchase line showed that line as ×1 whatever its quantity: `ev kit show`

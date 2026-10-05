@@ -24,6 +24,9 @@ pub const OFFER_AT: f64 = 15.0;
 const ALIAS: f64 = 80.0;
 const EXACT_KEY: f64 = 60.0;
 const CODE: f64 = 25.0;
+/// Part of a long model written in the line, as a bundle names what it includes ("inkl. ZM 18-55
+/// VR" for a "ZM DX OPT 18-55mm f/3.5-5.6 VR" lens).
+const MODEL_PART: f64 = 30.0;
 const BRAND: f64 = 12.0;
 /// The brand when the line shares nothing of what the thing is: a Pro'sKit pliers line for a
 /// Pro'sKit wire stripper.
@@ -64,6 +67,21 @@ fn has_words(words: &[String], phrase: &str, prefix_at: usize) -> bool {
                 .filter(|n| i + n <= words.len())
                 .any(|n| words[i..i + n].concat() == phrase)
     })
+}
+
+/// Words with each number's unit dropped (`55mm` is `55`), so `18-55mm` and `18-55` read alike.
+fn bare_words(words: &[String]) -> Vec<String> {
+    words
+        .iter()
+        .map(|w| {
+            if is_measure(w) {
+                w.trim_end_matches(|c: char| !c.is_ascii_digit())
+                    .to_string()
+            } else {
+                w.clone()
+            }
+        })
+        .collect()
 }
 
 /// Tokens that mix letters and digits (`lr1130`, `tbx306f`, `1pk052ds`), hyphens dropped.
@@ -310,6 +328,9 @@ struct Thing<'a> {
     folded_name: String,
     /// Model and serial, squashed, when long enough to mean something.
     keys: Vec<(&'static str, String)>,
+    /// The words of a model of four words or more, each number without its unit: what a line
+    /// that names only part of the model is checked against.
+    model_words: Vec<String>,
     codes: HashSet<String>,
     words: Vec<(String, Vec<String>)>,
     /// The words of what it is, the head of its name, each with its stems.
@@ -335,6 +356,12 @@ impl<'a> Thing<'a> {
                         .map(|v| (f, v))
                 })
                 .collect(),
+            model_words: n
+                .model
+                .as_deref()
+                .map(|m| bare_words(&tokens(m)))
+                .filter(|w| w.len() >= 4)
+                .unwrap_or_default(),
             // Codes from what names it, never from the note: a note says what a module is used
             // with ("for an ESP32"), which is not what it is.
             codes: codes(&format!(
@@ -374,10 +401,33 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     }
     // 2. The thing's model or serial written in the line, as whole words: a short model (`561`)
     //    sits inside many other codes (`6002561`).
+    let mut whole_model = false;
     for (field, v) in &n.keys {
         if has_words(&p.tokens, v, 6) {
             add(format!("{field} {v}"), EXACT_KEY);
             strong = true;
+            whole_model |= *field == "model";
+        }
+    }
+    // 2b. Part of a long model, when the whole is not there: at least two of its numbers and two
+    //     of its other words ("18", "55" and "zm", "vr"), as a bundle line names a part.
+    let mut in_bundle = false;
+    if !n.model_words.is_empty() && !whole_model {
+        let line = bare_words(&p.tokens);
+        let found: Vec<&String> = n.model_words.iter().filter(|w| line.contains(w)).collect();
+        let digits = found
+            .iter()
+            .filter(|w| w.chars().all(|c| c.is_ascii_digit()))
+            .count();
+        let others = found
+            .iter()
+            .filter(|w| w.chars().count() >= 2 && !w.chars().all(|c| c.is_ascii_digit()))
+            .count();
+        if digits >= 2 && others >= 2 {
+            let shown: Vec<&str> = found.iter().map(|w| w.as_str()).collect();
+            add(format!("model in part {}", shown.join(" ")), MODEL_PART);
+            strong = true;
+            in_bundle = true;
         }
     }
     // 3. Model codes both carry.
@@ -436,9 +486,13 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         };
         add(format!("{what} {}", matched.join(", ")), points.min(cap));
     }
-    // 6. Numbers of one unit that differ.
-    for d in conflicting(&n.measures, &p.measures) {
-        add(format!("{d} differs"), CONFLICT);
+    // 6. Numbers of one unit that differ. Not in a line that names the thing only in part: such
+    //    a bundle's other numbers are its other parts' (a camera's 7,4 cm screen beside its
+    //    18-55 mm lens).
+    if !in_bundle {
+        for d in conflicting(&n.measures, &p.measures) {
+            add(format!("{d} differs"), CONFLICT);
+        }
     }
     (total, why)
 }

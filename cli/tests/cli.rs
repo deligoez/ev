@@ -911,3 +911,15 @@ fn f_names_a_picture_of_the_series_and_its_unmarked_photo() {
     let (code, _, _) = ev.run(&["focus", "f9"]);
     assert_eq!(code, 3);
 }
+
+#[test]
+fn a_flag_given_in_edits_key_value_form_is_named_in_the_error() {
+    let ev = seeded();
+    let (code, _, err) = ev.run(&["add", "Objektif", "make=Optika", "--kind", "item"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--make Optika"), "{err}");
+    // A key no flag has keeps the usual error.
+    let (code, _, err) = ev.run(&["add", "Objektif", "renk=siyah"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("unexpected argument"), "{err}");
+}

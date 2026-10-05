@@ -719,3 +719,80 @@ fn layout_keeps_a_noun_compound_whole_so_a_lens_cap_is_no_pen_cap() {
     themes.sort_unstable();
     assert_eq!(themes, ["kalem kapağı", "lens kapağı"]);
 }
+
+#[test]
+fn a_draft_leaves_bins_devices_and_kits_alone_and_themes_no_parking_place() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K4"),
+        coded("Çekmece", "container", "K4", "K4-A"),
+        coded("Çekmece", "container", "K4", "K4-B"),
+        coded("Çekmece", "container", "K4", "K4-C"),
+        NewNode {
+            temporary: true,
+            ..coded("Çekmece", "container", "K4", "K4-P")
+        },
+        // Two drawers of pens, so cables are not in most places (a word in most places tells
+        // none apart).
+        coded("Çekmece", "container", "K4", "K4-D"),
+        coded("Çekmece", "container", "K4", "K4-E"),
+        node("Tükenmez kalem", "item", "K4-D"),
+        node("Kurşun kalem", "item", "K4-E"),
+        node("Kablo, USB-C", "item", "K4-A"),
+        node("Kablo, HDMI", "item", "K4-A"),
+        node("Kablo, ses", "item", "K4-A"),
+        // In a themed bin of its own: the bin moves as one, if at all.
+        NewNode {
+            theme: Some("Ağ".into()),
+            ..coded("Kutu", "container", "K4-B", "B1-001")
+        },
+        node("Kablo, Ethernet", "item", "B1-001"),
+        // Inside a device: its own lead.
+        node("Multimetre", "item", "K4-B"),
+        node("Kablo, prob", "item", "Multimetre"),
+        // A part of a kit.
+        node("Kablo, jumper", "item", "K4-C"),
+        // Waiting in the parking drawer: it goes to its kind's place.
+        node("Kablo, Lightning", "item", "K4-P"),
+        node("Kablo, DisplayPort", "item", "K4-P"),
+        node("Kablo, VGA", "item", "K4-P"),
+        node("Kablo, DVI", "item", "K4-P"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    inv.kit_add("Set", None, None, &[("Jumper".into(), 1)], None)
+        .unwrap();
+    inv.kit_link("Set", 1, &["Kablo, jumper".into()]).unwrap();
+
+    let p = inv.layout("K4", true).unwrap()["proposal"].clone();
+    let themes: Vec<(&str, &str)> = p["themes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|t| Some((t["place"]["code"].as_str()?, t["theme"].as_str()?)))
+        .collect();
+    // The parking drawer holds the most cables, yet its cables go to K4-A.
+    assert_eq!(themes, [("K4-A", "kablo")], "{p}");
+    let mut moved: Vec<&str> = p["moves"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|m| m["thing"]["name"].as_str())
+        .collect();
+    moved.sort_unstable();
+    assert_eq!(
+        moved,
+        [
+            "Kablo, DVI",
+            "Kablo, DisplayPort",
+            "Kablo, Lightning",
+            "Kablo, VGA"
+        ]
+    );
+}

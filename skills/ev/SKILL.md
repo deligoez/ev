@@ -380,7 +380,8 @@ bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`.
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
 returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
 your own reading of a name; ask. A link the person says was wrong is undone with `ev buy unlink
-<line> <ref>`.
+<line> <ref>`: it takes back the pictures and pages the link brought; a value or coverage it
+brought is listed under `left` — ask whether to remove it.
 
 **A pack or set whose units went into several records is one line, sized once.** When the
 person's 8-pack is kept in two boxes, or a charger set's AA and AAA cells are separate records,

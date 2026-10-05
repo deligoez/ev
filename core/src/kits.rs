@@ -283,7 +283,7 @@ impl Inventory {
                 let l = crate::purchases::purchase_row(&self.conn, p)?;
                 Ok(json!({
                     "id": p, "name": l["name"], "shop": l["shop"], "ordered_at": l["ordered_at"],
-                    "paid": l["paid"], "currency": l["currency"],
+                    "qty": l["qty"], "paid": l["paid"], "currency": l["currency"],
                 }))
             })
             .transpose()?;

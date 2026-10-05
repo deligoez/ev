@@ -52,10 +52,9 @@ a portion, an ordinary record with its own count, and the portions share what th
 2. **Propose, don't assume a move happened.** Plan it with `ev move <x> --to <y> --plan`,
    tell the person where it goes, and only after they say they did it run `ev done <x>`.
    `ev pending` is the checklist; a move the person turns down is dropped with `ev cancel <x>`.
-   A planned move is also how you park a thing whose right
-   place is not settled yet: plan it towards the likeliest holder, and when you later go
-   through that holder, bring up everything planned to arrive there so the person decides
-   whether it really belongs.
+   A planned move is also how you park a thing whose right place is not settled yet: plan it
+   towards the likeliest holder, and when you later go through that holder, bring up everything
+   planned to arrive there so the person decides whether it really belongs.
 3. **Nothing is finished until the person says so.** A photo of "the current state" is not
    "done". Never mark a bag, drawer or task complete — and never `gone` a record — on your own
    reading; ask. A mistaken `gone` is corrected with `ev restore X --correction "<why>"`.
@@ -295,8 +294,8 @@ in this order:
 7. **Turn corrections into data.** When the person picks another place, record why: a `theme`
    on the box, a rule (`ev rule add`), or a synonym (`ev synonym add "fotosel, ldr"`) when the
    miss was two words for one thing. Give boxes a `size` (`1x2x0.5`), so regrouping can offer
-   the empty ones (a box with a size, no theme and nothing in it, known to be empty); a size written only in a box's name is not read —
-   `ev audit` lists those under `size_drift`.
+   the empty ones (a box with a size, no theme and nothing in it, known to be empty); a size
+   written only in a box's name is not read — `ev audit` lists those under `size_drift`.
 
 At the end of a drawer's tour, run `ev regroup <drawer>` and bring its findings as numbered
 proposals: things better off elsewhere, mixed boxes, full boxes and the bigger spare box with

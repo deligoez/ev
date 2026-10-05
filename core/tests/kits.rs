@@ -44,6 +44,15 @@ fn part(v: &Value, n: usize) -> &Value {
 }
 
 #[test]
+fn unlinking_a_record_that_is_not_linked_is_a_usage_error_as_elsewhere() {
+    let (_d, mut inv) = setup();
+    inv.kit_add("Set", None, None, &[("RC522 okuyucu".into(), 1)], None)
+        .unwrap();
+    let e = inv.kit_unlink("Set", 1, "RC522 okuyucu").unwrap_err();
+    assert_eq!(e.code(), 2, "{e}");
+}
+
+#[test]
 fn a_kit_counts_each_part_found_lost_and_still_missing_across_its_copies() {
     let (_d, mut inv) = setup();
     let v = inv

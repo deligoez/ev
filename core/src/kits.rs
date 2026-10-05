@@ -253,7 +253,7 @@ impl Inventory {
             params![id, n, node],
         )? == 0
         {
-            return Err(Error::NotFound(format!(
+            return Err(Error::Usage(format!(
                 "#{node} is not linked to part {n} of {name}"
             )));
         }

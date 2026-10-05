@@ -421,7 +421,8 @@ named `f12` (its title in `ev ui` reads `f12/20 · <note>`), a frame by its bare
 by `#12`. `ev focus f12` shows that picture again, and `ev photo add`, `ev photo cut`, `ev photo
 mark` and `ev focus --file` take `f12` for a photo: the photo it was drawn on, unmarked (a file of
 that name wins). `ev focus --list` reads it:
-`{series: {since, next, pictures: [{n, f, file, source, note, frames: [{n, at} | {n, ref, crop}]}]}}`
+`{series: {since, next, pictures: [{n, f, file, source, note, frames: [{n, at, label} | {n, ref, crop}]}]}}`
+(`label`: the number the agent gave a mark's frame on that photo)
 (`series: null` when there is none); `ev focus --clear` closes it from outside, for an agent the
 person asked. The answer to `--file` is `{focus: {files, note, series, next, at}}`: this
 request's pictures and the series' size. Each request is shown once, without restarting `ev ui`.
@@ -440,9 +441,10 @@ not attached and leaves no history. It is also sent to a running `ev ui`, into t
 series (titled with `--show <note>`, else with the labels), unless `--no-show` is given. There a
 numbered label (`1`, `2 → A6`: a number, alone or followed by a space) counts this photo's frames
 (the labels' numbers only order them: a lone `2` is the photo's first frame) and is drawn with the
-frame's number in the series: the photo's own numbers when it is in the
-series already, in order, then the series' next free ones — so `1=… 2=…` on the second photo of a
-series draws `3` and `4`. `--keep-numbers` draws the numbers as given, for marks that point at
+frame's number in the series: the series' next free ones, in the labels' order — so `1=… 2=…` on
+the second photo of a series draws `3` and `4`. A photo marked again keeps each label's number
+from its last mark, and a new label takes the next free one: `1=… 3=…` after `1=… 2=…` draws `1`
+and `3`, and 2, left out, is not handed out again until the series closes. `--keep-numbers` draws the numbers as given, for marks that point at
 frames numbered already (a destination: `4=A6`, frame 4 goes to A6). Output:
 `marked`, `source`, `marks: [{label, at}]` (the labels as drawn), and `shown` when sent. A label keeps the
 letters as given (lowercase too; Turkish letters are drawn plain). A label on a frame is no wider

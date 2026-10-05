@@ -122,11 +122,13 @@ impl App {
             self.grid_top = row + 1 - rows_fit;
         }
         let first = self.grid_top * cols;
+        self.grid_hits.clear();
         for i in first..n.min(first + rows_fit * cols) {
             let (r, c) = ((i - first) / cols, (i - first) % cols);
             let x = inner.x + c as u16 * tile_w;
             let y = inner.y + r as u16 * tile_h;
             let w = tile_w.saturating_sub(1).max(1);
+            self.grid_hits.push((Rect::new(x, y, w, tile_h), i));
             let mut label = format!("f{}", i + 1);
             if let Some(note) = s.notes.get(i).cloned().flatten() {
                 label.push_str(" · ");
@@ -165,7 +167,7 @@ impl App {
         }
         let parts = vec![
             (0, t("Esc/o hide")),
-            (0, t("← ↑ → ↓ move · Enter open")),
+            (0, t("← ↑ → ↓ move · Enter or click open")),
             (0, t("g single")),
             (0, t("X close series")),
             (1, t("f12 go to · Home/End")),

@@ -767,6 +767,8 @@ struct App {
     /// The grid's first row on screen, and its columns when it was last drawn.
     grid_top: usize,
     grid_cols: usize,
+    /// Where each picture of the grid was last drawn, so a click opens the one under it.
+    grid_hits: Vec<(Rect, usize)>,
     /// Series pictures scaled down for the grid, and their terminal pictures by tile size: a
     /// grid of forty would otherwise decode and encode every photo on every frame.
     small: HashMap<String, Option<image::DynamicImage>>,
@@ -930,6 +932,7 @@ impl App {
             tile: None,
             grid_top: 0,
             grid_cols: 1,
+            grid_hits: Vec::new(),
             small: HashMap::new(),
             thumbs: HashMap::new(),
             jump: None,

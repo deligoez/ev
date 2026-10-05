@@ -187,6 +187,22 @@ impl App {
             m.column >= r.x && m.column < r.x + r.width && m.row >= r.y && m.row < r.y + r.height
         };
         if self.fullscreen {
+            if self.series_grid && self.overlay.is_some() {
+                // The series grid: a click opens the picture under it, the wheel moves a row.
+                let cols = self.grid_cols.max(1) as isize;
+                match m.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        if let Some(&(_, i)) = self.grid_hits.iter().find(|(r, _)| inside(*r)) {
+                            self.go_to_picture(i);
+                            self.series_grid = false;
+                        }
+                    }
+                    MouseEventKind::ScrollDown => self.step_overlay(cols),
+                    MouseEventKind::ScrollUp => self.step_overlay(-cols),
+                    _ => {}
+                }
+                return Ok(());
+            }
             match m.kind {
                 MouseEventKind::ScrollDown if self.overlay.is_none() => self.step_photo(1),
                 MouseEventKind::ScrollUp if self.overlay.is_none() => self.step_photo(-1),

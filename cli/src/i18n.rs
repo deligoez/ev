@@ -409,7 +409,10 @@ static TR: &[(&str, &str)] = &[
     ("g single", "g tek resim"),
     ("f12 go to · Home/End", "f12 git · Home/End"),
     (" Marked photo series ", " İşaretli foto serisi "),
-    ("← ↑ → ↓ move · Enter open", "← ↑ → ↓ gez · Enter aç"),
+    (
+        "← ↑ → ↓ move · Enter or click open",
+        "← ↑ → ↓ gez · Enter ya da tıkla aç",
+    ),
     ("+/- size", "+/- boyut"),
     ("the series has no f{}", "seride f{} yok"),
     (

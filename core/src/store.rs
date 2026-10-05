@@ -1571,7 +1571,29 @@ pub(crate) fn known_empty(conn: &Connection, id: i64) -> Result<bool> {
     )?;
     let after = |at: &str| reset.as_deref().is_none_or(|r| at > r);
     let review = crate::plan::review_inherited(conn, id)?;
-    if review["status"] == "toured" && review["at"].as_str().is_none_or(after) {
+    // A tour of the place it is in only saw it if it was there then: a box found or moved into
+    // a counted drawer later was never opened on that tour.
+    // Events in the order they were written: times only have seconds.
+    let seen_on_tour = match review["from"].as_i64() {
+        Some(from) if from != id => {
+            let (arrived, toured): (Option<i64>, Option<i64>) = conn.query_row(
+                "SELECT
+                   (SELECT MAX(id) FROM events
+                     WHERE node_id = ?1 AND type IN ('create', 'move', 'done', 'found')),
+                   (SELECT MAX(id) FROM events
+                     WHERE node_id = ?2 AND type = 'review'
+                       AND json_extract(data, '$.as') = 'toured')",
+                params![id, from],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?;
+            match (arrived, toured) {
+                (Some(a), Some(t)) => a < t,
+                _ => true,
+            }
+        }
+        _ => true,
+    };
+    if review["status"] == "toured" && review["at"].as_str().is_none_or(after) && seen_on_tour {
         return Ok(true);
     }
     let held: Option<String> = conn

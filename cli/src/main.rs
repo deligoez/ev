@@ -34,7 +34,9 @@ struct Cli {
     text_output: bool,
 
     /// Database file; wins over EV_DB. Defaults to ~/.ev/ev.db.
-    #[arg(long, global = true, env = "EV_DB")]
+    // EV_DB is read in `db_path`, not through clap's `env`: clap names an argument an
+    // environment variable fills in every usage line, as if `--db` were required.
+    #[arg(long, global = true)]
     db: Option<PathBuf>,
 
     #[command(subcommand)]
@@ -1417,6 +1419,9 @@ fn read_input() -> Result<String> {
 fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(p) = flag {
         return Ok(p);
+    }
+    if let Some(p) = std::env::var_os("EV_DB").filter(|p| !p.is_empty()) {
+        return Ok(PathBuf::from(p));
     }
     let home = std::env::var_os("HOME")
         .ok_or_else(|| Error::Internal("HOME is not set; pass --db".into()))?;

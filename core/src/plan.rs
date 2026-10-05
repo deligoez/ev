@@ -1459,12 +1459,26 @@ impl Inventory {
             Some(t) => {
                 let mut v = task_json(&self.conn, t)?;
                 let mut places = Vec::new();
+                let mut grids_seen: Vec<Value> = Vec::new();
                 for n in task_nodes(&self.conn, t)? {
                     let mut p = show(&self.conn, n)?;
                     p["arriving"] = json!(self.pending_into(n)?);
                     p["while_there"] = while_there(&self.conn, n, &todo, &uncovered, &unvalued)?;
-                    // What has no value is left out (a nine-place task was 64 KB of empty lists).
                     if let Some(o) = p.as_object_mut() {
+                        // Said once: the task these places are for is the task above, and
+                        // drawers of one compartment share its grid.
+                        if let Some(Value::Array(ts)) = o.get_mut("tasks") {
+                            ts.retain(|x| x["id"] != json!(t));
+                        }
+                        if let Some(g) = o.get("parent_grid") {
+                            if grids_seen.contains(g) {
+                                o.remove("parent_grid");
+                            } else {
+                                grids_seen.push(g.clone());
+                            }
+                        }
+                        // What has no value is left out (a nine-place task was 64 KB of empty
+                        // lists).
                         o.retain(|_, x| !is_empty_value(x));
                     }
                     places.push(p);

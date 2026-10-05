@@ -797,8 +797,17 @@ impl Inventory {
             )));
         }
         event(&tx, node, "purchase_unlinked", json!({ "purchase": id }))?;
+        // A wrong link's product pictures and pages show another product: they go with it.
+        let (taken, left) = crate::attachments::take_back(&tx, &self.doc_dir, id, node)?;
         tx.commit()?;
-        self.buy_show(id)
+        let mut v = self.buy_show(id)?;
+        if !taken.is_empty() {
+            v["taken_back"] = json!(taken);
+        }
+        if !left.is_empty() {
+            v["left"] = json!(left);
+        }
+        Ok(v)
     }
 
     /// Settles a line that will never be a node, or (`reason` None) clears that.

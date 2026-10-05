@@ -75,7 +75,7 @@ fn check_date(d: &str) -> Result<String> {
 }
 
 /// The extension a stored copy keeps: the file's own when it is a short plain one.
-fn extension(file: &Path) -> String {
+pub(crate) fn extension(file: &Path) -> String {
     file.extension()
         .and_then(|e| e.to_str())
         .map(str::to_ascii_lowercase)

@@ -496,3 +496,83 @@ fn bring_into(
     }
     Ok((brought, skipped))
 }
+
+/// What `purchase` brought to `node`, taken back when the link turns out wrong: its product
+/// pictures and its links leave the node (they show and name another product). A value or a
+/// coverage stays, since the person may have kept or corrected it; each is `left` with the
+/// command that removes it. Every attachment is free to be brought again.
+pub(crate) fn take_back(
+    tx: &Connection,
+    doc_dir: &std::path::Path,
+    purchase: i64,
+    node: i64,
+) -> Result<(Vec<Value>, Vec<Value>)> {
+    let (mut taken, mut left) = (Vec::new(), Vec::new());
+    for a in attachments_of(tx, purchase)? {
+        if a["brought_to"].as_i64() != Some(node) {
+            continue;
+        }
+        let aid = a["id"].as_i64().unwrap_or_default();
+        let kind = a["type"].as_str().unwrap_or_default();
+        let s = |k: &str| a[k].as_str().unwrap_or_default().to_string();
+        let back = match kind {
+            "link" => {
+                tx.execute(
+                    "DELETE FROM links WHERE node_id = ?1 AND url = ?2",
+                    params![node, s("url").trim()],
+                )? > 0
+            }
+            "image" => {
+                let file = std::path::PathBuf::from(s("file"));
+                let doc: Option<i64> = match std::fs::read(&file) {
+                    Ok(bytes) => {
+                        // The store is content-addressed: the same bytes name the same file.
+                        let ext = crate::docs::extension(&file);
+                        let stored = crate::photo::store_bytes(doc_dir, &bytes, &ext)?;
+                        tx.query_row(
+                            "SELECT id FROM documents WHERE file = ev_store(?1)",
+                            [stored.to_string_lossy()],
+                            |r| r.get(0),
+                        )
+                        .optional()?
+                    }
+                    Err(_) => None,
+                };
+                match doc {
+                    Some(doc)
+                        if tx.execute(
+                            "DELETE FROM document_links
+                              WHERE document_id = ?1 AND target = 'node' AND target_id = ?2",
+                            params![doc, node],
+                        )? > 0 =>
+                    {
+                        crate::store::event(
+                            tx,
+                            node,
+                            "doc_unlinked",
+                            json!({ "document": doc, "kind": "image" }),
+                        )?;
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        if back {
+            taken.push(json!({ "id": aid, "type": kind }));
+        } else {
+            let how = match kind {
+                "valuation" => "ev value <ref> --remove",
+                "coverage" => "ev cover remove <id>",
+                _ => "not found on the record any more",
+            };
+            left.push(json!({ "id": aid, "type": kind, "how": how }));
+        }
+        tx.execute(
+            "UPDATE purchase_attachments SET brought_to = NULL WHERE id = ?1",
+            [aid],
+        )?;
+    }
+    Ok((taken, left))
+}

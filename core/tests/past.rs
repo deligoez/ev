@@ -545,3 +545,32 @@ fn a_swap_leaves_as_a_trade_linked_to_what_came_in_exchange() {
     // A trade can be set aside first, like a sale.
     inv.dispose("Eski telefon", Disposition::Trade).unwrap();
 }
+
+#[test]
+fn what_is_never_a_thing_is_paid_for_apart_and_never_waits_to_be_linked() {
+    let (_d, mut inv) = setup();
+    for (name, bucket, paid) in [
+        ("Geliştirici üyeliği", "digital", "99.00"),
+        ("Diyet programı", "service", "3000.00"),
+        ("Matkap", "durable", "1999.00"),
+    ] {
+        inv.buy_add(
+            &serde_json::json!({"name": name, "qty": 1, "paid": paid, "bucket": bucket}),
+            None,
+        )
+        .unwrap();
+    }
+    let p = inv.stats().unwrap()["purchases"].clone();
+    assert_eq!(p["open_durable"], 1);
+    let open = inv.buy_list(true, None, None, None).unwrap()["purchases"].clone();
+    assert_eq!(open.as_array().unwrap().len(), 1, "{open}");
+    let service = p["buckets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["bucket"] == "service")
+        .unwrap()
+        .clone();
+    assert_eq!(service["paid"]["TRY"], "3000.00");
+    assert_eq!(service["lines"], 1);
+}

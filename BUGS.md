@@ -16,10 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev history` as text prints each event's raw JSON.** `ev history #12 --text` lists
-  `create   {"code":null,"kind":"item",…}`, `photo {"crop":null,"path":…}`, oldest first, while
-  the History tab of `ev ui` says every event in words, newest first by day; README and the skill
-  say the two print the same. Expected: the text output in the tab's words. (QA round.)
 - **A usage error lists `--db <DB>` as if it were required when `EV_DB` is set.** `EV_DB=… ev
   review x` answers `Usage: ev review --as <STATUS> --db <DB> <REFERENCE>`; without `EV_DB` the
   line has no `--db`. An agent reading it may think `--db` is needed. Expected: the same usage

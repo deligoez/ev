@@ -120,6 +120,9 @@ the draft is something to change together, and each move is planned on the perso
   number 2 the person had already been told, since the photo's numbers went to its frames in
   order. Each frame now keeps the label it was given: marked again, a label keeps its number, a
   new one takes the next free number, and a number left out is not handed out again.
+- `ev history` as text printed each event's raw JSON, oldest first, though the History tab of
+  `ev ui` said every event in words. Both now read from one place: newest first under a heading
+  per day, each event in the tab's words (a note of several lines on one line), places by `#id`.
 - `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
   `skipped`), no longer the whole thing as `ev show` gives it.
 - A photo taken minutes before the records caught up with it (what it shows recorded right after)

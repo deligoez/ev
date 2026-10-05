@@ -67,6 +67,42 @@ fn units_are_the_innermost_labelled_places_and_loose_holders() {
 }
 
 #[test]
+fn a_drawer_with_labelled_boxes_of_another_series_stays_one_place() {
+    let (_d, mut inv) = setup();
+    // Bins labelled from their own series stand in the upper drawer; a drawer of the unit carries
+    // the unit's code. The drawer is still the place gone through, its bins with it.
+    add(
+        &mut inv,
+        "Kutu",
+        "container",
+        Some("K1-01-U"),
+        Some("B1_001"),
+    );
+    add(
+        &mut inv,
+        "Kutu",
+        "container",
+        Some("K1-01-U"),
+        Some("B1-002"),
+    );
+    add(&mut inv, "Kalem kutusu", "container", Some("K1-01-U"), None);
+    let p = inv.progress().unwrap();
+    let names: Vec<&str> = p["places"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Üst", "Alt", "Karton kutu"], "{p}");
+    // A bin in it is counted with the drawer, not on its own.
+    inv.photo_current("K1-01-U").unwrap();
+    inv.review("K1-01-U", "toured", None).unwrap();
+    let v = inv.progress().unwrap();
+    assert_eq!(status_of(&v, "Üst"), "toured");
+    assert_eq!(v["toured"], 1);
+}
+
+#[test]
 fn a_review_covers_everything_below_and_notices_later_changes() {
     let (_d, mut inv) = setup();
     // No photo of the drawer: touring it needs one, or the person's word that none is needed.

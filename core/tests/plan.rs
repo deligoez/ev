@@ -460,3 +460,64 @@ fn progress_of_one_place_names_each_place_inside_with_its_tasks() {
         "{v}"
     );
 }
+
+#[test]
+fn a_place_settled_names_what_is_still_not_counted_around_it() {
+    let (_d, mut inv) = setup();
+    add(
+        &mut inv,
+        "Çekmece B",
+        "container",
+        Some("K1"),
+        Some("K1-01-B"),
+    );
+    add(
+        &mut inv,
+        "Çekmece C",
+        "container",
+        Some("K1"),
+        Some("K1-01-C"),
+    );
+    let t = inv
+        .task_add(
+            "İki çekmece",
+            "hiç açılmadı",
+            &["K1-01-A".into(), "K1-01-B".into()],
+            None,
+        )
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "doing", None).unwrap();
+    // The drawer of the same cabinet that no task holds is named while the cabinet is toured.
+    let next = inv.next().unwrap();
+    let near: Vec<&str> = next["left_nearby"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["node"]["code"].as_str().unwrap())
+        .collect();
+    assert_eq!(near, ["K1-01-U", "K1-01-C"], "{next}");
+    // Settling one names the rest of the cabinet, each with its task or none.
+    let v = inv.review("K1-01-A", "kept", None).unwrap();
+    let left: Vec<(String, usize)> = v["left_here"]["furniture"]["places"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            (
+                p["node"]["code"].as_str().unwrap().to_string(),
+                p["tasks"].as_array().unwrap().len(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        left,
+        [
+            ("K1-01-U".to_string(), 0),
+            ("K1-01-B".to_string(), 1),
+            ("K1-01-C".to_string(), 0)
+        ],
+        "{v}"
+    );
+}

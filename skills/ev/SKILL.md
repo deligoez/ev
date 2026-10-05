@@ -190,6 +190,12 @@ places, and how far the whole home is (`progress`). Then:
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.
   A toured place that changed later shows in `ev progress` (every place and how far it is) as
   `changed_since`; mention it.
+- **Say what is left where you are.** A review answers with `left_here`: the places of the same
+  cabinet and room not counted yet, each with its task or none. Read it out ("K4x4 still has 9
+  drawers not counted: 7 in task #31, 2 in none") before anyone believes the cabinet is done;
+  `ev next` lists `left_nearby` while a task is in progress. "What is left in K4x4?" is
+  `ev progress K4x4`, one call. A task started marks nothing: "being counted" means work in that
+  place has begun, so never call a place counted or being counted from its task alone.
 
 **How many, how much, how far: `ev stats`.** When the person asks how big the inventory is,
 what it cost, how far the counting has come or where the purchases stand, read `ev stats` and

@@ -1439,6 +1439,22 @@ impl App {
         self.reveal(id)
     }
 
+    /// `d` on the tree: open the selected node and every node in it, two levels down, and nothing
+    /// further: a Kallax shows its compartments and the drawers in each.
+    fn open_two_levels(&mut self) -> Result<()> {
+        let Some(id) = self.selected_id() else {
+            return Ok(());
+        };
+        if let Some(n) = find_in(&self.snap.roots, id) {
+            self.expanded.insert(id);
+            for c in children(n).iter().filter(|c| !children(c).is_empty()) {
+                self.expanded.insert(c["id"].as_i64().unwrap_or_default());
+            }
+        }
+        self.rebuild()?;
+        self.reveal(id)
+    }
+
     /// `C` on the tree: everything closed but the homes, so the rooms show closed, the selection
     /// moved up to the room it was in when it is hidden now.
     fn close_tree(&mut self) -> Result<()> {

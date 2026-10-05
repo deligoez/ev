@@ -99,6 +99,7 @@ impl App {
             KeyCode::Char('e') if self.tab == Tab::Tree => self.open_below(true)?,
             KeyCode::Char('c') if self.tab == Tab::Tree => self.open_below(false)?,
             KeyCode::Char('C') if self.tab == Tab::Tree => self.close_tree()?,
+            KeyCode::Char('d') if self.tab == Tab::Tree => self.open_two_levels()?,
             KeyCode::Char('/') => {
                 self.searching = true;
                 self.query.clear();

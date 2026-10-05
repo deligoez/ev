@@ -128,6 +128,11 @@ the draft is something to change together, and each move is planned on the perso
   on another record, leaving half the call done and not saying which photo it meant. Every
   photo is now checked first, the same photo given whole to two records in one call too, and
   the refusal starts with the photo or `line n` it is about.
+- `ev todo` listed what is inside a thing marked `temporary` (a label maker's tape and
+  batteries) as parked too, though it travels with its holder; and a thing given only
+  `waits_for` was in no list until the awaited one turned up. A thing parked itself is now
+  listed alone, a waiting thing is listed under `parked`, and each row says `why` (`place`,
+  `own`, `waits_for`).
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

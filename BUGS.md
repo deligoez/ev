@@ -16,17 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev todo` lists the contents of a parked thing as parked.** A label maker marked
-  `temporary=true` puts its tape cassette and its batteries under "Nihai yerini bekleyenler"
-  too, each "waiting in" the label maker; a glasses case does the same with the glasses and the
-  cloth inside it. They travel with their holder and wait for nothing on their own. `parked[]`
-  in the JSON also does not say why a row is there (its own mark, its place's mark, or
-  `waits_for`). Expected: a thing marked temporary is listed, not what is inside it; each row
-  carries its reason. (QA round.)
-- **A thing with only `waits_for` never shows in `ev todo`.** `ev edit #12 waits_for=#40`
-  (no `temporary`) is accepted, but #12 is in no list until `ev found #40`. The skill says to
-  record a wait this way so it is not lost. Expected: a waiting thing is listed under parked
-  with what it waits for, or the edit says it also needs `temporary=true`. (QA round.)
 - **`ev buy unlink` leaves the brought product pictures on the thing.** After `ev buy bring
   <line> #12 --type image` and then `ev buy unlink <line> #12` (the link was wrong), #12 keeps
   the line's 7 pictures as documents and the line's attachments still say `brought_to: 12`.

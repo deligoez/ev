@@ -158,6 +158,7 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | ↑ ↓ / j k, PgUp PgDn, g G | move |
 | → / l / Enter | expand in the tree; in a list, jump to the node in the tree |
 | ← / h | collapse, or go to the parent |
+| d | in the tree: open the selected node two levels down, the nodes in it opened and nothing further (a Kallax shows its compartments and the drawers in each); the selection stays |
 | e / c | in the tree: open the selected node and everything below it, or close them all; the selection stays |
 | C | in the tree: close everything but the home, so its rooms show closed; the selection moves up to what still shows |
 | Tab, Shift-Tab, 1–9 | tabs: layout (the tree of places and things), pending moves, leaving, lost, errands (take / return), search, everything waiting (To do), settings, statistics (`ev stats`, a collapsible section per heading; a line that names a record opens it) |

@@ -342,7 +342,7 @@ inside moves whole.
 | `ev unjoin <ref>` | a portion is a thing of its own after all; it keeps what it is and what is linked to it |
 
 `ev show` of a portion carries `thing`: `id`, `total` (units here, lost ones left out),
-`places`, `in_use` (units inside an item: a device, a toy), `spare`, `lost`, `elsewhere` (each
+`places` (the portions in a place: a lost one is in none), `in_use` (units inside an item: a device, a toy), `spare`, `lost`, `elsewhere` (each
 other live portion: NodeRef with `qty` and `in_use`), `bought` (the units its purchase links
 name, null without one), `gone` (units gone by disposition: `{"trash": 2, "used": 1}`; merged
 ones are not gone) and `unaccounted` (bought − here − lost − gone: above zero some are missing,

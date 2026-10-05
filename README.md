@@ -198,8 +198,10 @@ gridfinity box — Backspace comes back up, and `t` shows the chosen tile in the
 counts the places a person opens one at a time (the innermost labelled holders, a drawer
 with its labelled bins counted as one, and rooms
 with nothing in them that holds things) as not counted, being counted, counted or left as
-is (`ev review <place> --as counting|toured|kept`; starting a task on a place marks it
-being counted), and flags counted ones that changed since. `ev observe` keeps what was
+is (`ev review <place> --as counting|toured|kept`; a place is being counted once work in it
+starts during a task on it, never because the task started), and flags counted ones that
+changed since. `ev progress K4x4` reads one cabinet or room, each place with its tasks, and a
+place settled names what is still not counted in the same cabinet and room. `ev observe` keeps what was
 noticed about a place (`ev unobserve` closes a note once it is dealt with, and the place's
 history keeps what it said); `ev task` is an ordered work list where every entry says why it
 matters, and may carry the day it is due (`--due`); `ev next` hands over the current task (one

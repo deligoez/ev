@@ -38,6 +38,7 @@ The server has one general tool, `ev`, that runs any command from its arguments,
 for the common reads (`next`, `todo`, `find`, `show`, `suggest`, `history`, `tree`), `photo` to
 see a photo, and a numbered photo a command makes comes back as an image. For clients with no
 skills, the skill is the prompt `ev` and the resource `ev://skill`.
+
 ## What it does
 
 **One tree.** `home` › `room` (rooms nest) › `furniture` › `container` › `item`, and any node can
@@ -140,6 +141,7 @@ until the thing is moved. Noun compounds
 Facets keep kinds of things apart when placing (`ev facet add modül --words "modül, kart"`, then
 tag the holders): a buzzer module is never proposed for the bare-buzzer box, a novel never for
 the technical shelf.
+
 **What would a new layout be?** Once every drawer of a piece of furniture is toured, `ev layout
 <furniture>` reads all its places at once by what they hold, never by their themes: kinds of
 thing kept in several places (a thing's kind is the last word of its name before the first comma:
@@ -193,6 +195,7 @@ what it cost by the linked purchases (and in today's money), per room, how far t
 has come, the purchases by year and shop, the last 30 days, the boxes known to be empty, the
 coverages, the tags most used and the things bought longest ago; `ev ui` shows it on its
 Statistics tab (`9`).
+
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
 uninventoried places, and places whose photo of the current state is missing or older than their

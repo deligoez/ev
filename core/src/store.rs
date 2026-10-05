@@ -12,6 +12,7 @@ use crate::{Error, Result, fold};
 mod audit;
 mod edit;
 mod files;
+pub(crate) mod past;
 mod photos;
 mod places;
 mod schema;
@@ -939,6 +940,25 @@ impl Inventory {
         shred: bool,
         qty: Option<i64>,
     ) -> Result<Value> {
+        self.gone_left(reference, disposition, why, shred, qty, None, None)
+    }
+
+    /// `gone_qty` for a thing that left long ago (spec/past-belongings.md): `at`, a partial
+    /// date (`2016`, `2016-06`), and `place`, where it was then (a place, made when new).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each is a fact of the leaving the person may say"
+    )]
+    pub fn gone_left(
+        &mut self,
+        reference: &str,
+        disposition: Option<Disposition>,
+        why: Option<&str>,
+        shred: bool,
+        qty: Option<i64>,
+        at: Option<&str>,
+        place: Option<&str>,
+    ) -> Result<Value> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
         not_merged(disposition)?;
         if disposition == Some(Disposition::Mistake) && why.is_none() {
@@ -991,6 +1011,7 @@ impl Inventory {
             "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
             params![final_disposition.as_str(), node.id],
         )?;
+        past::set_departure(&tx, node.id, at, place)?;
         if let Some(w) = why {
             let note = match node.note.as_deref() {
                 Some(n) if !n.trim().is_empty() => format!("{n}\n{w}"),
@@ -1487,6 +1508,11 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "waits_for": n.waits_for.map(|w| brief(conn, w)).transpose()?,
         "waited_for_by": waited_for_by(conn, id)?,
         "empty": empty_of(conn, &n)?,
+        // When it came and, gone, how it left (spec/past-belongings.md).
+        "came": conn.query_row("SELECT came_at FROM nodes WHERE id = ?1", [id], |r| {
+            r.get::<_, Option<String>>(0)
+        })?,
+        "departure": past::departure_json(conn, id)?,
         "children": children,
         "pending": pending,
         "last_seen": last_seen,

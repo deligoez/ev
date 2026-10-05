@@ -164,8 +164,9 @@ enum Cmd {
         correction: Option<String>,
     },
     /// A node leaves the home; --as is required when it is not a candidate yet.
-    /// --as used: it was used up (a tape run out, a dead cell). --as mistake (with --why)
-    /// closes a record that should never have existed.
+    /// --as used: it was used up (a tape run out, a dead cell). --as left (left behind),
+    /// stolen, or unknown (sold or thrown out, not sure). --as mistake (with --why) closes a
+    /// record that should never have existed.
     Gone {
         reference: String,
         #[arg(long = "as")]
@@ -179,6 +180,12 @@ enum Cmd {
         /// Only this many of a counted item leave; the rest stay.
         #[arg(long)]
         qty: Option<i64>,
+        /// When it left, as remembered: 2016, 2016-06 or 2016-06-14 (else today).
+        #[arg(long)]
+        at: Option<String>,
+        /// Where it was then: a place (a former home), made when new.
+        #[arg(long = "where")]
+        place: Option<String>,
     },
     /// Every candidate, grouped by disposition.
     Disposals {
@@ -1712,12 +1719,16 @@ fn run(cli: Cli) -> Result<Value> {
             why,
             shred,
             qty,
-        } => inv.gone_qty(
+            at,
+            place,
+        } => inv.gone_left(
             &reference,
             d.as_deref().map(disposition).transpose()?,
             why.as_deref(),
             shred,
             qty,
+            at.as_deref(),
+            place.as_deref(),
         ),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)

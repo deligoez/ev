@@ -864,6 +864,10 @@ static TR: &[(&str, &str)] = &[
     ("Taken back from the thing: {}", "Eşyadan geri alındı: {}"),
     ("Part {} taken off: {}", "{}. parça listeden çıkarıldı: {}"),
     (
+        "Not counted yet, left out of the draft: {}",
+        "Henüz sayılmadı, taslak dışında: {}",
+    ),
+    (
         "Task #{} is still open on {}: {} (done, or drop it?)",
         "#{} görevi {} üzerinde hâlâ açık: {} (yapıldı mı, düşürülsün mü?)",
     ),

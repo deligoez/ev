@@ -1502,6 +1502,23 @@ fn layout(out: &mut String, v: &Value) {
         return;
     }
     let _ = writeln!(out, "\n{}", t("Draft layout (nothing is moved):"));
+    // Places not counted yet are left out: their records may still be wrong.
+    let not_counted: Vec<String> = p["not_counted"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(label)
+        .collect();
+    if !not_counted.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "Not counted yet, left out of the draft: {}",
+                &[&not_counted.join(", ")]
+            )
+        );
+    }
     let moves = p["moves"].as_array().cloned().unwrap_or_default();
     for th in p["themes"].as_array().into_iter().flatten() {
         let place = label(&th["place"]);

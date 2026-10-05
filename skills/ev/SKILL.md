@@ -196,6 +196,11 @@ places, and how far the whole home is (`progress`). Then:
   `ev next` lists `left_nearby` while a task is in progress. "What is left in K4x4?" is
   `ev progress K4x4`, one call. A task started marks nothing: "being counted" means work in that
   place has begun, so never call a place counted or being counted from its task alone.
+- **Match the final photo to the records.** Before you ask whether a place is done, show its
+  final photo with every record in it framed (`ev photo mark <place> "1 Pense"=… --show "…"` or
+  a cut with `ev photo cut`), and say which number is which record. `ev review --as toured`
+  answers with `photo_check`: `not_located` lists the records the photo shows no crop for yet;
+  frame them, or say why one cannot be seen ("under the jigsaw set").
 
 **How many, how much, how far: `ev stats`.** When the person asks how big the inventory is,
 what it cost, how far the counting has come or where the purchases stand, read `ev stats` and

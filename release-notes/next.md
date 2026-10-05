@@ -28,6 +28,15 @@ Finding it records a move out of that place, and an emptied, counted drawer show
 changed since" for a thing it had not held since before it was counted. `ev progress` and the
 photos `ev todo` asks for read changes the same way.
 
+## An empty box says so
+
+A box known to be empty looked the same in `ev ui` as one nobody had looked into: `ev find --empty`
+knew it, the screen did not, and the person asked whether anyone knew a drawer was empty. Now a box
+nothing is in, counted on its own or with its place, shows `[boş]` in the tree and a "boş" badge in
+the details, with the day and the note when the person called it empty (`ev empty`). `ev show`
+carries it as `empty` (`from: said` with `at` and `note`, or `from: tour`), and `ev tree` as
+`empty: true`.
+
 ## Opening and closing the tree a stretch at a time
 
 `→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box

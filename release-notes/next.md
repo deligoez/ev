@@ -37,6 +37,14 @@ the details, with the day and the note when the person called it empty (`ev empt
 carries it as `empty` (`from: said` with `at` and `note`, or `from: tour`), and `ev tree` as
 `empty: true`.
 
+## Fewer photos asked for
+
+`ev todo` asked for a photo of every holder with a grid, since the boxes in a drawer's grid are
+cut from the drawer's photo. A Kallax compartment holding two drawers has a grid too, and each
+drawer has a photo of its own, so every compartment was asked for as an empty frame nobody
+photographs: in one household, 17 of 38 photo rows. A holder whose every part has a whole photo of
+its own is no longer listed.
+
 ## Opening and closing the tree a stretch at a time
 
 `→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box

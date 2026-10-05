@@ -423,11 +423,12 @@ named `f12` (its title in `ev ui` reads `f12/20 · <note>`), a frame by its bare
 by `#12`. `ev focus f12` shows that picture again, and `ev photo add`, `ev photo cut`, `ev photo
 mark` and `ev focus --file` take `f12` for a photo: the photo it was drawn on, unmarked (a file of
 that name wins). `ev focus --list` reads it:
-`{series: {since, next, pictures: [{n, f, file, source, note, frames: [{n, at, label} | {n, ref, crop}]}]}}`
-(`label`: the number the agent gave a mark's frame on that photo)
+`{series: {since, next, pictures: [{f, file, source, note, frames: [{n, at, given} | {n, ref, crop}]}]}}`
+(`f` names the picture; `source`, the photo it was drawn on, only when that is not `file`;
+`given`: the label number the agent gave a mark's frame on that photo, `n` the number drawn)
 (`series: null` when there is none); `ev focus --clear` closes it from outside, for an agent the
-person asked. The answer to `--file` is `{focus: {files, note, series, next, at}}`: this
-request's pictures and the series' size. Each request is shown once, without restarting `ev ui`.
+person asked. The answer to `--file` is `{focus: {files, f, note, series, next, at}}`: this
+request's pictures, their `f` names, and the series' size. Each request is shown once, without restarting `ev ui`.
 A request is a message to the UI, not a change to the inventory: it is kept beside the database
 in `ev.db-focus.json`, and `ev.db` stays as it was; `X` removing it is the one write `ev ui`
 makes.

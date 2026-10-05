@@ -16,12 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev photo add` attaches part of a refused call.** `ev photo add #12 f2 f3`, where f3 is
-  already attached whole to another record, exits 5 with "this photo is already attached whole
-  to 1 other node(s)", yet f2 is now on #12 (`ev photo list #12` shows it). The same with
-  `ev photo add --stdin`: line 1 was attached, line 2 refused, exit 5. The message names
-  neither the `f` number nor the line that was refused. Expected: all or nothing, like
-  `ev add --stdin`, and the refusal says which photo or line (`line 2: f3 …`). (QA round.)
 - **`ev todo` lists the contents of a parked thing as parked.** A label maker marked
   `temporary=true` puts its tape cassette and its batteries under "Nihai yerini bekleyenler"
   too, each "waiting in" the label maker; a glasses case does the same with the glasses and the

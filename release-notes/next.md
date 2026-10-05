@@ -124,6 +124,10 @@ the draft is something to change together, and each move is planned on the perso
 - `ev history` as text printed each event's raw JSON, oldest first, though the History tab of
   `ev ui` said every event in words. Both now read from one place: newest first under a heading
   per day, each event in the tab's words (a note of several lines on one line), places by `#id`.
+- `ev photo add f2 f3` (and `--stdin`) attached f2 and then refused f3 as a photo already whole
+  on another record, leaving half the call done and not saying which photo it meant. Every
+  photo is now checked first, the same photo given whole to two records in one call too, and
+  the refusal starts with the photo or `line n` it is about.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

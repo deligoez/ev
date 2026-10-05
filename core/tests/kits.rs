@@ -376,3 +376,14 @@ fn a_missing_part_after_a_drop_says_how_far_the_numbers_go() {
         .unwrap_err();
     assert!(e.to_string().contains("2 parts, numbered up to 3"), "{e}");
 }
+
+#[test]
+fn a_kit_bought_as_one_line_is_no_open_purchase_in_todo_or_stats() {
+    let (_d, mut inv) = setup();
+    let line = set_line(&mut inv);
+    assert_eq!(inv.todo().unwrap()["counts"]["purchases"], 1);
+    inv.kit_add("Set", None, None, &[("Okuyucu".into(), 2)], Some(line))
+        .unwrap();
+    assert_eq!(inv.todo().unwrap()["counts"]["purchases"], 0);
+    assert_eq!(inv.stats().unwrap()["purchases"]["open_durable"], 0);
+}

@@ -76,3 +76,7 @@ carries no file paths; `ev focus f12` shows that picture again.
 
 - A kit bought as one purchase line showed that line as ×1 whatever its quantity: `ev kit show`
   and `ev kit purchase` now carry the line's `qty`.
+- A bundle line that names a component in short ("… inkl. ZM 18-55 VR") is offered for that
+  component too: two numbers and two other words of a long model in the line count as the model
+  in part, and the line's other numbers (the camera's screen size) no longer rule the lens out.
+- `ev add` given `make=…` (`ev edit`'s form) says which flag it takes: `--make …`.

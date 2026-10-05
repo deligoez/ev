@@ -68,6 +68,12 @@ label_enum!(Disposition, "disposition", {
     // Used up: a tape run out, a dead cell, a consumable spent. It left by being used, which is
     // neither throwing a good thing away nor giving it; only `gone` takes it.
     Used => "used",
+    // Left behind, at a move or in a former home (spec/past-belongings.md). Like `used`, stolen
+    // and unknown, only `gone` takes it: nothing is set aside to be left, stolen or forgotten.
+    Left => "left",
+    Stolen => "stolen",
+    // "Sold or thrown out, I am not sure": sayable without guessing.
+    Unknown => "unknown",
     // A portion that joined another portion of the same thing in its place (spec/portions.md
     // §4.2): its units live on in the other record. ev's own; never given on the command line.
     Merged => "merged",

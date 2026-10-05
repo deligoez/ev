@@ -826,6 +826,15 @@ impl Inventory {
                     .into(),
             ));
         }
+        if matches!(
+            disposition,
+            Disposition::Left | Disposition::Stolen | Disposition::Unknown
+        ) {
+            return Err(Error::Usage(format!(
+                "nothing is set aside to be {d}; record it with `ev gone --as {d}`",
+                d = disposition.as_str()
+            )));
+        }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         let node = crate::portions::take(&tx, node, qty)?;

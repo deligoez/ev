@@ -51,6 +51,9 @@ pub(crate) fn disposition_tr(d: &str) -> &'static str {
         "digitize" => t("photograph, then throw out"),
         "merged" => t("joined another portion"),
         "used" => t("used up"),
+        "left" => t("left behind"),
+        "stolen" => t("stolen"),
+        "unknown" => t("left, how not known"),
         _ => "?",
     }
 }

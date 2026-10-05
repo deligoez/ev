@@ -1050,6 +1050,13 @@ static TR: &[(&str, &str)] = &[
     ("Sent to ev ui.", "ev ui'a gönderildi."),
     ("joined another portion", "başka bir porsiyona katıldı"),
     ("used up", "kullanılıp bitti"),
+    ("left behind", "geride bırakıldı"),
+    ("stolen", "çalındı"),
+    ("left, how not known", "gitti, nasıl bilinmiyor"),
+    ("came", "geldi"),
+    ("left", "gitti"),
+    ("in {}", "{} içinde"),
+    ("sold for {}", "{} karşılığı satıldı"),
     (
         "thing: ×{} in {} places · in use {} · spare {}",
         "eşya: ×{}, {} yerde · kullanımda {} · yedek {}",

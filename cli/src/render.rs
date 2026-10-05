@@ -2192,7 +2192,7 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Next number: {}", &[&series["next"]]));
         for p in series["pictures"].as_array().into_iter().flatten() {
             let note = p["note"].as_str().unwrap_or("");
-            let _ = writeln!(out, "{}. {note}  {}", p["n"], s(p, "file"));
+            let _ = writeln!(out, "{} · {note}  {}", s(p, "f"), s(p, "file"));
             for f in p["frames"].as_array().into_iter().flatten() {
                 let what = match f["ref"].is_object() {
                     true => line(&f["ref"]),

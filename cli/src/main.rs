@@ -1,5 +1,5 @@
 use std::io::{IsTerminal, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
@@ -1741,14 +1741,16 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Stats => inv.stats(),
         Cmd::Focus { list: true, .. } => inv.focus_list(),
         Cmd::Focus { file, note, .. } if !file.is_empty() => {
-            // `a.jpg=<note>` gives that picture a note of its own; a name that is a file stays one.
-            let each: Vec<(PathBuf, Option<String>)> = file
-                .iter()
-                .map(|f| match f.split_once('=') {
-                    Some((p, n)) if !std::path::Path::new(f).is_file() => (PathBuf::from(p), Some(n.to_string())),
-                    _ => (PathBuf::from(f), None),
-                })
-                .collect();
+            // `a.jpg=<note>` gives that picture a note of its own; a name that is a file stays
+            // one. `f12` is the series' picture, sent again.
+            let mut each: Vec<(PathBuf, Option<String>)> = Vec::new();
+            for f in &file {
+                let (p, n) = match f.split_once('=') {
+                    Some((p, n)) if !Path::new(f).is_file() => (p, Some(n.to_string())),
+                    _ => (f.as_str(), None),
+                };
+                each.push((photo_arg(&inv, Path::new(p))?, n));
+            }
             inv.focus_noted(&each, note.as_deref())
         }
         Cmd::Focus {
@@ -1759,6 +1761,10 @@ fn run(cli: Cli) -> Result<Value> {
         } => {
             if reference.is_none() && !clear {
                 return Err(Error::Usage("name a node, --file, --list or --clear".into()));
+            }
+            // `f12` names a picture of the marked photo series, not a record (`#12` is one).
+            if let Some(n) = reference.as_deref().and_then(ev_core::series_number) {
+                return inv.focus_picture(n);
             }
             inv.focus(reference.as_deref(), photo)
         }
@@ -2037,6 +2043,7 @@ fn run(cli: Cli) -> Result<Value> {
             no_show,
         }) => {
             let pad = pad_of(pad)?;
+            let file = photo_arg(&inv, &file)?;
             let file = match rotate {
                 Some(d) => inv.turned_copy(&file, d)?,
                 None => file,
@@ -2068,6 +2075,13 @@ fn run(cli: Cli) -> Result<Value> {
             codes,
             keep_numbers,
         }) => {
+            // `f12`: the series' picture, marked again on the photo it was drawn on.
+            let target = match ev_core::series_number(&target) {
+                Some(n) if !Path::new(&target).exists() => {
+                    inv.series_photo(n)?.to_string_lossy().into_owned()
+                }
+                _ => target,
+            };
             let grid = grid
                 .as_deref()
                 .map(str::parse::<ev_core::GridCorners>)
@@ -2120,7 +2134,9 @@ fn run(cli: Cli) -> Result<Value> {
                         .join(" · ")
                 });
                 let frames = v["frames"].as_array().cloned().unwrap_or_default();
-                v["shown"] = inv.focus_marked(&[path], Some(&note), &frames)?["focus"].clone();
+                let source = PathBuf::from(v["source"].as_str().unwrap_or_default());
+                v["shown"] =
+                    inv.focus_drawn(&[path], Some(&note), &frames, &source)?["focus"].clone();
             }
             if let Some(o) = v.as_object_mut() {
                 o.remove("frames");
@@ -2140,6 +2156,7 @@ fn run(cli: Cli) -> Result<Value> {
             pad,
         }) => {
             let pad = pad_of(pad)?;
+            let file = photo_arg(&inv, &file)?;
             let file = match rotate {
                 Some(d) => inv.turned_copy(&file, d)?,
                 None => file,
@@ -2199,7 +2216,8 @@ fn run(cli: Cli) -> Result<Value> {
             if !files.is_empty() {
                 let note = title.or(note).unwrap_or_else(|| legend_note(&v["legend"]));
                 let frames = v["legend"].as_array().cloned().unwrap_or_default();
-                v["shown"] = inv.focus_marked(&files, Some(&note), &frames)?["focus"].clone();
+                v["shown"] =
+                    inv.focus_drawn(&files, Some(&note), &frames, &file)?["focus"].clone();
             }
             Ok(v)
         }
@@ -2229,6 +2247,14 @@ fn pad_of(pad: Option<f64>) -> Result<f64> {
     }
 }
 
+/// A photo given to a command: a file, or `f12`, the marked photo series' twelfth picture as
+/// the photo it was drawn on. A file of that name wins.
+fn photo_arg(inv: &Inventory, given: &Path) -> Result<PathBuf> {
+    match given.to_str().and_then(ev_core::series_number) {
+        Some(n) if !given.exists() => inv.series_photo(n),
+        _ => Ok(given.to_path_buf()),
+    }
+}
 /// The title of a numbered photo shown without a note: what each number is, by code or else by
 /// name, so the person reads the numbers on the photo without the agent's table
 /// (`1 Düğme pil · 2 D-A1`).

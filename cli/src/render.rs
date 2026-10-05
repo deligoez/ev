@@ -116,6 +116,10 @@ fn place_marks(n: &Value) -> String {
     if let Some(c) = n["count"].as_str() {
         out.push_str(&format!("  ({})", count_label(c)));
     }
+    // A box known to be empty, as `ev ui` marks it.
+    if n["empty"] == true {
+        out.push_str(&format!("  [{}]", t("empty")));
+    }
     if n["temporary"] == true {
         out.push_str(t("  (temporary place)"));
     }
@@ -1724,14 +1728,27 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     // `ev empty`: the boxes now known to be empty on the person's word.
-    if let Some(list) = v
-        .get("empty")
-        .and_then(Value::as_array)
-        .filter(|_| v.as_object().is_some_and(|o| o.len() == 1))
-    {
+    if let Some(list) = v.get("empty").and_then(Value::as_array).filter(|_| {
+        v.as_object()
+            .is_some_and(|o| o.keys().all(|k| k == "empty" || k == "open_tasks"))
+    }) {
         let _ = writeln!(out, "{}", t("Empty, on the person's word:"));
         for n in list {
             let _ = writeln!(out, "  {}", line(n));
+            // Its note may say otherwise: read it back.
+            if let Some(note) = n["note"].as_str() {
+                let _ = writeln!(out, "    {}: {note}", t("note"));
+            }
+        }
+        for task in v["open_tasks"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf(
+                    "Task #{} is still open on {}: {} (done, or drop it?)",
+                    &[&task["task"], &label(&task["on"]), &s(task, "title")]
+                )
+            );
         }
         return out;
     }

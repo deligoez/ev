@@ -863,6 +863,10 @@ static TR: &[(&str, &str)] = &[
     ("Would fit better elsewhere:", "Başka yere daha iyi uyar:"),
     ("Taken back from the thing: {}", "Eşyadan geri alındı: {}"),
     ("Part {} taken off: {}", "{}. parça listeden çıkarıldı: {}"),
+    (
+        "Task #{} is still open on {}: {} (done, or drop it?)",
+        "#{} görevi {} üzerinde hâlâ açık: {} (yapıldı mı, düşürülsün mü?)",
+    ),
     ("Left on the thing: {} ({})", "Eşyada bırakıldı: {} ({})"),
     ("{}: {} places, {} things", "{}: {} yer, {} eşya"),
     (

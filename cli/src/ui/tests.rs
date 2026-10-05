@@ -1367,6 +1367,40 @@ fn a_counted_place_takes_no_word_and_one_changed_since_says_so() {
 }
 
 #[test]
+fn e_and_c_open_and_close_all_below_and_capital_c_closes_the_tree() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let shown = |app: &App, r: &str| {
+        let id = app.inv.resolve(r, false).unwrap();
+        app.rows.iter().any(|row| row.id == id)
+    };
+    let first = app.rows.len();
+    assert!(!shown(&app, "Pasif buzzer"));
+    // `e` on the drawer opens it and every box in it, down to the things.
+    let d = app.inv.resolve("D", false).unwrap();
+    app.reveal(d).unwrap();
+    press(&mut app, KeyCode::Char('e'));
+    assert!(shown(&app, "Pasif buzzer") && shown(&app, "Kırmızı LED 5 mm"));
+    assert_eq!(app.selected_id(), Some(d));
+    // `c` closes it all again: nothing below the drawer shows, and it stays selected.
+    press(&mut app, KeyCode::Char('c'));
+    assert!(!shown(&app, "D-A1") && !shown(&app, "Pasif buzzer"));
+    assert_eq!(app.selected_id(), Some(d));
+    // `C` takes the whole tree back to its first screen.
+    app.reveal(d).unwrap();
+    press(&mut app, KeyCode::Char('e'));
+    let pasif = app.inv.resolve("Pasif buzzer", false).unwrap();
+    app.reveal(pasif).unwrap();
+    press(&mut app, KeyCode::Char('C'));
+    assert_eq!(app.rows.len(), first);
+    assert!(app.selected_id().is_some());
+    // The keys are in the footer, as H/L are.
+    let mut term = Terminal::new(TestBackend::new(200, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("e/c open/close all below"));
+}
+
+#[test]
 fn a_bought_thing_reads_in_sections_and_its_documents_open_from_their_own_tab() {
     let (dir, mut inv) = home();
     inv.add(NewNode {

@@ -1732,3 +1732,50 @@ fn a_click_on_the_series_grid_opens_the_picture_under_it() {
     term.draw(|f| app.draw(f)).unwrap();
     assert!(screen(&term).contains("f5/5 · kutu 5"));
 }
+
+#[test]
+fn zero_opens_the_past_by_year_apart_from_the_inventory() {
+    let (_dir, mut inv) = home();
+    inv.add(NewNode {
+        name: "Oyun konsolu".into(),
+        kind: "item".into(),
+        gone: Some("sell".into()),
+        at: Some("2019-05".into()),
+        came: Some("2016".into()),
+        place: Some("Eski ev".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    inv.sold("Oyun konsolu", "1500", None, None, None, None)
+        .unwrap();
+    let mut app = app_tr(inv);
+    // Never in the tree.
+    let mut term = Terminal::new(TestBackend::new(150, 40)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(
+        s.contains("0 Gidenler") && !s.contains("Oyun konsolu"),
+        "{s}"
+    );
+    press(&mut app, KeyCode::Char('0'));
+    assert!(app.tab == Tab::Past);
+    let thing = app.rows.iter().position(|r| r.id > 0).unwrap();
+    app.select(thing).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("2019") && s.contains("1 gitti"), "{s}");
+    assert!(s.contains("Oyun konsolu") && s.contains("Eski ev"), "{s}");
+    // The details say when it came and how it left.
+    assert!(
+        s.contains("geldi  2016") && s.contains("1.500,00 TL karşılığı"),
+        "{s}"
+    );
+    // Enter on it stays here: a past thing is in no tree.
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Past);
+    // The year closes with Enter, and its things go.
+    let year = app.rows.iter().position(|r| r.id < 0).unwrap();
+    app.select(year).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.rows.iter().all(|r| r.id <= 0));
+}

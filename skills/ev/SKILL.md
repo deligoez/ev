@@ -443,7 +443,9 @@ On a yes, record the thing as remembered, in no place, and link its line:
 --at <date>`.
 
 - **Never guess how it left.** `--as unknown` when the person is unsure whether it was sold or
-  thrown out; `left` for left behind at a move, `stolen`, `used` for used up.
+  thrown out; `left` for left behind at a move, `stolen`, `used` for used up, `trade` for a
+  swap (`--traded-for <what came>`, or `ev traded <x> --for <y>` once what came is recorded;
+  `ev traded` also corrects a swap first recorded as given).
 - **A partial date is a date:** `--at 2016`, `--at 2016-06`. Never invent a day or a month;
   when the person does not know when it left, give no `--at` (it is listed as not known). A
   past thing is completed later with `ev edit <id> qty=10 came=2023-10 model=…`; `--qty` on

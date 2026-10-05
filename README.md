@@ -160,10 +160,10 @@ their `size` field does not.
 
 **Gridfinity drawers.** A drawer can be a grid (`ev grid <drawer> --cols 6 --rows 7`, row 1 at
 the back) and each box covers cells in it (`ev cell <box>=A3-B3`). `ev grid <drawer>` draws the
-map, lists the free cells and each box by its cells, code and name, `ev ui` shows it in the drawer's details, and `ev suggest` names
-the free cells. Boxes trade places in one `ev cell` call and keep their codes. Furniture is a
-grid too, seen from the front (`ev grid K4x4 --cols 4 --rows 4
---face front`, row 1 at the top); several holders take the same grid in one call. Movable
+map, lists the free cells and each box by its cells, code and name, `ev ui` shows it in the
+drawer's details, and `ev suggest` names the free cells. Boxes trade places in one `ev cell`
+call and keep their codes. Furniture is a grid too, seen from the front (`ev grid K4x4 --cols 4
+--rows 4 --face front`, row 1 at the top); several holders take the same grid in one call. Movable
 boxes get serial codes that stay on their labels wherever they go: `code=GF1x1-*` takes the
 next free number of the series.
 
@@ -268,9 +268,10 @@ nothing in `ev todo` hanging on it or on anything in it. A counted place's name 
 word beside it, since counted is where every place is headed; only the exceptions are written
 (not counted, being counted, left as is, counted but changed since). Every node shows its `#id`, and every
 command takes `#534` in place of a name or code. In the tree, `→`/`←` open and close one level,
-`d` opens two (a Kallax with its compartments and their drawers), `e`/`c` open or close the selected node with everything below it, and `C` closes the whole tree
-down to its closed rooms. The key hints at the bottom show only the keys
-that do something on the screen at hand, and fit the width, dropping the least useful first.
+`d` opens two (a Kallax with its compartments and their drawers), `e`/`c` open or close the
+selected node with everything below it, and `C` closes the whole tree down to its closed rooms.
+The key hints at the bottom show only the keys that do something on the screen at hand, and fit
+the width, dropping the least useful first.
 
 **The details pane.** Beside the tree, the selected node's details are split into tabs (`H`/`L`
 or a click; only the tabs the node has something for are shown):

@@ -879,3 +879,16 @@ fn an_attached_photo_joins_the_series_unframed_unless_no_show() {
     let v = ev.ok(&["photo", "add", "D-B1", p, "--whole", "--no-show"]);
     assert!(v["shown"].is_null());
 }
+
+#[test]
+fn pictures_sent_together_each_take_a_note_of_their_own() {
+    let (ev, photo) = drawer();
+    let other = ev._dir.path().join("other.png");
+    std::fs::copy(&photo, &other).unwrap();
+    let a = format!("{}=üst çekmece", photo.to_str().unwrap());
+    let b = other.to_str().unwrap();
+    ev.ok(&["focus", "--file", &a, "--file", b, "--note", "son hali"]);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    assert_eq!(s["pictures"][0]["note"], "üst çekmece");
+    assert_eq!(s["pictures"][1]["note"], "son hali");
+}

@@ -343,3 +343,20 @@ fn what_was_ours_in_a_year_counts_apart_what_nothing_dates() {
     assert_eq!(inv.past_year(2020).unwrap()["unknown"], 1);
     assert_eq!(inv.past_year(12).unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_batch_of_past_things_goes_in_at_once_as_things() {
+    let (_d, mut inv) = setup();
+    let lines: Vec<NewNode> = serde_json::from_value(serde_json::json!([
+        {"name": "Eski tablet", "gone": "unknown", "at": "2017", "came": "2013", "where": "Eski ev"},
+        {"name": "Kablo", "gone": "used", "at": "2018"},
+    ]))
+    .unwrap();
+    inv.add_batch(lines).unwrap();
+    let v = inv.past(None, None).unwrap();
+    assert_eq!(v["past"].as_array().unwrap().len(), 2);
+    let tablet = inv.show("Eski tablet", true).unwrap();
+    assert_eq!(tablet["node"]["kind"], "item");
+    assert_eq!(tablet["came"], "2013");
+    assert_eq!(tablet["departure"]["where"], "Eski ev");
+}

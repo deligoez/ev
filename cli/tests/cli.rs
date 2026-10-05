@@ -1072,3 +1072,22 @@ fn series_pictures_are_attached_by_f_number_several_at_once() {
         "pil, üstten"
     );
 }
+
+#[test]
+fn marking_a_picture_of_the_series_marks_it_in_place() {
+    let (ev, photo) = drawer();
+    let p = format!("{}=parçalar", photo.display());
+    ev.ok(&["focus", "--file", &p]);
+    ev.ok(&[
+        "photo",
+        "mark",
+        "f1",
+        "1=0.1,0.1,0.2,0.2",
+        "--show",
+        "işaretli",
+    ]);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    let pictures = s["pictures"].as_array().unwrap();
+    assert_eq!(pictures.len(), 1, "{s}");
+    assert_eq!(pictures[0]["frames"][0]["n"], 1);
+}

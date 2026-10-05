@@ -570,6 +570,11 @@ enum KitCmd {
         #[arg(required = true)]
         parts: Vec<String>,
     },
+    /// Take part N off the kit's list (entered by mistake); refused while records are linked
+    /// to it. The other parts keep their numbers.
+    Drop { kit: String, n: i64 },
+    /// Name part N anew: `<name>` or `<name>=<how many in one copy>`; its records stay linked.
+    Rename { kit: String, n: i64, part: String },
     /// These records are part N of the kit (numbered as `ev kit show` lists them).
     Link {
         kit: String,
@@ -1786,6 +1791,11 @@ fn run(cli: Cli) -> Result<Value> {
         ),
         Cmd::Kit(KitCmd::Purchase { kit, line, .. }) => inv.kit_purchase(&kit, line),
         Cmd::Kit(KitCmd::Part { kit, parts }) => inv.kit_parts_add(&kit, &kit_parts(&parts)?),
+        Cmd::Kit(KitCmd::Drop { kit, n }) => inv.kit_part_drop(&kit, n),
+        Cmd::Kit(KitCmd::Rename { kit, n, part }) => {
+            let (text, qty) = kit_parts(&[part])?.remove(0);
+            inv.kit_part_set(&kit, n, &text, qty)
+        }
         Cmd::Kit(KitCmd::Link { kit, n, references }) => inv.kit_link(&kit, n, &references),
         Cmd::Kit(KitCmd::Unlink { kit, n, reference }) => inv.kit_unlink(&kit, n, &reference),
         Cmd::Kit(KitCmd::List) => inv.kit_list(),

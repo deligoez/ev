@@ -542,8 +542,9 @@ impl App {
                     == year
             };
             for n in things.iter().filter(in_year) {
-                let mut what =
-                    vec![disposition_tr(n["how"].as_str().unwrap_or_default()).to_string()];
+                let mut what = vec![
+                    crate::history::left_as(n["how"].as_str().unwrap_or_default()).to_string(),
+                ];
                 if let Some(w) = n["where"].as_str() {
                     what.push(tf("in {}", &[&w]));
                 }

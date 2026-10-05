@@ -71,7 +71,8 @@ fn line(n: &Value) -> String {
         }
         "gone" if s(n, "disposition") == "digitize" => out.push_str(t("  (gone, copy kept)")),
         "gone" => {
-            out.push_str(&tf("  (gone: {})", &[&disposition(&s(n, "disposition"))]));
+            let how = crate::history::left_as(&s(n, "disposition"));
+            out.push_str(&tf("  (gone: {})", &[&how]));
         }
         _ => {}
     }
@@ -321,7 +322,7 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
             .to_string(),
     ];
     if let Some(how) = v["node"]["disposition"].as_str() {
-        parts.push(disposition(how));
+        parts.push(crate::history::left_as(how).to_string());
     }
     if let Some(w) = d.get("where").and_then(Value::as_str) {
         parts.push(tf("in {}", &[&w]));
@@ -2637,7 +2638,7 @@ pub fn human(v: &Value) -> String {
             }
             let left = n["left"].as_str().unwrap_or(t("when not known"));
             parts.push(tf("left {}", &[&left]));
-            parts.push(disposition(&s(n, "how")));
+            parts.push(crate::history::left_as(&s(n, "how")).to_string());
             if let Some(w) = n["where"].as_str() {
                 parts.push(tf("in {}", &[&w]));
             }
@@ -3830,7 +3831,7 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             .as_object()
             .into_iter()
             .flatten()
-            .map(|(d, n)| format!("{n} {}", disposition(d)))
+            .map(|(d, n)| format!("{n} {}", crate::history::left_as(d)))
             .collect();
         past.push(line(tf(
             "{} things that were ours: {}",

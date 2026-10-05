@@ -57,6 +57,24 @@ pub(crate) fn disposition_tr(d: &str) -> &'static str {
         _ => "?",
     }
 }
+/// How a gone record left, in the past tense: what happened, not what was planned ("sold", not
+/// "sell").
+pub(crate) fn left_as(d: &str) -> &'static str {
+    match d {
+        "trash" => t("thrown out"),
+        "give" => t("given away"),
+        "sell" => t("sold"),
+        "return" => t("returned to the shop"),
+        "mistake" => t("record error"),
+        "digitize" => t("photographed, then thrown out"),
+        "merged" => t("joined another portion"),
+        "used" => t("used up"),
+        "left" => t("left behind"),
+        "stolen" => t("stolen"),
+        "unknown" => t("how not known"),
+        _ => "?",
+    }
+}
 
 /// An edit event in words: each field with what it became, and what it was when both are short
 /// enough to read side by side.
@@ -223,10 +241,7 @@ pub(crate) fn event_words(
         ),
         "gone" => own("gone", {
             let why = str_of(d, "why");
-            format!(
-                "{}  {why}",
-                disposition_tr(d["as"].as_str().unwrap_or_default())
-            )
+            format!("{}  {why}", left_as(d["as"].as_str().unwrap_or_default()))
         }),
         "sold" => own(
             "sold",

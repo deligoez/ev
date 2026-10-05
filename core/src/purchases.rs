@@ -755,7 +755,16 @@ impl Inventory {
             )
             .optional()?
             .unwrap_or(0);
-        let qty = qty.unwrap_or(p["open_qty"].as_i64().unwrap_or(0) + already);
+        let left = p["open_qty"].as_i64().unwrap_or(0) + already;
+        // A line in packs (a set, an 8-pack) is split among things: by default a thing takes as
+        // many units as it stands for (one body, an 8-pack recorded as ×8), never the whole line.
+        let default = if p["pack"].as_i64().unwrap_or(1) > 1 {
+            let n = crate::store::load(&tx, node)?;
+            left.min(crate::portions::units(&n))
+        } else {
+            left
+        };
+        let qty = qty.unwrap_or(default);
         if qty < 1 {
             return Err(Error::Usage(format!(
                 "purchase {id} has nothing left to link"

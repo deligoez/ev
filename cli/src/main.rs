@@ -797,7 +797,8 @@ enum BuyCmd {
         #[arg(long)]
         toured: bool,
     },
-    /// Link a line to a thing on the person's word (all that is left of it by default).
+    /// Link a line to a thing on the person's word (all that is left of it by default; on a line
+    /// in packs, as many units as the thing stands for).
     Link {
         #[arg(value_parser = record_id)]
         id: i64,

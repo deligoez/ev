@@ -1402,7 +1402,8 @@ fn e_and_c_open_and_close_all_below_and_capital_c_closes_the_tree() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     let edge = s.lines().rev().nth(1).unwrap_or_default();
-    assert!(edge.contains("e/c all below · C close all"), "{s}");
+    // At the tree's right end, against its corner.
+    assert!(edge.contains("e/c all below · C close all ┘"), "{s}");
 }
 
 #[test]

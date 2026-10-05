@@ -329,7 +329,8 @@ the layout that makes sense, then re-theme the places after the moves. When the 
 piece of furniture is toured, run `ev layout <furniture>` and bring what it finds (kinds spread
 over several drawers, drawers that read alike, nearly empty and full or mixed ones) with marked
 photos of the drawers named; when the person wants a new layout, `ev layout <furniture> --propose`
-drafts one from the contents alone. It is a draft to change together, not a plan: plan each move
+drafts one from the contents alone, from the places already counted (the rest are named under
+`not_counted`: tour them first). It is a draft to change together, not a plan: plan each move
 (`ev move … --plan`) and write each new theme only on their word.
 
 **"For now" is data: `temporary`.** When the person puts something somewhere only until its

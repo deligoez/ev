@@ -1275,6 +1275,30 @@ fn usage_error(e: &clap::Error) -> Error {
     Error::Usage(text.trim().trim_start_matches("error: ").to_string())
 }
 
+/// `make=Nikon` given to a command that takes `--make`: `ev edit`'s form used out of habit. The
+/// hint names the flag, so the next try is right.
+fn flag_hint(args: &[String]) -> Option<String> {
+    use clap::CommandFactory;
+    let cmd = Cli::command();
+    let (i, sub) = args
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find_map(|(i, a)| cmd.find_subcommand(a).map(|s| (i, s)))?;
+    args[i + 1..].iter().find_map(|a| {
+        let (k, v) = a.split_once('=')?;
+        let flag = k.replace('_', "-");
+        sub.get_arguments()
+            .any(|x| x.get_long() == Some(flag.as_str()))
+            .then(|| {
+                format!(
+                    "`{a}`: `ev {}` takes it as `--{flag} {v}` (key=value is `ev edit`'s form)",
+                    sub.get_name()
+                )
+            })
+    })
+}
+
 fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -1284,10 +1308,17 @@ fn main() -> ExitCode {
             let args: Vec<String> = std::env::args().collect();
             let json = args.iter().any(|a| a == "--json")
                 || (!args.iter().any(|a| a == "--text") && !std::io::stdout().is_terminal());
+            let hint = flag_hint(&args);
             if !json {
-                e.exit();
+                match hint {
+                    Some(h) => {
+                        eprintln!("error: {h}");
+                        return ExitCode::from(2);
+                    }
+                    None => e.exit(),
+                }
             }
-            let err = usage_error(&e);
+            let err = hint.map_or_else(|| usage_error(&e), Error::Usage);
             eprintln!("{}", err.to_json());
             return ExitCode::from(err.code() as u8);
         }

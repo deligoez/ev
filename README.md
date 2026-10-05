@@ -338,6 +338,7 @@ live in `~/.ev/settings.json`, outside the database; JSON output stays English.
   cost, what proves it and what still covers it, `mcp.md` the MCP server, and one per feature since
 - `release-notes/` — what changed in each version; `next.md` is the draft of the coming one
 - `BUGS.md` — rough edges found in use, fixed in batches
+- `QA.md` — a QA round on a copy of a real inventory (`tools/qa/sandbox.sh` makes the copy)
 
 ## Development
 

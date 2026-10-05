@@ -11,9 +11,10 @@ today's themes and look at one holder at a time, so they defend the present.
 drawers) at once, reading what the places **hold**, not their themes. It reports facts, best
 first within each list, and never moves anything:
 
-- **`spread`**: kinds of thing kept in several places (cables in four drawers): groups of things
-  that read alike (shared stems and synonyms of their names and tags, as `ev themes` finds them),
-  with how many are in each place.
+- **`spread`**: kinds of thing kept in several places (cables in four drawers), with how many are
+  in each place. A thing's kind is the last word of its name before the first comma or dash: a
+  Turkish name ends in what the thing is (`şarj modülü` is a module, `Kablo, USB-C` a cable);
+  shared words alone grouped a `kutulu` adaptor with a `kutulu` sensor.
 - **`overlap`**: pairs of places whose contents read alike, whatever their themes say, with the
   words they share and how much of each it is.
 - **`merge`**: nearly empty places (few things, or a low fill) and a place with room whose
@@ -21,12 +22,13 @@ first within each list, and never moves anything:
 - **`split`**: full or mixed places (fill ≥ 90, or no group holding most of what is in it),
   with their groups.
 
-`ev layout <furniture> --propose` drafts a new layout from the contents alone: the groups, largest
-first, each given the place that already holds most of it and has room for it (else the emptiest
-one), and a theme drawn from the group's own words. It answers with the moves that layout needs
-(`thing`, `from`, `to`) and the proposed theme of each place. Nothing is applied: the agent shows
-it, the person changes it, and the moves are recorded as `ev move … --plan` and the themes with
-`ev edit theme=` on their word.
+`ev layout <furniture> --propose` drafts a new layout from the contents alone: every kind of two
+or more things is a group; the groups, largest first, each go to the place that already holds most
+of it and is not yet given a group (else the emptiest place left), and the place takes the kind as
+its theme. More kinds than places: the smaller ones stay where they are (`kept`). It answers with
+the moves that layout needs (`thing`, `from`, `to`) and the proposed theme of each place. Nothing is
+applied: the agent shows it, the person changes it, and the moves are recorded as `ev move …
+--plan` and the themes with `ev edit theme=` on their word.
 
 The skill says it in one line: **a theme describes the present, not the plan.**
 

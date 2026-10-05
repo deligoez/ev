@@ -1062,6 +1062,7 @@ static TR: &[(&str, &str)] = &[
     ("via {}", "{} üzerinden"),
     ("(nothing past)", "(giden bir şey yok)"),
     ("PAST", "GİDENLER"),
+    ("when not known", "ne zaman bilinmiyor"),
     (
         "{} things that were ours: {}",
         "bir zamanlar bizim olan {} şey: {}",
@@ -1075,8 +1076,8 @@ static TR: &[(&str, &str)] = &[
     ("left {}", "gitti {}"),
     ("ours in {}: {}", "{} yılında bizimdi: {}"),
     (
-        "{} more whose coming nothing says (no came, no purchase) are not counted",
-        "ne zaman geldiği bilinmeyen {} şey daha (geldi tarihi yok, satın alma yok) sayılmadı",
+        "{} more are not counted: nothing says when they came, or when they left",
+        "{} şey daha sayılmadı: ne zaman geldiği ya da gittiği bilinmiyor",
     ),
     (
         "thing: ×{} in {} places · in use {} · spare {}",

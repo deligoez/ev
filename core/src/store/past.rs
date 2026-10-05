@@ -104,16 +104,18 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
         )
         .optional()?;
     let (at, place, price, currency, via, note) = row.unwrap_or_default();
-    // Not said: the day it was recorded gone.
+    // Not said: the day it was recorded gone, unless it was recorded already gone, when
+    // nothing says when it left.
     let at = match at {
-        Some(a) => a,
-        None => conn
-            .query_row(
-                "SELECT substr(MAX(at), 1, 10) FROM events WHERE node_id = ?1 AND type = 'gone'",
-                [node],
-                |r| r.get::<_, Option<String>>(0),
-            )?
-            .unwrap_or_default(),
+        Some(a) => Some(a),
+        None => conn.query_row(
+            &format!(
+                "SELECT substr(MAX(at), 1, 10) FROM events
+                  WHERE node_id = ?1 AND type = 'gone' AND {NOT_RECALLED}"
+            ),
+            [node],
+            |r| r.get::<_, Option<String>>(0),
+        )?,
     };
     Ok(json!({
         "at": at, "where": place, "price": price, "currency": currency, "via": via, "note": note,
@@ -216,9 +218,15 @@ const CAME: &str =
     "COALESCE(n.came_at, (SELECT substr(MIN(COALESCE(p.ordered_at, p.delivered_at)), 1, 10)
        FROM purchase_links l JOIN purchases p ON p.id = l.purchase_id WHERE l.node_id = n.id))";
 
-/// When a gone record left: as said, else the day it was recorded gone.
+/// A `gone` event written as it happened, not a past thing recorded already gone (`ev add
+/// --gone`): only the first says when it left.
+const NOT_RECALLED: &str = "COALESCE(json_extract(data, '$.past'), 0) = 0";
+
+/// When a gone record left: as said, else the day it was recorded gone; NULL for a past thing
+/// recorded already gone with no date said.
 const LEFT: &str = "COALESCE(d.at, (SELECT substr(MAX(e.at), 1, 10) FROM events e
-       WHERE e.node_id = n.id AND e.type = 'gone'))";
+       WHERE e.node_id = n.id AND e.type = 'gone'
+         AND COALESCE(json_extract(e.data, '$.past'), 0) = 0))";
 
 /// The year a partial date falls in.
 fn year_of(date: &str) -> Option<i32> {
@@ -288,6 +296,8 @@ impl Inventory {
         // Year -> (how many left, paid, got).
         type Year = (usize, BTreeMap<String, i64>, BTreeMap<String, i64>);
         let mut years: BTreeMap<i32, Year> = BTreeMap::new();
+        // Those nothing says when they left: counted apart, never put in a year.
+        let mut undated = Year::default();
         let mut things = Vec::new();
         for (id, name, how, came, left, where_, place_id, price, currency, via) in rows {
             if place.is_some() && place_id != place {
@@ -311,9 +321,11 @@ impl Inventory {
                 .map(crate::purchases::parse_money)
                 .transpose()?;
             let currency = currency.unwrap_or_else(|| home.clone());
-            let left = left.unwrap_or_default();
-            if let Some(y) = year_of(&left) {
-                let e = years.entry(y).or_default();
+            {
+                let e = match left.as_deref().and_then(year_of) {
+                    Some(y) => years.entry(y).or_default(),
+                    None => &mut undated,
+                };
                 e.0 += 1;
                 for (c, cents) in &paid {
                     *e.1.entry(c.clone()).or_default() += cents;
@@ -330,17 +342,21 @@ impl Inventory {
                 })),
             }));
         }
-        // Last gone first; a year sorts before any month or day in it, which is the order a
-        // person reading back expects.
+        // Last gone first, those nothing dates at the end; a year sorts before any month or
+        // day in it, which is the order a person reading back expects.
         things.sort_by(|a, b| b["left"].as_str().cmp(&a["left"].as_str()));
+        let year = |(n, paid, got): Year| json!({ "left": n, "paid": sums_json(&paid), "got": sums_json(&got) });
         let years: Vec<Value> = years
             .into_iter()
             .rev()
-            .map(|(y, (n, paid, got))| {
-                json!({ "year": y, "left": n, "paid": sums_json(&paid), "got": sums_json(&got) })
+            .map(|(y, e)| {
+                let mut v = year(e);
+                v["year"] = json!(y);
+                v
             })
             .collect();
-        Ok(json!({ "past": things, "years": years }))
+        let undated = (undated.0 > 0).then(|| year(undated));
+        Ok(json!({ "past": things, "years": years, "undated": undated }))
     }
 
     /// What was ours in `year` (spec/past-belongings.md): every thing, past or present, that
@@ -370,6 +386,11 @@ impl Inventory {
                 continue;
             }
             match came.as_deref().and_then(year_of) {
+                // Gone, nothing saying when: ours the year it came, not known after.
+                Some(y) if gone && left.is_none() && y < year => {
+                    unknown += 1;
+                    continue;
+                }
                 Some(y) if y <= year => {}
                 Some(_) => continue,
                 None => {
@@ -401,7 +422,8 @@ impl Inventory {
         }
         let total = |key: &str| -> Result<Value> {
             let mut sums: BTreeMap<String, i64> = BTreeMap::new();
-            for y in all["years"].as_array().into_iter().flatten() {
+            let years = all["years"].as_array().into_iter().flatten();
+            for y in years.chain(Some(&all["undated"]).filter(|u| u.is_object())) {
                 for (c, a) in y[key].as_object().into_iter().flatten() {
                     *sums.entry(c.clone()).or_default() +=
                         crate::purchases::parse_money(a.as_str().unwrap_or_default())?;

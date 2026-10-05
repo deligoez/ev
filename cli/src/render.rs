@@ -296,7 +296,7 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
     let mut parts = vec![
         d.get("at")
             .and_then(Value::as_str)
-            .unwrap_or_default()
+            .unwrap_or(t("when not known"))
             .to_string(),
     ];
     if let Some(how) = v["node"]["disposition"].as_str() {
@@ -2559,7 +2559,8 @@ pub fn human(v: &Value) -> String {
                 .collect::<Vec<_>>()
                 .join(" + ")
         };
-        for y in years {
+        let undated = Some(&v["undated"]).filter(|u| u.is_object());
+        for y in years.iter().chain(undated) {
             let mut parts = vec![tf("{} left", &[&y["left"]])];
             let (paid, got) = (sums(&y["paid"]), sums(&y["got"]));
             if !paid.is_empty() {
@@ -2568,7 +2569,11 @@ pub fn human(v: &Value) -> String {
             if !got.is_empty() {
                 parts.push(tf("got {}", &[&got]));
             }
-            let _ = writeln!(out, "{}  {}", y["year"], parts.join(" · "));
+            let year = match y["year"].as_i64() {
+                Some(n) => n.to_string(),
+                None => t("when not known").to_string(),
+            };
+            let _ = writeln!(out, "{year}  {}", parts.join(" · "));
         }
         let _ = writeln!(out);
         for n in list {
@@ -2576,7 +2581,8 @@ pub fn human(v: &Value) -> String {
             if let Some(c) = n["came"].as_str() {
                 parts.push(tf("came {}", &[&c]));
             }
-            parts.push(tf("left {}", &[&s(n, "left")]));
+            let left = n["left"].as_str().unwrap_or(t("when not known"));
+            parts.push(tf("left {}", &[&left]));
             parts.push(disposition(&s(n, "how")));
             if let Some(w) = n["where"].as_str() {
                 parts.push(tf("in {}", &[&w]));
@@ -2618,7 +2624,7 @@ pub fn human(v: &Value) -> String {
                 out,
                 "{}",
                 tf(
-                    "{} more whose coming nothing says (no came, no purchase) are not counted",
+                    "{} more are not counted: nothing says when they came, or when they left",
                     &[&unknown]
                 )
             );

@@ -508,9 +508,11 @@ impl App {
             });
             return Ok(out);
         }
-        for y in v["years"].as_array().into_iter().flatten() {
-            let year = y["year"].as_i64().unwrap_or_default();
-            let id = PAST_SECTION - year;
+        // Each year, then those nothing says when they left.
+        let undated = Some(&v["undated"]).filter(|u| u.is_object());
+        for y in v["years"].as_array().into_iter().flatten().chain(undated) {
+            let year = y["year"].as_i64();
+            let id = PAST_SECTION - year.unwrap_or_default();
             let open = !self.collapsed.contains(&id);
             let mut head = vec![tf("{} left", &[&y["left"]])];
             for (key, label) in [("paid", "paid {}"), ("got", "got {}")] {
@@ -519,11 +521,12 @@ impl App {
                     head.push(tf(label, &[&s]));
                 }
             }
+            let title = year.map_or_else(|| t("when not known").to_string(), |y| y.to_string());
             out.push(Row {
                 id,
                 depth: 0,
                 spans: vec![
-                    Span::styled(format!("{year}  "), Style::new().fg(pal().blue).bold()),
+                    Span::styled(format!("{title}  "), Style::new().fg(pal().blue).bold()),
                     Span::styled(head.join(" · "), Style::new().fg(pal().muted)),
                 ],
                 expandable: true,
@@ -532,10 +535,13 @@ impl App {
             if !open {
                 continue;
             }
-            for n in things
-                .iter()
-                .filter(|n| n["left"].as_str().and_then(|l| l.get(..4)) == Some(&year.to_string()))
-            {
+            let in_year = |n: &&Value| {
+                n["left"]
+                    .as_str()
+                    .and_then(|l| l.get(..4)?.parse::<i64>().ok())
+                    == year
+            };
+            for n in things.iter().filter(in_year) {
                 let mut what =
                     vec![disposition_tr(n["how"].as_str().unwrap_or_default()).to_string()];
                 if let Some(w) = n["where"].as_str() {

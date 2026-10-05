@@ -2142,25 +2142,55 @@ fn run(cli: Cli) -> Result<Value> {
             if jobs.len() > 1 && (crop.is_some() || rotate.is_some()) {
                 return Err(Error::Usage("--crop and --rotate take one photo".into()));
             }
-            // Every record and photo checked before anything is attached: a typo leaves
-            // nothing half done. A series picture (`f12`) keeps the note it was sent with.
+            // Every record and photo checked before anything is attached, the whole-photo rule
+            // too, also between the photos of this call: a refusal leaves nothing half done and
+            // names the line or photo it is about. A series picture (`f12`) keeps the note it
+            // was sent with.
+            let cut_or_whole = crop.is_some() || whole;
             let mut ready = Vec::new();
-            for (r, given, own) in &jobs {
-                inv.resolve(r, false)?;
-                let series = given
-                    .to_str()
-                    .and_then(ev_core::series_number)
-                    .filter(|_| !given.exists());
-                let file = photo_arg(&inv, given)?;
-                if !file.is_file() {
-                    return Err(Error::NotFound(format!("no file {}", given.display())));
-                }
-                let note = match (own, series) {
-                    (Some(n), _) => Some(n.clone()),
-                    (None, Some(n)) => inv.series_note(n)?,
-                    (None, None) => None,
+            let mut wholes: std::collections::HashMap<PathBuf, (i64, String)> =
+                std::collections::HashMap::new();
+            for (i, (r, given, own)) in jobs.iter().enumerate() {
+                let what = if stdin {
+                    format!("line {}", i + 1)
+                } else {
+                    given.display().to_string()
                 };
-                ready.push((r.clone(), file, note, series.is_some(), given.clone()));
+                let mut check = || -> Result<_> {
+                    let series = given
+                        .to_str()
+                        .and_then(ev_core::series_number)
+                        .filter(|_| !given.exists());
+                    let file = photo_arg(&inv, given)?;
+                    if !file.is_file() {
+                        return Err(Error::NotFound(format!("no file {}", given.display())));
+                    }
+                    if rotate.is_some() {
+                        // One photo, turned when attached: its own add checks it.
+                        inv.resolve(r, false)?;
+                    } else {
+                        let (id, stored) = inv.photo_add_check(r, &file, cut_or_whole)?;
+                        if !cut_or_whole {
+                            if let Some((_, first)) = wholes.get(&stored).filter(|(o, _)| *o != id) {
+                                return Err(Error::Refused {
+                                    message: format!(
+                                        "the same photo as {first}, whole on another record; \
+                                         cut it with `ev photo cut`, or pass --whole"
+                                    ),
+                                    details: Value::Null,
+                                });
+                            }
+                            wholes.insert(stored, (id, what.clone()));
+                        }
+                    }
+                    let note = match (own, series) {
+                        (Some(n), _) => Some(n.clone()),
+                        (None, Some(n)) => inv.series_note(n)?,
+                        (None, None) => None,
+                    };
+                    Ok((r.clone(), file, note, series.is_some(), given.clone()))
+                };
+                ready.push(check().map_err(|e| e.prefixed(&what))?);
             }
             let crop = crop
                 .map(|c| c.parse::<ev_core::Crop>().map(|c| c.padded(pad)))

@@ -947,7 +947,7 @@ impl Inventory {
                     .iter()
                     .filter(|f| f["kept"] != true)
                     .filter_map(|f| {
-                        Some((f["label"].as_u64()? as usize, f["n"].as_u64()? as usize))
+                        Some((f["given"].as_u64()? as usize, f["n"].as_u64()? as usize))
                     })
                     .collect()
             })

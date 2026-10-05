@@ -582,8 +582,9 @@ impl Inventory {
                     if numbered == Some(true) {
                         f["kept"] = json!(true);
                     }
+                    // `given`, not `label`: `marks[].label` is the number as drawn.
                     if let Some(k) = asked {
-                        f["label"] = json!(k);
+                        f["given"] = json!(k);
                     }
                     Some(f)
                 })

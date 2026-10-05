@@ -2409,6 +2409,13 @@ fn with_waiting(conn: &Connection, id: i64, mut v: Value) -> Result<Value> {
     let waiting = waited_for_by(conn, id)?;
     if !waiting.is_empty() {
         v["waiting"] = serde_json::to_value(waiting).map_err(|e| Error::Internal(e.to_string()))?;
+        // Said once: `waiting` is the same list as the node's `waited_for_by`.
+        if let Some(o) = v["node"].as_object_mut() {
+            o.remove("waited_for_by");
+        }
+        if let Some(o) = v.as_object_mut() {
+            o.remove("waited_for_by");
+        }
     }
     Ok(v)
 }

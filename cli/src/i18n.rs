@@ -707,6 +707,10 @@ static TR: &[(&str, &str)] = &[
     ("tags", "etiketler"),
     ("photo", "foto"),
     ("Attached {} photo(s):", "{} fotoğraf eklendi:"),
+    (
+        "Series grid: pictures {} cells wide",
+        "Seri ızgarası: resimler {} hücre genişliğinde",
+    ),
     ("photos", "fotoğraflar"),
     ("label", "etiket"),
     ("to print", "basılacak"),

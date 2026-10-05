@@ -3081,6 +3081,9 @@ fn settings(out: &mut String, v: &Value) {
         t("Appearance"),
         setting(&s(&v["theme"], "setting"))
     );
+    if let Some(w) = v["series_tile"].as_u64() {
+        let _ = writeln!(out, "{}", tf("Series grid: pictures {} cells wide", &[&w]));
+    }
     if let Some(f) = v["file"].as_str() {
         let _ = writeln!(out, "{}", tf("Saved in {}", &[&f]));
     }

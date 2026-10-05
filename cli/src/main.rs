@@ -1442,9 +1442,21 @@ fn settings_cmd(name: Option<String>, value: Option<String>) -> Result<Value> {
             s.resume = settings::parse_switch(v)
                 .ok_or_else(|| Error::Usage(format!("resume is on or off, not `{v}`")))?;
         }
+        (Some("series_tile"), Some(v)) => {
+            s.series_tile = v
+                .parse::<u16>()
+                .ok()
+                .filter(|w| (settings::SERIES_TILE_MIN..=400).contains(w))
+                .ok_or_else(|| {
+                    Error::Usage(format!(
+                        "series_tile is a width in terminal cells, {} to 400, not `{v}`",
+                        settings::SERIES_TILE_MIN
+                    ))
+                })?;
+        }
         (Some(n), Some(_)) => {
             return Err(Error::Usage(format!(
-                "unknown setting `{n}`; there are language, theme and resume"
+                "unknown setting `{n}`; there are language, theme, resume and series_tile"
             )));
         }
     }

@@ -94,7 +94,14 @@ pub struct Settings {
     pub theme: ThemePref,
     /// `ev ui` opens on the node that was selected in the tree when it last closed.
     pub resume: bool,
+    /// The width, in terminal cells, of a picture in the grid of the marked photo series: the
+    /// size that reads on this screen; the number per row follows from the width.
+    pub series_tile: u16,
 }
+
+/// The default and the smallest width of a picture in the series grid, in cells.
+pub const SERIES_TILE: u16 = 28;
+pub const SERIES_TILE_MIN: u16 = 12;
 
 impl Default for Settings {
     fn default() -> Self {
@@ -102,6 +109,7 @@ impl Default for Settings {
             language: LangPref::default(),
             theme: ThemePref::default(),
             resume: true,
+            series_tile: SERIES_TILE,
         }
     }
 }
@@ -140,6 +148,9 @@ impl Settings {
                 .and_then(ThemePref::parse)
                 .unwrap_or_default(),
             resume: v["resume"].as_bool().unwrap_or(true),
+            series_tile: v["series_tile"].as_u64().map_or(SERIES_TILE, |w| {
+                w.clamp(u64::from(SERIES_TILE_MIN), 400) as u16
+            }),
         }
     }
 
@@ -157,6 +168,7 @@ impl Settings {
             "language": self.language.as_str(),
             "theme": self.theme.as_str(),
             "resume": self.resume,
+            "series_tile": self.series_tile,
         }))
         .unwrap_or_default();
         std::fs::write(path, text + "\n")
@@ -171,6 +183,7 @@ impl Settings {
             },
             "theme": { "setting": self.theme.as_str() },
             "resume": self.resume,
+            "series_tile": self.series_tile,
             "file": path.map(|p| p.display().to_string()),
         })
     }

@@ -16,10 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **A usage error lists `--db <DB>` as if it were required when `EV_DB` is set.** `EV_DB=… ev
-  review x` answers `Usage: ev review --as <STATUS> --db <DB> <REFERENCE>`; without `EV_DB` the
-  line has no `--db`. An agent reading it may think `--db` is needed. Expected: the same usage
-  line either way. Minor. (QA round.)
 - **`ev photo add` attaches part of a refused call.** `ev photo add #12 f2 f3`, where f3 is
   already attached whole to another record, exits 5 with "this photo is already attached whole
   to 1 other node(s)", yet f2 is now on #12 (`ev photo list #12` shows it). The same with
@@ -81,12 +77,6 @@ that fixes them.
   `ev photo mark` (`marks[].label: "2"`), so the same key means two things in two types.
   Expected: empty fields left out, one of each duplicate, `focus --file` naming each new
   picture's `f`, and one name and type per meaning. (QA round.)
-- **`ev add --stdin` with no `kind` says "unknown kind ``".** `line 2: unknown kind ``; expected
-  one of: …` for a line that has no `kind` at all; `ev add x --in y` says "--kind is required".
-  Expected: "line 2: kind is required". Minor. (QA round.)
-- **"Not linked" exits differently in two places.** `ev buy unlink <line> #12` on a link that
-  does not exist exits 2 (`usage`); `ev kit unlink 1 37 #12` exits 3 (`not_found`). Expected:
-  one code for the same case. Minor. (QA round.)
 - **`ev layout --propose` drafts from the last word alone, and it shows.** On a toured 32-drawer
   Kallax with 400 records it proposes 153 moves and a theme for every drawer. Taken one by one:
   kinds are raw head words in their possessive form and unstemmed (`ucu` and `uçları` are two
@@ -106,5 +96,3 @@ that fixes them.
   person steps through the same photo twice. (`photo cut … --preview` then the real cut
   replaces the preview picture, which is the expected feel.) Expected: marking a picture already
   in the series marks it in place, or says that a copy was added. Minor. (QA round.)
-- **`ev task drop` rewrites a done task.** `ev task done 29`, then `ev task drop 29` turns it to
-  `dropped` without a word. Expected: refuse, or say it was done. Minor. (QA round.)

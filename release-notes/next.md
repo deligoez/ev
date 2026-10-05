@@ -124,6 +124,14 @@ the draft is something to change together, and each move is planned on the perso
 - `ev history` as text printed each event's raw JSON, oldest first, though the History tab of
   `ev ui` said every event in words. Both now read from one place: newest first under a heading
   per day, each event in the tab's words (a note of several lines on one line), places by `#id`.
+- `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
+  task that was not done after all is reopened first.
+- `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is
+  required".
+- "Not linked" was a usage error (exit 2) for `ev buy unlink` and `ev doc` but "not found"
+  (exit 3) for `ev kit unlink`; it is exit 2 everywhere.
+- With `EV_DB` set, every usage line listed `--db <DB>` as if it were required. `EV_DB` is now
+  read by `ev` itself, and the usage line is the same either way.
 - `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
   `skipped`), no longer the whole thing as `ev show` gives it.
 - A photo taken minutes before the records caught up with it (what it shows recorded right after)

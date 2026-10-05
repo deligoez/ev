@@ -338,6 +338,20 @@ fn numbers_in_a_series_never_repeat_and_a_photo_marked_again_keeps_its_own() {
 }
 
 #[test]
+fn a_frame_left_out_of_a_second_mark_never_hands_its_number_to_another() {
+    let (_dir, mut inv, photo) = setup();
+    let two = ["1=0.1,0.1,0.2,0.2", "2=0.5,0.5,0.2,0.2"];
+    assert_eq!(show_marked(&mut inv, &photo, &two), ["1", "2"]);
+    // Frame 1 fixed, frame 2 left out, a new frame 3: 2 was told to the person and stays its.
+    let again = ["1=0.1,0.1,0.3,0.3", "3=0.7,0.1,0.2,0.2"];
+    assert_eq!(show_marked(&mut inv, &photo, &again), ["1", "3"]);
+    // Left out, 2 is retired: a frame labelled 2 again is a new frame with a new number.
+    let back = ["2=0.5,0.5,0.2,0.2", "3=0.7,0.1,0.2,0.2"];
+    assert_eq!(show_marked(&mut inv, &photo, &back), ["4", "3"]);
+    assert_eq!(inv.focus_list().unwrap()["series"]["next"], 5);
+}
+
+#[test]
 fn a_cut_of_a_photo_marked_in_the_series_takes_the_numbers_it_was_marked_with() {
     let (dir, mut inv, photo) = setup();
     for name in ["Pil", "Röle", "Kablo"] {

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -1616,6 +1616,8 @@ struct TreeIndex {
     items: HashMap<i64, i64>,
     /// How far each place gone through on its own has been counted.
     count: HashMap<i64, String>,
+    /// The counted places whose contents changed after their tour.
+    changed: HashSet<i64>,
 }
 
 impl TreeIndex {
@@ -1629,11 +1631,21 @@ impl TreeIndex {
         }
         let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
         let reviews = crate::plan::all_reviews(conn)?;
+        let changes = crate::marks::ContentChanges::load(conn)?;
+        let mut changed = HashSet::new();
         let count = crate::plan::units(&all)
             .into_iter()
             .map(|u| {
-                let s = crate::plan::effective_review(u, &parent, &reviews)
-                    .map_or_else(|| "raw".to_string(), |(_, s, _)| s);
+                let s = match crate::plan::effective_review(u, &parent, &reviews) {
+                    Some((_, s, at)) => {
+                        // As `ev progress` says it: only a change to what it holds dates a tour.
+                        if s == "toured" && changes.at(u).is_some_and(|c| c > at) {
+                            changed.insert(u);
+                        }
+                        s
+                    }
+                    None => "raw".to_string(),
+                };
                 (u, s)
             })
             .collect();
@@ -1654,6 +1666,7 @@ impl TreeIndex {
             kids,
             items,
             count,
+            changed,
         })
     }
 }
@@ -1737,6 +1750,9 @@ fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
     // How far a place gone through on its own has been counted.
     if let Some(s) = t.count.get(&id) {
         v["count"] = json!(s);
+        if t.changed.contains(&id) {
+            v["changed_since"] = json!(true);
+        }
     }
     // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
     for (k, val) in [("theme", &n.theme), ("size", &n.size)] {

@@ -832,6 +832,17 @@ fn a_dash_joining_two_ends_does_not_cut_what_a_thing_is() {
     let v = inv.layout("K5", false).unwrap();
     assert_eq!(v["spread"][0]["word"], "kablo", "{}", v["spread"]);
     assert_eq!(v["spread"][0]["things"], 3);
+    // Each place names the records that make the kind there.
+    let records: Vec<&str> = v["spread"][0]["places"][0]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|r| r["name"].as_str())
+        .collect();
+    assert_eq!(
+        records,
+        ["USB-A — mini USB kablo, 1 m", "USB-C – USB-C kablo, 100 W"]
+    );
 }
 
 #[test]

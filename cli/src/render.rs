@@ -87,6 +87,20 @@ pub fn last_seen(n: &Value) -> String {
     }
 }
 
+/// When a box was called empty and what was said: `2026-10-05 · <note>`.
+pub fn empty_said(e: &Value) -> String {
+    let day: String = e["at"]
+        .as_str()
+        .unwrap_or_default()
+        .chars()
+        .take(10)
+        .collect();
+    match e["note"].as_str().filter(|n| !n.is_empty()) {
+        Some(note) => format!("{day} · {note}"),
+        None => day,
+    }
+}
+
 /// How far a place has been counted, in words: `raw`, `counting`, `toured`, `kept`.
 pub fn count_label(state: &str) -> &'static str {
     match state {
@@ -2767,6 +2781,16 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             k["n"],
             s(k, "text")
         );
+    }
+    // A box known to be empty, and when the person said so.
+    match v["empty"]["from"].as_str() {
+        Some("said") => {
+            let _ = writeln!(out, "  {}: {}", t("empty"), empty_said(&v["empty"]));
+        }
+        Some(_) => {
+            let _ = writeln!(out, "  {}", t("empty (counted)"));
+        }
+        None => {}
     }
     // What its place waits for, and what waits for it.
     if v["waits_for"].is_object() {

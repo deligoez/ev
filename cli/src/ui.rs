@@ -598,6 +598,10 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
             ));
         }
     }
+    // A box known to be empty says so: nothing in it is a fact, not a gap.
+    if n["empty"] == true {
+        out.push(Span::styled(t("  [empty]"), Style::new().fg(pal().muted)));
+    }
     if n["temporary"] == true {
         out.push(Span::styled(
             t("  [temporary place]"),

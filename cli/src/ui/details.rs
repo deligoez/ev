@@ -348,54 +348,8 @@ impl App {
     fn summary_lines(&self, v: &Value) -> Vec<Line<'static>> {
         let n = &v["node"];
         let width = self.detail_width();
-        let mut lines = Vec::new();
-
-        // State first, as badges: only what is true is drawn, and only state has colour.
-        let mut badges: Vec<Span<'static>> = vec![Span::raw(kind_name(&str_of(n, "kind")))];
-        if let Some(q) = n["qty"].as_i64() {
-            badges.push(Span::styled(format!("×{q}"), Style::new().fg(pal().qty)));
-        }
-        let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
-        match n["state"].as_str() {
-            Some("candidate") => badges.push(Span::styled(
-                tf("candidate ({})", &[&d]),
-                Style::new().fg(pal().mark),
-            )),
-            Some("gone") => badges.push(Span::styled(
-                tf("gone ({})", &[&d]),
-                Style::new().fg(pal().muted),
-            )),
-            _ => {}
-        }
-        if n["lost"] == true {
-            badges.push(Span::styled(t("lost"), Style::new().fg(pal().lost)));
-        }
+        let mut lines = vec![status_line(v)];
         let m = &v["marks"];
-        if m["broken"].is_object() {
-            badges.push(Span::styled(t("broken"), Style::new().fg(pal().lost)));
-        }
-        if let Some(st) = m["sale"]["value"].as_str() {
-            let st = if st == "listed" {
-                t("listed")
-            } else {
-                t("reserved")
-            };
-            badges.push(Span::styled(st, Style::new().fg(pal().qty)));
-        }
-        if m["label"]["value"] == "needed" {
-            badges.push(Span::styled(
-                t("label to print"),
-                Style::new().fg(pal().code),
-            ));
-        }
-        let mut status = Vec::new();
-        for (i, b) in badges.into_iter().enumerate() {
-            if i > 0 {
-                status.push(Span::styled("  ·  ", Style::new().fg(pal().muted)));
-            }
-            status.push(b);
-        }
-        lines.push(Line::from(status));
 
         // What it is and where it stands: plain fields, keys in one column.
         let mut fields: Vec<(String, String, Style)> = Vec::new();
@@ -484,6 +438,14 @@ impl App {
         }
         if let Some(p) = v["pending"]["path_text"].as_str() {
             field(t("moving to"), p.to_string(), Style::new().fg(pal().mark));
+        }
+        // When the person called it empty, and what they said.
+        if v["empty"]["from"] == "said" {
+            field(
+                t("empty"),
+                crate::render::empty_said(&v["empty"]),
+                Style::new().fg(pal().muted),
+            );
         }
         for (k, key) in [
             (t("to take to"), "to"),
@@ -1392,4 +1354,59 @@ impl App {
         lines.push(Line::raw(""));
         lines
     }
+}
+
+/// A node's state as badges, the Summary's first line: only what is true is drawn, and only
+/// state has colour.
+fn status_line(v: &Value) -> Line<'static> {
+    let n = &v["node"];
+    let mut badges: Vec<Span<'static>> = vec![Span::raw(kind_name(&str_of(n, "kind")))];
+    if let Some(q) = n["qty"].as_i64() {
+        badges.push(Span::styled(format!("×{q}"), Style::new().fg(pal().qty)));
+    }
+    let d = disposition_tr(n["disposition"].as_str().unwrap_or_default());
+    match n["state"].as_str() {
+        Some("candidate") => badges.push(Span::styled(
+            tf("candidate ({})", &[&d]),
+            Style::new().fg(pal().mark),
+        )),
+        Some("gone") => badges.push(Span::styled(
+            tf("gone ({})", &[&d]),
+            Style::new().fg(pal().muted),
+        )),
+        _ => {}
+    }
+    if n["lost"] == true {
+        badges.push(Span::styled(t("lost"), Style::new().fg(pal().lost)));
+    }
+    // A box known to be empty, not just one nothing is recorded in.
+    if v["empty"].is_object() {
+        badges.push(Span::styled(t("empty"), Style::new().fg(pal().muted)));
+    }
+    let m = &v["marks"];
+    if m["broken"].is_object() {
+        badges.push(Span::styled(t("broken"), Style::new().fg(pal().lost)));
+    }
+    if let Some(st) = m["sale"]["value"].as_str() {
+        let st = if st == "listed" {
+            t("listed")
+        } else {
+            t("reserved")
+        };
+        badges.push(Span::styled(st, Style::new().fg(pal().qty)));
+    }
+    if m["label"]["value"] == "needed" {
+        badges.push(Span::styled(
+            t("label to print"),
+            Style::new().fg(pal().code),
+        ));
+    }
+    let mut status = Vec::new();
+    for (i, b) in badges.into_iter().enumerate() {
+        if i > 0 {
+            status.push(Span::styled("  ·  ", Style::new().fg(pal().muted)));
+        }
+        status.push(b);
+    }
+    Line::from(status)
 }

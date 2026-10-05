@@ -249,7 +249,7 @@ pub(crate) fn tasks_of(conn: &Connection, id: i64) -> Result<Vec<Value>> {
 /// The places a person opens one at a time: the innermost labelled holders, plus unlabelled
 /// holders standing on their own in a room or on furniture. A holder is a unit when none of its
 /// children is labelled as a place of its own; everything below a unit is gone through with it.
-/// `K4x4-08-A` is a unit and the boxes in it are not; `K4x4-08` is not, because its drawers are
+/// `K2-01-A` is a unit and the boxes in it are not; `K2-01` is not, because its drawers are
 /// labelled as its parts (see `own_place`).
 pub(crate) fn units(all: &[Node]) -> Vec<i64> {
     let mut kids: HashMap<Option<i64>, Vec<&Node>> = HashMap::new();

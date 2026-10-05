@@ -171,6 +171,34 @@ fn a_box_called_empty_is_counted_and_waits_in_no_tour() {
 }
 
 #[test]
+fn a_box_known_empty_says_so_in_show_and_in_the_tree() {
+    let (_d, mut inv) = setup();
+    // Nothing recorded in it, never counted: no word on it.
+    let v = inv.show("Kablo çantası", false).unwrap();
+    assert!(v["empty"].is_null(), "{}", v["empty"]);
+    inv.mark_empty(&["Kablo çantası".into()], Some("açtık, boş"))
+        .unwrap();
+    let v = inv.show("Kablo çantası", false).unwrap();
+    assert_eq!(v["empty"]["from"], "said");
+    assert_eq!(v["empty"]["note"], "açtık, boş");
+    fn find(nodes: &serde_json::Value, id: i64) -> Option<serde_json::Value> {
+        nodes.as_array()?.iter().find_map(|n| {
+            if n["id"] == id {
+                Some(n.clone())
+            } else {
+                find(&n["children"], id)
+            }
+        })
+    }
+    let id = v["node"]["id"].as_i64().unwrap();
+    let node = find(&inv.tree(None, None).unwrap()["tree"], id).unwrap();
+    assert_eq!(node["empty"], true, "{node}");
+    // A box with something in it is not empty.
+    let v = inv.show("LED kutusu", false).unwrap();
+    assert!(v["empty"].is_null());
+}
+
+#[test]
 fn a_lost_thing_last_seen_in_a_box_does_not_keep_it_from_being_empty() {
     let (_d, mut inv) = setup();
     // Lost from the start: recorded with the box as where it was last seen.

@@ -1407,6 +1407,25 @@ fn e_and_c_open_and_close_all_below_and_capital_c_closes_the_tree() {
 }
 
 #[test]
+fn d_opens_two_levels_and_no_further() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let shown = |app: &App, r: &str| {
+        let id = app.inv.resolve(r, false).unwrap();
+        app.rows.iter().any(|row| row.id == id)
+    };
+    // From the room: the drawer and the boxes in it show, the things in the boxes do not.
+    let oda = app.inv.resolve("Oda", false).unwrap();
+    app.reveal(oda).unwrap();
+    press(&mut app, KeyCode::Char('c'));
+    assert!(!shown(&app, "D"));
+    press(&mut app, KeyCode::Char('d'));
+    assert!(shown(&app, "D") && shown(&app, "D-A1") && shown(&app, "D-B1"));
+    assert!(!shown(&app, "Pasif buzzer"));
+    assert_eq!(app.selected_id(), Some(oda));
+}
+
+#[test]
 fn a_bought_thing_reads_in_sections_and_its_documents_open_from_their_own_tab() {
     let (dir, mut inv) = home();
     inv.add(NewNode {

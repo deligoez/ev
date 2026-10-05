@@ -165,6 +165,49 @@ fn a_shops_product_image_is_brought_as_a_document_never_as_the_things_photo() {
 }
 
 #[test]
+fn unlinking_takes_back_the_pictures_and_pages_a_wrong_link_brought() {
+    let (dir, mut inv) = setup();
+    let picture = dir.path().join("B0TVTVTV01-01.jpg");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&picture)
+        .unwrap();
+    let mut l = shop();
+    l.push(
+        json!({"type": "image", "source": "shop", "purchase": "o1:a",
+                  "file": picture.to_string_lossy()}),
+    );
+    inv.buy_import(&lines(&l)).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
+    let v = inv.buy_unlink(tv, "Televizyon").unwrap();
+    let types = |k: &str| -> Vec<String> {
+        let mut t: Vec<String> = v[k]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a["type"].as_str().unwrap().to_string())
+            .collect();
+        t.sort();
+        t
+    };
+    assert_eq!(types("taken_back"), ["image", "link"]);
+    assert_eq!(types("left"), ["coverage", "valuation"]);
+    let s = inv.show("Televizyon", false).unwrap();
+    assert!(
+        s["documents"].is_null() || s["documents"] == json!([]),
+        "{s}"
+    );
+    assert!(s["links"].is_null() || s["links"] == json!([]), "{s}");
+    assert_eq!(s["valuations"][0]["amount"], "27000.00");
+    // Linked again, what it carries can be brought again.
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    let again = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
+    assert!(!again["brought"].as_array().unwrap().is_empty(), "{again}");
+}
+
+#[test]
 fn bringing_by_type_brings_only_that_type_and_names_what_it_left() {
     let (_d, mut inv) = setup();
     inv.buy_import(&lines(&shop())).unwrap();

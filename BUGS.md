@@ -16,16 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev empty` ignores what the records say against it.** `ev empty S-11 --note "opened, empty"`
-  on a box whose note says "full of odds and ends, not empty" and which an open task (#29
-  "count the contents of S-11") covers is accepted without a word; the task stays open and still
-  asks to count an empty box. Also `ev tree --text` shows no `[boş]` for it (only `(sayıldı)`);
-  the JSON has `empty: true`. Expected: mention the open task on the box (done or drop?) and show
-  `[boş]` in the text tree. (QA round.)
-- **A found container reads as counted empty.** `ev found <case> --in K2-15-U`, a carry case
-  lost with contents never counted, then `ev show` says `boş (sayıldı)` because the drawer it
-  turned up in was toured. Nobody looked inside the case. Expected: a box found in a toured
-  place is not known empty until it is opened (`not_known`, like an untoured box). (QA round.)
 - **JSON noise on the new reads.** `ev next --json`: every place under `task.places` carries
   about ten empty fields (`arriving: []`, `coverages: []`, `kits: []`, `links: []`, `marks: {}`,
   `needs: []`, `purchases: []`, `tracking`, `valuations`, `waited_for_by`, `while_there: {}`),

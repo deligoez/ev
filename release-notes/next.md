@@ -148,6 +148,11 @@ the draft is something to change together, and each move is planned on the perso
 - A thing with some of its units lost read `×30, 2 places · lost 10`: the lost portion counted
   as a place though it is in none. `places` now counts the portions in a place, so it reads
   `×30, 1 place · lost 10`.
+- `ev empty` on a box whose note says it is full, with a task still open to count it, said
+  nothing of either, and the text tree did not mark the box. It now reads the note back, names
+  the open task (done or drop is the person's word), and `ev tree --text` marks it `[boş]`.
+- A case found in a counted drawer read "empty (counted)": the drawer's tour stood for it, though
+  nobody opened the case. A tour now counts only for what was there before it.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

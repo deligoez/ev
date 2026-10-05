@@ -23,6 +23,11 @@ one, **counted but changed since**, for a counted place whose contents changed a
 used to look counted and green while it held things nobody had counted. `ev tree` carries the
 same `changed_since` on such a place.
 
+A lost thing found somewhere else no longer counts as a change to the place it was last seen in.
+Finding it records a move out of that place, and an emptied, counted drawer showed "counted but
+changed since" for a thing it had not held since before it was counted. `ev progress` and the
+photos `ev todo` asks for read changes the same way.
+
 ## Opening and closing the tree a stretch at a time
 
 `→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box

@@ -219,6 +219,11 @@ impl Inventory {
         if version < 34 {
             conn.execute_batch(SCHEMA_V34)?;
         }
+        // A migration changes the schema but no row, so `Drop` would leave it in the log: fold
+        // it into the file now, so a commit of `ev.db` is on the new schema too.
+        if version < SCHEMA_VERSION {
+            let _ = conn.execute_batch("PRAGMA wal_checkpoint(FULL);");
+        }
         Ok(Self {
             conn,
             photo_dir: home.join("photos"),

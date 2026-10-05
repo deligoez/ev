@@ -65,7 +65,7 @@ it once", and whether a marketplace's sale mails could be a source too.
 - `ev edit <x> came=<date>`: when it came, for any record.
 - `ev sold <x> --price <n> [--currency EUR] [--at <date>] [--via "…"] [--note "…"]`: what a
   sale brought, on a thing gone (or set aside) as `sell`. A sale mail goes on it with `ev doc
-  add <mail> --kind receipt --for <x>`.
+  add <mail> --kind other --for <x>`.
 - `ev buy link <line> <x>` works on a gone record: the line is settled and leaves the open
   lists. Today a line can only be dismissed, which says "never a thing", the wrong fact.
 - `ev past [--name <word>] [--where <place>]`: the past things, last gone first: name, came and

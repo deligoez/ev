@@ -856,8 +856,13 @@ impl Inventory {
                 frames: frames.to_vec(),
                 source: source.clone().unwrap_or_else(|| p.clone()),
             };
-            let found =
-                (0..taken.len()).find(|&i| !taken[i] && stack_key(&series[i].file) == stack_key(p));
+            // The same photo: a copy of it, or a picture drawn on it (a series picture marked
+            // again is marked in place, though its marked copy lives in another folder).
+            let found = (0..taken.len()).find(|&i| {
+                !taken[i]
+                    && (stack_key(&series[i].file) == stack_key(p)
+                        || source.as_deref().is_some_and(|s| series[i].source == s))
+            });
             let i = match found {
                 Some(i) => {
                     taken[i] = true;

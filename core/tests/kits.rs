@@ -322,3 +322,25 @@ fn adding_parts_answers_with_the_new_parts_only() {
     assert!(v.get("parts").is_none(), "{v}");
     assert_eq!(v["counts"]["expected"], 6);
 }
+
+#[test]
+fn a_part_entered_by_mistake_is_dropped_once_nothing_is_linked_to_it() {
+    let (_d, mut inv) = setup();
+    inv.kit_add(
+        "Set",
+        None,
+        None,
+        &[("RC522 okuyucu".into(), 1), ("Yanlış".into(), 2)],
+        None,
+    )
+    .unwrap();
+    inv.kit_link("Set", 1, &["RC522 okuyucu".into()]).unwrap();
+    // A part with records linked to it is not dropped from under them.
+    assert_eq!(inv.kit_part_drop("Set", 1).unwrap_err().code(), 5);
+    let v = inv.kit_part_drop("Set", 2).unwrap();
+    assert_eq!(v["dropped"]["text"], "Yanlış");
+    let parts = inv.kit_show("Set").unwrap()["parts"].clone();
+    assert_eq!(parts.as_array().unwrap().len(), 1);
+    assert_eq!(parts[0]["n"], 1);
+    assert_eq!(inv.kit_part_drop("Set", 2).unwrap_err().code(), 3);
+}

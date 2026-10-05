@@ -167,7 +167,8 @@ chosen on every level: the arrows walk the tiles, Enter goes in — home, room, 
 gridfinity box — Backspace comes back up, and `t` shows the chosen tile in the tree.
 
 **A plan for tidying up.** The order of work is data, not the agent's memory. `ev progress`
-counts the places a person opens one at a time (the innermost labelled holders, and rooms
+counts the places a person opens one at a time (the innermost labelled holders, a drawer
+with its labelled bins counted as one, and rooms
 with nothing in them that holds things) as not counted, being counted, counted or left as
 is (`ev review <place> --as counting|toured|kept`; starting a task on a place marks it
 being counted), and flags counted ones that changed since. `ev observe` keeps what was

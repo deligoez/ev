@@ -177,8 +177,15 @@ impl App {
         } else {
             format!(" {} ", tab_titles()[self.tab.index()])
         };
+        let mut block = Block::bordered().title(title).border_style(columns_edge);
+        // The tree's keys on its own bottom edge, as the details' H/L are on theirs.
+        if self.tab == Tab::Tree {
+            block = block.title_bottom(
+                Line::from(t(" → ← open/close · e/c all below · C close all ")).fg(pal().muted),
+            );
+        }
         let list = List::new(items)
-            .block(Block::bordered().title(title).border_style(columns_edge))
+            .block(block)
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, left, &mut self.state);
 
@@ -343,11 +350,8 @@ impl App {
         // (priority, text): 0 always, higher numbers go first when space runs out.
         let mut parts: Vec<(u8, &str)> = vec![(0, t("↑↓ move"))];
         match self.tab {
-            Tab::Tree => {
-                parts.push((1, t("→ ← open/close")));
-                parts.push((2, t("e/c open/close all below")));
-                parts.push((3, t("C close the tree")));
-            }
+            // The tree's keys are on its own bottom edge.
+            Tab::Tree => {}
             Tab::Search if self.has_search() => {
                 parts.push((1, t("Enter show in tree")));
                 parts.push((1, t("x clear")));

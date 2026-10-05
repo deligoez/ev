@@ -382,9 +382,10 @@ static TR: &[(&str, &str)] = &[
     ),
     // The key hints under the panes, one part each so the line fits the width.
     ("↑↓ move", "↑↓ gez"),
-    ("→ ← open/close", "→ ← aç/kapat"),
-    ("e/c open/close all below", "e/c altını tümden aç/kapat"),
-    ("C close the tree", "C ağacı kapat"),
+    (
+        " → ← open/close · e/c all below · C close all ",
+        " → ← aç/kapat · e/c altı tümden · C hepsini kapat ",
+    ),
     ("Enter show in tree", "Enter ağaçta göster"),
     ("Enter open/close section", "Enter bölümü aç/kapat"),
     ("x clear", "x temizle"),

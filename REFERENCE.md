@@ -405,7 +405,7 @@ candidate to active.
 misreading, a duplicate): it keeps its history, is not a disposal, and the reason is required.
 
 `ev focus <ref> [--photo n]` makes a running `ev ui` jump to the node and show that photo full
-screen (the last one by default). `ev focus --file <picture>… [--note text]` adds pictures that
+screen (the last one by default). `ev focus --file <picture>… [--note text]` (`--file a.jpg=<note>` titles that one on its own) adds pictures that
 are no record (marked photos) to the **marked photo series** (spec/focus-stack.md): `photo mark`,
 `photo cut` and its preview add theirs on their own. A series holds every picture sent until the
 person closes it, each titled with its note and `n/total`, stepped with `[` `]`, the newest one
@@ -620,7 +620,7 @@ back to the price paid in the home currency.
 
 | Command | Does |
 |---|---|
-| `ev photo add <ref> <file> [--crop x,y,w,h [--pad f]] [--note text] [--rotate 90\|180\|270]` | copy into `~/.ev/photos/` (hash-named) and attach; with `--crop` attach the cut-out, remembering the original. `--pad 0.1` grows the crop on every side by a tenth of its own size, inside the photo. To check a crop first, `ev photo cut <file> <ref>=x,y,w,h --preview` makes the same crop with a sheet and the framed photo. `--rotate` turns the photo clockwise first and stores it turned; `--crop` is then a fraction of the turned photo. A photo's EXIF orientation is always applied |
+| `ev photo add <ref> <file> [--crop x,y,w,h [--pad f]] [--note text] [--rotate 90\|180\|270] [--no-show]` | copy into `~/.ev/photos/` (hash-named) and attach; the attached photo joins the marked photo series in a running `ev ui`, unframed and titled with `--note` (else the record's code or name), and the answer carries `shown` (`--no-show` sends nothing: every photo the person sends is shown, framed or not); with `--crop` attach the cut-out, remembering the original. `--pad 0.1` grows the crop on every side by a tenth of its own size, inside the photo. To check a crop first, `ev photo cut <file> <ref>=x,y,w,h --preview` makes the same crop with a sheet and the framed photo. `--rotate` turns the photo clockwise first and stores it turned; `--crop` is then a fraction of the turned photo. A photo's EXIF orientation is always applied |
 | `ev photo list <ref>` | `photos`: `n`, `path`, `exists`, `source`, `crop`, `note`, `added_at` |
 | `ev photo remove <ref> <n>` | detach the n-th photo; the history keeps a `photo_remove` event with what it was. A whole photo's file stays in the store; a crop's file is deleted when no photo uses it any more as its picture or its source (`deleted_file`), since it can be cut again |
 | `ev photo rotate <ref> <n> <degrees>` | turn the n-th photo 90, 180 or 270 degrees clockwise for good (spec/rotate.md): it is stored turned; every record holding it whole gets the turned one, its grid corners turned (each keeps its name); every crop cut from it, on any record, has its rectangle turned and is cut again, so it shows the same part upright. When the n-th photo is a crop, its source photo turns, with all its crops. Each record gets a `photo_rotate` event. Output: the node's `photos`, and `rotated`: `{degrees, records: [NodeRef], deleted_files}` (the old photo and crops nothing uses any more) |

@@ -1001,6 +1001,7 @@ fn f_names_a_picture_of_the_series_and_its_unmarked_photo() {
     // `ev focus f1` shows the picture again; there is no `f9`.
     let v = ev.ok(&["focus", "f1"]);
     assert_eq!(v["focus"]["note"], "çekmece");
+    assert_eq!(v["focus"]["f"], serde_json::json!(["f1"]));
     let (code, _, _) = ev.run(&["focus", "f9"]);
     assert_eq!(code, 3);
 }

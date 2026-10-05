@@ -885,3 +885,63 @@ fn a_draft_reads_counted_places_only_and_names_the_others() {
     assert_eq!(moved, ["Kablo, ses"], "{p}");
     assert_eq!(p["not_counted"][0]["code"], "K6-C");
 }
+
+#[test]
+fn a_list_after_an_abbreviation_and_a_plural_compound_read_as_what_they_are() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K7"),
+        coded("Çekmece", "container", "K7", "K7-A"),
+        coded("Çekmece", "container", "K7", "K7-B"),
+        coded("Çekmece", "container", "K7", "K7-C"),
+        // An abbreviation, then a list, then what they are.
+        node("USB-A, USB-C, Lightning kablolar", "item", "K7-A"),
+        node("Kablo, HDMI", "item", "K7-B"),
+        node("Kablo, ses", "item", "K7-B"),
+        // A word in lower case before the list is the thing.
+        node("Pil, AA, şarj edilebilir", "item", "K7-A"),
+        node("Pil, AAA", "item", "K7-B"),
+        node("Pil, 9V", "item", "K7-C"),
+        // A plural compound is the compound.
+        node("Şarj adaptörleri", "item", "K7-A"),
+        node("Şarj adaptörü", "item", "K7-C"),
+        node("Şarj adaptörü, USB-C", "item", "K7-C"),
+        node("Adaptör", "item", "Oda"),
+        // Two drawers of pens, so batteries are not in most places.
+        coded("Çekmece", "container", "K7", "K7-D"),
+        coded("Çekmece", "container", "K7", "K7-E"),
+        node("Kurşun kalem", "item", "K7-D"),
+        node("Tükenmez kalem", "item", "K7-E"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    let v = inv.layout("K7", false).unwrap();
+    let mut spread: Vec<(String, u64)> = v["spread"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            (
+                s["word"].as_str().unwrap().to_string(),
+                s["things"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    spread.sort();
+    assert_eq!(
+        spread,
+        [
+            ("kablo".to_string(), 3),
+            ("pil".to_string(), 3),
+            ("şarj adaptörü".to_string(), 3)
+        ],
+        "{}",
+        v["spread"]
+    );
+}

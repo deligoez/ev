@@ -63,3 +63,12 @@ the same cabinet that no task held sat in a list far from the cabinet being tour
 - **One cabinet at a time:** `ev progress <place>` reads one piece of furniture or one room, and
   every place in `ev progress` now carries its open tasks. A task on a cabinet plans its drawers,
   so they no longer show as places no task covers.
+
+## What was paid for and is never a thing
+
+A developer membership, a game key, a diet programme: purchase mails hold over a thousand such
+receipts, and a purchase line could only be linked to a thing or dismissed as consumed, so the
+money either waited forever or read as eaten. Lines now take a `service` bucket beside
+`digital` (`ev buy add --bucket`, or the adapter's `bucket`); neither ever waits to be linked
+(`ev buy list --open` leaves them out), and `ev stats` shows what each bucket was paid, things,
+clothing, digital and services apart.

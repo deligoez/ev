@@ -196,7 +196,8 @@ const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','fo
 /// When what `id` physically holds last changed: something below it was added, moved, found,
 /// lost or left, or something was moved out of it. A record born of `ev split` is not a thing
 /// added: the same things lie there, only recorded apart. Nor is a record closed as a mistake a
-/// thing that left: it was never there.
+/// thing that left: it was never there, nor a lost thing found elsewhere: its last-seen place no
+/// longer held it.
 pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<String>> {
     Ok(conn.query_row(
         &format!(
@@ -208,7 +209,8 @@ pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<S
                      AND NOT (e.type = 'create' AND EXISTS (
                          SELECT 1 FROM events s WHERE s.node_id = e.node_id AND s.type = 'split_from'))
                      AND NOT (e.type = 'gone' AND json_extract(e.data, '$.as') = 'mistake'))
-                 OR (e.type IN ('move','done') AND json_extract(e.data, '$.from') IN d)"
+                 OR (e.type IN ('move','done') AND json_extract(e.data, '$.from') IN d
+                     AND COALESCE(json_extract(e.data, '$.was_lost'), 0) = 0)"
         ),
         [id],
         |r| r.get(0),
@@ -250,7 +252,8 @@ impl ContentChanges {
             }
         };
         let mut stmt = conn.prepare(&format!(
-            "SELECT node_id, type, at, json_extract(data, '$.from'), json_extract(data, '$.as')
+            "SELECT node_id, type, at, json_extract(data, '$.from'), json_extract(data, '$.as'),
+                    COALESCE(json_extract(data, '$.was_lost'), 0)
                FROM events WHERE type IN ({CONTENT_EVENTS})"
         ))?;
         let rows = stmt.query_map([], |r| {
@@ -260,18 +263,21 @@ impl ContentChanges {
                 r.get::<_, String>(2)?,
                 r.get::<_, Option<i64>>(3).ok().flatten(),
                 r.get::<_, Option<String>>(4).ok().flatten(),
+                r.get::<_, i64>(5).unwrap_or(0) != 0,
             ))
         })?;
         for row in rows {
-            let (node, kind, at, from, how) = row?;
+            let (node, kind, at, from, how, was_lost) = row?;
             let skipped = (kind == "create" && split_born.contains(&node))
                 || (kind == "gone" && how.as_deref() == Some("mistake"));
             // Every holder above the node; the node itself is not changed by its own event.
             if !skipped && let Some(&p) = parent.get(&node) {
                 bump_up(p, &at);
             }
-            // What was moved out changed the place it left and every holder above it.
+            // What was moved out changed the place it left and every holder above it. A lost
+            // thing found elsewhere left nothing: its last-seen place no longer held it.
             if matches!(kind.as_str(), "move" | "done")
+                && !was_lost
                 && let Some(f) = from
             {
                 bump_up(f, &at);

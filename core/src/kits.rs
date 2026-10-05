@@ -66,14 +66,21 @@ fn part(conn: &Connection, kit: i64, n: i64) -> Result<String> {
     )
     .optional()?
     .ok_or_else(|| {
-        let count: i64 = conn
+        // Numbers are kept when a part is dropped, so the last number is not the count.
+        let (count, last): (i64, Option<i64>) = conn
             .query_row(
-                "SELECT COUNT(*) FROM kit_parts WHERE kit_id = ?1",
+                "SELECT COUNT(*), MAX(position) FROM kit_parts WHERE kit_id = ?1",
                 [kit],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
-            .unwrap_or(0);
-        Error::NotFound(format!("part {n} does not exist; the kit has {count}"))
+            .unwrap_or((0, None));
+        let has = match last {
+            Some(last) if last != count => format!("{count} parts, numbered up to {last}"),
+            _ => format!("{count} parts"),
+        };
+        Error::NotFound(format!(
+            "part {n} does not exist; the kit has {has} (`ev kit show` lists them)"
+        ))
     })
 }
 

@@ -85,3 +85,7 @@ carries no file paths; `ev focus f12` shows that picture again.
   (its `qty`, else one).
 - `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
   `skipped`), no longer the whole thing as `ev show` gives it.
+- A photo taken minutes before the records caught up with it (what it shows recorded right after)
+  made `ev review --as toured` refuse it as old. The refusal now gives `minutes_after` per photo
+  and, when every change came within two hours, says the records may only have caught up and
+  puts `ev photo current` first. Whether the photo shows the change stays the person's word.

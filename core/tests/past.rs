@@ -516,3 +516,32 @@ fn what_was_remembered_is_listed_apart_from_what_left_the_inventory() {
     // The stats still count both.
     assert_eq!(inv.stats().unwrap()["past"]["records"], 3);
 }
+
+#[test]
+fn a_swap_leaves_as_a_trade_linked_to_what_came_in_exchange() {
+    let (_d, mut inv) = setup();
+    // First recorded as given, then corrected: it was a swap for the phone here today.
+    past_thing(&mut inv, "Dizüstü", "give", "2021", Some("2018"));
+    let laptop = inv.show("Dizüstü", true).unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
+    let v = inv
+        .traded(&format!("#{laptop}"), Some("Eski telefon"))
+        .unwrap();
+    assert_eq!(v["node"]["disposition"], "trade");
+    assert_eq!(v["departure"]["traded_for"]["name"], "Eski telefon");
+    assert_eq!(v["departure"]["at"], "2021");
+    // What came shows what went for it.
+    let phone = inv.show("Eski telefon", false).unwrap();
+    assert_eq!(phone["traded_from"][0]["id"], laptop);
+    // Only a thing that left is traded, and never for itself.
+    assert_eq!(inv.traded("Eski telefon", None).unwrap_err().code(), 5);
+    assert_eq!(
+        inv.traded(&format!("#{laptop}"), Some(&format!("#{laptop}")))
+            .unwrap_err()
+            .code(),
+        2
+    );
+    // A trade can be set aside first, like a sale.
+    inv.dispose("Eski telefon", Disposition::Trade).unwrap();
+}

@@ -170,7 +170,8 @@ the draft is something to change together, and each move is planned on the perso
   as `given`, since `label` is the number drawn; a task's places leave out the task itself and a
   grid a sibling already gave.
 - A photo the person sent and the agent then marked in place took the mark's title as its note,
-  and `ev photo add <ref> f1` attached it with that title. It keeps the note it was sent with.
+  and `ev photo add <ref> f1` attached it with that title. It keeps the note it was sent with,
+  and the answer's `shown.note` is that note, the title the screen shows.
 - After `ev kit drop`, a missing part was refused with the count of parts, though the numbers
   went further; it now says how far they go.
 - `ev photo mark f1 …` added the marked copy as a new picture of the series and left f1

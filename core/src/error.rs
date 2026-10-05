@@ -60,7 +60,12 @@ impl Error {
 
     /// Prefixes the message with a batch line number.
     pub fn at_line(self, line: usize) -> Self {
-        let p = |m: String| format!("line {line}: {m}");
+        self.prefixed(&format!("line {line}"))
+    }
+
+    /// Prefixes the message with what it is about (`line 2`, `f3`).
+    pub fn prefixed(self, what: &str) -> Self {
+        let p = |m: String| format!("{what}: {m}");
         match self {
             Error::Internal(m) => Error::Internal(p(m)),
             Error::Usage(m) => Error::Usage(p(m)),

@@ -215,3 +215,22 @@ fn what_a_sale_brought_is_recorded_and_said_again_corrected() {
         assert_eq!(bad.unwrap_err().code(), 2);
     }
 }
+
+#[test]
+fn a_listed_sale_carries_where_it_went_through_not_what_it_asked() {
+    let (_d, mut inv) = setup();
+    inv.dispose("Eski telefon", Disposition::Sell).unwrap();
+    inv.sale(
+        "Eski telefon",
+        Some("listed"),
+        Some(2000),
+        Some("Bir pazar yeri"),
+        None,
+    )
+    .unwrap();
+    inv.gone_left("Eski telefon", None, None, false, None, None, None)
+        .unwrap();
+    let v = inv.show("Eski telefon", true).unwrap();
+    assert_eq!(v["departure"]["via"], "Bir pazar yeri");
+    assert!(v["departure"]["price"].is_null(), "{v}");
+}

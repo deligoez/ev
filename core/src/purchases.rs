@@ -657,7 +657,8 @@ impl Inventory {
         let pack = v.get("pack").and_then(Value::as_i64).unwrap_or(1);
         set_pack(&tx, id, pack)?;
         if let Some(r) = for_ref {
-            let node = resolve(&tx, r, false)?;
+            // A past thing's purchase too (spec/past-belongings.md).
+            let node = resolve(&tx, r, true)?;
             link_in(&tx, id, node, l.qty * pack)?;
         }
         tx.commit()?;

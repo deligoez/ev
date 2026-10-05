@@ -1651,6 +1651,9 @@ struct TreeIndex {
     count: HashMap<i64, String>,
     /// The counted places whose contents changed after their tour.
     changed: HashSet<i64>,
+    /// The boxes known to be empty: nothing in them, and counted, on their own or with the
+    /// place they are in (`ev empty` counts a box too).
+    empty: HashSet<i64>,
 }
 
 impl TreeIndex {
@@ -1682,6 +1685,15 @@ impl TreeIndex {
                 (u, s)
             })
             .collect();
+        let empty = all
+            .iter()
+            .filter(|n| n.kind == Kind::Container && !n.lost && !kids.contains_key(&n.id))
+            .filter(|n| {
+                crate::plan::effective_review(n.id, &parent, &reviews)
+                    .is_some_and(|(_, s, _)| s == "toured")
+            })
+            .map(|n| n.id)
+            .collect();
         let nodes: HashMap<i64, Node> = all.into_iter().map(|n| (n.id, n)).collect();
         for list in kids.values_mut() {
             list.sort_by_cached_key(|id| {
@@ -1700,6 +1712,7 @@ impl TreeIndex {
             items,
             count,
             changed,
+            empty,
         })
     }
 }
@@ -1786,6 +1799,9 @@ fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
         if t.changed.contains(&id) {
             v["changed_since"] = json!(true);
         }
+    }
+    if t.empty.contains(&id) {
+        v["empty"] = json!(true);
     }
     // What a holder is for and how much room it has, so one `ev tree` reads as a layout.
     for (k, val) in [("theme", &n.theme), ("size", &n.size)] {

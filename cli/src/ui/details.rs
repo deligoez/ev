@@ -872,248 +872,25 @@ impl App {
                 _ => "—".into(),
             }
         };
-        let today = chrono::Local::now().date_naive();
         let mut lines = Vec::new();
         let mut day = None;
         for e in events.iter().rev() {
-            let at = chrono::DateTime::parse_from_rfc3339(e["at"].as_str().unwrap_or_default())
-                .map(|d| d.with_timezone(&chrono::Local))
-                .ok();
+            let at = crate::history::local_time(e);
             let this = at.map(|a| a.date_naive());
             if this != day {
                 day = this;
-                let head = match this {
-                    Some(d) if d == today => t("Today").to_string(),
-                    Some(d) if Some(d) == today.pred_opt() => t("Yesterday").to_string(),
-                    Some(d) => d.format("%Y-%m-%d").to_string(),
-                    None => "?".into(),
-                };
                 if !lines.is_empty() {
                     lines.push((Line::raw(""), None));
                 }
-                lines.push((Line::from(head).bold(), None));
+                lines.push((Line::from(crate::history::day_heading(this)).bold(), None));
             }
             let time = at.map_or_else(String::new, |a| a.format("%H:%M").to_string());
-            let d = &e["data"];
-            let (verb, detail, style) = if e["item"].is_object() {
-                let name = str_of(&e["item"], "name");
-                match (e["relation"].as_str(), e["type"].as_str()) {
-                    (Some("added"), _) => (t("added here"), name, pal().code),
-                    (Some("in"), Some("plan")) => (t("planned to come"), name, pal().mark),
-                    (Some("in"), _) => (
-                        t("came in"),
-                        format!("{name}  ← {}", place(&d["from"])),
-                        pal().code,
-                    ),
-                    _ => (
-                        t("went out"),
-                        format!("{name}  → {}", place(&d["to"])),
-                        pal().muted,
-                    ),
-                }
-            } else {
-                let own = |v: &'static str, s: String| (t(v), s, pal().furniture);
-                match e["type"].as_str().unwrap_or_default() {
-                    "create" => own("created", place(&d["parent"])),
-                    "move" => own(
-                        "moved",
-                        format!("{} → {}", place(&d["from"]), place(&d["to"])),
-                    ),
-                    "done" => own(
-                        "moved as planned",
-                        format!("{} → {}", place(&d["from"]), place(&d["to"])),
-                    ),
-                    "plan" => own("move planned", format!("→ {}", place(&d["to"]))),
-                    "cancel" => own("plan cancelled", String::new()),
-                    "edit" => own("changed", edit_text(d)),
-                    "photo" => own(
-                        "photo added",
-                        if d["crop"].is_string() {
-                            t("(a crop)").to_string()
-                        } else {
-                            String::new()
-                        },
-                    ),
-                    "split" => own(
-                        "split into",
-                        d["into"]
-                            .as_array()
-                            .map(|a| {
-                                a.iter()
-                                    .map(|p| format!("#{} {}", p["id"], str_of(p, "name")))
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            })
-                            .unwrap_or_default(),
-                    ),
-                    "split_from" => own(
-                        "split from",
-                        format!("#{} {}", d["from"], str_of(d, "name")),
-                    ),
-                    "kit_link" => own(
-                        "linked to kit",
-                        format!(
-                            "{} · {}. {}",
-                            str_of(d, "kit"),
-                            d["part"],
-                            str_of(d, "text")
-                        ),
-                    ),
-                    "kit_unlink" => own(
-                        "unlinked from kit",
-                        format!(
-                            "{} · {}. {}",
-                            str_of(d, "kit"),
-                            d["part"],
-                            str_of(d, "text")
-                        ),
-                    ),
-                    "photo_remove" => own(
-                        "photo removed",
-                        [str_of(d, "note"), str_of(d, "crop")]
-                            .into_iter()
-                            .filter(|s| !s.is_empty())
-                            .collect::<Vec<_>>()
-                            .join("  "),
-                    ),
-                    "observe" => own("observed", str_of(d, "text")),
-                    "unobserve" => own("observation removed", str_of(d, "text")),
-                    "review" => own("reviewed", {
-                        let status = crate::render::count_label(d["as"].as_str().unwrap_or("raw"))
-                            .to_string();
-                        format!("{status}  {}", str_of(d, "note"))
-                    }),
-                    "dispose" => own(
-                        "set aside",
-                        disposition_tr(d["as"].as_str().unwrap_or_default()).to_string(),
-                    ),
-                    "gone" => own("gone", {
-                        let why = str_of(d, "why");
-                        format!(
-                            "{}  {why}",
-                            disposition_tr(d["as"].as_str().unwrap_or_default())
-                        )
-                    }),
-                    "restore" => own("restored", str_of(d, "correction")),
-                    "cell" => own(
-                        "cells",
-                        format!("{} → {}", place(&d["before"]), place(&d["after"])),
-                    ),
-                    "grid" => own("grid set", format!("{}×{}", d["after"][0], d["after"][1])),
-                    "decline" => own("move declined", str_of(d, "why")),
-                    "decline_cleared" => own("decline taken back", String::new()),
-                    "grid_face" => own(
-                        "grid seen from",
-                        t(if d["after"] == "front" {
-                            "the front"
-                        } else {
-                            "above"
-                        })
-                        .to_string(),
-                    ),
-                    "sketch" => {
-                        let a = &d["after"];
-                        let mut parts = Vec::new();
-                        if !a["x"].is_null() {
-                            parts.push(tf(
-                                "at {},{} cm",
-                                &[&crate::render::cm(&a["x"]), &crate::render::cm(&a["y"])],
-                            ));
-                        }
-                        if !a["w"].is_null() {
-                            parts.push(tf(
-                                "{}×{} cm",
-                                &[&crate::render::cm(&a["w"]), &crate::render::cm(&a["d"])],
-                            ));
-                        }
-                        if !a["on"].is_null() {
-                            parts.push(tf("on #{}", &[&a["on"]]));
-                        }
-                        if a.is_null() {
-                            own("sketch removed", String::new())
-                        } else {
-                            own("sketched", parts.join(" · "))
-                        }
-                    }
-                    "lost" => own("lost", String::new()),
-                    "found" => own("found", place(&d["at"])),
-                    "back" => own("returned", place(&d["from"])),
-                    "lend" => own("lent", place(&d["to"])),
-                    "sketch_import" => own(
-                        "plan imported",
-                        tf(
-                            "{} · {} rooms",
-                            &[&str_of(d, "file"), &d["rooms"].as_i64().unwrap_or(0)],
-                        ),
-                    ),
-                    "broken" => own("broken", str_of(d, "note")),
-                    "fixed" => own("fixed", String::new()),
-                    "purchase_linked" => own(
-                        "linked to purchase",
-                        tf("#{} ×{}", &[&d["purchase"], &d["qty"]]),
-                    ),
-                    "purchase_declined" => own(
-                        "not this purchase",
-                        format!("#{}  {}", d["purchase"], str_of(d, "why"))
-                            .trim_end()
-                            .to_string(),
-                    ),
-                    "purchase_decline_cleared" => {
-                        own("purchase offered again", format!("#{}", d["purchase"]))
-                    }
-                    "purchase_unlinked" => {
-                        own("unlinked from purchase", format!("#{}", d["purchase"]))
-                    }
-                    "doc_linked" => own(
-                        "document added",
-                        format!(
-                            "#{} {}",
-                            d["document"],
-                            crate::render::doc_kind(&str_of(d, "kind"))
-                        ),
-                    ),
-                    "doc_unlinked" => own(
-                        "document removed",
-                        format!(
-                            "#{} {}",
-                            d["document"],
-                            crate::render::doc_kind(&str_of(d, "kind"))
-                        ),
-                    ),
-                    "coverage_added" => own(
-                        "coverage added",
-                        format!(
-                            "#{} {}",
-                            d["coverage"],
-                            crate::render::coverage_kind(&str_of(d, "kind"))
-                        ),
-                    ),
-                    "coverage_removed" => own(
-                        "coverage removed",
-                        format!(
-                            "#{} {}",
-                            d["coverage"],
-                            crate::render::coverage_kind(&str_of(d, "kind"))
-                        ),
-                    ),
-                    "track" => own("decided", {
-                        let subject = if d["subject"] == "value" {
-                            t("value")
-                        } else {
-                            t("coverage")
-                        };
-                        let decision = match d["decision"].as_str() {
-                            Some("later") => t("not now"),
-                            Some("yes") => t("tracked again"),
-                            _ => t("not tracked"),
-                        };
-                        let why = str_of(d, "why");
-                        format!("{subject}: {decision}  {why}")
-                            .trim_end()
-                            .to_string()
-                    }),
-                    other => (t("event"), format!("{other} {d}"), pal().muted),
-                }
+            let (verb, detail, tone) = crate::history::event_words(e, &place);
+            let style = match tone {
+                crate::history::Tone::Came => pal().code,
+                crate::history::Tone::Planned => pal().mark,
+                crate::history::Tone::Went | crate::history::Tone::Other => pal().muted,
+                crate::history::Tone::Own => pal().furniture,
             };
             // A thing that came, went or was added opens with a click.
             let target = e["item"]["id"].as_i64().map(Target::Node);

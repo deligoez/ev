@@ -6,6 +6,7 @@ use clap::{Args, Parser, Subcommand};
 use ev_core::{Disposition, Error, Inventory, Kind, NewDoc, NewNode, Result};
 use serde_json::{Value, json};
 
+mod history;
 mod i18n;
 mod input;
 mod mapview;

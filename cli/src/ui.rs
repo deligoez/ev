@@ -25,6 +25,7 @@ use ratatui_image::protocol::Protocol;
 use ratatui_image::{Image, Resize};
 use serde_json::Value;
 
+use crate::history::disposition_tr;
 use crate::i18n::{self, Lang, t, tf};
 use crate::input::{self, Graphics, Input};
 use crate::mapview::{MapView, Outcome};
@@ -419,55 +420,6 @@ fn grid_box_at(map: &[Vec<Option<i64>>], x: usize, y: usize) -> Option<i64> {
     }
 }
 
-/// An edit event in words: each field with what it became, and what it was when both are short
-/// enough to read side by side.
-fn edit_text(d: &Value) -> String {
-    let name = |k: &str| -> String {
-        match k {
-            "name" => t("name").into(),
-            "code" => t("code").into(),
-            "note" => t("note").into(),
-            "theme" => t("theme").into(),
-            "qty" => t("qty").into(),
-            "size" => t("size").into(),
-            "fill" => t("fill").into(),
-            "tags" => t("tags").into(),
-            "owner" => t("owner").into(),
-            "to" => t("to take to").into(),
-            "address" => t("address").into(),
-            "photos" => t("photos").into(),
-            other => other.into(),
-        }
-    };
-    let text = |v: &Value| match v {
-        Value::Null => "—".to_string(),
-        Value::String(s) => s.clone(),
-        Value::Array(a) => a
-            .iter()
-            .map(|x| x.as_str().map_or_else(|| x.to_string(), str::to_string))
-            .collect::<Vec<_>>()
-            .join(", "),
-        other => other.to_string(),
-    };
-    let Some(fields) = d.as_object() else {
-        return d.to_string();
-    };
-    fields
-        .iter()
-        .map(|(k, c)| {
-            let (before, after) = (text(&c["before"]), text(&c["after"]));
-            if c["after"].is_null() {
-                format!("{}: {}", name(k), t("cleared"))
-            } else if before.chars().count() + after.chars().count() <= 40 {
-                format!("{}: {before} → {after}", name(k))
-            } else {
-                format!("{}: {after}", name(k))
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("; ")
-}
-
 fn str_of(n: &Value, key: &str) -> String {
     n[key].as_str().unwrap_or_default().to_string()
 }
@@ -484,20 +436,6 @@ fn signature(n: &Value, parent: Option<i64>) -> String {
         "{parent:?}|{}|{}|{}|{}",
         n["updated_at"], n["state"], n["lost"], n["pending_to"]
     )
-}
-
-fn disposition_tr(d: &str) -> &'static str {
-    match d {
-        "trash" => t("trash"),
-        "give" => t("give"),
-        "sell" => t("sell"),
-        "return" => t("return"),
-        "mistake" => t("record error"),
-        "digitize" => t("photograph, then throw out"),
-        "merged" => t("joined another portion"),
-        "used" => t("used up"),
-        _ => "?",
-    }
 }
 
 fn kind_name(k: &str) -> &'static str {

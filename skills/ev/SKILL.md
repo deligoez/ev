@@ -319,7 +319,12 @@ what you see ("Antenler ve anten kabloları"), say it, and record it with
 `ev edit <place> theme="…"` once they agree. Do not theme a place that has not been toured.
 **A theme describes the present, not the plan.** When the person reorganizes (merging drawers,
 splitting one, moving parts between them), never defend a move against today's themes: propose
-the layout that makes sense, then re-theme the places after the moves.
+the layout that makes sense, then re-theme the places after the moves. When the last drawer of a
+piece of furniture is toured, run `ev layout <furniture>` and bring what it finds (kinds spread
+over several drawers, drawers that read alike, nearly empty and full or mixed ones) with marked
+photos of the drawers named; when the person wants a new layout, `ev layout <furniture> --propose`
+drafts one from the contents alone. It is a draft to change together, not a plan: plan each move
+(`ev move … --plan`) and write each new theme only on their word.
 **"For now" is data: `temporary`.** When the person puts something somewhere only until its
 place is decided ("şimdilik buraya", "nihai yeri burası değil"), mark it the moment they say
 it: `ev edit <place> temporary=true` when the whole place is a parking place, or `ev edit <thing>

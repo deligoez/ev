@@ -2246,7 +2246,11 @@ fn run(cli: Cli) -> Result<Value> {
                 }
                 return Ok(last);
             }
-            Ok(json!({ "added": added, "shown": shown }))
+            let mut v = json!({ "added": added });
+            if !shown.is_null() {
+                v["shown"] = shown;
+            }
+            Ok(v)
         }
         Cmd::Photo(PhotoCmd::Mark {
             target,

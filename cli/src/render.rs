@@ -1891,6 +1891,21 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
         return out;
     }
+    // `ev photo add` of several photos: each record with the photo it got and where from.
+    if let Some(added) = v.get("added").and_then(Value::as_array) {
+        let _ = writeln!(out, "{}", tf("Attached {} photo(s):", &[&added.len()]));
+        for a in added {
+            let _ = writeln!(
+                out,
+                "  {}  {} {}  ← {}",
+                line(&a["node"]),
+                t("photo"),
+                a["photo"],
+                s(a, "from")
+            );
+        }
+        return out;
+    }
     // `ev buy bring`: what was brought to the thing, what was left and why.
     if let Some(node) = v.get("node").filter(|_| v.get("from_purchase").is_some()) {
         bring_summary(&mut out, v);

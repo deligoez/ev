@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
 use ev_core::{Disposition, Error, Inventory, Kind, NewDoc, NewNode, Result};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 mod i18n;
 mod input;
@@ -1051,8 +1051,12 @@ enum PhotoCmd {
     /// To check a crop before it is made, cut it with `ev photo cut <file> <ref>=x,y,w,h --preview`
     /// instead: the same crop, with a sheet and the photo framed.
     Add {
-        reference: String,
-        file: PathBuf,
+        #[arg(required_unless_present = "stdin")]
+        reference: Option<String>,
+        /// One or more photos: files, or `f12` (a picture of the marked photo series, attached
+        /// with the note it was sent with and not sent again).
+        #[arg(required_unless_present = "stdin")]
+        files: Vec<PathBuf>,
         #[arg(long)]
         crop: Option<String>,
         #[arg(long)]
@@ -1071,6 +1075,10 @@ enum PhotoCmd {
         /// default, unframed and titled with --note (else with the record).
         #[arg(long)]
         no_show: bool,
+        /// Attach many at once, one JSON object a line on standard input:
+        /// `{"ref": "#344", "photo": "f2", "note": "…"}` (`photo` a file or `f12`).
+        #[arg(long, conflicts_with_all = ["reference", "files", "crop", "rotate", "note"])]
+        stdin: bool,
     },
     /// Cut one photo up among several nodes at once: `<ref>=x,y,w,h` for each, and the whole
     /// photo on --place (the drawer or box it shows). All or nothing.
@@ -2066,36 +2074,111 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Rule(RuleCmd::Remove { id }) => inv.rule_remove(id),
         Cmd::Photo(PhotoCmd::Add {
             reference,
-            file,
+            files,
             crop,
             note,
             whole,
             rotate,
             pad,
             no_show,
+            stdin,
         }) => {
             let pad = pad_of(pad)?;
-            let file = photo_arg(&inv, &file)?;
-            let file = match rotate {
-                Some(d) => inv.turned_copy(&file, d)?,
-                None => file,
+            // (record, photo as given, its note)
+            let jobs: Vec<(String, PathBuf, Option<String>)> = if stdin {
+                read_input()?
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|l| {
+                        let v: Value = serde_json::from_str(l)
+                            .map_err(|e| Error::Usage(format!("`{l}` is no JSON line: {e}")))?;
+                        let field = |k: &str| {
+                            v[k].as_str()
+                                .map(str::to_string)
+                                .ok_or_else(|| Error::Usage(format!("each line needs `{k}`: {l}")))
+                        };
+                        Ok((
+                            field("ref")?,
+                            PathBuf::from(field("photo")?),
+                            v["note"].as_str().map(str::to_string),
+                        ))
+                    })
+                    .collect::<Result<_>>()?
+            } else {
+                let r = reference.unwrap_or_default();
+                files
+                    .iter()
+                    .map(|f| (r.clone(), f.clone(), note.clone()))
+                    .collect()
             };
+            if jobs.len() > 1 && (crop.is_some() || rotate.is_some()) {
+                return Err(Error::Usage("--crop and --rotate take one photo".into()));
+            }
+            // Every record and photo checked before anything is attached: a typo leaves
+            // nothing half done. A series picture (`f12`) keeps the note it was sent with.
+            let mut ready = Vec::new();
+            for (r, given, own) in &jobs {
+                inv.resolve(r, false)?;
+                let series = given
+                    .to_str()
+                    .and_then(ev_core::series_number)
+                    .filter(|_| !given.exists());
+                let file = photo_arg(&inv, given)?;
+                if !file.is_file() {
+                    return Err(Error::NotFound(format!("no file {}", given.display())));
+                }
+                let note = match (own, series) {
+                    (Some(n), _) => Some(n.clone()),
+                    (None, Some(n)) => inv.series_note(n)?,
+                    (None, None) => None,
+                };
+                ready.push((r.clone(), file, note, series.is_some(), given.clone()));
+            }
             let crop = crop
                 .map(|c| c.parse::<ev_core::Crop>().map(|c| c.padded(pad)))
                 .transpose()?;
-            let mut v = inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)?;
-            // The photo joins the marked photo series in `ev ui`, unframed: every photo the
-            // person sends is shown, framed or not (spec/focus-stack.md).
-            let added = v["photos"]
-                .as_array()
-                .and_then(|p| p.last())
-                .and_then(|p| p["path"].as_str())
-                .map(PathBuf::from);
-            if let (false, Some(path)) = (no_show, added) {
-                let title = note.unwrap_or_else(|| crate::render::label(&v["node"]));
-                v["shown"] = inv.focus_marked(&[path], Some(&title), &[])?["focus"].clone();
+            let single = ready.len() == 1;
+            let (mut added, mut show) = (Vec::new(), Vec::new());
+            let mut last = Value::Null;
+            for (r, file, note, from_series, given) in ready {
+                let file = match rotate {
+                    Some(d) => inv.turned_copy(&file, d)?,
+                    None => file,
+                };
+                let v = inv.photo_add_with(&r, &file, crop, note.as_deref(), whole)?;
+                let photo = v["photos"].as_array().and_then(|p| p.last()).cloned();
+                // The photo joins the marked photo series in `ev ui`, unframed: every photo the
+                // person sends is shown, framed or not (spec/focus-stack.md). One taken from
+                // the series is there already.
+                if let (false, false, Some(path)) =
+                    (no_show, from_series, photo.as_ref().and_then(|p| p["path"].as_str()))
+                {
+                    let title = note
+                        .clone()
+                        .unwrap_or_else(|| crate::render::label(&v["node"]));
+                    show.push((PathBuf::from(path), Some(title)));
+                }
+                added.push(json!({
+                    "node": v["node"],
+                    "photo": photo.as_ref().map(|p| p["n"].clone()),
+                    "from": given.to_string_lossy(),
+                }));
+                last = v;
             }
-            Ok(v)
+            let shown = if show.is_empty() {
+                Value::Null
+            } else {
+                // One picture is titled as the request too, as `shown.note` says it.
+                let one = (show.len() == 1).then(|| show[0].1.clone()).flatten();
+                inv.focus_noted(&show, one.as_deref())?["focus"].clone()
+            };
+            if single {
+                if !shown.is_null() {
+                    last["shown"] = shown;
+                }
+                return Ok(last);
+            }
+            Ok(json!({ "added": added, "shown": shown }))
         }
         Cmd::Photo(PhotoCmd::Mark {
             target,

@@ -26,20 +26,44 @@ struct Place<'a> {
     kinds: BTreeMap<String, usize>,
 }
 
-/// What kind of thing a name says it is: the last word of its head (the part before the first
-/// comma or dash), since a Turkish name ends in what the thing is: a `şarj modülü` is a
-/// module, a `şarjlı matkap` a drill, `Kablo, USB-C` a cable. Adjectives (`mini`, `şeffaf`,
-/// `kutulu`) say what it is like, not what it is.
+/// What kind of thing a name says it is: the end of its head (the part before the first comma
+/// or dash), since a Turkish name ends in what the thing is: a `şarjlı matkap` is a drill,
+/// `Kablo, USB-C` a cable. When the last two words are a noun compound (`lens kapağı`, `kablo
+/// bağı`, `geliştirme kartı`) the compound is the kind: a lens cap is no pen cap. Adjectives
+/// (`mini`, `şeffaf`, `kutulu`) say what it is like, not what it is.
 fn kind_of(index: &Index, name: &str) -> Option<(String, String)> {
-    name_stems(index, &crate::purchase_match::head(name))
-        .pop()
-        .or_else(|| name_stems(index, name).pop())
+    let head = name_words(index, &crate::purchase_match::head(name));
+    let words = if head.is_empty() {
+        name_words(index, name)
+    } else {
+        head
+    };
+    let (key, folded, written) = words.last()?.clone();
+    if let [.., (pk, pf, pw), _] = words.as_slice() {
+        let term = |key: &str, surface: &str| Term {
+            key: key.to_string(),
+            surface: surface.to_string(),
+            weight: 1.0,
+        };
+        if super::index::is_compound(&term(pk, pf), &term(&key, &folded)) {
+            return Some((format!("{pk} {key}"), format!("{pw} {written}")));
+        }
+    }
+    Some((key, written))
 }
 
 /// The stems of a thing's name, as `ev themes` reads them: words of three letters or more, no
 /// numbers, no filler or colour words; each with the form it is written in.
 fn name_stems(index: &Index, name: &str) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
+    name_words(index, name)
+        .into_iter()
+        .map(|(key, _, written)| (key, written))
+        .collect()
+}
+
+/// `name_stems` with each word's folded form too, in the order written: (stem, folded, written).
+fn name_words(index: &Index, name: &str) -> Vec<(String, String, String)> {
+    let mut out: Vec<(String, String, String)> = Vec::new();
     for token in name.split(|c: char| !c.is_alphanumeric()) {
         let folded = fold(token);
         if folded.chars().count() < 3
@@ -49,10 +73,10 @@ fn name_stems(index: &Index, name: &str) -> Vec<(String, String)> {
             continue;
         }
         let key = index.lex.key(&folded);
-        if COLORS.contains(&key.as_str()) || out.iter().any(|(k, _)| *k == key) {
+        if COLORS.contains(&key.as_str()) || out.iter().any(|(k, _, _)| *k == key) {
             continue;
         }
-        out.push((key, token.to_lowercase()));
+        out.push((key, folded, token.to_lowercase()));
     }
     out
 }
@@ -144,6 +168,10 @@ impl Inventory {
         for p in &places {
             for t in &p.things {
                 for (k, f) in name_stems(&index, &t.name) {
+                    *forms.entry(k).or_default().entry(f).or_insert(0) += 1;
+                }
+                // A compound kind is no single word: its written form too.
+                if let Some((k, f)) = kind_of(&index, &t.name).filter(|(k, _)| k.contains(' ')) {
                     *forms.entry(k).or_default().entry(f).or_insert(0) += 1;
                 }
             }

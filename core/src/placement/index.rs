@@ -266,7 +266,7 @@ const COLOR_WEIGHT: f64 = 0.3;
 /// a code nor a colour), `b` carrying only the 3rd-person possessive (-sI / -I), on a soft stem
 /// too (`kablo bağı`, `ahşap vidası`, `kontrol kalemi`). A guess from endings alone: it cannot
 /// tell a noun from an adjective, which a dictionary could.
-fn is_compound(a: &Term, b: &Term) -> bool {
+pub(super) fn is_compound(a: &Term, b: &Term) -> bool {
     let bare = a.surface == a.key
         && !a.surface.chars().any(|c| c.is_ascii_digit())
         && !COLORS.contains(&a.key.as_str());

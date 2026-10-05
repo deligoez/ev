@@ -29,14 +29,31 @@ struct Place<'a> {
     kinds: BTreeMap<String, usize>,
 }
 
-/// What kind of thing a name says it is: the end of its head (the part before the first comma
-/// or dash), since a Turkish name ends in what the thing is: a `şarjlı matkap` is a drill,
-/// `Kablo, USB-C` a cable. When the last two words are a noun compound (`lens kapağı`, `kablo
-/// bağı`, `geliştirme kartı`) the compound is the kind: a lens cap is no pen cap. Adjectives
-/// (`mini`, `şeffaf`, `kutulu`) say what it is like, not what it is.
+/// What kind of thing a name says it is: the end of its head (the part before the first comma),
+/// since a Turkish name ends in what the thing is: a `şarjlı matkap` is a drill, `Kablo, USB-C`
+/// a cable. A head of one word before a list (`USB-A, USB-C, Lightning kablolar`) names one of
+/// the list, and the last part says what they are. When the last two words are a noun compound
+/// (`lens kapağı`, `kablo bağı`, `şarj adaptörleri`) the compound is the kind: a lens cap is no
+/// pen cap. Adjectives (`mini`, `şeffaf`, `kutulu`) say what it is like, not what it is.
 fn kind_of(index: &Index, name: &str) -> Option<(String, String)> {
-    let head = name_words(index, &kind_head(name));
-    let words = if head.is_empty() {
+    let parts = kind_parts(name);
+    let head = parts
+        .first()
+        .map(|p| name_words(index, p))
+        .unwrap_or_default();
+    let tail = parts
+        .last()
+        .filter(|_| parts.len() > 1)
+        .map(|p| name_words(index, p))
+        .unwrap_or_default();
+    // Only a head written in capitals, an abbreviation (`USB-A`), is one of a list; `Pil, AA,
+    // şarj edilebilir` stays a battery.
+    let listed = parts
+        .first()
+        .is_some_and(|p| !p.chars().any(char::is_lowercase));
+    let words = if listed && head.len() == 1 && tail.len() >= 2 {
+        tail
+    } else if head.is_empty() {
         name_words(index, name)
     } else {
         head
@@ -48,29 +65,40 @@ fn kind_of(index: &Index, name: &str) -> Option<(String, String)> {
             surface: surface.to_string(),
             weight: 1.0,
         };
-        if super::index::is_compound(&term(pk, pf), &term(&key, &folded)) {
+        // A plural compound (`şarj adaptörleri`) is the compound (`şarj adaptörü`).
+        let singular = ["leri", "lari"]
+            .iter()
+            .find_map(|e| folded.strip_suffix(e))
+            .filter(|stem| *stem == key)
+            .map_or_else(|| folded.clone(), |stem| format!("{stem}i"));
+        if super::index::is_compound(&term(pk, pf), &term(&key, &singular)) {
             return Some((format!("{pk} {key}"), format!("{pw} {written}")));
         }
     }
     Some((key, written))
 }
 
-/// The part of a name that says what it is: before the first comma or semicolon, without what
-/// is in brackets. Not cut at a dash: in `USB-A — mini USB kablo` the dash joins the two ends of
-/// a cable, and the thing is the cable.
-fn kind_head(name: &str) -> String {
-    let mut plain = String::new();
+/// A name's parts between commas and semicolons, without what is in brackets. Not cut at a
+/// dash: in `USB-A — mini USB kablo` the dash joins the two ends of a cable, and the thing is
+/// the cable.
+fn kind_parts(name: &str) -> Vec<String> {
+    let mut parts = vec![String::new()];
     let mut depth = 0;
     for c in name.chars() {
         match c {
             '(' | '[' => depth += 1,
             ')' | ']' => depth = (depth - 1).max(0),
-            ',' | ';' if depth == 0 => break,
-            _ if depth == 0 => plain.push(c),
+            ',' | ';' if depth == 0 => parts.push(String::new()),
+            _ if depth == 0 => {
+                if let Some(p) = parts.last_mut() {
+                    p.push(c);
+                }
+            }
             _ => {}
         }
     }
-    plain
+    parts.retain(|p| !p.trim().is_empty());
+    parts
 }
 
 /// The stems of a thing's name, as `ev themes` reads them: words of three letters or more, no

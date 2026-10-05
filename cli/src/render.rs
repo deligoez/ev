@@ -2128,9 +2128,28 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("units").is_some() && v.get("places").is_some() {
+        if v["scope"].is_object() {
+            let _ = writeln!(out, "{}", s(&v["scope"], "path_text"));
+        }
         let _ = writeln!(out, "{}", progress_line(v));
         for p in v["places"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {} {}", review_mark(&p["review"]), s(p, "path_text"));
+            let tasks: Vec<String> = p["tasks"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|t_| format!("#{} {}", t_["id"], s(t_, "title")))
+                .collect();
+            let tasks = if tasks.is_empty() {
+                String::new()
+            } else {
+                format!("  [{}]", tasks.join(", "))
+            };
+            let _ = writeln!(
+                out,
+                "  {} {}{tasks}",
+                review_mark(&p["review"]),
+                s(p, "path_text")
+            );
         }
         return out;
     }

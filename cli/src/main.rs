@@ -340,8 +340,9 @@ enum Cmd {
         #[arg(long)]
         note: Option<String>,
     },
-    /// Every place to go through, and how far each one is.
-    Progress,
+    /// Every place to go through, how far each one is and the tasks it is in; with a place (a
+    /// piece of furniture, a room), only the places inside it.
+    Progress { place: Option<String> },
     /// The ordered work list.
     #[command(subcommand)]
     Task(TaskCmd),
@@ -1891,7 +1892,7 @@ fn run(cli: Cli) -> Result<Value> {
             status,
             note,
         } => inv.review(&reference, &status, note.as_deref()),
-        Cmd::Progress => inv.progress(),
+        Cmd::Progress { place } => inv.progress_in(place.as_deref()),
         Cmd::Next => inv.next(),
         Cmd::Todo => inv.todo(),
         Cmd::Stats => inv.stats(),

@@ -470,6 +470,29 @@ pub(crate) fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>
         .optional()?)
 }
 
+/// Each node an open or in-progress task is about, with those tasks as `{id, title}`, in task
+/// order.
+fn open_tasks_by_node(conn: &Connection) -> Result<HashMap<i64, Vec<Value>>> {
+    let mut stmt = conn.prepare(
+        "SELECT tn.node_id, t.id, t.title FROM task_nodes tn JOIN tasks t ON t.id = tn.task_id
+          WHERE t.status IN ('open', 'doing') ORDER BY t.rank, t.id",
+    )?;
+    let mut out: HashMap<i64, Vec<Value>> = HashMap::new();
+    for row in stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, String>(2)?,
+        ))
+    })? {
+        let (node, id, title) = row?;
+        out.entry(node)
+            .or_default()
+            .push(json!({ "id": id, "title": title }));
+    }
+    Ok(out)
+}
+
 fn task_nodes(conn: &Connection, task: i64) -> Result<Vec<i64>> {
     ids(
         conn,
@@ -1222,6 +1245,14 @@ impl Inventory {
     /// Every unit (see `units`) with how far it has been gone through, and which toured ones
     /// changed since.
     pub fn progress(&self) -> Result<Value> {
+        self.progress_in(None)
+    }
+
+    /// `progress` of the places inside `scope` (a piece of furniture, a room; the place itself
+    /// when it is one), each with the open tasks it is in, its own or a holder's above it
+    /// (spec/counting.md).
+    pub fn progress_in(&self, scope: Option<&str>) -> Result<Value> {
+        let scope = scope.map(|r| resolve(&self.conn, r, false)).transpose()?;
         let all = live_nodes(&self.conn)?;
         let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
         let mut kids: HashMap<i64, Vec<&Node>> = HashMap::new();
@@ -1240,11 +1271,27 @@ impl Inventory {
         )?
         .into_iter()
         .collect();
+        let tasks_on = open_tasks_by_node(&self.conn)?;
         let mut list = Vec::new();
         let (mut toured, mut kept, mut raw, mut counting, mut stale) = (0, 0, 0, 0, 0);
         for u in units(&all) {
+            // The place and the holders above it, nearest first.
+            let mut up = vec![u];
+            while let Some(Some(p)) = parent.get(up.last().unwrap_or(&u)) {
+                up.push(*p);
+            }
+            if scope.is_some_and(|s| !up.contains(&s)) {
+                continue;
+            }
             let mut v = serde_json::to_value(brief(&self.conn, u)?)
                 .map_err(|e| Error::Internal(e.to_string()))?;
+            let mut tasks: Vec<Value> = Vec::new();
+            for t in up.iter().filter_map(|n| tasks_on.get(n)).flatten() {
+                if !tasks.contains(t) {
+                    tasks.push(t.clone());
+                }
+            }
+            v["tasks"] = json!(tasks);
             // What is in it: a lost thing only keeps it as where it was last seen.
             let direct = kids
                 .get(&u)
@@ -1283,6 +1330,7 @@ impl Inventory {
             "raw": raw,
             "changed_since_tour": stale,
             "places": list,
+            "scope": scope.map(|s| brief(&self.conn, s)).transpose()?,
         }))
     }
 

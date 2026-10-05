@@ -181,3 +181,17 @@ fn a_thing_parked_itself_is_listed_and_what_is_inside_it_is_not() {
         [("Etiket makinesi".to_string(), "own".to_string())]
     );
 }
+
+#[test]
+fn a_thing_that_only_waits_for_another_is_listed_with_why() {
+    let (_d, mut inv) = setup();
+    inv.edit("Yedek anahtar", &["waits_for=Kale anahtar".into()])
+        .unwrap();
+    let todo = inv.todo().unwrap();
+    assert_eq!(
+        parked(&inv),
+        [("Yedek anahtar".to_string(), "waits_for".to_string())]
+    );
+    assert_eq!(todo["parked"][0]["waits_for"]["name"], "Kale anahtar");
+    assert_eq!(todo["counts"]["parked"], 1);
+}

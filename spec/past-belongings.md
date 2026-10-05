@@ -132,6 +132,10 @@ it once", and whether a marketplace's sale mails could be a source too.
    more would need a home of their own in the tree. Not part of this spec.
 5. **Old photos** of a past thing can be attached, as to any record.
 6. **A tab of its own** in `ev ui`, never mixed with the inventory.
+7. **`ev past` is everything that left**, not only what was recorded long after: what goes on a
+   tour today (a carton thrown out, a cell used up) is listed with the things remembered from
+   years ago. The year headings keep them apart, and "what left this year, and what it
+   brought" is worth reading on its own.
 
 ## Not now
 

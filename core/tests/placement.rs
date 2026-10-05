@@ -833,3 +833,44 @@ fn a_dash_joining_two_ends_does_not_cut_what_a_thing_is() {
     assert_eq!(v["spread"][0]["word"], "kablo", "{}", v["spread"]);
     assert_eq!(v["spread"][0]["things"], 3);
 }
+
+#[test]
+fn a_draft_reads_counted_places_only_and_names_the_others() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K6"),
+        coded("Çekmece", "container", "K6", "K6-A"),
+        coded("Çekmece", "container", "K6", "K6-B"),
+        coded("Çekmece", "container", "K6", "K6-C"),
+        node("Kablo, USB-C", "item", "K6-A"),
+        node("Kablo, HDMI", "item", "K6-A"),
+        node("Kablo, ses", "item", "K6-B"),
+        node("Kablo, VGA", "item", "K6-C"),
+        // Two drawers of pens, so cables are not in most places.
+        coded("Çekmece", "container", "K6", "K6-D"),
+        coded("Çekmece", "container", "K6", "K6-E"),
+        node("Tükenmez kalem", "item", "K6-D"),
+        node("Kurşun kalem", "item", "K6-E"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    // K6-C is not counted: its cable is left where it is, and the drawer is named.
+    for c in ["K6-A", "K6-B", "K6-D", "K6-E"] {
+        inv.review(c, "kept", None).unwrap();
+    }
+    let p = inv.layout("K6", true).unwrap()["proposal"].clone();
+    let moved: Vec<&str> = p["moves"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|m| m["thing"]["name"].as_str())
+        .collect();
+    assert_eq!(moved, ["Kablo, ses"], "{p}");
+    assert_eq!(p["not_counted"][0]["code"], "K6-C");
+}

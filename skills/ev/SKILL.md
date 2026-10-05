@@ -339,7 +339,8 @@ what waits (`parked`) and `ev suggest` stops offering the parking place. A thing
 goes when it moves (like `lost`); a place's stays until you set it back — when the person says
 the place is now final. **When its place waits for another thing** (glue sticks parked until the
 lost glue gun turns up), say so with `ev edit <thing> waits_for=<other>`, never only in a note:
-`ev found <other>` then lists it under `waiting` — ask the person where it goes now. Its move
+`ev todo` lists it under parked meanwhile, and `ev found <other>` lists it under `waiting` — ask
+the person where it goes now. Its move
 ends the wait. What is not recorded is lost at the end of the conversation.
 
 **Work you cannot do yet goes into the plan, not the records.** A move worked out before the

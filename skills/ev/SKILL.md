@@ -457,7 +457,8 @@ batch at once: number the photos in the order they arrived across the messages (
 
 **Tell first, record after:** your first answer to a finished batch is short — what you see,
 what the person should get ready, with the marked photo on screen; recording and cutting come
-after it.
+after it. Attaching a photo of a place's current state is not held back: it goes on the place
+with that first answer (see **Every photo of a place is attached the moment it arrives**).
 
 **Show what you read from every photo before you talk about it.** Frame each group you
 recognise (what the person handles as one: a stack of LR44 cards of two makes is one group,

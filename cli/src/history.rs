@@ -54,6 +54,7 @@ pub(crate) fn disposition_tr(d: &str) -> &'static str {
         "left" => t("left behind"),
         "stolen" => t("stolen"),
         "unknown" => t("left, how not known"),
+        "trade" => t("trade"),
         _ => "?",
     }
 }
@@ -72,6 +73,7 @@ pub(crate) fn left_as(d: &str) -> &'static str {
         "left" => t("left behind"),
         "stolen" => t("stolen"),
         "unknown" => t("how not known"),
+        "trade" => t("traded"),
         _ => "?",
     }
 }
@@ -243,6 +245,13 @@ pub(crate) fn event_words(
             let why = str_of(d, "why");
             format!("{}  {why}", left_as(d["as"].as_str().unwrap_or_default()))
         }),
+        "traded" => own(
+            "traded",
+            d["for"]
+                .as_i64()
+                .map(|i| tf("for #{}", &[&i]))
+                .unwrap_or_default(),
+        ),
         "sold" => own(
             "sold",
             format!(

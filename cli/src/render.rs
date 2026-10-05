@@ -28,6 +28,7 @@ fn disposition(d: &str) -> String {
         "left" => t("left behind"),
         "stolen" => t("stolen"),
         "unknown" => t("left, how not known"),
+        "trade" => t("trade"),
         other => return other.to_string(),
     }
     .to_string()
@@ -399,6 +400,9 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
             via.map(|v| format!(" ({v})")).unwrap_or_default()
         )),
         None => parts.extend(via.map(|v| tf("via {}", &[&v]))),
+    }
+    if let Some(t_) = d.get("traded_for").filter(|t_| t_.is_object()) {
+        parts.push(tf("for {}", &[&format!("#{} {}", t_["id"], s(t_, "name"))]));
     }
     parts.retain(|p| !p.is_empty());
     Some(parts.join(" · "))
@@ -3279,6 +3283,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     // When it came, and how a gone one left (spec/past-belongings.md).
     if let Some(c) = v["came"].as_str() {
         let _ = writeln!(out, "  {}: {c}", t("came"));
+    }
+    for f in v["traded_from"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}: {}", t("came in a trade for"), line(f));
     }
     if let Some(left) = departure_text(v) {
         let _ = writeln!(out, "  {}: {left}", t("left"));

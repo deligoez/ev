@@ -619,3 +619,12 @@ CREATE TABLE departures (
 PRAGMA user_version = 34;
 COMMIT;
 ";
+
+/// Schema 35: a swap is a way of leaving (spec/past-belongings.md, decided 2026-10-06): what came
+/// in exchange for a thing traded away.
+pub(super) const SCHEMA_V35: &str = "
+BEGIN;
+ALTER TABLE departures ADD COLUMN traded_for INTEGER REFERENCES nodes(id);
+PRAGMA user_version = 35;
+COMMIT;
+";

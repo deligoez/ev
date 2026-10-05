@@ -186,6 +186,16 @@ enum Cmd {
         /// Where it was then: a place (a former home), made when new.
         #[arg(long = "where")]
         place: Option<String>,
+        /// With --as trade: what came in exchange, when it is recorded.
+        #[arg(long)]
+        traded_for: Option<String>,
+    },
+    /// A thing gone, left as a trade (swapped for something else); --for links what came in
+    /// exchange. Also corrects one first recorded as given or sold, and links what came later.
+    Traded {
+        reference: String,
+        #[arg(long = "for")]
+        for_: Option<String>,
     },
     /// What a sale brought, on a thing gone (or set aside) as sell: --price 1500 [--currency
     /// EUR] [--at 2019-05] [--via "a marketplace"] [--note "…"]. Said again, it is corrected.
@@ -1317,6 +1327,9 @@ struct AddArgs {
     /// With --gone: where it was then, a place (a former home), made when new.
     #[arg(long = "where", requires = "gone")]
     place: Option<String>,
+    /// With --gone trade: what came in exchange, when it is recorded.
+    #[arg(long, requires = "gone")]
+    traded_for: Option<String>,
     /// When it came, as remembered (2014, 2014-03).
     #[arg(long)]
     came: Option<String>,
@@ -1766,15 +1779,25 @@ fn run(cli: Cli) -> Result<Value> {
             qty,
             at,
             place,
-        } => inv.gone_left(
-            &reference,
-            d.as_deref().map(disposition).transpose()?,
-            why.as_deref(),
-            shred,
-            qty,
-            at.as_deref(),
-            place.as_deref(),
-        ),
+            traded_for,
+        } => {
+            traded_check(&inv, d.as_deref(), traded_for.as_deref())?;
+            let v = inv.gone_left(
+                &reference,
+                d.as_deref().map(disposition).transpose()?,
+                why.as_deref(),
+                shred,
+                qty,
+                at.as_deref(),
+                place.as_deref(),
+            )?;
+            // A swap: what came in exchange (spec/past-belongings.md).
+            match traded_for {
+                Some(t) => inv.traded(&format!("#{}", v["node"]["id"]), Some(&t)),
+                None => Ok(v),
+            }
+        }
+        Cmd::Traded { reference, for_ } => inv.traded(&reference, for_.as_deref()),
         Cmd::Sold {
             reference,
             price,
@@ -2586,7 +2609,8 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         ),
     };
     warn_missing_photos(a.photos.iter().map(String::as_str));
-    inv.add(NewNode {
+    traded_check(inv, a.gone.as_deref(), a.traded_for.as_deref())?;
+    let added = inv.add(NewNode {
         key: None,
         name,
         kind,
@@ -2612,7 +2636,24 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         at: a.at,
         came: a.came,
         place: a.place,
-    })
+    })?;
+    // A swap: what came in exchange (spec/past-belongings.md).
+    match a.traded_for {
+        Some(t) => inv.traded(&format!("#{}", added["node"]["id"]), Some(&t)),
+        None => Ok(added),
+    }
+}
+
+/// `--traded-for` goes with a trade only, and names a record that exists, checked before
+/// anything is written so a refused swap leaves nothing half recorded.
+fn traded_check(inv: &Inventory, how: Option<&str>, traded_for: Option<&str>) -> Result<()> {
+    let Some(t) = traded_for else { return Ok(()) };
+    if how.map(str::trim) != Some("trade") {
+        return Err(Error::Usage(
+            "--traded-for goes with a trade: `--as trade` (or `--gone trade`)".into(),
+        ));
+    }
+    inv.resolve(t, true).map(|_| ())
 }
 
 fn warn_missing_photos<'a>(paths: impl Iterator<Item = &'a str>) {

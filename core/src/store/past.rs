@@ -117,9 +117,34 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
             |r| r.get::<_, Option<String>>(0),
         )?,
     };
+    // What came in exchange for a thing traded away.
+    let traded_for: Option<i64> = conn
+        .query_row(
+            "SELECT traded_for FROM departures WHERE node_id = ?1",
+            [node],
+            |r| r.get(0),
+        )
+        .optional()?
+        .flatten();
+    let traded_for = traded_for.map(|t| super::brief_json(conn, t)).transpose()?;
     Ok(json!({
         "at": at, "where": place, "price": price, "currency": currency, "via": via, "note": note,
+        "traded_for": traded_for,
     }))
+}
+
+/// The things traded away for `node`: what it came in exchange for.
+pub(crate) fn traded_from(conn: &Connection, node: i64) -> Result<Value> {
+    let ids = super::ids(
+        conn,
+        "SELECT node_id FROM departures WHERE traded_for = ?1 ORDER BY node_id",
+        [node],
+    )?;
+    Ok(json!(
+        ids.into_iter()
+            .map(|i| super::brief_json(conn, i))
+            .collect::<Result<Vec<_>>>()?
+    ))
 }
 
 /// Where a sale in progress was listed, carried into the departure of a thing gone `--as sell`
@@ -203,6 +228,48 @@ impl Inventory {
             "sold",
             json!({ "price": price, "currency": currency, "at": at, "via": via }),
         )?;
+        tx.commit()?;
+        show(&self.conn, id)
+    }
+}
+
+impl Inventory {
+    /// A thing gone, left as a trade (spec/past-belongings.md, decided 2026-10-06), with what came
+    /// in exchange when it is recorded. Also corrects a thing first recorded as given or sold,
+    /// and links what came later, once it is recorded.
+    pub fn traded(&mut self, reference: &str, for_ref: Option<&str>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = super::resolve_for_history(&tx, reference)?;
+        let (state, how): (String, Option<String>) = tx.query_row(
+            "SELECT state, disposition FROM nodes WHERE id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if state != "gone" {
+            return Err(refused(
+                format!("node {id} has not left; `ev gone {id} --as trade` first"),
+                Value::Null,
+            ));
+        }
+        if matches!(how.as_deref(), Some("mistake" | "merged" | "digitize")) {
+            return Err(refused(
+                format!("node {id} is no past belonging; it was not traded"),
+                Value::Null,
+            ));
+        }
+        let other = for_ref
+            .map(|r| super::resolve_for_history(&tx, r))
+            .transpose()?;
+        if other == Some(id) {
+            return Err(Error::Usage("a thing is not traded for itself".into()));
+        }
+        tx.execute("UPDATE nodes SET disposition = 'trade' WHERE id = ?1", [id])?;
+        tx.execute(
+            "INSERT INTO departures (node_id, traded_for) VALUES (?1, ?2)
+             ON CONFLICT(node_id) DO UPDATE SET traded_for = COALESCE(excluded.traded_for, traded_for)",
+            params![id, other],
+        )?;
+        event(&tx, id, "traded", json!({ "was": how, "for": other }))?;
         tx.commit()?;
         show(&self.conn, id)
     }

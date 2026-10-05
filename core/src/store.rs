@@ -26,7 +26,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 34;
+pub const SCHEMA_VERSION: i64 = 35;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -218,6 +218,9 @@ impl Inventory {
         }
         if version < 34 {
             conn.execute_batch(SCHEMA_V34)?;
+        }
+        if version < 35 {
+            conn.execute_batch(SCHEMA_V35)?;
         }
         // A migration changes the schema but no row, so `Drop` would leave it in the log: fold
         // it into the file now, so a commit of `ev.db` is on the new schema too.
@@ -1522,6 +1525,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
             r.get::<_, Option<String>>(0)
         })?,
         "departure": past::departure_json(conn, id)?,
+        "traded_from": past::traded_from(conn, id)?,
         "children": children,
         "pending": pending,
         "last_seen": last_seen,

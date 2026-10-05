@@ -74,6 +74,9 @@ label_enum!(Disposition, "disposition", {
     Stolen => "stolen",
     // "Sold or thrown out, I am not sure": sayable without guessing.
     Unknown => "unknown",
+    // Swapped for something else ("my laptop for my sibling's Mac mini"): neither given nor sold.
+    // What came in exchange is linked on the departure.
+    Trade => "trade",
     // A portion that joined another portion of the same thing in its place (spec/portions.md
     // §4.2): its units live on in the other record. ev's own; never given on the command line.
     Merged => "merged",

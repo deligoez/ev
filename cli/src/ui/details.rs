@@ -405,6 +405,13 @@ impl App {
         if let Some(c) = v["came"].as_str() {
             field(t("came"), c.to_string(), plain);
         }
+        for f in v["traded_from"].as_array().into_iter().flatten() {
+            field(
+                t("came in a trade for"),
+                format!("#{} {}", f["id"], str_of(f, "name")),
+                plain,
+            );
+        }
         if let Some(left) = crate::render::departure_text(v) {
             field(t("left"), left, Style::new().fg(pal().mark));
             if let Some(note) = v["departure"]["note"].as_str() {

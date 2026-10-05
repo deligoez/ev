@@ -83,7 +83,7 @@ fn schema_29_keeps_the_store_paths_of_an_older_inventory_relative() {
             [inside.to_str().unwrap()],
         )
         .unwrap();
-        // Back to 28: what schemas 30 to 34 added goes too, or reopening adds it twice.
+        // Back to 28: what schemas 30 to 35 added goes too, or reopening adds it twice.
         c.execute_batch(
             "DROP INDEX nodes_thing; ALTER TABLE nodes DROP COLUMN thing;
              ALTER TABLE kits DROP COLUMN purchase_id; ALTER TABLE nodes DROP COLUMN waits_for;

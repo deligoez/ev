@@ -1439,11 +1439,16 @@ impl App {
         self.reveal(id)
     }
 
-    /// `C` on the tree: back to the first screen, homes and rooms open, the selection moved up
-    /// to the room it was in when it is hidden now.
+    /// `C` on the tree: everything closed but the homes, so the rooms show closed, the selection
+    /// moved up to the room it was in when it is hidden now.
     fn close_tree(&mut self) -> Result<()> {
         let id = self.selected_id();
-        self.expanded = first_open(&self.snap.roots);
+        self.expanded = self
+            .snap
+            .roots
+            .iter()
+            .filter_map(|r| r["id"].as_i64())
+            .collect();
         self.rebuild()?;
         let mut at = id;
         while let Some(x) = at {

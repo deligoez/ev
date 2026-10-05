@@ -46,13 +46,12 @@ impl App {
     ) {
         let [main, bottom] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
-        let mut title = match note {
-            Some(n) => format!(" {n} "),
-            None => t(" Marked photo ").to_string(),
+        // `f12/20` first: the name the person and the agent use for this picture (`#12` is a
+        // record, a bare number a frame).
+        let title = match note {
+            Some(n) => format!(" f{}/{} · {n} ", at.0 + 1, at.1),
+            None => format!(" f{}/{} ·{}", at.0 + 1, at.1, t(" Marked photo ")),
         };
-        if at.1 > 1 {
-            title.push_str(&format!("· {}/{} ", at.0 + 1, at.1));
-        }
         let block = Block::bordered()
             .title(title)
             .border_style(Style::new().fg(pal().lost).bold());

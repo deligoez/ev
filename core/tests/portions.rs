@@ -275,6 +275,8 @@ fn some_units_leave_are_lent_or_go_missing_while_the_rest_stay() {
     let shown = inv.show("#6", false).unwrap();
     assert_eq!(shown["thing"]["total"], 17);
     assert_eq!(shown["thing"]["lost"], 1);
+    // The lost one is in no place: one place holds the 17.
+    assert_eq!(shown["thing"]["places"], 1, "{shown}");
     let found = inv.found(&id(&lost)).unwrap();
     assert_eq!(id(&found), "6");
     assert_eq!(found["node"]["qty"], 18);

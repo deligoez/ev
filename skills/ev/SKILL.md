@@ -450,7 +450,10 @@ the picture.
 **A photo of a place's current state ("son hali") is attached, not marked.** That rule is for
 things to identify. When the person sends photos only to show how places look now, attach each to
 its place, check it against the records, and frame nothing; mark only a thing you must ask about.
-A thing missing from the photo is asked about in words, not by framing what is there.
+A thing missing from the photo is asked about in words, not by framing what is there. **Frame
+nothing still means show it:** every photo the person sends goes into the series on their screen,
+framed or not. `ev photo add` puts it there with its `--note`; a photo you do not attach goes
+with `ev focus --file <photo>=<note>`.
 
 **The marked photo series (işaretli foto serisi) is the person's, its numbers are ev's.**
 Everything you put on their screen joins one series in `ev ui` until the person closes it with

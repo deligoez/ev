@@ -168,6 +168,22 @@ fn regroup_names_the_stray_with_where_it_fits_better_and_the_unknown_fills() {
 }
 
 #[test]
+fn history_says_each_event_in_words_newest_first_under_its_day() {
+    let h = Home::new();
+    h.run(&["edit", "D-B1", "note=bir\niki"], None);
+    let s = h.text(&["history", "D-B1", "--contents"]);
+    assert!(
+        s.starts_with("#5 Ev › Oda › D › D-B1  [Kutu]\nToday\n"),
+        "{s}"
+    );
+    let changed = s.find("  changed  note: — → bir / iki\n").expect(&s);
+    let added = s.find("  added here  #7 Aktif buzzer\n").expect(&s);
+    let created = s.find("  created  #3\n").expect(&s);
+    assert!(changed < added && added < created, "{s}");
+    assert!(!s.contains('{'), "{s}");
+}
+
+#[test]
 fn layout_lists_spread_kinds_and_drafts_a_layout_with_its_moves() {
     let h = Home::new();
     h.run(

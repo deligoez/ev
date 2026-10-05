@@ -220,7 +220,8 @@ Record the kinds that have their own verbs as you meet them:
 - **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
 - **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …
   --condition new|like-new|used` (ask the condition here, and only here),
-  then `--reserved`; when it is sold, `ev gone <x>`.
+  then `--reserved`; when it is sold, `ev gone <x>`, and `ev sold <x> --price n` with what it
+  brought, on the person's word.
 - **Photo of the current state:** every place should have a photo of how it is now — its own
   photo, or a crop cut for it from a wider one (a box out of a drawer photo).
   `photos` in `ev todo` lists the places without one or changed since; after a move or a
@@ -421,6 +422,32 @@ a thing that is gone, is left: ask which thing it belongs to. A product picture 
 document of kind `image`: it shows the product as sold, never the thing as it is now, so it
 never replaces or counts as the thing's photo. On a thing kept in several places, a purchase
 linked on one portion is the whole thing's: do not link it again on the others.
+
+## Past belongings
+
+**A purchase of something no longer here is the person's call, case by case.** When a source
+turns up lines for things long gone (old phones, a console sold, a cable used up), ask once for
+the batch and record the answer ("these phones yes, the cables no"): consumables and cables are
+the weakest candidates, never ruled out. Nothing else asks about the past; never bring it up on
+your own.
+
+On a yes, record the thing as remembered, in no place, and link its line:
+`ev add "<name>" --gone <how> [--at <date>] [--came <date>] [--where "<former home>"]`, then
+`ev buy link <line> <ref>`. A record already here that left long ago: `ev gone <x> --as <how>
+--at <date>`.
+
+- **Never guess how it left.** `--as unknown` when the person is unsure whether it was sold or
+  thrown out; `left` for left behind at a move, `stolen`, `used` for used up.
+- **A partial date is a date:** `--at 2016`, `--at 2016-06`. Never invent a day or a month.
+- **What a sale brought** is the person's word (`ev sold <x> --price n [--currency EUR]
+  [--via "<marketplace>"]`); an asking price from a listing or a question mail is not it. A
+  sale mail goes on the record with `ev doc add <mail> --kind other --for <x>`.
+- **A repair or a part bought for a past thing** (a screen for an old phone) is a purchase of
+  that thing: link the line to it.
+- Old photos of it are attached like any photo. No successor chain: a later phone is only a
+  later thing of the same kind.
+- **Reading it back:** `ev past` (by year, money paid and got), `ev past --year 2018` (what was
+  ours then; what nothing dates is counted apart), the Past tab on `0` in `ev ui`.
 
 ## Warranty, insurance and what is not tracked
 

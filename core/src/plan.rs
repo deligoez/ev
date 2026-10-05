@@ -96,6 +96,56 @@ fn series_of(req: &Value) -> Vec<Marked> {
         .collect()
 }
 
+/// Why a place is not toured yet, one line per place that holds it back (its own photo, or a
+/// box's in its grid): no photo at all, or one older than its last change (by how many minutes
+/// when that is little, since the records may only have caught up with the photo), then what
+/// to do — `ev photo current` only where a photo exists, the grid cut only for a grid.
+fn not_toured(stale: &[Value], gridded: bool) -> String {
+    let name = |n: &Value| {
+        n["code"].as_str().map_or_else(
+            || format!("#{} {}", n["id"], n["name"].as_str().unwrap_or("")),
+            str::to_string,
+        )
+    };
+    let mut lines = Vec::new();
+    let (mut none, mut old, mut recent) = (false, false, true);
+    for s in stale {
+        if s["reason"] == "none" {
+            none = true;
+            lines.push(format!("{} has no photo", name(&s["node"])));
+        } else {
+            old = true;
+            let by = s["minutes_after"].as_i64();
+            recent &= by.is_some_and(|m| m <= 120);
+            lines.push(match by.filter(|m| *m <= 120) {
+                Some(m) => format!(
+                    "{}'s photo is {m} min older than its last change",
+                    name(&s["node"])
+                ),
+                None => format!("{}'s photo is older than its last change", name(&s["node"])),
+            });
+        }
+    }
+    let mut todo = Vec::new();
+    if gridded {
+        todo.push("cut one photo of the drawer for every box (`ev photo cut <photo> --place <ref> --grid …`)");
+    } else if none {
+        todo.push("attach a photo (`ev photo add <ref> <photo>`)");
+    }
+    if old && recent {
+        todo.push("the records may only have caught up with the photo: if it shows the change, say so (`ev photo current <ref>`)");
+    } else if old {
+        todo.push(
+            "attach a current photo, or say an old one still holds (`ev photo current <ref>`)",
+        );
+    }
+    format!(
+        "not toured yet:\n  {}\n{}",
+        lines.join("\n  "),
+        todo.join("; ")
+    )
+}
+
 /// Whole minutes from `from` to `to` (RFC 3339 times), when both read.
 fn minutes_between(from: &str, to: &str) -> Option<i64> {
     let parse = |t: &str| chrono::DateTime::parse_from_rfc3339(t).ok();
@@ -1021,6 +1071,7 @@ impl Inventory {
                 if s == "toured" {
                     let mut check = vec![id];
                     check.extend(crate::grid::placed(&tx, id)?.into_iter().map(|(b, _)| b));
+                    let check_len = check.len();
                     let mut stale = Vec::new();
                     for n in check {
                         let holds: i64 = tx.query_row(
@@ -1052,26 +1103,11 @@ impl Inventory {
                         }
                     }
                     if !stale.is_empty() {
-                        let recent = stale
-                            .iter()
-                            .all(|s| s["minutes_after"].as_i64().is_some_and(|m| m <= 120));
-                        let msg = if recent {
-                            format!(
-                                "{} photo(s) are older than what they show, by minutes: the \
-                                 records may have caught up with what the photo already shows. \
-                                 If it does, say so (`ev photo current <ref>`); else attach a \
-                                 current photo",
-                                stale.len()
-                            )
-                        } else {
-                            format!(
-                                "{} photo(s) are older than what they show; attach a current \
-                                 photo (`ev photo cut <photo> --place <ref> --grid …`) or say \
-                                 an old one still holds (`ev photo current <ref>`)",
-                                stale.len()
-                            )
-                        };
-                        return Err(refused(msg, json!({ "stale": stale })));
+                        let gridded = check_len > 1;
+                        return Err(refused(
+                            not_toured(&stale, gridded),
+                            json!({ "stale": stale }),
+                        ));
                     }
                 }
                 tx.execute(

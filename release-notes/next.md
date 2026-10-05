@@ -145,6 +145,9 @@ the draft is something to change together, and each move is planned on the perso
   with no photo at all, offered `ev photo current` (which cannot apply) and a grid cut for a
   place with no grid, and named no place. It now names each place on its own line ("has no
   photo", "photo is 12 min older than its last change") and offers only what applies.
+- A thing with some of its units lost read `×30, 2 places · lost 10`: the lost portion counted
+  as a place though it is in none. `places` now counts the portions in a place, so it reads
+  `×30, 1 place · lost 10`.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

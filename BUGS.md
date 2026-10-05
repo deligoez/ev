@@ -16,11 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **A lost portion is counted as a place but not in the total.** Of `#12 Vida ×40`, `ev lost
-  #12 --qty 10` leaves `eşya: ×30, 2 yerde · … · kayıp 10` in `show` and `find`: "2 places",
-  though the lost 10 are in no place, and a total of 30 next to them. Expected: `×40, 1 yerde ·
-  kayıp 10` (or the lost portion not counted as a place). `ev found` joins them back correctly.
-  (QA round.)
 - **`ev empty` ignores what the records say against it.** `ev empty S-11 --note "opened, empty"`
   on a box whose note says "full of odds and ends, not empty" and which an open task (#29
   "count the contents of S-11") covers is accepted without a word; the task stays open and still

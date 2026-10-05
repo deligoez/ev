@@ -272,7 +272,7 @@ fn the_past_lists_last_gone_first_with_what_each_year_cost_and_brought() {
         None,
     )
     .unwrap();
-    let v = inv.past(None, None).unwrap();
+    let v = inv.past(None, None).unwrap()["remembered"].clone();
     let names: Vec<&str> = v["past"]
         .as_array()
         .unwrap()
@@ -290,14 +290,14 @@ fn the_past_lists_last_gone_first_with_what_each_year_cost_and_brought() {
     assert_eq!(v["years"][1]["left"], 1);
     // By a word of the name, and by the place it was left in.
     assert_eq!(
-        inv.past(Some("KLAVYE"), None).unwrap()["past"]
+        inv.past(Some("KLAVYE"), None).unwrap()["remembered"]["past"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
     assert_eq!(
-        inv.past(None, Some("eski ev")).unwrap()["past"]
+        inv.past(None, Some("eski ev")).unwrap()["remembered"]["past"]
             .as_array()
             .unwrap()
             .len(),
@@ -354,7 +354,7 @@ fn a_batch_of_past_things_goes_in_at_once_as_things() {
     .unwrap();
     inv.add_batch(lines).unwrap();
     let v = inv.past(None, None).unwrap();
-    assert_eq!(v["past"].as_array().unwrap().len(), 2);
+    assert_eq!(v["remembered"]["past"].as_array().unwrap().len(), 2);
     let tablet = inv.show("Eski tablet", true).unwrap();
     assert_eq!(tablet["node"]["kind"], "item");
     assert_eq!(tablet["came"], "2013");
@@ -403,7 +403,7 @@ fn a_past_thing_with_no_date_said_left_when_nothing_says() {
     // Not the day it was recorded: nobody said when.
     let v = inv.show("Yalıtım paneli", true).unwrap();
     assert!(v["departure"]["at"].is_null(), "{v}");
-    let past = inv.past(None, None).unwrap();
+    let past = inv.past(None, None).unwrap()["remembered"].clone();
     assert!(past["years"].as_array().unwrap().is_empty(), "{past}");
     assert_eq!(past["undated"]["left"], 1);
     assert!(past["past"][0]["left"].is_null());

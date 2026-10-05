@@ -28,5 +28,5 @@ same `changed_since` on such a place.
 `→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box
 and tidying the tree up afterwards as many again. In the tree, `e` now opens the selected node
 with everything below it and `c` closes it all, the selection staying where it is; `C` closes the
-whole tree back to its first screen, homes and rooms open. The footer lists them, as it lists
-`H`/`L` for the details.
+whole tree back to its first screen, homes and rooms open. The tree's bottom edge lists its
+keys, as the details' edge lists `H`/`L`.

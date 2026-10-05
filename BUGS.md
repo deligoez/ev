@@ -16,12 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **`ev kit part` cannot be undone, and answers with the whole kit.** A part added by mistake
-  (`ev kit part 1 "Wrong part=2"`) stays in the list for good and counts as missing; there is no
-  remove or rename for one part, only `ev kit remove` for the whole kit. The answer is the full
-  `kit show` JSON (every part with every node and path, ~10 KB for a 36-part kit), while
-  `kit link` / `unlink` answer with only the part touched. Expected: a way to drop or rename a
-  part; `kit part` answers with the new parts and their numbers. (QA round.)
 - **`ev review --as toured` refusal is wrong for a box with no photo.** On a new box with no photo
   at all (`details.stale[].reason: "none"`, `photo_at: null`) the message is still "1 photo(s)
   are older than what they show", it suggests `ev photo current`, which cannot apply, and

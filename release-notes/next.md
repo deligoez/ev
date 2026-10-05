@@ -137,6 +137,10 @@ the draft is something to change together, and each move is planned on the perso
   another product, and the line still said they were brought there. Unlinking now takes them
   back (`taken_back`); a value or a coverage the line brought stays, listed under `left` with how
   to remove it, since the person may have kept it.
+- A kit part added by mistake stayed on the list for good, counted as missing, and `ev kit
+  part` answered with the whole kit. `ev kit drop <kit> <n>` takes a part off (refused while
+  records are linked to it), `ev kit rename <kit> <n> "<name>[=n]"` names it anew, and `ev kit
+  part` answers with the parts it added.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

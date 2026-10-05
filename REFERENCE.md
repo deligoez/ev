@@ -501,11 +501,13 @@ partial: `2016`, `2016-06` or `2016-06-14`; anything else exits 2.
 |---|---|
 | `ev add "<name>" --gone <how> [--at <date>] [--came <date>] [--where <place>]` | records a past thing in one step, in no holder (kind `item` unless `--kind`); `--in`, `--lost` and `--of` exit 2 with it, and `--at`/`--where` need it. `how` is any way of leaving but mistake, digitize and merged. Batch lines take `gone`, `at`, `came`, `where` |
 | `ev gone <ref> [--as d] [--at <date>] [--where <place>]` | a record here that left long ago: when it left and where it was then. `--where` names a place (`ev place`), made when new, so a former home is one place for all that was left there |
-| `ev gone <ref> --as left\|stolen\|unknown` | left behind, stolen, or "sold or thrown out, not sure"; `ev dispose` refuses them (exit 2), nothing is set aside to be stolen |
+| `ev gone <ref> --as left\|stolen\|unknown` | left behind, stolen, or "sold or thrown out, not sure"; `ev dispose` refuses them (exit 2), nothing is set aside to be stolen. Read back in the past tense: sold, thrown out, given away, left behind, how not known |
 | `ev edit <ref> came=<date>` | when it came, on any record (`came=` clears) |
 | `ev sold <ref> --price <n> [--currency C] [--at <date>] [--via "…"] [--note "…"]` | what a sale brought, on a record gone or set aside as `sell` (else exit 5); the currency is the home one when not given; said again, the price is replaced and what is not said again stays. A `sold` event |
 | `ev buy link <line> <ref>`, `ev buy add … --for <ref>` | work on a gone record: the line is settled and leaves the open lists |
-| `ev past [--name <word>] [--where <place>]` | the past things, last gone first, and per year how many left and the money paid for them (their linked purchases) and got for them (`ev sold`), by currency. Mistakes, joined portions and digitized papers are left out |
+| `ev past [--name <word>] [--where <place>]` | the past things in two lists, `remembered` first (left before they were recorded: added already gone, or gone with `--at`), then `left_inventory` (recorded here and seen leaving); each lists its things last gone first, and per year how many left and the money paid for them (their linked purchases) and got for them (`ev sold`), by currency. Mistakes, joined portions and digitized papers are left out |
+| `ev gone <ref> --as trade [--traded-for <ref>]`, `ev add … --gone trade [--traded-for <ref>]` | swapped for something else; `--traded-for` links what came in exchange (any other `--as` with it exits 2) |
+| `ev traded <ref> [--for <ref>]` | a gone record left as a trade: corrects one first recorded as given or sold, and links what came in exchange once it is recorded (a record that has not left exits 5). A `traded` event `{was, for}`. `ev dispose --as trade` sets a thing aside to swap, like a sale |
 | `ev past --year <y>` | what was ours in that year: every item and piece of furniture, past or present and not kept for someone else, that came by the end of the year and had not left before it began, oldest coming first; `unknown` counts those whose coming, or (once the year they came is over) whose leaving, nothing says, never guessed in |
 | `ev edit <id> name=… note=… came=… qty=… make=… model=… serial=…` | a gone record takes what it was, so a past thing is completed as remembered; any other field exits 5 |
 
@@ -517,10 +519,11 @@ year it was recorded. The `gone` event keeps the moment it was written either wa
 what it went through (`via`); the asking price is not carried, since it is not what the sale
 brought.
 
-`ev show` gives `came` and `departure`: `{at, where, price, currency, via, note}` (null unless
-gone; `at` null when nothing says). `ev past`: `{past: [{id, name, came, left, how, where, paid:
-{CUR: amount}, got: {price, currency, via} | null}], years: [{year, left, paid, got}], undated:
-{left, paid, got} | null}`. `ev past --year`: `{year, owned: [NodeRef + came, left], unknown}`.
+`ev show` gives `came`, `departure`: `{at, where, price, currency, via, note, traded_for}` (null
+unless gone; `at` null when nothing says; `traded_for` a NodeRef), and `traded_from` (what was
+traded away for this record). `ev past`: `{remembered: List, left_inventory: List}`, each List
+`{past: [{id, name, came, left, how, where, paid: {CUR: amount}, got: {price, currency, via} |
+null}], years: [{year, left, paid, got}], undated: {left, paid, got} | null}`. `ev past --year`: `{year, owned: [NodeRef + came, left], unknown}`.
 `ev stats` adds `past: {records, how: {d: n}, paid, got}`.
 ## Documents
 

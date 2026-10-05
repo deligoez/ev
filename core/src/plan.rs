@@ -163,9 +163,9 @@ pub(crate) fn tasks_of(conn: &Connection, id: i64) -> Result<Vec<Value>> {
 
 /// The places a person opens one at a time: the innermost labelled holders, plus unlabelled
 /// holders standing on their own in a room or on furniture. A holder is a unit when none of its
-/// children carries a code (a code is a physical label, so a coded child is a place of its
-/// own); everything below a unit is gone through with it. `K4x4-08-A` is a unit and the boxes
-/// in it are not; `K4x4-08` is not, because its drawers are labelled.
+/// children is labelled as a place of its own; everything below a unit is gone through with it.
+/// `K4x4-08-A` is a unit and the boxes in it are not; `K4x4-08` is not, because its drawers are
+/// labelled as its parts (see `own_place`).
 pub(crate) fn units(all: &[Node]) -> Vec<i64> {
     let mut kids: HashMap<Option<i64>, Vec<&Node>> = HashMap::new();
     for n in all {
@@ -188,8 +188,25 @@ pub(crate) fn units(all: &[Node]) -> Vec<i64> {
     out
 }
 
-/// Whether a node is a unit, given its live children: a holder with no labelled child, or a
-/// room with nothing in it that holds things (an empty kitchen is counted as one place).
+/// Whether a child labelled `child` is a place of its own inside a holder labelled `holder`. A
+/// code is a physical label, so a labelled child in an unlabelled holder is a place. In a
+/// labelled one it is when its code goes on from the holder's: `K2-01-A` in `K2-01` is a
+/// drawer of that unit, opened on its own. A label of another series is a labelled box in the
+/// place (`B1_007` in `K2-01-A`), gone through with it: the drawer stays on the list.
+fn own_place(holder: Option<&str>, child: Option<&str>) -> bool {
+    match (holder, child) {
+        (_, None) => false,
+        (None, Some(_)) => true,
+        (Some(h), Some(c)) => {
+            let (h, c) = (crate::fold::fold_code(h), crate::fold::fold_code(c));
+            c.strip_prefix(&h).is_some_and(|rest| rest.starts_with('-'))
+        }
+    }
+}
+
+/// Whether a node is a unit, given its live children: a holder with no child labelled as a
+/// place of its own, or a room with nothing in it that holds things (an empty kitchen is
+/// counted as one place).
 fn unit_by_children(n: &Node, children: &[&Node]) -> bool {
     if n.state != State::Active || n.lost {
         return false;
@@ -199,7 +216,9 @@ fn unit_by_children(n: &Node, children: &[&Node]) -> bool {
         Kind::Room => !children
             .iter()
             .any(|c| matches!(c.kind, Kind::Room | Kind::Furniture | Kind::Container)),
-        _ => !children.iter().any(|c| c.code.is_some()),
+        _ => !children
+            .iter()
+            .any(|c| own_place(n.code.as_deref(), c.code.as_deref())),
     }
 }
 
@@ -235,19 +254,25 @@ fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
             continue;
         }
         // The same test as `unit_by_children`, asked of the database.
-        let blocking = if n.kind == Kind::Room {
-            "kind IN ('room', 'furniture', 'container')"
+        let blocked = if n.kind == Kind::Room {
+            let count: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone'
+                   AND kind IN ('room', 'furniture', 'container')",
+                [n.id],
+                |r| r.get(0),
+            )?;
+            count > 0
         } else {
-            "code IS NOT NULL"
+            let mut stmt = conn.prepare(
+                "SELECT code FROM nodes WHERE parent_id = ?1 AND state != 'gone'
+                   AND code IS NOT NULL",
+            )?;
+            let codes = stmt
+                .query_map([n.id], |r| r.get::<_, String>(0))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            codes.iter().any(|c| own_place(n.code.as_deref(), Some(c)))
         };
-        let count: i64 = conn.query_row(
-            &format!(
-                "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND {blocking}"
-            ),
-            [n.id],
-            |r| r.get(0),
-        )?;
-        if count == 0 {
+        if !blocked {
             unit = Some(n.id);
             break;
         }

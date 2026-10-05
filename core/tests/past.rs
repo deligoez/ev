@@ -114,3 +114,18 @@ fn a_past_thing_is_added_already_gone_in_no_holder() {
     });
     assert_eq!(at_alone.unwrap_err().code(), 2);
 }
+
+#[test]
+fn when_a_thing_came_is_edited_as_remembered() {
+    let (_d, mut inv) = setup();
+    inv.edit("Eski telefon", &["came=2014-03".into()]).unwrap();
+    assert_eq!(inv.show("Eski telefon", false).unwrap()["came"], "2014-03");
+    assert_eq!(
+        inv.edit("Eski telefon", &["came=14 Mart".into()])
+            .unwrap_err()
+            .code(),
+        2
+    );
+    inv.edit("Eski telefon", &["came=".into()]).unwrap();
+    assert!(inv.show("Eski telefon", false).unwrap()["came"].is_null());
+}

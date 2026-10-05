@@ -22,3 +22,11 @@ that fixes them.
   series. The photo's own numbers go to its frames by position, not by label. Expected: a
   label keeps the number it had on that photo, a new label takes the next free number (3), and
   a dropped frame's number is not handed out again until the series is closed. (QA round.)
+- **`ev history` as text prints each event's raw JSON.** `ev history #12 --text` lists
+  `create   {"code":null,"kind":"item",…}`, `photo {"crop":null,"path":…}`, oldest first, while
+  the History tab of `ev ui` says every event in words, newest first by day; README and the skill
+  say the two print the same. Expected: the text output in the tab's words. (QA round.)
+- **A usage error lists `--db <DB>` as if it were required when `EV_DB` is set.** `EV_DB=… ev
+  review x` answers `Usage: ev review --as <STATUS> --db <DB> <REFERENCE>`; without `EV_DB` the
+  line has no `--db`. An agent reading it may think `--db` is needed. Expected: the same usage
+  line either way. Minor. (QA round.)

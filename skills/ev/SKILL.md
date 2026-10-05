@@ -182,7 +182,9 @@ places, and how far the whole home is (`progress`). Then:
   everything under `arriving`, and add new tasks when you find work elsewhere. **Work its
   `while_there` list in the same visit:** the photo, the labels, the unclear names, the
   things leaving or waiting for their place, the coverage and value questions that sit in that
-  place. They are not ranked on their own; the drawer is open anyway.
+  place. They are not ranked on their own; the drawer is open anyway. A task the person says no
+  longer applies is closed with `ev task drop <id>`, never left open; `ev task reopen <id>`
+  brings a closed one back.
 - **Close only on the person's word.** Before you ask, give the place its theme (see **Give
   every place a theme**). When they say the place is done: `ev review <place>
   --as toured` and `ev task done <id>`; then run `ev next` again and say what comes next.

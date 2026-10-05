@@ -168,3 +168,50 @@ fn a_purchase_of_a_past_thing_is_settled_by_linking_it() {
     .unwrap();
     assert_eq!(open(&inv), 0);
 }
+
+#[test]
+fn what_a_sale_brought_is_recorded_and_said_again_corrected() {
+    let (_d, mut inv) = setup();
+    // Nothing left as sold yet: refused.
+    assert_eq!(
+        inv.sold("Eski telefon", "1500", None, None, None, None)
+            .unwrap_err()
+            .code(),
+        5
+    );
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Sell),
+        None,
+        false,
+        None,
+        Some("2019"),
+        None,
+    )
+    .unwrap();
+    let v = inv
+        .sold(
+            "Eski telefon",
+            "1500",
+            None,
+            Some("2019-05"),
+            Some("Bir pazar yeri"),
+            None,
+        )
+        .unwrap();
+    assert_eq!(v["departure"]["price"], "1500.00");
+    assert_eq!(v["departure"]["currency"], "TRY");
+    assert_eq!(v["departure"]["at"], "2019-05");
+    assert_eq!(v["departure"]["via"], "Bir pazar yeri");
+    // Said again, the price is corrected and what was not said again stays.
+    let v = inv
+        .sold("Eski telefon", "120", Some("eur"), None, None, None)
+        .unwrap();
+    assert_eq!(v["departure"]["price"], "120.00");
+    assert_eq!(v["departure"]["currency"], "EUR");
+    assert_eq!(v["departure"]["via"], "Bir pazar yeri");
+    for (price, currency) in [("0", None), ("120", Some("euro"))] {
+        let bad = inv.sold("Eski telefon", price, currency, None, None, None);
+        assert_eq!(bad.unwrap_err().code(), 2);
+    }
+}

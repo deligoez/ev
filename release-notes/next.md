@@ -26,7 +26,8 @@ same `changed_since` on such a place.
 ## Opening and closing the tree a stretch at a time
 
 `→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box
-and tidying the tree up afterwards as many again. In the tree, `e` now opens the selected node
+and tidying the tree up afterwards as many again. In the tree, `d` now opens the selected node
+two levels down (a Kallax shows its compartments and the drawers in each), `e` opens it
 with everything below it and `c` closes it all, the selection staying where it is; `C` closes
 everything but the home, so its rooms show closed. The tree's bottom edge lists its
 keys, as the details' edge lists `H`/`L`.

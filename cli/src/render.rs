@@ -1362,6 +1362,36 @@ fn scored() -> &'static str {
     )
 }
 
+/// `ev history`: newest first under a heading per day, each event in the words of `ev ui`'s
+/// History tab. A place the event names is its `#id` (the text has no tree to name it by), and a
+/// thing that came, went or was added here leads with its own.
+fn history(out: &mut String, events: &[Value]) {
+    let place = |v: &Value| -> String {
+        match v {
+            Value::Number(n) => format!("#{n}"),
+            Value::String(s) => s.clone(),
+            _ => "—".into(),
+        }
+    };
+    let mut day = None;
+    for e in events.iter().rev() {
+        let at = crate::history::local_time(e);
+        let this = at.map(|a| a.date_naive());
+        if this != day {
+            day = this;
+            let _ = writeln!(out, "{}", crate::history::day_heading(this));
+        }
+        let time = at.map_or_else(String::new, |a| a.format("%H:%M").to_string());
+        let (verb, detail, _) = crate::history::event_words(e, &place);
+        let detail = match e["item"]["id"].as_i64() {
+            Some(id) => format!("#{id} {detail}"),
+            None => detail,
+        };
+        let row = format!("  {time}  {verb}  {detail}");
+        let _ = writeln!(out, "{}", row.trim_end());
+    }
+}
+
 /// `ev layout`: a piece of furniture read across its places, then the drafted layout when asked.
 fn layout(out: &mut String, v: &Value) {
     let f = &v["furniture"];
@@ -2192,21 +2222,7 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(events) = v.get("events").and_then(Value::as_array) {
         let _ = writeln!(out, "{}", line(&v["node"]));
-        for e in events {
-            // With `--contents`, an event of something that came, went or was added here.
-            let item = if e["item"].is_object() {
-                format!("  {} {}", s(e, "relation"), line(&e["item"]))
-            } else {
-                String::new()
-            };
-            let _ = writeln!(
-                out,
-                "  {}  {:<8} {}{item}",
-                s(e, "at"),
-                s(e, "type"),
-                e["data"]
-            );
-        }
+        history(&mut out, events);
         return out;
     }
     // `ev edit`: the record, then each field it changed.

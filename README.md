@@ -234,7 +234,9 @@ screen), into the **marked photo series**: everything shown piles up there, step
 until the person closes it with `X`. ev numbers the frames across a series, so "3 at, 7 ver"
 means one frame each until it is closed; a photo marked again keeps its numbers, and a cut of a
 marked photo draws the same ones. Esc only hides the series (a stray click does not), and `m`
-brings it back, even after a restart; `ev focus --list` reads it. The marked copies are scratch:
+brings it back, even after a restart; `g` shows the whole series as a grid, as many a row as
+the screen holds (`ev settings series_tile` sets the picture width), and `f12` then Enter goes
+straight to a picture; `ev focus --list` reads it. The marked copies are scratch:
 never stored, never attached, no history, cleared after a day; their red frames are edged in dark,
 so they read on a red box too. `ev focus X [--photo n]` shows a recorded node,
 so "which one do you mean?" is answered on screen too. While labels go on a gridded drawer's

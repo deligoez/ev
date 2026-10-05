@@ -116,6 +116,10 @@ the draft is something to change together, and each move is planned on the perso
 - A mark labelled with a number counted across photos (a lone `2` on the second photo) left a
   gap in the series: the number skipped 2 and drew 3. A photo's labels now only order its
   frames, which take the series' next free numbers in that order.
+- A photo marked again with a frame left out (`1=… 3=…` after `1=… 2=…`) gave the new frame the
+  number 2 the person had already been told, since the photo's numbers went to its frames in
+  order. Each frame now keeps the label it was given: marked again, a label keeps its number, a
+  new one takes the next free number, and a number left out is not handed out again.
 - `ev buy bring <line> <ref>` answers with what it did (`node`, `brought`, `brought_types`,
   `skipped`), no longer the whole thing as `ev show` gives it.
 - A photo taken minutes before the records caught up with it (what it shows recorded right after)

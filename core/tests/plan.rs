@@ -373,3 +373,23 @@ fn next_and_todo_say_how_many_places_are_being_counted() {
     assert_eq!(inv.next().unwrap()["progress"]["counting"], 1);
     assert_eq!(inv.todo().unwrap()["progress"]["counting"], 1);
 }
+
+#[test]
+fn next_leaves_out_the_fields_of_a_place_that_have_no_value() {
+    let (_d, mut inv) = setup();
+    inv.task_add("Tour Alt", "bags", &["K1-01-A".into()], None)
+        .unwrap();
+    let v = inv.next().unwrap();
+    let place = v["task"]["places"][0].as_object().unwrap();
+    let empty: Vec<&String> = place
+        .iter()
+        .filter(|(_, x)| {
+            x.is_null()
+                || x.as_array().is_some_and(Vec::is_empty)
+                || x.as_object().is_some_and(serde_json::Map::is_empty)
+        })
+        .map(|(k, _)| k)
+        .collect();
+    assert!(empty.is_empty(), "{empty:?}");
+    assert!(v.get("hints").is_none(), "{v}");
+}

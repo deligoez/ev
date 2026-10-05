@@ -469,7 +469,11 @@ On a yes, record the thing as remembered, in no place, and link its line:
 **When the person mentions a warranty or an insurance, record it:** `ev cover add <ref> --kind
 manufacturer|extended|store|statutory|insurance --term 2y [--from <date>|after:<id>] [--issuer
 <brand>]`; an insurance takes `--ends`, `--number`, `--premium`, `--scope`. A certificate or a
-policy goes in with `ev doc add <file> --kind warranty --coverage <id>`. `ev show` gives the
+policy goes in with `ev doc add <file> --kind warranty --coverage <id>`. A warranty bought as a
+purchase line of its own ("3 years extended warranty" beside the appliance) is that coverage's
+line: `ev cover add <thing> --kind extended --term 3y --purchase <line>` (or `ev cover purchase
+<coverage> <line>`) settles it and takes its price as the premium; never link it to the thing
+or dismiss it. `ev show` gives the
 status; when it shows `coverage_proposal` (a two-year statutory warranty from a linked
 purchase's delivery), offer it once; it is recorded only on a yes.
 

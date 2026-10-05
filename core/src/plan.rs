@@ -895,6 +895,12 @@ impl Inventory {
             _ => json!(at),
         };
         let count = series.len();
+        // The title the screen shows: one picture keeps the note it was sent with, which may not
+        // be this request's.
+        let shown_note = match (paths.len(), show) {
+            (1, Some(i)) => series[i].note.clone(),
+            _ => json!(note),
+        };
         let mut sent = json!({
             "files": series.iter().map(|m| m.file.clone()).collect::<Vec<_>>(),
             "notes": series.iter().map(|m| m.note.clone()).collect::<Vec<_>>(),
@@ -908,7 +914,7 @@ impl Inventory {
         self.send_focus(&sent)?;
         let files: Vec<&String> = paths.iter().map(|(p, _)| p).collect();
         Ok(json!({ "focus": {
-            "files": files, "f": fs, "note": note, "series": count, "next": next, "at": at,
+            "files": files, "f": fs, "note": shown_note, "series": count, "next": next, "at": at,
         } }))
     }
 

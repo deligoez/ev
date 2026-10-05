@@ -120,6 +120,26 @@ fn a_lost_thing_found_elsewhere_leaves_its_last_seen_place_unchanged() {
 }
 
 #[test]
+fn records_catching_up_minutes_after_a_photo_are_named_as_such() {
+    let (d, mut inv) = setup();
+    let photo = d.path().join("p.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&photo)
+        .unwrap();
+    inv.photo_add("K1-01-A", &photo, None, None).unwrap();
+    // A second later what the photo shows is recorded: the photo reads as older.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    add(&mut inv, "Kapak", "item", Some("K1-01-A"), None);
+    let err = inv.review("K1-01-A", "toured", None).unwrap_err();
+    assert_eq!(err.code(), 5);
+    assert!(err.to_string().contains("caught up"), "{err}");
+    let ev_core::Error::Refused { details, .. } = err else {
+        panic!("refused");
+    };
+    assert_eq!(details["stale"][0]["minutes_after"], 0);
+}
+
+#[test]
 fn a_review_covers_everything_below_and_notices_later_changes() {
     let (_d, mut inv) = setup();
     // No photo of the drawer: touring it needs one, or the person's word that none is needed.

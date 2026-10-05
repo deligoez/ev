@@ -102,7 +102,9 @@ lists a thing's places together, and `p` in `ev ui` walks them. More of the same
 **Parked for now.** A place where things only wait until their places are decided is marked
 `ev edit X temporary=true` (or one thing waiting among things that belong there). Placement
 never offers a parking place, `ev todo` lists what waits there, and a move takes a thing's
-mark with it — "for now" stays in the records instead of in someone's memory.
+mark with it — "for now" stays in the records instead of in someone's memory. A thing whose
+place waits for another (glue sticks until the lost glue gun turns up) says so with
+`ev edit X waits_for=<other>`: `ev found <other>` then lists it, and its move ends the wait.
 
 **One record per kind of thing, and what a kit still misses.** A set of parts recorded as one
 thing becomes a record per part with `ev split X "LM393 kart=3" "Kablo=3" --rename "Prob"`;

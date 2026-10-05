@@ -178,6 +178,8 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | o, click on the photo | the current photo full screen, titled with the node and the photo's note; `[` `]` ← → step, `r` / `R` rotate 90° clockwise / counter-clockwise (on screen only, kept per photo for the session; also on the photo panel), Esc / o / click close |
 | O | open the current photo in the system viewer |
 | m | the marked photo series again, after Esc hid it |
+| g | in the marked photo series: a grid of all its pictures ↔ one at a time. The grid fits as many a row as the width holds at the picture width (`ev settings series_tile`), re-flowed on resize; each tile reads `f12 · <note>` and `▣n` for its numbered frames; arrows move, `Enter` opens the one selected, `+` / `-` widen or narrow the pictures for now (kept in `ui-state.json` until the setting changes) |
+| f then digits, Enter | in the marked photo series: go to that picture (`f12`); `Home` / `End` go to the first and the last |
 | X | close the marked photo series: it leaves the screen, and what the agent sends next starts a new one numbered from 1 |
 | M | the map (see **Maps**) full screen, from the home: its rooms first, the room on the way to the selected node chosen, and on every level Enter leads further down that way. ← ↑ ↓ → move to the nearest tile that way (Tab steps in reading order), Enter goes into the tile, Backspace / u goes up a level with the place left chosen, t closes the map on the chosen tile in the tree; a click chooses a tile and a second click goes in; Esc / q / M close. A tile shows its label, its theme (or name), how many things it holds, its fill, and what is in it as far as it has room; a place on a grid (a drawer, a Kallax) is drawn as its plate, column letters above and row numbers beside, a dot on every free cell; it follows the data as it changes |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
@@ -203,6 +205,7 @@ without one.
 |---|---|
 | `ev settings` | `language` (`setting`, `effective`, `system`), `theme` (`setting`), `resume`, `file` |
 | `ev settings language en\|tr\|auto` | the language of `ev ui` and of the readable terminal output |
+| `ev settings series_tile <cells>` | the width of a picture in the grid of the marked photo series (`g` in `ev ui`), in terminal cells, 12 to 400, 28 by default: the number a row follows from the width |
 | `ev settings theme dark\|light\|auto` | the appearance of `ev ui`; `auto` follows the terminal |
 | `ev settings resume on\|off` | `on` (the default): `ev ui` opens the tree as it was left — the nodes that were open, the list headings that were closed, and the node that was selected. The state is kept per database in `ui-state.json` beside the settings file, written on every exit; a node gone since is dropped, and a selected one gone opens at the top |
 

@@ -754,7 +754,7 @@ fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(
-        s.contains("1 → A6 · 1/2") && s.contains("Esc/o hide · [ ] ← → step"),
+        s.contains("f1/2 · 1 → A6") && s.contains("Esc/o hide · [ ] ← → step"),
         "{s}"
     );
     // A stray click does not close it.
@@ -764,7 +764,7 @@ fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
     press(&mut app, KeyCode::Char(']'));
     press(&mut app, KeyCode::Char(']'));
     term.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&term).contains("1 → A6 · 2/2"));
+    assert!(screen(&term).contains("f2/2 · 1 → A6"));
     assert_eq!(
         app.shown_picture(),
         Some(drawer.to_string_lossy().into_owned())
@@ -782,7 +782,7 @@ fn a_marked_photo_sent_from_another_process_shows_full_screen_until_closed() {
     assert!(app.overlay.is_none());
     press(&mut app, KeyCode::Char('m'));
     term.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&term).contains("1 → A6 · 2/2"));
+    assert!(screen(&term).contains("f2/2 · 1 → A6"));
     // A restarted `ev ui` treats the request as seen, and still opens it with `m`.
     let inv = Inventory::open(&dir.path().join("ev.db")).unwrap();
     let mut again = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
@@ -1617,12 +1617,12 @@ fn marked_photos_join_the_series_and_x_ends_it() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(
-        s.contains("drawer · 2/2") && s.contains("X close series"),
+        s.contains("f2/2 · drawer") && s.contains("X close series"),
         "{s}"
     );
     press(&mut app, KeyCode::Char('['));
     term.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&term).contains("parts · 1/2"));
+    assert!(screen(&term).contains("f1/2 · parts"));
     // Esc only hides it: `m` brings the whole series back.
     press(&mut app, KeyCode::Esc);
     assert!(app.overlay.is_none());

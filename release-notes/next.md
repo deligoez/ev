@@ -22,3 +22,11 @@ beside it). Only the exceptions are written: not counted, being counted, left as
 one, **counted but changed since**, for a counted place whose contents changed after its tour. It
 used to look counted and green while it held things nobody had counted. `ev tree` carries the
 same `changed_since` on such a place.
+
+## Opening and closing the tree a stretch at a time
+
+`→`/`←` opened and closed one level, so seeing everything in a drawer of boxes took a key per box
+and tidying the tree up afterwards as many again. In the tree, `e` now opens the selected node
+with everything below it and `c` closes it all, the selection staying where it is; `C` closes the
+whole tree back to its first screen, homes and rooms open. The footer lists them, as it lists
+`H`/`L` for the details.

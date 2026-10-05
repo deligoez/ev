@@ -61,3 +61,8 @@ to `ev ui`: the person sent a drawer's photos and their screen stayed empty. `ev
 puts the attached photo into the marked photo series, unframed and titled with its `--note` (else
 the record), as `photo mark` and `photo cut` do; `--no-show` keeps it off the screen. Pictures sent
 together with `ev focus --file` can each carry a note of their own: `--file a.jpg=<note>`.
+
+## Smaller fixes
+
+- A kit bought as one purchase line showed that line as ×1 whatever its quantity: `ev kit show`
+  and `ev kit purchase` now carry the line's `qty`.

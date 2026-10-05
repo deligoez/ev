@@ -295,7 +295,11 @@ fn children(n: &Value) -> &[Value] {
 /// everything in it is, and an empty one never is.
 fn settle(n: &Value, counted: Option<bool>, open: &HashSet<i64>, out: &mut HashSet<i64>) -> bool {
     let id = n["id"].as_i64().unwrap_or_default();
-    let counted = n["count"].as_str().map(|c| c == "toured").or(counted);
+    // A counted place that changed since is not settled: what changed has not been counted.
+    let counted = n["count"]
+        .as_str()
+        .map(|c| c == "toured" && n["changed_since"] != true)
+        .or(counted);
     let kids = children(n);
     // Every child is walked, not stopped at the first that is not settled, so a settled one
     // shows even beside one that is not.
@@ -470,15 +474,17 @@ fn kind_name(k: &str) -> &'static str {
 }
 
 /// A name's colour tells how far it is, not what kind it is (its mark says that): green once
-/// settled, faded while it waits to leave.
+/// settled or counted (a place counted and unchanged since; what still waits in it is marked
+/// beside it), faded while it waits to leave.
 fn name_style(n: &Value, snap: &Snapshot) -> Style {
     let s = match n["kind"].as_str() {
         Some("home" | "room") => Style::new().bold(),
         _ => Style::new(),
     };
+    let counted = n["count"] == "toured" && n["changed_since"] != true;
     if n["state"] == "candidate" {
         s.fg(pal().muted)
-    } else if snap.settled.contains(&n["id"].as_i64().unwrap_or_default()) {
+    } else if counted || snap.settled.contains(&n["id"].as_i64().unwrap_or_default()) {
         s.fg(pal().done)
     } else {
         s
@@ -533,19 +539,26 @@ fn marker_spans(n: &Value, snap: &Snapshot) -> Vec<Span<'static>> {
     if n["lost"] == true {
         out.push(Span::styled(t("  [lost]"), Style::new().fg(pal().lost)));
     }
-    // How far a place gone through on its own has been counted; a green name already says
-    // counted and done.
-    let settled = snap.settled.contains(&n["id"].as_i64().unwrap_or_default());
-    if let Some(c) = n["count"].as_str().filter(|_| !settled) {
-        let color = match c {
-            "toured" => pal().qty,
-            "counting" => pal().mark,
-            _ => pal().muted,
-        };
-        out.push(Span::styled(
-            format!("  [{}]", crate::render::count_label(c)),
-            Style::new().fg(color),
-        ));
+    // How far a place gone through on its own has been counted. Counted is where every place
+    // is headed, so it takes no word: its green name says it. Only the exceptions are written:
+    // not counted, being counted, left as is, and counted but changed since.
+    match n["count"].as_str() {
+        Some("toured") if n["changed_since"] == true => out.push(Span::styled(
+            format!("  [{}]", t("counted, changed since")),
+            Style::new().fg(pal().mark),
+        )),
+        Some("toured") | None => {}
+        Some(c) => {
+            let color = if c == "counting" {
+                pal().mark
+            } else {
+                pal().muted
+            };
+            out.push(Span::styled(
+                format!("  [{}]", crate::render::count_label(c)),
+                Style::new().fg(color),
+            ));
+        }
     }
     if n["temporary"] == true {
         out.push(Span::styled(

@@ -725,6 +725,7 @@ static TR: &[(&str, &str)] = &[
     ("  [{} items]", "  [{} eşya]"),
     ("[counted, changed since]", "[sayıldı, sonra değişti]"),
     ("[counted]", "[sayıldı]"),
+    ("counted, changed since", "sayıldı, sonra değişti"),
     ("[left as is]", "[olduğu gibi]"),
     ("[being counted]", "[sayılıyor]"),
     ("[not counted]", "[sayılmadı]"),

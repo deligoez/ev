@@ -95,6 +95,10 @@ impl App {
             KeyCode::Char('m') => self.reopen_marked(),
             KeyCode::Char('X') => self.close_series()?,
             KeyCode::Char('M') => self.open_map(),
+            // The tree opened or closed a whole stretch at a time, as H/L step the details.
+            KeyCode::Char('e') if self.tab == Tab::Tree => self.open_below(true)?,
+            KeyCode::Char('c') if self.tab == Tab::Tree => self.open_below(false)?,
+            KeyCode::Char('C') if self.tab == Tab::Tree => self.close_tree()?,
             KeyCode::Char('/') => {
                 self.searching = true;
                 self.query.clear();

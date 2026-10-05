@@ -345,6 +345,8 @@ impl App {
         match self.tab {
             Tab::Tree => {
                 parts.push((1, t("→ ← open/close")));
+                parts.push((1, t("e/c open/close all below")));
+                parts.push((3, t("C close the tree")));
             }
             Tab::Search if self.has_search() => {
                 parts.push((1, t("Enter show in tree")));

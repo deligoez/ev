@@ -289,6 +289,44 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+/// What is open on the first screen: homes and rooms, so it shows the furniture.
+fn first_open(roots: &[Value]) -> HashSet<i64> {
+    fn open(n: &Value, out: &mut HashSet<i64>) {
+        if matches!(n["kind"].as_str(), Some("home" | "room")) {
+            out.insert(n["id"].as_i64().unwrap_or_default());
+            for c in children(n) {
+                open(c, out);
+            }
+        }
+    }
+    let mut out = HashSet::new();
+    for r in roots {
+        open(r, &mut out);
+    }
+    out
+}
+
+/// The node `id` in the tree, if it is there.
+fn find_in(nodes: &[Value], id: i64) -> Option<&Value> {
+    nodes.iter().find_map(|n| {
+        if n["id"].as_i64() == Some(id) {
+            Some(n)
+        } else {
+            find_in(children(n), id)
+        }
+    })
+}
+
+/// `n` and every node below it that holds something.
+fn holders_in(n: &Value, out: &mut Vec<i64>) {
+    if !children(n).is_empty() {
+        out.push(n["id"].as_i64().unwrap_or_default());
+        for c in children(n) {
+            holders_in(c, out);
+        }
+    }
+}
+
 /// Whether `n` is settled, adding every settled node under it to `out`: nothing waits on it or
 /// on anything in it, and it has been counted. A place counted on its own carries its count
 /// down to the things in it (`counted`); above those places, a holder is settled once
@@ -862,19 +900,7 @@ impl App {
     fn new(inv: Inventory) -> Result<Self> {
         let snap = Snapshot::load(&inv)?;
         let version = inv.data_version()?;
-        let mut expanded = HashSet::new();
-        // Open homes and rooms so the first screen shows the furniture.
-        fn open(n: &Value, out: &mut HashSet<i64>) {
-            if matches!(n["kind"].as_str(), Some("home" | "room")) {
-                out.insert(n["id"].as_i64().unwrap_or_default());
-                for c in children(n) {
-                    open(c, out);
-                }
-            }
-        }
-        for r in &snap.roots {
-            open(r, &mut expanded);
-        }
+        let expanded = first_open(&snap.roots);
         let mut app = App {
             inv,
             snap,
@@ -1390,6 +1416,44 @@ impl App {
         }
         self.last_overlay = None;
         self.focus_seen = None;
+    }
+
+    /// `e` / `c` on the tree: open the selected node and everything below it, or close them all,
+    /// the selection staying where it is.
+    fn open_below(&mut self, open: bool) -> Result<()> {
+        let Some(id) = self.selected_id() else {
+            return Ok(());
+        };
+        let mut below = Vec::new();
+        if let Some(n) = find_in(&self.snap.roots, id) {
+            holders_in(n, &mut below);
+        }
+        for x in below {
+            if open {
+                self.expanded.insert(x);
+            } else {
+                self.expanded.remove(&x);
+            }
+        }
+        self.rebuild()?;
+        self.reveal(id)
+    }
+
+    /// `C` on the tree: back to the first screen, homes and rooms open, the selection moved up
+    /// to the room it was in when it is hidden now.
+    fn close_tree(&mut self) -> Result<()> {
+        let id = self.selected_id();
+        self.expanded = first_open(&self.snap.roots);
+        self.rebuild()?;
+        let mut at = id;
+        while let Some(x) = at {
+            if self.rows.iter().any(|r| r.id == x) {
+                let i = self.rows.iter().position(|r| r.id == x).unwrap_or(0);
+                return self.select(i);
+            }
+            at = self.snap.parent.get(&x).copied();
+        }
+        Ok(())
     }
 
     /// `[` `]` over the series: the previous or next picture, stopping at the ends.

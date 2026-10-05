@@ -251,7 +251,9 @@ works for tabs, rows, the wheel and photos. A mark before each row says its kind
 nothing in `ev todo` hanging on it or on anything in it. A counted place's name is green with no
 word beside it, since counted is where every place is headed; only the exceptions are written
 (not counted, being counted, left as is, counted but changed since). Every node shows its `#id`, and every
-command takes `#534` in place of a name or code. The key hints at the bottom show only the keys
+command takes `#534` in place of a name or code. In the tree, `→`/`←` open and close one level,
+`e`/`c` open or close the selected node with everything below it, and `C` closes the whole tree
+back to its rooms. The key hints at the bottom show only the keys
 that do something on the screen at hand, and fit the width, dropping the least useful first.
 
 **The details pane.** Beside the tree, the selected node's details are split into tabs (`H`/`L`

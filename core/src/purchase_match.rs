@@ -241,7 +241,7 @@ impl Corpus {
 /// What a thing is, from its name: the part before the first comma or dash, without what is
 /// in brackets. "Kombine pense, Pro'sKit (yeşil-gri saplı)" is a `kombine pense`; "TP4056 Li-ion
 /// şarj modülü, USB-C girişli" is a `şarj modülü`, whatever it is for or made of.
-fn head(name: &str) -> String {
+pub(crate) fn head(name: &str) -> String {
     let mut plain = String::new();
     let mut depth = 0;
     for c in name.chars() {

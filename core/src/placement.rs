@@ -21,6 +21,7 @@ use crate::store::{
 };
 
 mod index;
+mod layout;
 mod vocab;
 
 #[cfg(test)]

@@ -268,3 +268,22 @@ fn a_box_called_empty_reads_back_its_note_and_names_a_task_still_open_on_it() {
     let t = v["open_tasks"][0]["task"].as_i64().unwrap();
     assert_eq!(inv.task_show(t).unwrap()["status"], "open");
 }
+
+#[test]
+fn a_box_brought_into_a_counted_place_after_its_tour_is_not_known_empty() {
+    let (_d, mut inv) = setup();
+    for (name, parent) in [("Çekmece", "Oda"), ("Taşıma çantası", "Ev")] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "container".into(),
+            parent: Some(parent.into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    // An empty drawer is counted with no photo; the case turns up in it afterwards.
+    inv.review("Çekmece", "toured", None).unwrap();
+    inv.move_to("Taşıma çantası", "Çekmece", false).unwrap();
+    let v = inv.show("Taşıma çantası", false).unwrap();
+    assert!(v["empty"].is_null(), "nobody opened it: {}", v["empty"]);
+}

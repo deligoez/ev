@@ -53,3 +53,11 @@ two levels down (a Kallax shows its compartments and the drawers in each), `e` o
 with everything below it and `c` closes it all, the selection staying where it is; `C` closes
 everything but the home, so its rooms show closed. The tree's bottom edge lists its
 keys, as the details' edge lists `H`/`L`.
+
+## Every photo the person sends is shown
+
+A photo of a place's current state is attached and left unframed, and `ev photo add` sent nothing
+to `ev ui`: the person sent a drawer's photos and their screen stayed empty. `ev photo add` now
+puts the attached photo into the marked photo series, unframed and titled with its `--note` (else
+the record), as `photo mark` and `photo cut` do; `--no-show` keeps it off the screen. Pictures sent
+together with `ev focus --file` can each carry a note of their own: `--file a.jpg=<note>`.

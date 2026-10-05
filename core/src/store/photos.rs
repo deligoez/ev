@@ -514,9 +514,11 @@ impl Inventory {
             (PathBuf::from(path), Some(id), grid)
         };
         let mut marks = marks.to_vec();
-        // The labels' numbers count this photo's frames: in their order, each takes the next of
-        // this photo's numbers in the series. Their values only order them, so a lone `2` (the
-        // agent counting across photos) is not left a gap before it.
+        // The labels' numbers count this photo's frames: on a first mark, in their order, each
+        // takes the series' next free number, so a lone `2` (the agent counting across photos)
+        // is not left a gap before it; on a photo marked again, a label keeps its number. The
+        // label each frame was given is kept with it for that.
+        let mut asked: Vec<Option<usize>> = vec![None; marks.len()];
         if numbered == Some(false) {
             let mut given: Vec<usize> = marks
                 .iter()
@@ -524,11 +526,12 @@ impl Inventory {
                 .collect();
             given.sort_unstable();
             given.dedup();
-            let numbers = self.focus_numbers(&file, given.len())?;
-            for (label, _) in &mut marks {
+            let numbers = self.focus_numbers_by_label(&file, &given)?;
+            for ((label, _), asked) in marks.iter_mut().zip(&mut asked) {
                 if let Some((k, rest)) = leading_number(label) {
                     let rank = given.iter().position(|g| *g == k).unwrap_or(0);
                     *label = format!("{}{rest}", numbers[rank]);
+                    *asked = Some(k);
                 }
             }
         }
@@ -559,10 +562,14 @@ impl Inventory {
         if numbered.is_some() {
             v["frames"] = marks
                 .iter()
-                .filter_map(|(l, s)| {
+                .zip(&asked)
+                .filter_map(|((l, s), asked)| {
                     let mut f = json!({ "n": leading_number(l)?.0, "at": s });
                     if numbered == Some(true) {
                         f["kept"] = json!(true);
+                    }
+                    if let Some(k) = asked {
+                        f["label"] = json!(k);
                     }
                     Some(f)
                 })

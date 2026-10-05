@@ -864,6 +864,47 @@ impl Inventory {
             .collect())
     }
 
+    /// The numbers the frames labelled `labels` (the agent's own, from 1 per photo) take on a
+    /// mark of `file`. A photo marked again keeps each label's number from its last mark, so a
+    /// frame fixed or left out never hands its number to another; a new label takes the series'
+    /// next free number. A photo whose frames carry no labels (cut after it was marked, or a
+    /// series written before labels were kept) numbers them in order (`focus_numbers`).
+    pub fn focus_numbers_by_label(
+        &self,
+        file: &std::path::Path,
+        labels: &[usize],
+    ) -> Result<Vec<usize>> {
+        let req = self.focus_request()?;
+        let key = source_key(file);
+        let own: Vec<(usize, usize)> = series_of(&req)
+            .into_iter()
+            .find(|m| stack_key(&m.file) == key)
+            .map(|m| {
+                m.frames
+                    .iter()
+                    .filter(|f| f["kept"] != true)
+                    .filter_map(|f| {
+                        Some((f["label"].as_u64()? as usize, f["n"].as_u64()? as usize))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        if own.is_empty() {
+            return self.focus_numbers(file, labels.len());
+        }
+        let mut next = req["next"].as_u64().map_or(1, |n| n as usize);
+        Ok(labels
+            .iter()
+            .map(|k| match own.iter().find(|(l, _)| l == k) {
+                Some((_, n)) => *n,
+                None => {
+                    next += 1;
+                    next - 1
+                }
+            })
+            .collect())
+    }
+
     /// The series of marked photos on screen: each picture with its note and frames, and the
     /// next free number (`ev focus --list`), so the agent quotes the numbers ev drew.
     pub fn focus_list(&self) -> Result<Value> {

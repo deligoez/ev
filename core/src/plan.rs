@@ -1241,7 +1241,14 @@ impl Inventory {
             )));
         }
         let tx = self.conn.transaction()?;
-        task_json(&tx, id)?;
+        let before = task_json(&tx, id)?;
+        // Done is a fact: dropping it would rewrite what happened.
+        if status == "dropped" && before["status"] == "done" {
+            return Err(crate::error::refused(
+                "it is done; `ev task reopen` it first if it was not",
+                json!({ "task": before }),
+            ));
+        }
         let closed = matches!(status, "done" | "dropped");
         let t = now();
         tx.execute(

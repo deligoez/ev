@@ -84,7 +84,8 @@ A series now reaches 30–40 pictures, and stepping through them one by one was 
 `g` shows the whole series as a grid: each picture titled `f12 · <note>` with a count of its
 numbered frames, as many a row as the screen holds at the picture width, re-flowed when the
 terminal is resized. The width is one setting, `ev settings series_tile <cells>` (28 by default);
-`+` / `-` change it for now. Arrows move, `Enter` opens the picture selected, and in both views
+`+` / `-` change it for now. Arrows (or the wheel, a row at a time) move, `Enter` or a click
+opens the picture, and in both views
 `Home` / `End` go to the first and last and `f12` then `Enter` goes straight to a picture. Only the
 rows on screen are drawn, and each picture is scaled down once (spec/series-grid.md).
 

@@ -1763,6 +1763,7 @@ fn zero_opens_the_past_by_year_apart_from_the_inventory() {
     app.select(thing).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
+    assert!(s.contains("Hatırlananlar (1)"), "{s}");
     assert!(s.contains("2019") && s.contains("1 gitti"), "{s}");
     assert!(s.contains("Oyun konsolu") && s.contains("Eski ev"), "{s}");
     // The details say when it came and how it left.

@@ -96,6 +96,12 @@ fn series_of(req: &Value) -> Vec<Marked> {
         .collect()
 }
 
+/// Whole minutes from `from` to `to` (RFC 3339 times), when both read.
+fn minutes_between(from: &str, to: &str) -> Option<i64> {
+    let parse = |t: &str| chrono::DateTime::parse_from_rfc3339(t).ok();
+    Some((parse(to)? - parse(from)?).num_minutes())
+}
+
 /// The number in a series reference: `f12` (or `F12`) is the series' twelfth picture.
 pub fn series_number(text: &str) -> Option<usize> {
     let rest = text.strip_prefix(['f', 'F'])?;
@@ -980,24 +986,42 @@ impl Inventory {
                             crate::marks::photo_stale(&tx, n)?
                             && !(holds == 0 && reason == "none")
                         {
+                            // How long after the photo the records changed: minutes mean the
+                            // records caught up with what the photo already shows.
+                            let minutes = match (&photo_at, &changed) {
+                                (Some(p), Some(c)) => minutes_between(p, c),
+                                _ => None,
+                            };
                             stale.push(json!({
                                 "node": brief(&tx, n)?,
                                 "reason": reason,
                                 "photo_at": photo_at,
                                 "changed_at": changed,
+                                "minutes_after": minutes,
                             }));
                         }
                     }
                     if !stale.is_empty() {
-                        return Err(refused(
+                        let recent = stale
+                            .iter()
+                            .all(|s| s["minutes_after"].as_i64().is_some_and(|m| m <= 120));
+                        let msg = if recent {
+                            format!(
+                                "{} photo(s) are older than what they show, by minutes: the \
+                                 records may have caught up with what the photo already shows. \
+                                 If it does, say so (`ev photo current <ref>`); else attach a \
+                                 current photo",
+                                stale.len()
+                            )
+                        } else {
                             format!(
                                 "{} photo(s) are older than what they show; attach a current \
                                  photo (`ev photo cut <photo> --place <ref> --grid …`) or say \
                                  an old one still holds (`ev photo current <ref>`)",
                                 stale.len()
-                            ),
-                            json!({ "stale": stale }),
-                        ));
+                            )
+                        };
+                        return Err(refused(msg, json!({ "stale": stale })));
                     }
                 }
                 tx.execute(

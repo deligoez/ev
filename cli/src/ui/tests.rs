@@ -1394,10 +1394,12 @@ fn e_and_c_open_and_close_all_below_and_capital_c_closes_the_tree() {
     press(&mut app, KeyCode::Char('C'));
     assert_eq!(app.rows.len(), first);
     assert!(app.selected_id().is_some());
-    // The keys are in the footer, as H/L are.
+    // The keys are on the tree's bottom edge, as H/L are on the details'.
     let mut term = Terminal::new(TestBackend::new(200, 20)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&term).contains("e/c open/close all below"));
+    let s = screen(&term);
+    let edge = s.lines().rev().nth(1).unwrap_or_default();
+    assert!(edge.contains("e/c all below · C close all"), "{s}");
 }
 
 #[test]

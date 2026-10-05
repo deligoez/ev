@@ -29,8 +29,9 @@ fn kit_id(conn: &Connection, reference: &str) -> Result<i64> {
     .ok_or_else(|| Error::NotFound(format!("no kit `{r}`; `ev kit list` shows them")))
 }
 
-/// Appends parts to a kit, numbering on from its last.
-fn add_parts(conn: &Connection, kit: i64, parts: &[(String, i64)]) -> Result<()> {
+/// Appends parts to a kit, numbering on from its last; their numbers.
+fn add_parts(conn: &Connection, kit: i64, parts: &[(String, i64)]) -> Result<Vec<i64>> {
+    let mut added = Vec::new();
     let mut next: i64 = conn.query_row(
         "SELECT COALESCE(MAX(position), 0) FROM kit_parts WHERE kit_id = ?1",
         [kit],
@@ -51,8 +52,9 @@ fn add_parts(conn: &Connection, kit: i64, parts: &[(String, i64)]) -> Result<()>
             "INSERT INTO kit_parts (kit_id, position, text, qty) VALUES (?1, ?2, ?3, ?4)",
             params![kit, next, text, qty],
         )?;
+        added.push(next);
     }
-    Ok(())
+    Ok(added)
 }
 
 /// The part numbered `n` (from 1) of a kit, or an error naming how many it has.
@@ -180,9 +182,81 @@ impl Inventory {
         }
         let tx = self.conn.transaction()?;
         let id = kit_id(&tx, kit)?;
-        add_parts(&tx, id, parts)?;
+        let added = add_parts(&tx, id, parts)?;
         tx.commit()?;
-        self.kit_show(&id.to_string())
+        // Only what was added: the whole kit is `ev kit show`.
+        let v = self.kit_show(&id.to_string())?;
+        let parts: Vec<Value> = v["parts"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|p| p["n"].as_i64().is_some_and(|n| added.contains(&n)))
+            .cloned()
+            .collect();
+        Ok(json!({
+            "kit": { "id": id, "name": v["kit"]["name"] },
+            "added": parts,
+            "counts": v["counts"],
+        }))
+    }
+
+    /// Takes part `n` off a kit's list, entered by mistake. Refused while records are linked to
+    /// it: they are unlinked first, on the person's word. The other parts keep their numbers.
+    pub fn kit_part_drop(&mut self, kit: &str, n: i64) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let id = kit_id(&tx, kit)?;
+        let text = part(&tx, id, n)?;
+        let linked = crate::store::ids(
+            &tx,
+            "SELECT node_id FROM kit_links WHERE kit_id = ?1 AND position = ?2 ORDER BY node_id",
+            params![id, n],
+        )?;
+        if !linked.is_empty() {
+            let nodes = linked
+                .iter()
+                .map(|l| brief_json(&tx, *l))
+                .collect::<Result<Vec<_>>>()?;
+            return Err(crate::error::refused(
+                format!(
+                    "part {n} ({text}) has {} record(s) linked; `ev kit unlink` them first",
+                    linked.len()
+                ),
+                json!({ "linked": nodes }),
+            ));
+        }
+        tx.execute(
+            "DELETE FROM kit_parts WHERE kit_id = ?1 AND position = ?2",
+            params![id, n],
+        )?;
+        tx.commit()?;
+        let v = self.kit_show(&id.to_string())?;
+        Ok(json!({
+            "kit": { "id": id, "name": v["kit"]["name"] },
+            "dropped": { "n": n, "text": text },
+            "counts": v["counts"],
+        }))
+    }
+
+    /// Names part `n` anew, and how many come in one copy; its records stay linked.
+    pub fn kit_part_set(&mut self, kit: &str, n: i64, text: &str, qty: i64) -> Result<Value> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(Error::Usage("a kit part needs a name".into()));
+        }
+        if qty < 1 {
+            return Err(Error::Usage(format!(
+                "`{text}`: a part comes at least once"
+            )));
+        }
+        let tx = self.conn.transaction()?;
+        let id = kit_id(&tx, kit)?;
+        part(&tx, id, n)?;
+        tx.execute(
+            "UPDATE kit_parts SET text = ?1, qty = ?2 WHERE kit_id = ?3 AND position = ?4",
+            params![text, qty, id, n],
+        )?;
+        tx.commit()?;
+        self.kit_part(id, n)
     }
 
     /// Says these records are part `n` of a kit. Each record's history keeps it.

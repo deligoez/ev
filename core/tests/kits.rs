@@ -174,7 +174,7 @@ fn kits_refuse_what_they_cannot_mean() {
         2
     );
     let v = inv.kit_parts_add("Set", &[("Kart".into(), 1)]).unwrap();
-    assert_eq!(v["parts"][1]["n"], 2);
+    assert_eq!(v["added"][0]["n"], 2);
     // Removing a kit leaves the records.
     inv.kit_remove("Set").unwrap();
     assert!(inv.show("RC522 okuyucu", false).is_ok());

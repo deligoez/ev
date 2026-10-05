@@ -507,7 +507,8 @@ pub(crate) fn thing_json(conn: &Connection, n: &Node) -> Result<Option<Value>> {
     Ok(Some(json!({
         "id": thing,
         "total": total,
-        "places": portions.len(),
+        // A lost portion is in no place: it counts under `lost`, as its units do.
+        "places": portions.iter().filter(|p| !p.lost).count(),
         "in_use": in_use,
         "spare": total - in_use,
         "lost": lost,

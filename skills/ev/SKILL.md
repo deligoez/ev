@@ -387,7 +387,11 @@ bought, what the shop's order page says) and `delivered …` when it arrived; "b
 order date. When the person holds a thing that matches a line ("this is the drill I
 bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`. The thing then
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
-returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. Never link on
+returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. What was paid
+for and is never a thing in the home goes in with its bucket, not dismissed: `digital` (a
+licence, a game key, a membership) or `service` (a diet programme, a repair), in the adapter's
+lines or `ev buy add --bucket`; such lines never wait to be linked, and `ev stats` shows what
+went to them apart. Never link on
 your own reading of a name; ask. A link the person says was wrong is undone with `ev buy unlink
 <line> <ref>`: it takes back the pictures and pages the link brought; a value or coverage it
 brought is listed under `left` — ask whether to remove it.

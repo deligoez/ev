@@ -432,3 +432,39 @@ fn a_past_thing_with_no_date_said_left_when_nothing_says() {
     let v = inv.show("Eski telefon", true).unwrap();
     assert_eq!(v["departure"]["at"].as_str().unwrap().len(), 10);
 }
+
+#[test]
+fn a_past_thing_takes_its_documents_and_old_photos_by_id() {
+    let (d, mut inv) = setup();
+    past_thing(&mut inv, "Dizüstü", "give", "2020", Some("2017"));
+    let id = inv.show("Dizüstü", true).unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
+    let r = format!("#{id}");
+    let mail = d.path().join("sohbet.txt");
+    std::fs::write(&mail, "price and serial").unwrap();
+    inv.doc_add(
+        &mail,
+        &ev_core::NewDoc {
+            kind: "other".into(),
+            ..Default::default()
+        },
+        std::slice::from_ref(&r),
+    )
+    .unwrap();
+    let photo = d.path().join("eski.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&photo)
+        .unwrap();
+    inv.photo_add(&r, &photo, None, None).unwrap();
+    let v = inv.show(&r, true).unwrap();
+    assert_eq!(v["documents"].as_array().unwrap().len(), 1, "{v}");
+    assert_eq!(v["node"]["photos"].as_array().unwrap().len(), 1, "{v}");
+    // By name a gone record stays out of reach, as everywhere.
+    assert_eq!(
+        inv.photo_add("Dizüstü", &photo, None, None)
+            .unwrap_err()
+            .code(),
+        3
+    );
+}

@@ -435,7 +435,8 @@ it was cut with `--grid` (schema 11), or through `--grid`. The copy goes to `--o
 not attached and leaves no history. It is also sent to a running `ev ui`, into the marked photo
 series (titled with `--show <note>`, else with the labels), unless `--no-show` is given. There a
 numbered label (`1`, `2 → A6`: a number, alone or followed by a space) counts this photo's frames
-and is drawn with the frame's number in the series: the photo's own numbers when it is in the
+(the labels' numbers only order them: a lone `2` is the photo's first frame) and is drawn with the
+frame's number in the series: the photo's own numbers when it is in the
 series already, in order, then the series' next free ones — so `1=… 2=…` on the second photo of a
 series draws `3` and `4`. `--keep-numbers` draws the numbers as given, for marks that point at
 frames numbered already (a destination: `4=A6`, frame 4 goes to A6). Output:

@@ -829,6 +829,11 @@ enum BuyCmd {
         url: Option<String>,
         #[arg(long)]
         brand: Option<String>,
+        /// durable (the default), clothing, digital (a licence, a game key, a membership) or
+        /// service (a diet programme, a repair): what is never a thing in the home is not
+        /// waiting to be linked.
+        #[arg(long)]
+        bucket: Option<String>,
         /// Link it to this thing at once.
         #[arg(long = "for")]
         for_ref: Option<String>,
@@ -2047,12 +2052,13 @@ fn run(cli: Cli) -> Result<Value> {
             order_url,
             url,
             brand,
+            bucket,
             for_ref,
         }) => inv.buy_add(
             &serde_json::json!({
                 "name": name, "shop": shop, "ordered_at": date, "paid": paid,
                 "currency": currency, "qty": qty, "pack": pack, "order": order, "order_url": order_url,
-                "product_url": url, "brand": brand,
+                "product_url": url, "brand": brand, "bucket": bucket,
             }),
             for_ref.as_deref(),
         ),

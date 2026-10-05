@@ -10,7 +10,10 @@ use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
 
 /// The buckets a line may be in (spec §3.2); consumables are not imported for now (§11).
-pub const BUCKETS: [&str; 3] = ["durable", "clothing", "digital"];
+/// `digital` (a licence, a game key, a membership) and `service` (a diet programme, a repair)
+/// are paid for and never a thing in the home: they never wait to be linked, and `ev stats`
+/// counts them apart.
+pub const BUCKETS: [&str; 4] = ["durable", "clothing", "digital", "service"];
 
 /// Why a line will never be a node.
 pub const DISMISSALS: [&str; 6] = [
@@ -703,7 +706,10 @@ impl Inventory {
         let mut out = Vec::new();
         for id in all {
             let p = list_row(&self.conn, id)?;
-            let is_open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
+            // What is never a thing (digital, service) never waits to be linked.
+            let is_open = p["dismissed"].is_null()
+                && p["open_qty"].as_i64().unwrap_or(0) > 0
+                && !matches!(p["bucket"].as_str(), Some("digital" | "service"));
             if open && !is_open
                 || bucket.is_some_and(|b| p["bucket"] != b)
                 || shop.as_ref().is_some_and(|s| {

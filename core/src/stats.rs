@@ -397,6 +397,31 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
         let sum = BTreeMap::from([(c, paid)]);
         shops.push(json!({ "shop": shop, "lines": n, "paid": per_currency(&sum, home) }));
     }
+    // By bucket: what was paid for things, clothes, and what is never a thing (digital,
+    // service), each apart.
+    let mut stmt = conn.prepare(
+        "SELECT bucket, COUNT(*), COALESCE(currency, ''), COALESCE(SUM(paid), 0)
+           FROM purchases WHERE same_as IS NULL AND status = 'delivered' GROUP BY 1, 3",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+        ))
+    })?;
+    let mut by_bucket: BTreeMap<String, (i64, BTreeMap<String, i64>)> = BTreeMap::new();
+    for row in rows {
+        let (b, n, c, paid) = row?;
+        let e = by_bucket.entry(b).or_default();
+        e.0 += n;
+        *e.1.entry(c).or_default() += paid;
+    }
+    let buckets: Vec<Value> = by_bucket
+        .into_iter()
+        .map(|(b, (n, paid))| json!({ "bucket": b, "lines": n, "paid": per_currency(&paid, home) }))
+        .collect();
     Ok(json!({
         "lines": count("SELECT COUNT(*) FROM purchases WHERE same_as IS NULL")?,
         "linked": count("SELECT COUNT(DISTINCT purchase_id) FROM purchase_links")?,
@@ -408,6 +433,7 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
         )?,
         "years": years,
         "shops": shops,
+        "buckets": buckets,
     }))
 }
 

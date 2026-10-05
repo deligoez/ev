@@ -3767,6 +3767,25 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             ],
         )));
     }
+    // What the money went to: things, clothes, and what is never a thing.
+    let buckets: Vec<String> = p["buckets"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|b| {
+            let name = match b["bucket"].as_str() {
+                Some("durable") => t("things"),
+                Some("clothing") => t("clothing"),
+                Some("digital") => t("digital"),
+                Some("service") => t("services"),
+                _ => "?",
+            };
+            format!("{name} {} · {}", b["lines"], amounts(&b["paid"]))
+        })
+        .collect();
+    if !buckets.is_empty() {
+        buys.push(line(format!("  {}", buckets.join("; "))));
+    }
     for sh in p["shops"].as_array().into_iter().flatten() {
         buys.push(line(tf(
             "  {}: {} lines · {}",

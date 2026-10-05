@@ -81,6 +81,21 @@ a letter) leaves `--as digitize`: only once its photo or scan is on the record, 
 What was used up (a tape run out, a dead cell) leaves `--as used`, and `--qty 2` lets two of a
 counted thing go while the rest stay.
 
+**What was ours.** Purchase mails reach back years, to things long gone: an old phone, a console
+sold, a screen left behind at a move. Such a thing can be recorded as it is remembered, in one
+step and in no place: `ev add "Oyun konsolu" --gone sell --at 2019-05 --came 2016 --where "Eski
+ev"` (a year, a month or a day, never a day nobody said). How it left may be `left` (left
+behind), `stolen`, or `unknown` (sold or thrown out, not sure). `ev gone X --at 2016 --where …`
+does the same for a record already here, `ev edit X came=2014-03` says when any thing came, and
+`ev sold X --price 1500 [--currency EUR] [--via "…"]` what a sale brought (a sale still listed
+carries where it was listed; its asking price is not taken for what it brought). A purchase
+line of a past thing is settled with `ev buy link`, as for any record. `ev past` lists them by
+year, with the money paid for them and got for them; `ev past --year 2018` is what was ours that
+year, present things included, and what nothing dates is counted apart rather than guessed in.
+`ev stats` has a past section of its own, and `ev ui` a Past tab (`0`); the tree, the to-do list
+and every count of today never see them. Nothing asks about the past on its own: the person
+decides what is worth a record.
+
 **Lost and found.** A lost thing's place is unknown: `ev lost X` lists it under "Unknown
 place" with where it was last seen; `ev lost` lists them; `ev found X` puts it back there, `ev
 found X --in Y` where it turned up.

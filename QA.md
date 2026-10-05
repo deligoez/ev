@@ -12,8 +12,9 @@ The real inventory is never written by a round, not even "only a read" through a
 might write (`ev ui` keeps state, `ev settings` writes, `ev focus` writes a series file).
 
 1. **Before:** the inventory agent has committed its last change and `~/.ev` has nothing
-   uncommitted (`git -C ~/.ev status`). Note the guard: `sqlite3 -readonly ~/.ev/ev.db "SELECT
-   count(*), max(id) FROM events"` (every write adds an event).
+   uncommitted (`git -C ~/.ev status`). Note the guard: `sqlite3 ~/.ev/ev.db "SELECT count(*),
+   max(id) FROM events"` (every write adds an event). A SELECT changes nothing; `-readonly`
+   is no safer and fails on a database in write-ahead-log mode when no `ev` has it open.
 2. **Sandbox:** `tools/qa/sandbox.sh` copies the database (SQLite backup), photos, documents and
    settings into a new temporary directory and prints `EV_DB=… EV_CONFIG=…`.
 3. **Every command** of the round carries both, in front (`EV_DB=… EV_CONFIG=… ev …`), or

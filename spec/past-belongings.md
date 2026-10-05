@@ -35,8 +35,9 @@ it once", and whether a marketplace's sale mails could be a source too.
   it optional: `at` (a partial date as the person can give it: `2016`, `2016-06`,
   `2016-06-14`), `place_id` (where it was then), `price` and `currency` (what a sale brought),
   `via` (the channel: a marketplace, a shop's trade-in, a friend), `note`. With no `at`, the
-  day of the `gone` event stands for it; the event keeps the moment the record was written, so
-  the history still tells both.
+  day of the `gone` event stands for it when the leaving was seen (`ev gone`); a past thing
+  added already gone with no `at` left when nothing says, and is counted apart from the years.
+  The event keeps the moment the record was written, so the history still tells both.
 - **When it came:** `nodes.came_at`, a partial date, for a thing recorded long after it arrived;
   a linked purchase's order date stands for it when not given.
 - **How it left:** the dispositions gain three values, for what the person actually says. Like

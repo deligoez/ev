@@ -467,8 +467,8 @@ are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
 note; `ev dispose <ref> --as d --why "<text>"` appends it to the note too (an `edit` event) when the
 thing is set aside. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
-`ev history <id>` and `ev edit <id> note=…` (the note is the only field a gone node lets change; any
-other exits 5).
+`ev history <id>` and `ev edit <id> note=…` (a gone node lets change only what it was: `note`,
+`came`, `qty`, `make`, `model`, `serial`; any other field exits 5).
 
 **Photographed, then thrown out: `--as digitize`.** For a paper whose content is worth keeping
 but whose paper is not: a ticket, a letter, an old statement, a manual. `ev dispose <ref> --as
@@ -504,18 +504,22 @@ partial: `2016`, `2016-06` or `2016-06-14`; anything else exits 2.
 | `ev sold <ref> --price <n> [--currency C] [--at <date>] [--via "…"] [--note "…"]` | what a sale brought, on a record gone or set aside as `sell` (else exit 5); the currency is the home one when not given; said again, the price is replaced and what is not said again stays. A `sold` event |
 | `ev buy link <line> <ref>`, `ev buy add … --for <ref>` | work on a gone record: the line is settled and leaves the open lists |
 | `ev past [--name <word>] [--where <place>]` | the past things, last gone first, and per year how many left and the money paid for them (their linked purchases) and got for them (`ev sold`), by currency. Mistakes, joined portions and digitized papers are left out |
-| `ev past --year <y>` | what was ours in that year: every item and piece of furniture, past or present and not kept for someone else, that came by the end of the year and had not left before it began, oldest coming first; `unknown` counts those whose coming nothing says, never guessed in |
+| `ev past --year <y>` | what was ours in that year: every item and piece of furniture, past or present and not kept for someone else, that came by the end of the year and had not left before it began, oldest coming first; `unknown` counts those whose coming, or (once the year they came is over) whose leaving, nothing says, never guessed in |
+| `ev edit <id> note=… came=… qty=… make=… model=… serial=…` | a gone record takes what it was, so a past thing is completed as remembered; any other field exits 5 |
 
 When a record came is `came`, else the earliest order date of a purchase linked to it. When it
-left is `--at`, else the day it was recorded gone; the `gone` event keeps the moment it was
-written either way. A thing gone `--as sell` while a sale was listed (`ev sale --listed --where
-…`) takes where it was listed as what it went through (`via`); the asking price is not carried,
-since it is not what the sale brought.
+left is `--at`, else the day it was seen leaving (`ev gone`); a past thing added with `ev add
+--gone` and no `--at` left when nothing says, and is listed apart from the years, never in the
+year it was recorded. The `gone` event keeps the moment it was written either way. A thing gone
+`--as sell` while a sale was listed (`ev sale --listed --where …`) takes where it was listed as
+what it went through (`via`); the asking price is not carried, since it is not what the sale
+brought.
 
 `ev show` gives `came` and `departure`: `{at, where, price, currency, via, note}` (null unless
-gone). `ev past`: `{past: [{id, name, came, left, how, where, paid: {CUR: amount}, got: {price,
-currency, via} | null}], years: [{year, left, paid, got}]}`. `ev past --year`: `{year, owned:
-[NodeRef + came, left], unknown}`. `ev stats` adds `past: {records, how: {d: n}, paid, got}`.
+gone; `at` null when nothing says). `ev past`: `{past: [{id, name, came, left, how, where, paid:
+{CUR: amount}, got: {price, currency, via} | null}], years: [{year, left, paid, got}], undated:
+{left, paid, got} | null}`. `ev past --year`: `{year, owned: [NodeRef + came, left], unknown}`.
+`ev stats` adds `past: {records, how: {d: n}, paid, got}`.
 ## Documents
 
 Invoices, warranty certificates, manuals, service forms, appraisals and policies, copied into

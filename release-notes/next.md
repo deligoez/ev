@@ -13,3 +13,12 @@ A labelled child is now a place of its own only when its code goes on from its h
 (`K2-01-A` in `K2-01`: a drawer of that unit), or when the holder has no code. A label of
 another series is a box in the place and is counted with it. The colour and status `ev ui` shows
 for a place follow the same rule.
+
+## Counted needs no word in `ev ui`
+
+Counted is where every place is headed, so the tree no longer writes `[sayıldı]` beside a counted
+place: its green name says it, also while something in it still waits (a planned move is marked
+beside it). Only the exceptions are written: not counted, being counted, left as is, and a new
+one, **counted but changed since**, for a counted place whose contents changed after its tour. It
+used to look counted and green while it held things nobody had counted. `ev tree` carries the
+same `changed_since` on such a place.

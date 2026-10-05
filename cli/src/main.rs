@@ -205,6 +205,19 @@ enum Cmd {
         #[arg(long)]
         note: Option<String>,
     },
+    /// The past belongings, last gone first, with per year how many left and the money paid
+    /// for them and got for them; --year Y: what was ours in that year.
+    Past {
+        /// Only those whose name holds this word.
+        #[arg(long, conflicts_with = "year")]
+        name: Option<String>,
+        /// Only those left in this place.
+        #[arg(long = "where", conflicts_with = "year")]
+        place: Option<String>,
+        /// Every thing, past or present, that was ours in this year.
+        #[arg(long)]
+        year: Option<i32>,
+    },
     /// Every candidate, grouped by disposition.
     Disposals {
         #[arg(long = "as")]
@@ -1776,6 +1789,14 @@ fn run(cli: Cli) -> Result<Value> {
             via.as_deref(),
             note.as_deref(),
         ),
+        Cmd::Past {
+            year: Some(y), ..
+        } => inv.past_year(y),
+        Cmd::Past {
+            name,
+            place,
+            year: None,
+        } => inv.past(name.as_deref(), place.as_deref()),
         Cmd::Disposals { disposition: d } => {
             inv.disposals(d.as_deref().map(disposition).transpose()?)
         }

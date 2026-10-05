@@ -53,7 +53,7 @@ fn place_json(conn: &Connection, id: i64) -> Result<Value> {
     Ok(json!({ "id": id, "name": name, "aliases": aliases }))
 }
 
-fn resolve_place(conn: &Connection, text: &str) -> Result<i64> {
+pub(super) fn resolve_place(conn: &Connection, text: &str) -> Result<i64> {
     find_place(conn, text)?.ok_or_else(|| {
         Error::NotFound(format!(
             "no place named `{}`; `ev place list` shows them",

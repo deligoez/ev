@@ -2507,6 +2507,89 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    // `ev past`: by year, then each thing, last gone first (spec/past-belongings.md).
+    if let (Some(list), Some(years)) = (
+        v.get("past").and_then(Value::as_array),
+        v.get("years").and_then(Value::as_array),
+    ) {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(nothing past)"));
+            return out;
+        }
+        let sums = |m: &Value| -> String {
+            m.as_object()
+                .into_iter()
+                .flatten()
+                .map(|(c, a)| amount(a.as_str().unwrap_or_default(), c))
+                .collect::<Vec<_>>()
+                .join(" + ")
+        };
+        for y in years {
+            let mut parts = vec![tf("{} left", &[&y["left"]])];
+            let (paid, got) = (sums(&y["paid"]), sums(&y["got"]));
+            if !paid.is_empty() {
+                parts.push(tf("paid {}", &[&paid]));
+            }
+            if !got.is_empty() {
+                parts.push(tf("got {}", &[&got]));
+            }
+            let _ = writeln!(out, "{}  {}", y["year"], parts.join(" · "));
+        }
+        let _ = writeln!(out);
+        for n in list {
+            let mut parts = Vec::new();
+            if let Some(c) = n["came"].as_str() {
+                parts.push(tf("came {}", &[&c]));
+            }
+            parts.push(tf("left {}", &[&s(n, "left")]));
+            parts.push(disposition(&s(n, "how")));
+            if let Some(w) = n["where"].as_str() {
+                parts.push(tf("in {}", &[&w]));
+            }
+            let paid = sums(&n["paid"]);
+            if !paid.is_empty() {
+                parts.push(tf("paid {}", &[&paid]));
+            }
+            if let Some(g) = n["got"].as_object() {
+                let price = amount(
+                    g["price"].as_str().unwrap_or_default(),
+                    g["currency"].as_str().unwrap_or("TRY"),
+                );
+                parts.push(tf("got {}", &[&price]));
+            }
+            let _ = writeln!(
+                out,
+                "#{} {}\n    {}",
+                n["id"],
+                s(n, "name"),
+                parts.join(" · ")
+            );
+        }
+        return out;
+    }
+    // `ev past --year`: what was ours that year.
+    if let (Some(year), Some(list)) = (v.get("year"), v.get("owned").and_then(Value::as_array)) {
+        let _ = writeln!(out, "{}", tf("ours in {}: {}", &[year, &list.len()]));
+        for n in list {
+            let mut when = tf("came {}", &[&s(n, "came")]);
+            if let Some(l) = n["left"].as_str() {
+                when = format!("{when} · {}", tf("left {}", &[&l]));
+            }
+            let _ = writeln!(out, "  {}  ({when})", line(n));
+        }
+        let unknown = v["unknown"].as_u64().unwrap_or(0);
+        if unknown > 0 {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf(
+                    "{} more whose coming nothing says (no came, no purchase) are not counted",
+                    &[&unknown]
+                )
+            );
+        }
+        return out;
+    }
     if let Some(groups) = v.get("disposals").and_then(Value::as_object) {
         for (d, list) in groups {
             let _ = writeln!(out, "{}:", disposition(d));
@@ -3650,6 +3733,28 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             .map(|n| node(n, format!("{}  {}", s(n, "bought"), s(n, "path_text"))))
             .collect(),
     ));
+
+    // Past belongings, apart from today's numbers (spec/past-belongings.md).
+    let p = &v["past"];
+    let mut past = Vec::new();
+    if p["records"].as_u64().unwrap_or(0) > 0 {
+        let how: Vec<String> = p["how"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(d, n)| format!("{n} {}", disposition(d)))
+            .collect();
+        past.push(line(tf(
+            "{} things that were ours: {}",
+            &[&p["records"], &how.join(", ")],
+        )));
+        for (key, label) in [("paid", "paid for them: {}"), ("got", "got for them: {}")] {
+            if p[key].as_object().is_some_and(|m| !m.is_empty()) {
+                past.push(line(tf(label, &[&amounts(&p[key])])));
+            }
+        }
+    }
+    out.push((t("PAST").to_string(), past));
     out.retain(|(_, lines)| !lines.is_empty());
     out
 }

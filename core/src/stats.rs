@@ -342,6 +342,7 @@ impl Inventory {
             "coverage": coverage,
             "tags": tags,
             "oldest": refs(conn, &oldest)?,
+            "past": self.past_summary()?,
         }))
     }
 }

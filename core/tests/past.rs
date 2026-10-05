@@ -234,3 +234,77 @@ fn a_listed_sale_carries_where_it_went_through_not_what_it_asked() {
     assert_eq!(v["departure"]["via"], "Bir pazar yeri");
     assert!(v["departure"]["price"].is_null(), "{v}");
 }
+
+/// A past thing added in one step, as remembered.
+fn past_thing(inv: &mut Inventory, name: &str, how: &str, at: &str, came: Option<&str>) {
+    inv.add(NewNode {
+        name: name.into(),
+        kind: "item".into(),
+        gone: Some(how.into()),
+        at: Some(at.into()),
+        came: came.map(Into::into),
+        place: Some("Eski ev".into()),
+        ..Default::default()
+    })
+    .unwrap();
+}
+
+#[test]
+fn the_past_lists_last_gone_first_with_what_each_year_cost_and_brought() {
+    let (_d, mut inv) = setup();
+    past_thing(&mut inv, "Oyun konsolu", "sell", "2019-05", Some("2016"));
+    past_thing(&mut inv, "Eski klavye", "left", "2014", None);
+    inv.sold("Oyun konsolu", "1500", None, None, None, None)
+        .unwrap();
+    inv.buy_add(
+        &serde_json::json!({"name": "Konsol", "qty": 1, "paid": "700.00", "currency": "EUR"}),
+        Some("Oyun konsolu"),
+    )
+    .unwrap();
+    // A record that was never real is no past belonging.
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Mistake),
+        Some("never here"),
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let v = inv.past(None, None).unwrap();
+    let names: Vec<&str> = v["past"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Oyun konsolu", "Eski klavye"]);
+    let first = &v["past"][0];
+    assert_eq!(first["came"], "2016");
+    assert_eq!(first["paid"]["EUR"], "700.00");
+    assert_eq!(first["got"]["price"], "1500.00");
+    assert_eq!(v["years"][0]["year"], 2019);
+    assert_eq!(v["years"][0]["got"]["TRY"], "1500.00");
+    assert_eq!(v["years"][1]["year"], 2014);
+    assert_eq!(v["years"][1]["left"], 1);
+    // By a word of the name, and by the place it was left in.
+    assert_eq!(
+        inv.past(Some("KLAVYE"), None).unwrap()["past"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        inv.past(None, Some("eski ev")).unwrap()["past"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    // The stats keep them apart from today's numbers.
+    let stats = inv.stats().unwrap();
+    assert_eq!(stats["past"]["records"], 2);
+    assert_eq!(stats["past"]["got"]["TRY"], "1500.00");
+}

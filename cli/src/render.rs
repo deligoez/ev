@@ -1215,7 +1215,7 @@ fn head(n: &Value) -> String {
 }
 
 /// A holder by its label alone, for the short side of an arrow.
-fn label(n: &Value) -> String {
+pub(crate) fn label(n: &Value) -> String {
     n["code"]
         .as_str()
         .map_or_else(|| s(n, "path_text"), str::to_string)

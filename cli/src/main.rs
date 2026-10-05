@@ -1066,6 +1066,10 @@ enum PhotoCmd {
         /// Grow --crop on each side by this fraction of its own size (0.1: a tenth).
         #[arg(long, requires = "crop")]
         pad: Option<f64>,
+        /// Do not send it to the marked photo series in a running `ev ui`, which it joins by
+        /// default, unframed and titled with --note (else with the record).
+        #[arg(long)]
+        no_show: bool,
     },
     /// Cut one photo up among several nodes at once: `<ref>=x,y,w,h` for each, and the whole
     /// photo on --place (the drawer or box it shows). All or nothing.
@@ -2030,6 +2034,7 @@ fn run(cli: Cli) -> Result<Value> {
             whole,
             rotate,
             pad,
+            no_show,
         }) => {
             let pad = pad_of(pad)?;
             let file = match rotate {
@@ -2039,7 +2044,19 @@ fn run(cli: Cli) -> Result<Value> {
             let crop = crop
                 .map(|c| c.parse::<ev_core::Crop>().map(|c| c.padded(pad)))
                 .transpose()?;
-            inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)
+            let mut v = inv.photo_add_with(&reference, &file, crop, note.as_deref(), whole)?;
+            // The photo joins the marked photo series in `ev ui`, unframed: every photo the
+            // person sends is shown, framed or not (spec/focus-stack.md).
+            let added = v["photos"]
+                .as_array()
+                .and_then(|p| p.last())
+                .and_then(|p| p["path"].as_str())
+                .map(PathBuf::from);
+            if let (false, Some(path)) = (no_show, added) {
+                let title = note.unwrap_or_else(|| crate::render::label(&v["node"]));
+                v["shown"] = inv.focus_marked(&[path], Some(&title), &[])?["focus"].clone();
+            }
+            Ok(v)
         }
         Cmd::Photo(PhotoCmd::Mark {
             target,

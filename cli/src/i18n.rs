@@ -858,6 +858,37 @@ static TR: &[(&str, &str)] = &[
         "{} / {} şey zaten en uygun yerinde.",
     ),
     ("Would fit better elsewhere:", "Başka yere daha iyi uyar:"),
+    ("{}: {} places, {} things", "{}: {} yer, {} eşya"),
+    (
+        "Kinds spread over several places:",
+        "Birkaç yere dağılmış türler:",
+    ),
+    ("Places that read alike:", "Birbirine benzeyen yerler:"),
+    (
+        "Nearly empty, could join another:",
+        "Neredeyse boş, bir başkasına katılabilir:",
+    ),
+    ("({} things; shared: {})", "({} eşya; ortak: {})"),
+    (
+        "Full or mixed, could be split:",
+        "Dolu ya da karışık, bölünebilir:",
+    ),
+    ("full", "dolu"),
+    ("mixed", "karışık"),
+    ("{} things", "{} eşya"),
+    (
+        "Draft layout (nothing is moved):",
+        "Taslak düzen (hiçbir şey taşınmadı):",
+    ),
+    (
+        "{} ({} things, {} to bring)",
+        "{} ({} eşya, {} getirilecek)",
+    ),
+    ("from {}", "{} yerinden"),
+    (
+        "No place left for these, they stay where they are: {}",
+        "Bunlara yer kalmadı, oldukları yerde kalır: {}",
+    ),
     (
         "Named for another box's theme (worth a look):",
         "Adı başka bir kutunun temasına uyuyor (bakılmaya değer):",

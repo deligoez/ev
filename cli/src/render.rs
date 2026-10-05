@@ -1362,6 +1362,146 @@ fn scored() -> &'static str {
     )
 }
 
+/// `ev layout`: a piece of furniture read across its places, then the drafted layout when asked.
+fn layout(out: &mut String, v: &Value) {
+    let f = &v["furniture"];
+    let _ = writeln!(
+        out,
+        "{}  {}",
+        label(f),
+        tf(
+            "{}: {} places, {} things",
+            &[&s(f, "name"), &v["places"], &v["things"]]
+        )
+    );
+    let section = |out: &mut String, key: &str, title: &str| -> Vec<Value> {
+        let list = v[key].as_array().cloned().unwrap_or_default();
+        if !list.is_empty() {
+            let _ = writeln!(out, "\n{title}");
+        }
+        list
+    };
+    for e in section(out, "spread", t("Kinds spread over several places:")) {
+        let places: Vec<String> = e["places"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|p| format!("{} {}", label(&p["place"]), p["things"]))
+            .collect();
+        let _ = writeln!(
+            out,
+            "  {} ({}): {}",
+            s(&e, "word"),
+            e["things"],
+            places.join(", ")
+        );
+    }
+    for e in section(out, "overlap", t("Places that read alike:")) {
+        let pair: Vec<String> = e["places"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(label)
+            .collect();
+        let _ = writeln!(
+            out,
+            "  {} ({}): {}",
+            pair.join(" ~ "),
+            e["alike"],
+            list_str(&e["shared"])
+        );
+    }
+    for e in section(out, "merge", t("Nearly empty, could join another:")) {
+        if !e["into"].is_object() {
+            // Nothing in the furniture reads like it.
+            let _ = writeln!(
+                out,
+                "  {}  ({})",
+                label(&e["place"]),
+                tf("{} things", &[&e["things"]])
+            );
+            continue;
+        }
+        let _ = writeln!(
+            out,
+            "  {} → {}  {}",
+            label(&e["place"]),
+            label(&e["into"]),
+            tf(
+                "({} things; shared: {})",
+                &[&e["things"], &list_str(&e["shared"])]
+            )
+        );
+    }
+    for e in section(out, "split", t("Full or mixed, could be split:")) {
+        let why = if s(&e, "why") == "full" {
+            t("full")
+        } else {
+            t("mixed")
+        };
+        let fill = e["fill"]
+            .as_u64()
+            .map(|p| format!(", %{p}"))
+            .unwrap_or_default();
+        let groups: Vec<String> = e["groups"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|g| format!("{} {}", s(g, "word"), g["things"]))
+            .collect();
+        let _ = writeln!(
+            out,
+            "  {} ({}, {}{fill}): {}",
+            label(&e["place"]),
+            why,
+            tf("{} things", &[&e["things"]]),
+            groups.join(", ")
+        );
+    }
+    let p = &v["proposal"];
+    if !p.is_object() {
+        return;
+    }
+    let _ = writeln!(out, "\n{}", t("Draft layout (nothing is moved):"));
+    let moves = p["moves"].as_array().cloned().unwrap_or_default();
+    for th in p["themes"].as_array().into_iter().flatten() {
+        let place = label(&th["place"]);
+        let coming: Vec<&Value> = moves.iter().filter(|m| label(&m["to"]) == place).collect();
+        let _ = writeln!(
+            out,
+            "  {place}  {}",
+            tf(
+                "{} ({} things, {} to bring)",
+                &[&s(th, "theme"), &th["things"], &coming.len()]
+            )
+        );
+        for m in coming {
+            let _ = writeln!(
+                out,
+                "    {}  {}",
+                thing(&m["thing"]),
+                tf("from {}", &[&label(&m["from"])])
+            );
+        }
+    }
+    let kept: Vec<String> = p["kept"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|k| format!("{} {}", s(k, "word"), k["things"]))
+        .collect();
+    if !kept.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "No place left for these, they stay where they are: {}",
+                &[&kept.join(", ")]
+            )
+        );
+    }
+}
+
 /// `ev regroup`: what could move, merge or grow, from the same score as `ev suggest`.
 fn regroup(out: &mut String, v: &Value) {
     if v["scope"].is_object() {
@@ -1994,6 +2134,10 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("checked").is_some() && v.get("elsewhere").is_some() {
         regroup(&mut out, v);
+        return out;
+    }
+    if v.get("furniture").is_some() && v.get("split").is_some() {
+        layout(&mut out, v);
         return out;
     }
     if let Some(rules) = v.get("rules").and_then(Value::as_array) {

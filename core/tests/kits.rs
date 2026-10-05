@@ -358,3 +358,21 @@ fn a_renamed_part_keeps_its_number_and_its_records() {
     assert_eq!(v["part"]["found"], 2);
     assert_eq!(inv.kit_part_set("Set", 1, " ", 1).unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_missing_part_after_a_drop_says_how_far_the_numbers_go() {
+    let (_d, mut inv) = setup();
+    inv.kit_add(
+        "Set",
+        None,
+        None,
+        &[("A".into(), 1), ("B".into(), 1), ("C".into(), 1)],
+        None,
+    )
+    .unwrap();
+    inv.kit_part_drop("Set", 2).unwrap();
+    let e = inv
+        .kit_link("Set", 7, &["RC522 okuyucu".into()])
+        .unwrap_err();
+    assert!(e.to_string().contains("2 parts, numbered up to 3"), "{e}");
+}

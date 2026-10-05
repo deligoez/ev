@@ -489,7 +489,8 @@ Everything you put on their screen joins one series in `ev ui` until the person 
 --clear` only when they ask). ev numbers the frames across the series: write each photo's labels
 from 1 and **quote the numbers ev returns** (`marks[].label`, the cut's `legend`) in your table,
 never your own count. A number means one frame until the series is closed: a photo marked again
-keeps its numbers and a frame added to it takes the next free one; a cut of a photo you marked
+keeps each label's number (give a frame you fix the label it had), a frame added to it takes the
+next free one, and a frame you leave out takes its number with it; a cut of a photo you marked
 draws the numbers it was marked with, so give its crops in the order of the marks.
 `ev focus --list` reads the series (each picture, its frames, the next number).
 

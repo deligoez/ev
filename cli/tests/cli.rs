@@ -1091,4 +1091,6 @@ fn marking_a_picture_of_the_series_marks_it_in_place() {
     let pictures = s["pictures"].as_array().unwrap();
     assert_eq!(pictures.len(), 1, "{s}");
     assert_eq!(pictures[0]["frames"][0]["n"], 1);
+    // The person's note stays: the mark's title does not replace it.
+    assert_eq!(pictures[0]["note"], "parçalar");
 }

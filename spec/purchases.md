@@ -258,6 +258,11 @@ What separates a right match from a wrong one (measured on the 124-line sample):
 
 1. **Exact keys first:** a remembered alias `(shop, shop_sku)`; the node's `model` or `serial`
    in the line's name.
+   **A long model in part:** a bundle line names what it includes in short ("inkl. ZM 18-55
+   VR" for a lens whose model is "ZM DX OPT 18-55mm f/3.5-5.6 VR"). When two of the model's
+   numbers and two of its other words are in the line (units dropped: `55mm` is `55`), it scores
+   below an exact key and above a shared code, and the line's other numbers are not held against
+   the thing: they are the bundle's other parts (a camera's 7,4 cm screen).
 2. **Model codes,** tokens mixing letters and digits (`LR1130`, `TB-X306F`), shared between
    the line and the node's name or note: near-certain.
 3. **Brand** shared with the node's `make`, name or note.

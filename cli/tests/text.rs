@@ -243,14 +243,19 @@ fn photo_add_and_list_name_the_node_then_each_photo_by_number_with_its_note() {
     let file = file.to_str().unwrap();
     h.run(&["photo", "add", "D-B1", file, "--note", "ön yüz"], None);
     let s = h.text(&["photo", "add", "D-B1", file, "--crop", "0,0,0.5,1"]);
+    // The answer is the photo added, by its number; the list has every photo.
     assert!(s.starts_with("#5 Ev › Oda › D › D-B1  [Kutu]\n"), "{s}");
-    assert!(s.contains(".png  — ön yüz\n"), "{s}");
     assert!(
         s.contains("\n  2. ") && s.contains("  crop 0.0000,0.0000,0.5000,1.0000\n"),
         "{s}"
     );
+    assert!(!s.contains("ön yüz"), "{s}");
     assert!(!s.contains('{'), "{s}");
-    assert_eq!(s, h.text(&["photo", "list", "D-B1"]));
+    let list = h.text(&["photo", "list", "D-B1"]);
+    assert!(
+        list.contains(".png  — ön yüz\n") && list.contains("\n  2. "),
+        "{list}"
+    );
 }
 
 #[test]

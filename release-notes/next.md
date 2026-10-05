@@ -80,3 +80,6 @@ carries no file paths; `ev focus f12` shows that picture again.
   component too: two numbers and two other words of a long model in the line count as the model
   in part, and the line's other numbers (the camera's screen size) no longer rule the lens out.
 - `ev add` given `make=…` (`ev edit`'s form) says which flag it takes: `--make …`.
+- On a line in packs, `ev buy link` without `--qty` took every unit left for the first thing,
+  and the next things found nothing to link: it now takes as many units as the thing stands for
+  (its `qty`, else one).

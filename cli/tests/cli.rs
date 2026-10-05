@@ -892,3 +892,22 @@ fn pictures_sent_together_each_take_a_note_of_their_own() {
     assert_eq!(s["pictures"][0]["note"], "üst çekmece");
     assert_eq!(s["pictures"][1]["note"], "son hali");
 }
+
+#[test]
+fn f_names_a_picture_of_the_series_and_its_unmarked_photo() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    ev.ok(&["photo", "mark", p, "1=0.1,0.1,0.2,0.2", "--show", "çekmece"]);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    assert_eq!(s["pictures"][0]["f"], "f1");
+    let source = std::fs::canonicalize(s["pictures"][0]["source"].as_str().unwrap()).unwrap();
+    assert_eq!(source, std::fs::canonicalize(&photo).unwrap());
+    // `f1` is that photo, unmarked, to a command that takes one.
+    let v = ev.ok(&["photo", "cut", "f1", "Röle=0.1,0.1,0.2,0.2", "--no-show"]);
+    assert_eq!(v["legend"][0]["ref"]["name"], "Röle");
+    // `ev focus f1` shows the picture again; there is no `f9`.
+    let v = ev.ok(&["focus", "f1"]);
+    assert_eq!(v["focus"]["note"], "çekmece");
+    let (code, _, _) = ev.run(&["focus", "f9"]);
+    assert_eq!(code, 3);
+}

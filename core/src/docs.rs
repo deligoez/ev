@@ -251,7 +251,7 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let nodes = for_refs
             .iter()
-            .map(|r| resolve(&tx, r, false))
+            .map(|r| crate::store::resolve_for_history(&tx, r))
             .collect::<Result<Vec<_>>>()?;
         let (id, again) = store_doc(&tx, &self.doc_dir, file, new)?;
         let doc_kind = kind_of(&tx, id)?;
@@ -289,7 +289,7 @@ impl Inventory {
     pub fn doc_link(&mut self, id: i64, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let kind = kind_of(&tx, id)?;
-        let node = resolve(&tx, reference, false)?;
+        let node = crate::store::resolve_for_history(&tx, reference)?;
         link_node(&tx, id, node, &kind)?;
         tx.commit()?;
         self.doc_show(id)

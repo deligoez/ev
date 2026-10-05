@@ -119,7 +119,7 @@ impl Inventory {
         file: &Path,
         cut_or_whole: bool,
     ) -> Result<(i64, PathBuf)> {
-        let id = resolve(&self.conn, reference, false)?;
+        let id = super::resolve_for_history(&self.conn, reference)?;
         let original = crate::photo::store_file(&self.photo_dir, file)?;
         if !cut_or_whole {
             let others = ids(

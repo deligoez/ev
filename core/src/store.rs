@@ -1903,6 +1903,24 @@ fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
 
 // ---------- references (spec §4, §11.4) ----------
 
+/// A record that history may be added to: a live one by any reference, a gone one by its id
+/// only (`834`, `#834`), as for `ev edit`. Documents and photos of a thing that left are its
+/// history too (spec/past-belongings.md).
+pub(crate) fn resolve_for_history(conn: &Connection, reference: &str) -> Result<i64> {
+    match resolve(conn, reference, false) {
+        Err(Error::NotFound(_))
+            if reference
+                .trim()
+                .trim_start_matches('#')
+                .chars()
+                .all(|c| c.is_ascii_digit()) =>
+        {
+            resolve(conn, reference, true)
+        }
+        other => other,
+    }
+}
+
 pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64> {
     let r = reference.trim();
     if r.is_empty() {

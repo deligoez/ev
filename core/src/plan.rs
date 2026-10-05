@@ -146,12 +146,13 @@ fn not_toured(stale: &[Value], gridded: bool) -> String {
     )
 }
 
-/// A field with no value: null, an empty list or an empty object.
+/// A field with no value: null, an empty list, or an object with nothing but such fields (the
+/// output leaves nulls out, so `{"value": null}` would print as `{}`).
 fn is_empty_value(v: &Value) -> bool {
     match v {
         Value::Null => true,
         Value::Array(a) => a.is_empty(),
-        Value::Object(o) => o.is_empty(),
+        Value::Object(o) => o.values().all(is_empty_value),
         _ => false,
     }
 }

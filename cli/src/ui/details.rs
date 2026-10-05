@@ -401,6 +401,16 @@ impl App {
         if let Some(c) = v["cells"].as_str() {
             field(t("cells"), c.to_string(), Style::new().fg(pal().code));
         }
+        // When it came, and how a gone one left (spec/past-belongings.md).
+        if let Some(c) = v["came"].as_str() {
+            field(t("came"), c.to_string(), plain);
+        }
+        if let Some(left) = crate::render::departure_text(v) {
+            field(t("left"), left, Style::new().fg(pal().mark));
+            if let Some(note) = v["departure"]["note"].as_str() {
+                field(t("note"), note.to_string(), plain);
+            }
+        }
         if let Some(fill) = n["fill"].as_i64() {
             let style = if v["room"]["stale"] == true {
                 Style::new().fg(pal().muted)

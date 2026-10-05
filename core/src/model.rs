@@ -28,6 +28,7 @@ macro_rules! label_enum {
             fn from_str(s: &str) -> Result<Self, Error> {
                 match s.trim() {
                     $($text => Ok($name::$variant),)+
+                    "" => Err(Error::Usage(concat!($what, " is required").into())),
                     other => Err(Error::Usage(format!(
                         concat!("unknown ", $what, " `{}`; expected one of: {}"),
                         other,

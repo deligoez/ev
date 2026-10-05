@@ -88,6 +88,20 @@ terminal is resized. The width is one setting, `ev settings series_tile <cells>`
 `Home` / `End` go to the first and last and `f12` then `Enter` goes straight to a picture. Only the
 rows on screen are drawn, and each picture is scaled down once (spec/series-grid.md).
 
+## A new layout for a whole piece of furniture
+
+Once every drawer of a piece of furniture is toured, the person wants to reorganize it, and the
+themes written while touring describe what each drawer holds today: `ev regroup` and `ev suggest`
+lean on them and look at one drawer at a time, so they defend the present. `ev layout <furniture>`
+reads all the places at once by what they hold: kinds of thing kept in several places, places that
+read alike, nearly empty places and the one they could join, full or mixed ones. A thing's kind is
+the last word of its name before the first comma (`Kablo, USB-C` is a cable, a `şarj modülü` a
+module), since a Turkish name ends in what the thing is; shared words alone grouped things by
+adjectives. `--propose` drafts a layout from the contents alone: each kind, largest first, goes to
+the place holding most of it, with the moves that takes and a theme per place. Nothing is moved:
+the draft is something to change together, and each move is planned on the person's word
+(spec/reorganize.md).
+
 ## Smaller fixes
 
 - A kit bought as one purchase line showed that line as ×1 whatever its quantity: `ev kit show`

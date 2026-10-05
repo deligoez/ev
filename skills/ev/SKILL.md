@@ -636,6 +636,7 @@ used is part of every session.
 | Exit | Meaning | What you do |
 |---|---|---|
 | 0 | success | continue |
+| 1 | ev failed inside | stop; tell the person and write the command and message into `BUGS.md` |
 | 2 | malformed input | fix the command |
 | 3 | no node matches | `ev find <text>`, then retry with the id |
 | 4 | several nodes match | pick from `error.candidates` and retry with the id |

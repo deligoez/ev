@@ -168,6 +168,38 @@ fn regroup_names_the_stray_with_where_it_fits_better_and_the_unknown_fills() {
 }
 
 #[test]
+fn layout_lists_spread_kinds_and_drafts_a_layout_with_its_moves() {
+    let h = Home::new();
+    h.run(
+        &["add", "--stdin"],
+        Some(
+            r#"{"name":"Raf","kind":"furniture","in":"Oda","code":"K2"}
+{"name":"Çekmece","kind":"container","in":"K2","code":"K2-A"}
+{"name":"Çekmece","kind":"container","in":"K2","code":"K2-B"}
+{"name":"Çekmece","kind":"container","in":"K2","code":"K2-C"}
+{"name":"Kablo, USB-C","kind":"item","in":"K2-A"}
+{"name":"Kablo, HDMI","kind":"item","in":"K2-A"}
+{"name":"Pil AA","kind":"item","in":"K2-B"}
+{"name":"Kablo, Lightning","kind":"item","in":"K2-B"}
+{"name":"Pil 9V","kind":"item","in":"K2-C"}
+{"name":"Pil, AAA","kind":"item","in":"K2-C"}
+"#,
+        ),
+    );
+    let s = h.text(&["layout", "K2", "--propose"]);
+    assert!(s.starts_with("K2  Raf: 3 places, 6 things\n"), "{s}");
+    assert!(
+        s.contains("\nKinds spread over several places:\n  kablo (3): K2-A 2, K2-B 1\n"),
+        "{s}"
+    );
+    assert!(
+        s.contains("\n  K2-A  kablo (3 things, 1 to bring)\n    #"),
+        "{s}"
+    );
+    assert!(s.contains(" Kablo, Lightning  from K2-B\n"), "{s}");
+}
+
+#[test]
 fn tree_nests_the_home_and_lists_the_lost_apart_with_where_they_were_last_seen() {
     let h = Home::new();
     h.run(&["lost", "Aktif buzzer"], None);

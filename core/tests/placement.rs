@@ -675,3 +675,47 @@ fn layout_drafts_one_kind_per_drawer_from_the_contents_alone() {
     // Nothing was moved.
     assert_eq!(inv.layout("K2", false).unwrap()["spread"], v["spread"]);
 }
+
+#[test]
+fn layout_keeps_a_noun_compound_whole_so_a_lens_cap_is_no_pen_cap() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K3"),
+        coded("Çekmece", "container", "K3", "K3-A"),
+        coded("Çekmece", "container", "K3", "K3-B"),
+        node("Lens kapağı, 52 mm", "item", "K3-A"),
+        node("Lens kapağı, 58 mm", "item", "K3-B"),
+        node("Lens kapağı, 67 mm", "item", "K3-B"),
+        node("Kalem kapağı, mavi", "item", "K3-A"),
+        node("Kalem kapağı, siyah", "item", "K3-A"),
+        node("Kalem kapağı, kırmızı", "item", "K3-B"),
+        // The word index learns a root from the inventory itself: `kapak` written somewhere
+        // makes `kapağı` its possessive.
+        node("Kapak", "item", "Oda"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    let v = inv.layout("K3", true).unwrap();
+    let mut spread: Vec<&str> = v["spread"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["word"].as_str())
+        .collect();
+    spread.sort_unstable();
+    assert_eq!(spread, ["kalem kapağı", "lens kapağı"], "{}", v["spread"]);
+    let mut themes: Vec<&str> = v["proposal"]["themes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|t| t["theme"].as_str())
+        .collect();
+    themes.sort_unstable();
+    assert_eq!(themes, ["kalem kapağı", "lens kapağı"]);
+}

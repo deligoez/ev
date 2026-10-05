@@ -89,12 +89,14 @@ behind), `stolen`, or `unknown` (sold or thrown out, not sure). `ev gone X --at 
 does the same for a record already here, `ev edit X came=2014-03` says when any thing came, and
 `ev sold X --price 1500 [--currency EUR] [--via "…"]` what a sale brought (a sale still listed
 carries where it was listed; its asking price is not taken for what it brought). A purchase
-line of a past thing is settled with `ev buy link`, as for any record. `ev past` lists them by
-year, with the money paid for them and got for them; `ev past --year 2018` is what was ours that
-year, present things included, and what nothing dates is counted apart rather than guessed in.
-`ev stats` has a past section of its own, and `ev ui` a Past tab (`0`); the tree, the to-do list
-and every count of today never see them. Nothing asks about the past on its own: the person
-decides what is worth a record.
+line of a past thing is settled with `ev buy link`, as for any record. A swap leaves `--as
+trade`, linked to what came in exchange (`--traded-for`, or later `ev traded X --for Y`). `ev
+past` lists them in two lists, what was remembered first and then what left the inventory on a
+tour, each by year with the money paid for them and got for them; `ev past --year 2018` is what
+was ours that year, present things included, and what nothing dates is counted apart rather
+than guessed in. `ev stats` has a past section of its own, and `ev ui` a Past tab (`0`); the
+tree, the to-do list and every count of today never see them. Nothing asks about the past on
+its own: the person decides what is worth a record.
 
 **Lost and found.** A lost thing's place is unknown: `ev lost X` lists it under "Unknown
 place" with where it was last seen; `ev lost` lists them; `ev found X` puts it back there, `ev

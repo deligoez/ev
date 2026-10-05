@@ -601,3 +601,21 @@ ALTER TABLE nodes ADD COLUMN waits_for INTEGER REFERENCES nodes(id);
 PRAGMA user_version = 33;
 COMMIT;
 ";
+
+/// Schema 34: past belongings (spec/past-belongings.md). When a thing came, and how a gone one
+/// left: when (a partial date), where it was then, and what a sale brought.
+pub(super) const SCHEMA_V34: &str = "
+BEGIN;
+ALTER TABLE nodes ADD COLUMN came_at TEXT;
+CREATE TABLE departures (
+    node_id INTEGER PRIMARY KEY REFERENCES nodes(id),
+    at TEXT,
+    place_id INTEGER REFERENCES places(id),
+    price TEXT,
+    currency TEXT,
+    via TEXT,
+    note TEXT
+);
+PRAGMA user_version = 34;
+COMMIT;
+";

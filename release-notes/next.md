@@ -81,3 +81,10 @@ vanished. `ev cover purchase <coverage> <line>` (or `ev cover add … --purchase
 the coverage's line: the line is settled, the coverage shows what it was bought as, and its
 price becomes the premium when none was given. Lines settled by a kit are now also left out of
 `ev todo`'s and `ev stats`' open purchase counts, which still counted them.
+
+## The final photo, checked against the records
+
+`ev review <place> --as toured` answers with `photo_check`: the records in the place that its
+newest whole photo shows (a crop of theirs was cut from it) and those it does not yet, so the
+agent says which record is which thing before the person calls a place done. Nothing is refused
+over it: closing a tour stays the person's word.

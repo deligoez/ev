@@ -125,6 +125,9 @@ pub struct Node {
     /// lost glue gun turns up.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub waits_for: Option<i64>,
+    /// When it came, as remembered (spec/past-belongings.md); `ev show` gives it as `came`.
+    #[serde(skip)]
+    pub came_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

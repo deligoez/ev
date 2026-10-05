@@ -36,7 +36,7 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      (SELECT name FROM places WHERE id = owner_place), \
      (SELECT name FROM places WHERE id = with_place), \
      (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial, thing, \
-     waits_for";
+     waits_for, came_at";
 
 pub struct Inventory {
     pub(crate) conn: Connection,
@@ -1276,6 +1276,7 @@ fn node_row(r: &rusqlite::Row) -> rusqlite::Result<Node> {
         serial: r.get(23)?,
         thing: r.get(24)?,
         waits_for: r.get(25)?,
+        came_at: r.get(26)?,
     })
 }
 

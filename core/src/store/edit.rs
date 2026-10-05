@@ -24,6 +24,7 @@ pub(super) fn field_value(n: &Node, field: &str) -> Value {
         "make" => json!(n.make),
         "model" => json!(n.model),
         "serial" => json!(n.serial),
+        "came" => json!(n.came_at),
         _ => Value::Null,
     }
 }
@@ -269,6 +270,16 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 params![v, n.id],
             )?;
         }
+        "came" => {
+            // When it came, as remembered (spec/past-belongings.md); empty clears it.
+            let v = text(value)
+                .map(|d| super::past::partial_date(&d))
+                .transpose()?;
+            conn.execute(
+                "UPDATE nodes SET came_at = ?1 WHERE id = ?2",
+                params![v, n.id],
+            )?;
+        }
         "waits_for" => {
             // What its place waits on (spec/waits-for.md): a record, lost or not; never itself or
             // something inside it, which could not turn up apart from it.
@@ -302,7 +313,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, waits_for, make, model, serial (how far a place is counted is `ev review`)"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, waits_for, make, model, serial, came (how far a place is counted is `ev review`)"
             )));
         }
     }

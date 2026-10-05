@@ -101,9 +101,12 @@ the end of its name before the first comma, since a Turkish name ends in what th
 shared words alone grouped things by adjectives. `--propose` drafts a layout from the contents
 alone: each kind of three or more things, largest first, goes to the place holding most of it,
 with the moves that takes and a theme per place. What sits in a bin of its own, inside a device
-or in a kit stays where it is, and a parking place gets no theme. On one household's 32-drawer
-Kallax the first draft proposed 153 moves and a theme for every drawer; with these rules it
-proposes 17 moves and 9 themes, each of them a gathering a person would make. Nothing is moved:
+or in a kit stays where it is, and a parking place gets no theme. Only places already counted
+take part: the others are named under `not_counted`, since their records may still be wrong.
+Each place of a spread kind names the records that make it, to check by name. On one
+household's 32-drawer Kallax the first draft proposed 153 moves and a theme for every drawer;
+with these rules it proposes 17 moves and 9 themes, each of them a gathering a person would
+make, and none while that Kallax still has drawers to count. Nothing is moved:
 the draft is something to change together, and each move is planned on the person's word
 (spec/reorganize.md).
 
@@ -162,8 +165,14 @@ the draft is something to change together, and each move is planned on the perso
   nine-place task was 64 KB) and `hints` goes when there are none; `ev found` names what waited
   for it once, as `waiting`; `ev focus --list` names a picture by `f` alone and gives `source`
   only when it is not the picture itself; `ev focus --file` answers with the `f` of each picture
-  it sent; `ev photo add` of several leaves out `shown` when nothing was shown; a frame keeps
-  the agent's number as `given`, since `label` is the number drawn.
+  it sent, and `ev focus f2` with that `f`; `ev photo add` of one photo answers with that photo
+  alone, of several leaves out `shown` when nothing was shown; a frame keeps the agent's number
+  as `given`, since `label` is the number drawn; a task's places leave out the task itself and a
+  grid a sibling already gave.
+- A photo the person sent and the agent then marked in place took the mark's title as its note,
+  and `ev photo add <ref> f1` attached it with that title. It keeps the note it was sent with.
+- After `ev kit drop`, a missing part was refused with the count of parts, though the numbers
+  went further; it now says how far they go.
 - `ev photo mark f1 …` added the marked copy as a new picture of the series and left f1
   unmarked beside it, so the person stepped through the same photo twice. A picture of the
   series marked or cut by its `f` is now marked in place.

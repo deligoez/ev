@@ -745,7 +745,8 @@ impl Inventory {
     /// default), and remembers the product for the next purchase of it.
     pub fn buy_link(&mut self, id: i64, reference: &str, qty: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let node = resolve(&tx, reference, false)?;
+        // A gone record too: a past thing's purchase is settled by it (spec/past-belongings.md).
+        let node = resolve(&tx, reference, true)?;
         let p = purchase_json(&tx, id)?;
         let already: i64 = tx
             .query_row(

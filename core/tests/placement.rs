@@ -796,3 +796,30 @@ fn a_draft_leaves_bins_devices_and_kits_alone_and_themes_no_parking_place() {
         ]
     );
 }
+
+#[test]
+fn a_dash_joining_two_ends_does_not_cut_what_a_thing_is() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K5"),
+        coded("Çekmece", "container", "K5", "K5-A"),
+        coded("Çekmece", "container", "K5", "K5-B"),
+        node("USB-A — mini USB kablo, 1 m", "item", "K5-A"),
+        node("USB-C – USB-C kablo, 100 W", "item", "K5-A"),
+        node("HDMI - DVI kablo", "item", "K5-B"),
+        // A third drawer, so cables are not in most places.
+        coded("Çekmece", "container", "K5", "K5-C"),
+        node("Kurşun kalem", "item", "K5-C"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+    let v = inv.layout("K5", false).unwrap();
+    assert_eq!(v["spread"][0]["word"], "kablo", "{}", v["spread"]);
+    assert_eq!(v["spread"][0]["things"], 3);
+}

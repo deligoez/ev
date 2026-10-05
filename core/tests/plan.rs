@@ -393,4 +393,6 @@ fn next_leaves_out_the_fields_of_a_place_that_have_no_value() {
         .collect();
     assert!(empty.is_empty(), "{empty:?}");
     assert!(v.get("hints").is_none(), "{v}");
+    // The task the places are for is said above, not again on each place.
+    assert!(place.get("tasks").is_none(), "{v}");
 }

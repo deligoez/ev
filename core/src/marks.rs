@@ -773,22 +773,32 @@ impl Inventory {
             .filter(|p| matches!(p["review"]["status"].as_str(), Some("raw" | "counting")))
             .cloned()
             .collect();
-        // What waits for its final place: the things put straight into a place marked
-        // `temporary`, and an item marked `temporary` itself (one thing parked among things
-        // that do belong there), each with the place it waits in.
+        // What waits for its final place, each with why (`why`) and the place it waits in:
+        // the things put straight into a place marked `temporary` (`place`); an item marked
+        // `temporary` itself (`own`: one thing parked among things that do belong there; what
+        // is inside it travels with it and waits for nothing of its own); and a thing whose
+        // place waits for another (`waits_for`, spec/waits-for.md), marked or not.
         let mut parked = Vec::new();
         for n in all.iter().filter(|n| n.state != State::Gone) {
-            if let Some(p) = n.parent_id.and_then(|p| all.iter().find(|h| h.id == p))
-                && (p.temporary || (n.temporary && n.kind == Kind::Item))
-            {
-                let mut v = brief_value(&self.conn, n.id)?;
+            let holder = n.parent_id.and_then(|p| all.iter().find(|h| h.id == p));
+            let why = if holder.is_some_and(|p| p.temporary && p.kind != Kind::Item) {
+                "place"
+            } else if n.temporary && n.kind == Kind::Item {
+                "own"
+            } else if n.waits_for.is_some() {
+                "waits_for"
+            } else {
+                continue;
+            };
+            let mut v = brief_value(&self.conn, n.id)?;
+            v["why"] = json!(why);
+            if let Some(p) = holder {
                 v["in"] = brief_value(&self.conn, p.id)?;
-                // What its place waits for (spec/waits-for.md), when it says.
-                if let Some(w) = n.waits_for {
-                    v["waits_for"] = brief_value(&self.conn, w)?;
-                }
-                parked.push(v);
             }
+            if let Some(w) = n.waits_for {
+                v["waits_for"] = brief_value(&self.conn, w)?;
+            }
+            parked.push(v);
         }
         let stale: Vec<Value> = if organize {
             places

@@ -900,14 +900,19 @@ fn todo(out: &mut String, v: &Value) {
                 let extra = match key {
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
+                    // A thing that only waits for another is not parked anywhere.
                     "parked" => Some(format!(
                         "{}{}",
-                        tf(
-                            "  (parked in {})",
-                            &[&n["in"]["code"]
-                                .as_str()
-                                .map_or_else(|| s(&n["in"], "path_text"), str::to_string)],
-                        ),
+                        if n["why"] == "waits_for" {
+                            String::new()
+                        } else {
+                            tf(
+                                "  (parked in {})",
+                                &[&n["in"]["code"]
+                                    .as_str()
+                                    .map_or_else(|| s(&n["in"], "path_text"), str::to_string)],
+                            )
+                        },
                         n.get("waits_for")
                             .map(|w| tf("  waits for #{} {}", &[&w["id"], &s(w, "name")]))
                             .unwrap_or_default()

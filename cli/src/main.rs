@@ -231,6 +231,15 @@ enum Cmd {
         #[arg(long = "for")]
         for_ref: Option<String>,
     },
+    /// A piece of furniture read across all its places at once, from what they hold, themes
+    /// left aside: kinds spread over several places, places that read alike, nearly empty ones
+    /// to merge, full or mixed ones to split. `--propose` drafts a layout from the contents
+    /// alone, with its moves and themes; nothing is moved.
+    Layout {
+        reference: String,
+        #[arg(long)]
+        propose: bool,
+    },
     /// Regrouping hints under a place: things that fit better elsewhere, strays with a themed
     /// home, full boxes and bigger spares, sparse boxes to merge, mixed boxes, unknown fill.
     /// `--decline <thing> [--why]` records a "no" to moving it: it stays where it is and is
@@ -1738,6 +1747,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Suggest { text, tag, for_ref } => {
             inv.suggest_with(&text.join(" "), tag.as_deref(), for_ref.as_deref())
         }
+        Cmd::Layout { reference, propose } => inv.layout(&reference, propose),
         Cmd::Regroup {
             reference,
             decline,

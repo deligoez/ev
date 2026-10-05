@@ -1474,6 +1474,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         // What its place waits for, and what waits for it (spec/waits-for.md).
         "waits_for": n.waits_for.map(|w| brief(conn, w)).transpose()?,
         "waited_for_by": waited_for_by(conn, id)?,
+        "empty": empty_of(conn, &n)?,
         "children": children,
         "pending": pending,
         "last_seen": last_seen,
@@ -1493,6 +1494,38 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
                 .map(|(v, why, on)| json!({ "decision": v, "why": why, "on": on })),
         },
     }))
+}
+
+/// That a box nothing is in is known to be empty (see `known_empty`), and how: `{from: "said",
+/// at, note}` when the person called it empty (`ev empty`), else `{from: "tour"}`. None for
+/// anything else.
+fn empty_of(conn: &Connection, n: &Node) -> Result<Option<Value>> {
+    if n.kind != Kind::Container {
+        return Ok(None);
+    }
+    let inside: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0",
+        [n.id],
+        |r| r.get(0),
+    )?;
+    if inside > 0 || !known_empty(conn, n.id)? {
+        return Ok(None);
+    }
+    let said = conn
+        .query_row(
+            "SELECT at, json_extract(data, '$.note') FROM events
+              WHERE node_id = ?1 AND type = 'empty' ORDER BY at DESC, id DESC LIMIT 1",
+            [n.id],
+            |r| {
+                Ok(json!({
+                    "from": "said",
+                    "at": r.get::<_, String>(0)?,
+                    "note": r.get::<_, Option<String>>(1)?,
+                }))
+            },
+        )
+        .optional()?;
+    Ok(Some(said.unwrap_or_else(|| json!({ "from": "tour" }))))
 }
 
 /// The live records whose place waits for `id` (spec/waits-for.md).

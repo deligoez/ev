@@ -154,3 +154,30 @@ fn one_item_can_wait_among_things_that_do_belong_where_it_is() {
         true
     );
 }
+
+fn parked(inv: &Inventory) -> Vec<(String, String)> {
+    inv.todo().unwrap()["parked"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            (
+                p["name"].as_str().unwrap().to_string(),
+                p["why"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_thing_parked_itself_is_listed_and_what_is_inside_it_is_not() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, "Etiket makinesi", "item", "Dolap", None);
+    add(&mut inv, "Şerit kaset", "item", "Etiket makinesi", None);
+    inv.edit("Etiket makinesi", &["temporary=true".into()])
+        .unwrap();
+    assert_eq!(
+        parked(&inv),
+        [("Etiket makinesi".to_string(), "own".to_string())]
+    );
+}

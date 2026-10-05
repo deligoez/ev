@@ -133,10 +133,11 @@ fn bringing_makes_the_attachments_the_things_own_once() {
     );
     let v = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(v["brought"].as_array().unwrap().len(), 3);
-    assert_eq!(v["valuations"][0]["amount"], "27000.00");
-    assert_eq!(v["valuations"][0]["approximate"], true);
-    assert_eq!(v["coverages"][0]["kind"], "manufacturer");
-    assert_eq!(v["links"][0]["url"], "https://www.lg.example/oled55c1");
+    let s = inv.show("Televizyon", false).unwrap();
+    assert_eq!(s["valuations"][0]["amount"], "27000.00");
+    assert_eq!(s["valuations"][0]["approximate"], true);
+    assert_eq!(s["coverages"][0]["kind"], "manufacturer");
+    assert_eq!(s["links"][0]["url"], "https://www.lg.example/oled55c1");
     let twice = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(twice["brought"], json!([]));
 }
@@ -158,8 +159,9 @@ fn a_shops_product_image_is_brought_as_a_document_never_as_the_things_photo() {
     inv.buy_link(tv, "Televizyon", None).unwrap();
     let v = inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
     assert_eq!(v["brought"].as_array().unwrap().len(), 1);
-    assert_eq!(v["documents"][0]["kind"], "image");
-    assert!(v["node"]["photos"].as_array().unwrap().is_empty(), "{v}");
+    let s = inv.show("Televizyon", false).unwrap();
+    assert_eq!(s["documents"][0]["kind"], "image");
+    assert!(s["node"]["photos"].as_array().unwrap().is_empty(), "{s}");
 }
 
 #[test]
@@ -173,8 +175,9 @@ fn bringing_by_type_brings_only_that_type_and_names_what_it_left() {
         .buy_bring(tv, "Televizyon", &[], &["link".into()])
         .unwrap();
     assert_eq!(v["brought_types"], json!({"link": 1}));
-    assert_eq!(v["links"].as_array().unwrap().len(), 1);
-    assert!(v["valuations"].as_array().unwrap().is_empty(), "{v}");
+    let s = inv.show("Televizyon", false).unwrap();
+    assert_eq!(s["links"].as_array().unwrap().len(), 1);
+    assert!(s["valuations"].as_array().unwrap().is_empty(), "{s}");
     let left: Vec<&str> = v["skipped"]
         .as_array()
         .unwrap()

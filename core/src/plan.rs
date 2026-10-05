@@ -53,6 +53,9 @@ struct Marked {
     file: String,
     note: Value,
     frames: Vec<Value>,
+    /// The photo it was drawn on, unmarked (a mark's or a cut's photo), else the picture
+    /// itself: what `f12` names when a command takes a photo.
+    source: String,
 }
 
 /// The series a focus request holds, without the pictures no longer on disk. A request written
@@ -77,14 +80,29 @@ fn series_of(req: &Value) -> Vec<Marked> {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
+            let file = f.as_str()?.to_string();
+            let source = req["sources"]
+                .get(i)
+                .and_then(Value::as_str)
+                .map_or_else(|| file.clone(), str::to_string);
             Some(Marked {
-                file: f.as_str()?.to_string(),
+                file,
                 note,
                 frames,
+                source,
             })
         })
         .filter(|m| std::path::Path::new(&m.file).is_file())
         .collect()
+}
+
+/// The number in a series reference: `f12` (or `F12`) is the series' twelfth picture.
+pub fn series_number(text: &str) -> Option<usize> {
+    let rest = text.strip_prefix(['f', 'F'])?;
+    (!rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
+        .then(|| rest.parse().ok())
+        .flatten()
+        .filter(|n| *n > 0)
 }
 
 /// The key a marked copy of `file` would have: copies go to `<temp>/ev-marks`.
@@ -654,7 +672,21 @@ impl Inventory {
     ) -> Result<Value> {
         let each: Vec<(std::path::PathBuf, Option<String>)> =
             files.iter().map(|f| (f.clone(), None)).collect();
-        self.focus_in(&each, note, frames)
+        self.focus_in(&each, note, frames, None)
+    }
+
+    /// `focus_marked` for pictures drawn on `source` (a mark's or a cut's photo): `f12` then
+    /// names that photo, unmarked, to a command that takes one.
+    pub fn focus_drawn(
+        &mut self,
+        files: &[std::path::PathBuf],
+        note: Option<&str>,
+        frames: &[Value],
+        source: &std::path::Path,
+    ) -> Result<Value> {
+        let each: Vec<(std::path::PathBuf, Option<String>)> =
+            files.iter().map(|f| (f.clone(), None)).collect();
+        self.focus_in(&each, note, frames, Some(source))
     }
 
     /// `focus_file` with a note of its own on each picture that has one (`ev focus --file
@@ -664,7 +696,52 @@ impl Inventory {
         files: &[(std::path::PathBuf, Option<String>)],
         note: Option<&str>,
     ) -> Result<Value> {
-        self.focus_in(files, note, &[])
+        self.focus_in(files, note, &[], None)
+    }
+
+    /// The photo `f12` names: the series' twelfth picture, as the photo it was drawn on (see
+    /// `Marked::source`). Refused when the series has no such picture.
+    pub fn series_photo(&self, n: usize) -> Result<std::path::PathBuf> {
+        let series = series_of(&self.focus_request()?);
+        series
+            .get(n.wrapping_sub(1))
+            .map(|m| std::path::PathBuf::from(&m.source))
+            .ok_or_else(|| {
+                Error::NotFound(format!(
+                    "the marked photo series has no f{n} ({} picture(s))",
+                    series.len()
+                ))
+            })
+    }
+
+    /// `ev focus f12`: the series' twelfth picture on the person's screen again.
+    pub fn focus_picture(&mut self, n: usize) -> Result<Value> {
+        let mut req = self.focus_request()?;
+        let series = series_of(&req);
+        let count = series.len();
+        if n == 0 || n > count {
+            return Err(Error::NotFound(format!(
+                "the marked photo series has no f{n} ({count} picture(s))"
+            )));
+        }
+        let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        // Written back as the series reads, so `f12` counts what is on screen.
+        req["files"] = json!(series.iter().map(|m| &m.file).collect::<Vec<_>>());
+        req["notes"] = json!(series.iter().map(|m| &m.note).collect::<Vec<_>>());
+        req["sources"] = json!(series.iter().map(|m| &m.source).collect::<Vec<_>>());
+        req["frames"] = json!(series.iter().map(|m| &m.frames).collect::<Vec<_>>());
+        req["show"] = json!(n - 1);
+        req["at"] = json!(at);
+        // A node asked for before leaves its id here; the picture is what is shown now.
+        if let Some(o) = req.as_object_mut() {
+            o.remove("id");
+            o.remove("photo");
+        }
+        self.send_focus(&req)?;
+        Ok(json!({ "focus": {
+            "files": [req["files"][n - 1].clone()], "note": req["notes"][n - 1].clone(),
+            "series": count, "at": at,
+        } }))
     }
 
     fn focus_in(
@@ -672,6 +749,7 @@ impl Inventory {
         files: &[(std::path::PathBuf, Option<String>)],
         note: Option<&str>,
         frames: &[Value],
+        source: Option<&std::path::Path>,
     ) -> Result<Value> {
         if files.is_empty() {
             return Err(Error::Usage("name at least one picture".into()));
@@ -691,11 +769,15 @@ impl Inventory {
         // copy are two pictures of the same photo.
         let mut taken = vec![false; series.len()];
         let mut show = None;
+        let source = source
+            .map(|s| std::path::absolute(s).unwrap_or_else(|_| s.to_path_buf()))
+            .map(|s| s.to_string_lossy().into_owned());
         for (p, own) in &paths {
             let entry = Marked {
                 file: p.clone(),
                 note: json!(own),
                 frames: frames.to_vec(),
+                source: source.clone().unwrap_or_else(|| p.clone()),
             };
             let found =
                 (0..taken.len()).find(|&i| !taken[i] && stack_key(&series[i].file) == stack_key(p));
@@ -722,6 +804,7 @@ impl Inventory {
         let mut sent = json!({
             "files": series.iter().map(|m| m.file.clone()).collect::<Vec<_>>(),
             "notes": series.iter().map(|m| m.note.clone()).collect::<Vec<_>>(),
+            "sources": series.iter().map(|m| m.source.clone()).collect::<Vec<_>>(),
             "frames": series.into_iter().map(|m| m.frames).collect::<Vec<_>>(),
             "show": show, "note": note, "next": next, "since": since, "at": at,
         });
@@ -774,10 +857,17 @@ impl Inventory {
         if series.is_empty() {
             return Ok(json!({ "series": null }));
         }
+        // `f` is how the person and the agent name a picture (`f12`); `#12` stays a record and
+        // a bare number a frame.
         let pictures: Vec<Value> = series
             .into_iter()
             .enumerate()
-            .map(|(i, m)| json!({ "n": i + 1, "file": m.file, "note": m.note, "frames": m.frames }))
+            .map(|(i, m)| {
+                json!({
+                    "n": i + 1, "f": format!("f{}", i + 1), "file": m.file, "source": m.source,
+                    "note": m.note, "frames": m.frames,
+                })
+            })
             .collect();
         Ok(json!({ "series": {
             "since": req["since"], "next": req["next"].as_u64().unwrap_or(1), "pictures": pictures,

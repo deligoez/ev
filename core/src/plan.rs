@@ -867,7 +867,17 @@ impl Inventory {
             let i = match found {
                 Some(i) => {
                     taken[i] = true;
-                    series[i] = entry;
+                    // A photo the person sent (unmarked: its own source) keeps the note it was
+                    // sent with: a mark's title does not replace it, and `ev photo add <ref>
+                    // f12` attaches with it. A marked copy marked again takes the new title.
+                    let sent = series[i].file == series[i].source
+                        && stack_key(&series[i].file) == series[i].file;
+                    let note = if sent && !series[i].note.is_null() {
+                        series[i].note.clone()
+                    } else {
+                        entry.note
+                    };
+                    series[i] = Marked { note, ..entry };
                     i
                 }
                 None => {

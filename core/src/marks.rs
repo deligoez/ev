@@ -390,6 +390,18 @@ fn photos_needed(conn: &Connection, units: &[Value]) -> Result<Vec<Value>> {
         }
     }
     for g in grids {
+        // A holder whose every part has a whole photo of its own is pictured by them: a
+        // Kallax compartment holding two drawers is never photographed as an empty frame.
+        let unpictured: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM nodes c WHERE c.parent_id = ?1 AND c.state != 'gone'
+               AND c.lost = 0 AND NOT EXISTS (
+                 SELECT 1 FROM photos p WHERE p.node_id = c.id AND p.crop IS NULL)",
+            [g],
+            |r| r.get(0),
+        )?;
+        if unpictured == 0 {
+            continue;
+        }
         if let Some(s) = photo_stale_given(conn, g, changes.at(g))? {
             let mut v = brief_value(conn, g)?;
             v["grid"] = json!(true);

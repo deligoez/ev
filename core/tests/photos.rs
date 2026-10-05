@@ -381,6 +381,17 @@ fn a_cut_of_a_photo_marked_in_the_series_takes_the_numbers_it_was_marked_with() 
 }
 
 #[test]
+fn a_label_numbered_across_photos_takes_the_next_free_number_without_a_gap() {
+    let (dir, mut inv, photo) = setup();
+    let shelf = dir.path().join("shelf.png");
+    std::fs::copy(&photo, &shelf).unwrap();
+    assert_eq!(show_marked(&mut inv, &photo, &["1=0.1,0.1,0.2,0.2"]), ["1"]);
+    // The agent counted on across photos and wrote `2`: it is this photo's first frame.
+    assert_eq!(show_marked(&mut inv, &shelf, &["2=0.1,0.1,0.2,0.2"]), ["2"]);
+    assert_eq!(inv.focus_list().unwrap()["series"]["next"], 3);
+}
+
+#[test]
 fn a_frame_is_edged_in_dark_so_it_reads_on_a_red_photo() {
     // The setup photo is pure red and blue: nothing in it is dark.
     let (_dir, inv, photo) = setup();

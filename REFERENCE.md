@@ -655,7 +655,11 @@ drawn as its plate, each box a frame over the cells it covers.
 | `ev next` | `goal`, `task` (the one in progress, else one due within a day or overdue, else the first; `picked`: `doing`, `due` or `order`; with `places`: each as `show`, plus `arriving` and `while_there` — what else `ev todo` lists in that place, by kind: `photos`, `labels`, `unclear`, `parked`, `leaving` (planned moves out), `disposals` (with `as`), `lost` (last seen there), `coverage` and `values` (things to ask about, dearest first); empty kinds are left out), `hints` (notes on the order, never applied: `due` with `due` and `days_left`, `settles_moves` with `moves` arriving at its places), `open_tasks`, `progress` (the counts of `ev progress`: `units`, `toured`, `kept`, `counting`, `raw`, `changed_since_tour`), `unplanned` (raw units no task covers; empty under `track`), `rules` |
 
 A unit is the innermost labelled holder, or an unlabelled holder standing on its own in a room
-or on furniture: a holder none of whose children carries a code. `ev show` carries the node's
+or on furniture: a holder none of whose children is labelled as a place of its own. A labelled
+child of an unlabelled holder is one; in a labelled holder a child is one when its code goes on
+from the holder's (`K2-01-A` in `K2-01`, a drawer of that unit). A label of another series
+(`B1_007` in `K2-01-A`, a labelled bin) is a box in the place, gone through with it: the
+drawer stays the unit. `ev show` carries the node's
 `review`, `observations` and `tasks`: the unfinished tasks linked to the node or to a place that
 holds it, each with `via`, the node the link is on. In `ev ui`, tab 7 (Yapılacak) lists the tasks with progress in its
 title.

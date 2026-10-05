@@ -380,3 +380,47 @@ fn a_past_thing_is_completed_as_remembered_but_never_placed() {
         5
     );
 }
+
+#[test]
+fn a_past_thing_with_no_date_said_left_when_nothing_says() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Yalıtım paneli".into(),
+        kind: "item".into(),
+        gone: Some("trash".into()),
+        came: Some("2023-10".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    // Not the day it was recorded: nobody said when.
+    let v = inv.show("Yalıtım paneli", true).unwrap();
+    assert!(v["departure"]["at"].is_null(), "{v}");
+    let past = inv.past(None, None).unwrap();
+    assert!(past["years"].as_array().unwrap().is_empty(), "{past}");
+    assert_eq!(past["undated"]["left"], 1);
+    assert!(past["past"][0]["left"].is_null());
+    // Ours the year it came; after that, not known, so counted apart.
+    let names = |inv: &Inventory, year| {
+        inv.past_year(year).unwrap()["owned"]
+            .as_array()
+            .unwrap()
+            .len()
+    };
+    assert_eq!(names(&inv, 2023), 1);
+    assert_eq!(names(&inv, 2024), 0);
+    // The panel, and the phone here today that nothing dates.
+    assert_eq!(inv.past_year(2024).unwrap()["unknown"], 2);
+    // A thing seen leaving today still left today.
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Trash),
+        None,
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let v = inv.show("Eski telefon", true).unwrap();
+    assert_eq!(v["departure"]["at"].as_str().unwrap().len(), 10);
+}

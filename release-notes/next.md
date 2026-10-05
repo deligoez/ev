@@ -21,7 +21,9 @@ thing the way it is remembered (spec/past-belongings.md).
   known", apart from the years, rather than in the year it was typed in.
 - **A gone record can be completed:** `ev edit` on a gone record now takes what the thing was
   (`name`, `came`, `qty`, `make`, `model`, `serial`, as well as the note), so ten panels thrown
-  out are recorded as ten. Where it stands still cannot change.
+  out are recorded as ten. Where it stands still cannot change. Documents and photos attach to
+  a gone record by its id (`ev doc add … --for #867`, `ev photo add #867 …`): a sale mail or an
+  old photo is part of what it was.
 - **How a thing left reads in the past tense:** "(gone: sold)", "thrown out", "given away", "how
   not known", instead of the word for setting it aside ("sell").
 - **What a sale brought:** `ev sold <x> --price 1500 [--currency EUR] [--via "…"]`. A sale that

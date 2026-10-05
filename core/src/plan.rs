@@ -146,6 +146,16 @@ fn not_toured(stale: &[Value], gridded: bool) -> String {
     )
 }
 
+/// A field with no value: null, an empty list or an empty object.
+fn is_empty_value(v: &Value) -> bool {
+    match v {
+        Value::Null => true,
+        Value::Array(a) => a.is_empty(),
+        Value::Object(o) => o.is_empty(),
+        _ => false,
+    }
+}
+
 /// Whole minutes from `from` to `to` (RFC 3339 times), when both read.
 fn minutes_between(from: &str, to: &str) -> Option<i64> {
     let parse = |t: &str| chrono::DateTime::parse_from_rfc3339(t).ok();
@@ -1430,6 +1440,10 @@ impl Inventory {
                     let mut p = show(&self.conn, n)?;
                     p["arriving"] = json!(self.pending_into(n)?);
                     p["while_there"] = while_there(&self.conn, n, &todo, &uncovered, &unvalued)?;
+                    // What has no value is left out (a nine-place task was 64 KB of empty lists).
+                    if let Some(o) = p.as_object_mut() {
+                        o.retain(|_, x| !is_empty_value(x));
+                    }
                     places.push(p);
                 }
                 v["places"] = json!(places);
@@ -1467,15 +1481,18 @@ impl Inventory {
                 .cloned()
                 .collect()
         };
-        Ok(json!({
+        let mut v = json!({
             "goal": goal,
             "task": task,
             "open_tasks": open.len(),
-            "hints": hints,
             "progress": progress_summary(&progress),
             "unplanned": unplanned,
             "rules": rules_json(&self.conn)?,
-        }))
+        });
+        if !hints.is_empty() {
+            v["hints"] = json!(hints);
+        }
+        Ok(v)
     }
 
     /// Sets a task's due date (`YYYY-MM-DD`), or clears it with `None`, an empty text or

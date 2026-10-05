@@ -531,10 +531,38 @@ impl Inventory {
                 ],
             )?;
             crate::store::event(&tx, id, "review", json!({ "as": "toured", "note": note }))?;
-            marked.push(brief(&tx, id)?);
+            // Its note, which may say otherwise, for the agent to read back to the person.
+            let mut b = brief_value(&tx, id)?;
+            let own_note: Option<String> =
+                tx.query_row("SELECT note FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
+            if let Some(n) = own_note.filter(|n| !n.trim().is_empty()) {
+                b["note"] = json!(n);
+            }
+            marked.push(b);
+        }
+        // A task still open on a box now known empty asks to count nothing: done or dropped is
+        // the person's word, so it is named, not closed.
+        let marked_ids: Vec<i64> = marked.iter().filter_map(|b| b["id"].as_i64()).collect();
+        let mut open_tasks = Vec::new();
+        for id in &marked_ids {
+            let mut stmt = tx.prepare(
+                "SELECT t.id, t.title FROM task_nodes tn JOIN tasks t ON t.id = tn.task_id
+                  WHERE tn.node_id = ?1 AND t.status IN ('open','doing') ORDER BY t.id",
+            )?;
+            let rows = stmt
+                .query_map([id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for (task, title) in rows {
+                open_tasks
+                    .push(json!({ "task": task, "title": title, "on": brief_value(&tx, *id)? }));
+            }
         }
         tx.commit()?;
-        Ok(json!({ "empty": marked }))
+        let mut v = json!({ "empty": marked });
+        if !open_tasks.is_empty() {
+            v["open_tasks"] = json!(open_tasks);
+        }
+        Ok(v)
     }
 
     fn labels_needed(&self) -> Result<Value> {

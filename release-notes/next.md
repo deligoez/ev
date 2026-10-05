@@ -154,6 +154,12 @@ the draft is something to change together, and each move is planned on the perso
   `[boş]`.
 - A case found in a counted drawer read "empty (counted)": the drawer's tour stood for it, though
   nobody opened the case. A tour now counts only for what was there before it.
+- Less noise in the JSON: a task's places in `ev next` leave out their empty fields (a
+  nine-place task was 64 KB) and `hints` goes when there are none; `ev found` names what waited
+  for it once, as `waiting`; `ev focus --list` names a picture by `f` alone and gives `source`
+  only when it is not the picture itself; `ev focus --file` answers with the `f` of each picture
+  it sent; `ev photo add` of several leaves out `shown` when nothing was shown; a frame keeps
+  the agent's number as `given`, since `label` is the number drawn.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

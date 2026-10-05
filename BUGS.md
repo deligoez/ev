@@ -16,18 +16,6 @@ that fixes them.
 - **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
   drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
   inventory agent.)
-- **JSON noise on the new reads.** `ev next --json`: every place under `task.places` carries
-  about ten empty fields (`arriving: []`, `coverages: []`, `kits: []`, `links: []`, `marks: {}`,
-  `needs: []`, `purchases: []`, `tracking`, `valuations`, `waited_for_by`, `while_there: {}`),
-  plus `hints: []`, against "the JSON leaves out what has no value"; a nine-place task is 64 KB.
-  `ev found --json` repeats the same list as `waited_for_by` and `waiting`. `ev focus --list`
-  carries both `f: "f1"` and `n: 1`, and `file` equal to `source` on every unmarked picture.
-  `ev focus --file a.jpg=… b.jpg=…` returns only `series: 3`, not the `f` numbers given.
-  `ev photo add` with series photos returns `shown: null`. A frame's label is a number in
-  `ev focus --list` (`"label": 1, "n": 2`) but a string holding the series number in
-  `ev photo mark` (`marks[].label: "2"`), so the same key means two things in two types.
-  Expected: empty fields left out, one of each duplicate, `focus --file` naming each new
-  picture's `f`, and one name and type per meaning. (QA round.)
 - **`ev layout --propose` drafts from the last word alone, and it shows.** On a toured 32-drawer
   Kallax with 400 records it proposes 153 moves and a theme for every drawer. Taken one by one:
   kinds are raw head words in their possessive form and unstemmed (`ucu` and `uçları` are two

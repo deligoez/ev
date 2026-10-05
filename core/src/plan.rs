@@ -1298,7 +1298,9 @@ impl Inventory {
                 .map_or(0, |k| k.iter().filter(|n| !n.lost).count());
             v["children"] = json!(direct);
             v["observations"] = json!(observations_of(&self.conn, u)?.len());
-            v["planned"] = json!(planned.contains(&u));
+            // Planned through a task on it or on a holder above it (a task on the cabinet
+            // plans its drawers).
+            v["planned"] = json!(planned.contains(&u) || !tasks.is_empty());
             match effective_review(u, &parent, &reviews) {
                 Some((from, status, at)) => {
                     // Only a change to what the place holds dates a tour: re-coding a box,

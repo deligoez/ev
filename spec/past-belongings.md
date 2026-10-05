@@ -120,6 +120,9 @@ it once", and whether a marketplace's sale mails could be a source too.
 3. `ev past` (the list, the years, `--year`) and the "past" section of `ev stats`.
 4. In `ev ui`: a Past tab, apart from the inventory.
 5. Sale lines from a marketplace adapter (`type: sale`), linked like purchases.
+6. `ev past` in two lists, remembered first (text, JSON and `ev ui`).
+7. Schema 35: `trade`, `departures.traded_for`; `--traded-for` on `ev gone` and `ev add --gone`;
+   the departure shows what came in exchange and the record that came shows what went.
 
 ## Decided with the person (2026-10-05)
 
@@ -137,6 +140,21 @@ it once", and whether a marketplace's sale mails could be a source too.
    tour today (a carton thrown out, a cell used up) is listed with the things remembered from
    years ago. The year headings keep them apart, and "what left this year, and what it
    brought" is worth reading on its own.
+
+## Decided with the person (2026-10-06)
+
+8. **Two lists, remembered first.** Once real use filled `ev past` with this week's tour
+   cartons, the remembered things drowned under them. `ev past` gives two lists, each with its
+   own years and totals: **remembered** (things that left before they were recorded: added
+   already gone, or gone with a date said, `--at`) first, then **left the inventory** (things
+   recorded here and seen leaving). In `ev ui` each is a heading of its own that opens and
+   closes, with its years under it. `ev stats` still counts both.
+9. **A swap is a way of leaving: `trade`.** "My laptop for my sibling's Mac mini" is neither
+   given nor sold. `--as trade [--traded-for <ref>]` on `ev gone` and `--gone trade
+   [--traded-for <ref>]` on `ev add`: what came in exchange, when it is recorded, is linked
+   (`departures.traded_for`, schema 35); the departure shows it, and the record that came shows
+   what it was traded for. A trade may be set aside first (`ev dispose --as trade`), like a
+   sale.
 
 ## Not now
 

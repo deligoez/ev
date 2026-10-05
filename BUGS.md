@@ -30,8 +30,3 @@ that fixes them.
   kapağı` kept whole), a box with a theme moves as a unit, records of one kit or one set stay
   together, parking places are left out, and colour words do not count. As it stands the draft
   cannot go to the person: every third line would need explaining away. (QA round.)
-- **Marking a series photo adds a second copy of it.** `ev focus --file a.jpg=…` (f1), then
-  `ev photo mark f1 1=… 2=…` adds f4, the marked copy; f1 stays unmarked next to it, so the
-  person steps through the same photo twice. (`photo cut … --preview` then the real cut
-  replaces the preview picture, which is the expected feel.) Expected: marking a picture already
-  in the series marks it in place, or says that a copy was added. Minor. (QA round.)

@@ -160,6 +160,9 @@ the draft is something to change together, and each move is planned on the perso
   only when it is not the picture itself; `ev focus --file` answers with the `f` of each picture
   it sent; `ev photo add` of several leaves out `shown` when nothing was shown; a frame keeps
   the agent's number as `given`, since `label` is the number drawn.
+- `ev photo mark f1 …` added the marked copy as a new picture of the series and left f1
+  unmarked beside it, so the person stepped through the same photo twice. A picture of the
+  series marked or cut by its `f` is now marked in place.
 - `ev task drop` turned a done task into a dropped one without a word; it now refuses, and a
   task that was not done after all is reopened first.
 - `ev add --stdin` said "unknown kind ``" for a line with no `kind`; it now says "kind is

@@ -195,3 +195,15 @@ fn a_thing_that_only_waits_for_another_is_listed_with_why() {
     assert_eq!(todo["parked"][0]["waits_for"]["name"], "Kale anahtar");
     assert_eq!(todo["counts"]["parked"], 1);
 }
+
+#[test]
+fn found_names_what_waited_for_it_once() {
+    let (_d, mut inv) = setup();
+    inv.edit("Yedek anahtar", &["waits_for=Kale anahtar".into()])
+        .unwrap();
+    inv.mark_lost("Kale anahtar").unwrap();
+    let v = inv.found("Kale anahtar").unwrap();
+    assert_eq!(v["waiting"][0]["name"], "Yedek anahtar");
+    assert!(v["node"].get("waited_for_by").is_none(), "{v}");
+    assert!(v.get("waited_for_by").is_none(), "{v}");
+}

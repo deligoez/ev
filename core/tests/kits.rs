@@ -255,6 +255,25 @@ fn a_kit_bought_as_one_line_settles_it_and_its_parts_see_it() {
 }
 
 #[test]
+fn a_kit_shows_its_lines_quantity() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(
+        &serde_json::json!({"type": "purchase", "source": "shop", "key": "o2:set",
+            "shop": "Shop", "name": "Proje seti", "qty": 2,
+            "paid": "1999.00", "currency": "TRY"})
+        .to_string(),
+    )
+    .unwrap();
+    let line = inv.buy_list(false, None, None, None).unwrap()["purchases"][0]["id"]
+        .as_i64()
+        .unwrap();
+    inv.kit_add("Set", Some(2), None, &[("Okuyucu".into(), 1)], None)
+        .unwrap();
+    let v = inv.kit_purchase("Set", Some(line)).unwrap();
+    assert_eq!(v["kit"]["purchase"]["qty"], 2, "{}", v["kit"]);
+}
+
+#[test]
 fn a_part_of_a_kit_bought_as_one_line_is_asked_no_purchase() {
     let (_d, mut inv) = setup();
     let line = set_line(&mut inv);

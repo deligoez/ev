@@ -3064,6 +3064,38 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         }
         None => {}
     }
+    // When it came, and how a gone one left (spec/past-belongings.md).
+    if let Some(c) = v["came"].as_str() {
+        let _ = writeln!(out, "  {}: {c}", t("came"));
+    }
+    let d = &v["departure"];
+    if d.is_object() {
+        let mut parts = vec![s(d, "at")];
+        if let Some(how) = v["node"]["disposition"].as_str() {
+            parts.push(disposition(how));
+        }
+        if let Some(w) = d["where"].as_str() {
+            parts.push(tf("in {}", &[&w]));
+        }
+        if let Some(p) = d["price"].as_str() {
+            let via = d["via"]
+                .as_str()
+                .map(|v| format!(" ({v})"))
+                .unwrap_or_default();
+            parts.push(format!(
+                "{}{via}",
+                tf(
+                    "sold for {}",
+                    &[&amount(p, d["currency"].as_str().unwrap_or("TRY"))]
+                )
+            ));
+        }
+        let parts: Vec<String> = parts.into_iter().filter(|p| !p.is_empty()).collect();
+        let _ = writeln!(out, "  {}: {}", t("left"), parts.join(" · "));
+        if let Some(n) = d["note"].as_str() {
+            let _ = writeln!(out, "    {n}");
+        }
+    }
     // What its place waits for, and what waits for it.
     if v["waits_for"].is_object() {
         let _ = writeln!(out, "  {}: {}", t("waits for"), line(&v["waits_for"]));

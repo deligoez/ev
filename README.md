@@ -366,7 +366,8 @@ and a version is cut only when asked. Before tagging:
 1. **Check this README against the release.** Every user-visible change in `next.md` must be
    reflected here and in `REFERENCE.md` and `skills/ev/SKILL.md`; a feature missing from the
    README is not shipped.
-2. Rename `release-notes/next.md` to `release-notes/vX.Y.Z.md` and drop its draft line.
+2. Rename `release-notes/next.md` to `release-notes/vX.Y.Z.md`, drop its draft line and give it
+   an opening paragraph; start a new `next.md` that reads only `Draft for the next release.`.
 3. Bump `version` in `core/Cargo.toml` and `cli/Cargo.toml`, run the quality gate, commit.
 4. Tag `vX.Y.Z` and push. The release workflow is [dist](https://opensource.axo.dev/cargo-dist/)'s
    (`dist-workspace.toml`; regenerate `.github/workflows/release.yml` with `dist generate` after

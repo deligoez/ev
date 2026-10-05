@@ -96,10 +96,14 @@ themes written while touring describe what each drawer holds today: `ev regroup`
 lean on them and look at one drawer at a time, so they defend the present. `ev layout <furniture>`
 reads all the places at once by what they hold: kinds of thing kept in several places, places that
 read alike, nearly empty places and the one they could join, full or mixed ones. A thing's kind is
-the last word of its name before the first comma (`Kablo, USB-C` is a cable, a `şarj modülü` a
-module), since a Turkish name ends in what the thing is; shared words alone grouped things by
-adjectives. `--propose` drafts a layout from the contents alone: each kind, largest first, goes to
-the place holding most of it, with the moves that takes and a theme per place. Nothing is moved:
+the end of its name before the first comma, since a Turkish name ends in what the thing is
+(`Kablo, USB-C` is a cable), and a noun compound stays whole (`lens kapağı` is no pen cap);
+shared words alone grouped things by adjectives. `--propose` drafts a layout from the contents
+alone: each kind of three or more things, largest first, goes to the place holding most of it,
+with the moves that takes and a theme per place. What sits in a bin of its own, inside a device
+or in a kit stays where it is, and a parking place gets no theme. On one household's 32-drawer
+Kallax the first draft proposed 153 moves and a theme for every drawer; with these rules it
+proposes 17 moves and 9 themes, each of them a gathering a person would make. Nothing is moved:
 the draft is something to change together, and each move is planned on the person's word
 (spec/reorganize.md).
 

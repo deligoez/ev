@@ -923,3 +923,59 @@ fn a_flag_given_in_edits_key_value_form_is_named_in_the_error() {
     assert_eq!(code, 2);
     assert!(err.contains("unexpected argument"), "{err}");
 }
+
+#[test]
+fn series_pictures_are_attached_by_f_number_several_at_once() {
+    let (ev, _photo) = drawer();
+    let mut pics = Vec::new();
+    for (i, note) in ["kutu önden", "kutu yandan", "pil"].iter().enumerate() {
+        let p = ev._dir.path().join(format!("p{i}.png"));
+        image::RgbImage::from_pixel(8, 8, image::Rgb([i as u8, 2, 3]))
+            .save(&p)
+            .unwrap();
+        pics.push(format!("{}={note}", p.to_str().unwrap()));
+    }
+    ev.ok(&[
+        "focus", "--file", &pics[0], "--file", &pics[1], "--file", &pics[2],
+    ]);
+    // Two pictures to one record: each keeps the note it was sent with, none is sent again.
+    let v = ev.ok(&["photo", "add", "D-A1", "f1", "f2"]);
+    assert_eq!(v["added"].as_array().unwrap().len(), 2, "{v}");
+    assert!(v["shown"].is_null());
+    let photos = &ev.ok(&["photo", "list", "D-A1"])["photos"];
+    assert_eq!(photos[0]["note"], "kutu önden", "{photos}");
+    assert_eq!(
+        ev.ok(&["focus", "--list"])["series"]["pictures"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    // Many records at once from standard input; one wrong record attaches nothing.
+    let run = |input: &str| {
+        Command::cargo_bin("ev")
+            .unwrap()
+            .env_remove("EV_DB")
+            .env("EV_CONFIG", &ev.config)
+            .arg("--db")
+            .arg(&ev.db)
+            .args(["photo", "add", "--stdin"])
+            .write_stdin(input.to_string())
+            .output()
+            .unwrap()
+    };
+    let bad = run("{\"ref\":\"D-B1\",\"photo\":\"f3\"}\n{\"ref\":\"Yok\",\"photo\":\"f3\"}\n");
+    assert!(!bad.status.success());
+    assert!(
+        ev.ok(&["photo", "list", "D-B1"])["photos"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let good = run("{\"ref\":\"D-B1\",\"photo\":\"f3\",\"note\":\"pil, üstten\"}\n");
+    assert!(good.status.success());
+    assert_eq!(
+        ev.ok(&["photo", "list", "D-B1"])["photos"][0]["note"],
+        "pil, üstten"
+    );
+}

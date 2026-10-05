@@ -178,10 +178,13 @@ impl App {
             format!(" {} ", tab_titles()[self.tab.index()])
         };
         let mut block = Block::bordered().title(title).border_style(columns_edge);
-        // The tree's keys on its own bottom edge, as the details' H/L are on theirs.
+        // The tree's keys on its own bottom edge, as the details' H/L are on theirs, at its
+        // right end, so they stand apart from the details' keys beside them.
         if self.tab == Tab::Tree {
             block = block.title_bottom(
-                Line::from(t(" → ← open/close · e/c all below · C close all ")).fg(pal().muted),
+                Line::from(t(" → ← open/close · e/c all below · C close all "))
+                    .fg(pal().muted)
+                    .right_aligned(),
             );
         }
         let list = List::new(items)

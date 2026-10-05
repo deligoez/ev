@@ -2186,7 +2186,11 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     if let Some(of) = non_empty(&new.of) {
         return add_of(conn, new, &of, parent);
     }
-    let kind: Kind = new.kind.parse()?;
+    // A past thing is a thing, unless said otherwise.
+    let kind: Kind = match new.kind.trim() {
+        "" if non_empty(&new.gone).is_some() => Kind::Item,
+        k => k.parse()?,
+    };
     let name = new.name.trim();
     if name.is_empty() {
         return Err(Error::Usage("name is empty".into()));

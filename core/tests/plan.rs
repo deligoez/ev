@@ -400,3 +400,32 @@ fn next_leaves_out_the_fields_of_a_place_that_have_no_value() {
     // The task the places are for is said above, not again on each place.
     assert!(place.get("tasks").is_none(), "{v}");
 }
+
+#[test]
+fn work_outside_the_task_in_progress_counts_no_place() {
+    let (_d, mut inv) = setup();
+    // A thing put away with no tour going on.
+    add(&mut inv, "Pense", "item", Some("Karton kutu"), None);
+    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    // A task about another place: still nothing here.
+    let t = inv
+        .task_add("Çekmeceyi say", "hiç açılmadı", &["K1-01-A".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "doing", None).unwrap();
+    add(&mut inv, "Tornavida", "item", Some("Karton kutu"), None);
+    assert_eq!(count(&inv, "Karton kutu"), "raw");
+    // In the task's place, it is work in it; the history says what began it.
+    add(&mut inv, "Matkap ucu", "item", Some("K1-01-A"), None);
+    assert_eq!(count(&inv, "K1-01-A"), "counting");
+    let events = inv.history("K1-01-A").unwrap()["events"].clone();
+    assert!(
+        events
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["type"] == "review" && e["data"]["by"] == "create"),
+        "{events}"
+    );
+}

@@ -20,8 +20,10 @@ thing the way it is remembered (spec/past-belongings.md).
 - **When nobody knows when it left,** a past thing added without `--at` is listed under "when not
   known", apart from the years, rather than in the year it was typed in.
 - **A gone record can be completed:** `ev edit` on a gone record now takes what the thing was
-  (`came`, `qty`, `make`, `model`, `serial`, as well as the note), so ten panels thrown out are
-  recorded as ten. Where it stands still cannot change.
+  (`name`, `came`, `qty`, `make`, `model`, `serial`, as well as the note), so ten panels thrown
+  out are recorded as ten. Where it stands still cannot change.
+- **How a thing left reads in the past tense:** "(gone: sold)", "thrown out", "given away", "how
+  not known", instead of the word for setting it aside ("sell").
 - **What a sale brought:** `ev sold <x> --price 1500 [--currency EUR] [--via "…"]`. A sale that
   was listed carries where it was listed into the record, but not its asking price, which is not
   what the sale brought.
@@ -35,3 +37,21 @@ thing the way it is remembered (spec/past-belongings.md).
 
 The schema moves to version 34 (a `departures` table and `nodes.came_at`); the database is
 migrated when the new build first opens it.
+
+## Being counted means work has begun, and what is left is named
+
+A person believed a cabinet was done except one drawer, when nine of its drawers had never been
+opened: starting a task about them had marked all nine "being counted" at once, and a drawer of
+the same cabinet that no task held sat in a list far from the cabinet being toured
+(spec/counting.md).
+
+- **Starting a task marks nothing.** A place becomes "being counted" at the first work in it
+  while a task on it (or on its cabinet) is in progress: a photo, a thing recorded, moved,
+  edited, gone or found inside it. Work outside a tour, such as one thing put away on an errand,
+  counts nothing. Closing a task no longer puts begun places back to "not counted".
+- **What is left is named.** `ev review <place> --as toured|kept` answers with the places of the
+  same cabinet and room still not counted, each with its task or "in no task"; `ev next` lists,
+  while a task is in progress, the places of its cabinet that the task does not cover.
+- **One cabinet at a time:** `ev progress <place>` reads one piece of furniture or one room, and
+  every place in `ev progress` now carries its open tasks. A task on a cabinet plans its drawers,
+  so they no longer show as places no task covers.

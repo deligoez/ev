@@ -605,3 +605,73 @@ fn a_suggestion_sees_a_change_made_from_another_connection() {
     let again = inv.suggest("röle modülü", None).unwrap();
     assert_eq!(top(&again), "D-B2", "{}", again["similar"]);
 }
+
+#[test]
+fn layout_drafts_one_kind_per_drawer_from_the_contents_alone() {
+    let (_d, mut inv) = setup();
+    let coded = |name: &str, kind: &str, parent: &str, code: &str| NewNode {
+        code: Some(code.into()),
+        ..node(name, kind, parent)
+    };
+    let mut more = vec![
+        coded("Raf", "furniture", "Oda", "K2"),
+        coded("Çekmece", "container", "K2", "K2-A"),
+        coded("Çekmece", "container", "K2", "K2-B"),
+        coded("Çekmece", "container", "K2", "K2-C"),
+        coded("Çekmece", "container", "K2", "K2-D"),
+        node("Kablo, USB-C", "item", "K2-A"),
+        node("Kablo, HDMI", "item", "K2-A"),
+        node("Kablo, mikro USB", "item", "K2-A"),
+        node("Pil AA", "item", "K2-B"),
+        node("Pil, AAA", "item", "K2-B"),
+        node("Kablo, Lightning", "item", "K2-B"),
+        node("Pil 9V", "item", "K2-C"),
+        node("Kurşun kalem", "item", "K2-D"),
+    ];
+    for l in &mut more {
+        l.key = None;
+    }
+    inv.add_batch(more).unwrap();
+
+    let v = inv.layout("K2", true).unwrap();
+    assert_eq!(v["places"], 4);
+    assert_eq!(v["things"], 8);
+    let spread: Vec<&str> = v["spread"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["word"].as_str())
+        .collect();
+    assert_eq!(spread, ["kablo", "pil"], "{}", v["spread"]);
+
+    // Each kind goes to the drawer holding most of it; the lone pencil is no group and stays.
+    let p = &v["proposal"];
+    let themes: Vec<(&str, &str)> = p["themes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|t| Some((t["place"]["code"].as_str()?, t["theme"].as_str()?)))
+        .collect();
+    assert_eq!(themes, [("K2-A", "kablo"), ("K2-B", "pil")], "{p}");
+    let moves: Vec<(&str, &str, &str)> = p["moves"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|m| {
+            Some((
+                m["thing"]["name"].as_str()?,
+                m["from"]["code"].as_str()?,
+                m["to"]["code"].as_str()?,
+            ))
+        })
+        .collect();
+    assert_eq!(
+        moves,
+        [
+            ("Kablo, Lightning", "K2-B", "K2-A"),
+            ("Pil 9V", "K2-C", "K2-B")
+        ]
+    );
+    // Nothing was moved.
+    assert_eq!(inv.layout("K2", false).unwrap()["spread"], v["spread"]);
+}

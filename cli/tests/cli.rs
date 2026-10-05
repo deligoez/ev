@@ -861,3 +861,21 @@ fn focus_list_reads_the_series_marks_built_and_clear_starts_a_new_one() {
     let v = ev.ok(&["photo", "mark", o, "1=0.1,0.1,0.2,0.2"]);
     assert_eq!(v["marks"][0]["label"], "1");
 }
+
+#[test]
+fn an_attached_photo_joins_the_series_unframed_unless_no_show() {
+    let (ev, photo) = drawer();
+    let p = photo.to_str().unwrap();
+    let v = ev.ok(&["photo", "add", "D-A1", p, "--note", "son hali"]);
+    assert_eq!(v["shown"]["note"], "son hali");
+    assert_eq!(v["shown"]["series"], 1);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    assert_eq!(s["pictures"][0]["frames"], serde_json::json!([]));
+    // Without a note it is titled with the record; --no-show sends nothing.
+    let other = ev._dir.path().join("other.png");
+    std::fs::copy(&photo, &other).unwrap();
+    let v = ev.ok(&["photo", "add", "D-B1", other.to_str().unwrap(), "--whole"]);
+    assert_eq!(v["shown"]["note"], "D-B1");
+    let v = ev.ok(&["photo", "add", "D-B1", p, "--whole", "--no-show"]);
+    assert!(v["shown"].is_null());
+}

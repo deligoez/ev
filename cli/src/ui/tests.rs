@@ -1330,6 +1330,43 @@ fn a_counted_box_with_nothing_waiting_turns_green_and_its_holders_wait_for_all_o
 }
 
 #[test]
+fn a_counted_place_takes_no_word_and_one_changed_since_says_so() {
+    let (_dir, mut inv) = led_drawer();
+    inv.label(&["D".into(), "D-A1".into(), "D-B1".into()], true)
+        .unwrap();
+    for b in ["D", "D-A1", "D-B1"] {
+        inv.photo_current(b).unwrap();
+    }
+    inv.review("D-A1", "toured", None).unwrap();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let bx = app.inv.resolve("D-B1", false).unwrap();
+    app.reveal(bx).unwrap();
+    let mut term = Terminal::new(TestBackend::new(120, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    // Counted is the normal state: a green name, no word. The box not counted says so.
+    assert!(!s.contains("[counted"), "{s}");
+    assert!(s.contains("[not counted]"), "{s}");
+    assert_eq!(fg_of(&term, "D-A1"), Some(theme::pal().done));
+    // Something new lands in the counted box: now it says it changed since.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    app.inv
+        .add(NewNode {
+            name: "Direnç".into(),
+            kind: "item".into(),
+            parent: Some("D-A1".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    app.snap = super::Snapshot::load(&app.inv).unwrap();
+    app.rebuild().unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("[counted, changed since]"), "{s}");
+    assert_ne!(fg_of(&term, "Direnç"), Some(theme::pal().done));
+}
+
+#[test]
 fn a_bought_thing_reads_in_sections_and_its_documents_open_from_their_own_tab() {
     let (dir, mut inv) = home();
     inv.add(NewNode {

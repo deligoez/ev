@@ -386,7 +386,8 @@ fn next_leaves_out_the_fields_of_a_place_that_have_no_value() {
         .filter(|(_, x)| {
             x.is_null()
                 || x.as_array().is_some_and(Vec::is_empty)
-                || x.as_object().is_some_and(serde_json::Map::is_empty)
+                || x.as_object()
+                    .is_some_and(|o| o.values().all(serde_json::Value::is_null))
         })
         .map(|(k, _)| k)
         .collect();

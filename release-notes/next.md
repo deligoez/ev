@@ -22,7 +22,7 @@ thing the way it is remembered (spec/past-belongings.md).
 - **A gone record can be completed:** `ev edit` on a gone record now takes what the thing was
   (`name`, `came`, `qty`, `make`, `model`, `serial`, as well as the note), so ten panels thrown
   out are recorded as ten. Where it stands still cannot change. Documents and photos attach to
-  a gone record by its id (`ev doc add … --for #867`, `ev photo add #867 …`): a sale mail or an
+  a gone record by its id (`ev doc add … --for #512`, `ev photo add #512 …`): a sale mail or an
   old photo is part of what it was.
 - **How a thing left reads in the past tense:** "(gone: sold)", "thrown out", "given away", "how
   not known", instead of the word for setting it aside ("sell").

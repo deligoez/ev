@@ -429,3 +429,34 @@ fn work_outside_the_task_in_progress_counts_no_place() {
         "{events}"
     );
 }
+
+#[test]
+fn progress_of_one_place_names_each_place_inside_with_its_tasks() {
+    let (_d, mut inv) = setup();
+    add(
+        &mut inv,
+        "Çekmece B",
+        "container",
+        Some("K1"),
+        Some("K1-01-B"),
+    );
+    let t = inv
+        .task_add("Dolabı say", "hiç açılmadı", &["K1".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let v = inv.progress_in(Some("K1")).unwrap();
+    assert_eq!(v["scope"]["code"], "K1");
+    let places = v["places"].as_array().unwrap();
+    assert!(places.len() >= 2, "{v}");
+    // Every place in the cabinet is in its task, through the cabinet.
+    for p in places {
+        assert!(p["path_text"].as_str().unwrap().contains("K1"), "{p}");
+        assert_eq!(p["tasks"][0]["id"], t, "{p}");
+    }
+    // Nothing outside it.
+    assert!(
+        inv.progress().unwrap()["units"].as_u64().unwrap() > v["units"].as_u64().unwrap(),
+        "{v}"
+    );
+}

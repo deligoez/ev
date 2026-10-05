@@ -17,6 +17,11 @@ thing the way it is remembered (spec/past-belongings.md).
   `gone` event still keeps the moment it was written.
 - **When a thing came:** `ev edit <x> came=2014-03`, on any record; a linked purchase's order date
   stands for it when not given.
+- **When nobody knows when it left,** a past thing added without `--at` is listed under "when not
+  known", apart from the years, rather than in the year it was typed in.
+- **A gone record can be completed:** `ev edit` on a gone record now takes what the thing was
+  (`came`, `qty`, `make`, `model`, `serial`, as well as the note), so ten panels thrown out are
+  recorded as ten. Where it stands still cannot change.
 - **What a sale brought:** `ev sold <x> --price 1500 [--currency EUR] [--via "…"]`. A sale that
   was listed carries where it was listed into the record, but not its asking price, which is not
   what the sale brought.

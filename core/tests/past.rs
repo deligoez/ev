@@ -308,3 +308,38 @@ fn the_past_lists_last_gone_first_with_what_each_year_cost_and_brought() {
     assert_eq!(stats["past"]["records"], 2);
     assert_eq!(stats["past"]["got"]["TRY"], "1500.00");
 }
+
+#[test]
+fn what_was_ours_in_a_year_counts_apart_what_nothing_dates() {
+    let (_d, mut inv) = setup();
+    past_thing(&mut inv, "Oyun konsolu", "sell", "2019-05", Some("2016"));
+    past_thing(&mut inv, "Eski klavye", "left", "2014", Some("2012-03"));
+    // A thing here today, its coming read off a linked purchase.
+    inv.buy_add(
+        &serde_json::json!({"name": "Telefon", "qty": 1, "paid": "500.00", "ordered_at": "2015-08-01"}),
+        Some("Eski telefon"),
+    )
+    .unwrap();
+    let names = |year: i32| -> Vec<String> {
+        inv.past_year(year).unwrap()["owned"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names(2014), ["Eski klavye"]);
+    assert_eq!(names(2016), ["Eski telefon", "Oyun konsolu"]);
+    assert_eq!(names(2019), ["Eski telefon", "Oyun konsolu"]);
+    assert_eq!(names(2020), ["Eski telefon"]);
+    // A thing nothing dates is counted apart, never guessed in.
+    inv.add(NewNode {
+        name: "Lamba".into(),
+        kind: "item".into(),
+        parent: Some("Oda".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    assert_eq!(inv.past_year(2020).unwrap()["unknown"], 1);
+    assert_eq!(inv.past_year(12).unwrap_err().code(), 2);
+}

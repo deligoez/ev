@@ -109,21 +109,19 @@ impl Inventory {
         self.photo_add_with(reference, file, crop, note, false)
     }
 
-    /// Adds a photo. A whole (uncropped) photo already attached whole to another node is
-    /// refused unless `whole` is set: a group photo belongs to the place, and the things in it
-    /// get crops. The mistake this stops — one drawer photo on nine items — only shows once
-    /// someone opens them.
-    pub fn photo_add_with(
-        &mut self,
+    /// What `photo_add_with` refuses, checked without attaching anything, so a batch can check
+    /// every photo first: the record must resolve, and unless `cut_or_whole` (a crop, or
+    /// `--whole`) the photo must not be attached whole to another node. Returns the record's id
+    /// and the photo as stored (the store is content-addressed: storing twice is one file).
+    pub fn photo_add_check(
+        &self,
         reference: &str,
         file: &Path,
-        crop: Option<crate::Crop>,
-        note: Option<&str>,
-        whole: bool,
-    ) -> Result<Value> {
+        cut_or_whole: bool,
+    ) -> Result<(i64, PathBuf)> {
         let id = resolve(&self.conn, reference, false)?;
         let original = crate::photo::store_file(&self.photo_dir, file)?;
-        if crop.is_none() && !whole {
+        if !cut_or_whole {
             let others = ids(
                 &self.conn,
                 "SELECT DISTINCT p.node_id FROM photos p JOIN nodes n ON n.id = p.node_id
@@ -146,6 +144,22 @@ impl Inventory {
                 ));
             }
         }
+        Ok((id, original))
+    }
+
+    /// Adds a photo. A whole (uncropped) photo already attached whole to another node is
+    /// refused unless `whole` is set: a group photo belongs to the place, and the things in it
+    /// get crops. The mistake this stops — one drawer photo on nine items — only shows once
+    /// someone opens them.
+    pub fn photo_add_with(
+        &mut self,
+        reference: &str,
+        file: &Path,
+        crop: Option<crate::Crop>,
+        note: Option<&str>,
+        whole: bool,
+    ) -> Result<Value> {
+        let (id, original) = self.photo_add_check(reference, file, crop.is_some() || whole)?;
         let (stored, source) = match crop {
             Some(c) => (
                 crate::photo::store_crop(&self.photo_dir, &original, c)?,

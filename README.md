@@ -248,7 +248,9 @@ photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first 
 full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
 works for tabs, rows, the wheel and photos. A mark before each row says its kind (⌂ home, ◫ room,
 ▥ furniture, □ box, · thing), and a row turns green once the node is settled: counted, with
-nothing in `ev todo` hanging on it or on anything in it. Every node shows its `#id`, and every
+nothing in `ev todo` hanging on it or on anything in it. A counted place's name is green with no
+word beside it, since counted is where every place is headed; only the exceptions are written
+(not counted, being counted, left as is, counted but changed since). Every node shows its `#id`, and every
 command takes `#534` in place of a name or code. The key hints at the bottom show only the keys
 that do something on the screen at hand, and fit the width, dropping the least useful first.
 

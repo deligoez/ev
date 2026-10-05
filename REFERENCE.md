@@ -467,8 +467,10 @@ are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).
 `ev gone <ref> [--as d] [--why "<text>"]` records the reason in the `gone` event and appends it to the
 note; `ev dispose <ref> --as d --why "<text>"` appends it to the note too (an `edit` event) when the
 thing is set aside. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
-`ev history <id>` and `ev edit <id> note=…` (a gone node lets change only what it was: `name`,
-`note`, `came`, `qty`, `make`, `model`, `serial`; any other field exits 5).
+`ev history <id>`, `ev edit <id> note=…` (a gone node lets change only what it was: `name`,
+`note`, `came`, `qty`, `make`, `model`, `serial`; any other field exits 5), and for adding its
+history: `ev doc add <file> --for <id>`, `ev doc link <doc> <id>` and `ev photo add <id> <photo>`
+(a sale mail, an old photo of a thing long gone).
 
 **Photographed, then thrown out: `--as digitize`.** For a paper whose content is worth keeping
 but whose paper is not: a ticket, a letter, an old statement, a manual. `ev dispose <ref> --as

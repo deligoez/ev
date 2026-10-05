@@ -583,9 +583,10 @@ they are recorded, not on the bag. Close-ups the person sends later (screw heads
 the item, cropped to the thing itself, and a photo of an empty holder goes to the holder. Photos
 are copied into `~/.ev/photos`; the original may then be deleted. **A photo that shows several
 records is cropped per record — also when one record is later split into several:** remove the
-whole photo from it and give each new record its own crop from every photo it appears in.
-One `ev photo cut <file> <x>=<crop> <x>=<crop> <y>=<crop>…` gives a record as many crops as it
-has things in the photo, all in one step.
+whole photo from it (`ev photo remove <ref> <n>`, `n` as `ev photo list <ref>` numbers it) and
+give each new record its own crop from every photo it appears in. One `ev photo cut <file>
+<x>=<crop> <x>=<crop> <y>=<crop>…` gives a record as many crops as it has things in the photo,
+all in one step.
 
 **A tour is not finished on an old photo.** `ev review <place> --as toured` is refused while
 the place or any placed box in its grid has no photo or one older than its last change

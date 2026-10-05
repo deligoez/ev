@@ -247,3 +247,24 @@ fn a_box_set_back_to_raw_is_no_longer_known_empty() {
     assert!(!names(&inv, "results").contains(&"Kablo çantası".to_string()));
     assert!(names(&inv, "not_known").contains(&"Kablo çantası".to_string()));
 }
+
+#[test]
+fn a_box_called_empty_reads_back_its_note_and_names_a_task_still_open_on_it() {
+    let (_d, mut inv) = setup();
+    inv.task_add(
+        "Çantayı say",
+        "hiç sayılmadı",
+        &["Kablo çantası".into()],
+        None,
+    )
+    .unwrap();
+    let v = inv
+        .mark_empty(&["Kablo çantası".into()], Some("açtık, boş"))
+        .unwrap();
+    // Its note says otherwise; the person decides which is right.
+    assert_eq!(v["empty"][0]["note"], "içinde kırmızı kablo var");
+    assert_eq!(v["open_tasks"][0]["title"], "Çantayı say");
+    // The task is named, not closed.
+    let t = v["open_tasks"][0]["task"].as_i64().unwrap();
+    assert_eq!(inv.task_show(t).unwrap()["status"], "open");
+}

@@ -412,8 +412,12 @@ person closes it, each titled with its note and `n/total`, stepped with `[` `]`,
 sent shown; a new copy of a photo in it (marked again, or cut after it was marked) takes that
 photo's place. Esc hides it (a click does not), `m` brings it back, also after a restart, and `X`
 closes it: what is sent next starts a new series, numbered from 1. Within a series ev numbers the
-frames, so a number on screen means one frame until it is closed. `ev focus --list` reads it:
-`{series: {since, next, pictures: [{n, file, note, frames: [{n, at} | {n, ref, crop}]}]}}`
+frames, so a number on screen means one frame until it is closed. A picture of the series is
+named `f12` (its title in `ev ui` reads `f12/20 · <note>`), a frame by its bare number, a record
+by `#12`. `ev focus f12` shows that picture again, and `ev photo add`, `ev photo cut`, `ev photo
+mark` and `ev focus --file` take `f12` for a photo: the photo it was drawn on, unmarked (a file of
+that name wins). `ev focus --list` reads it:
+`{series: {since, next, pictures: [{n, f, file, source, note, frames: [{n, at} | {n, ref, crop}]}]}}`
 (`series: null` when there is none); `ev focus --clear` closes it from outside, for an agent the
 person asked. The answer to `--file` is `{focus: {files, note, series, next, at}}`: this
 request's pictures and the series' size. Each request is shown once, without restarting `ev ui`.

@@ -76,3 +76,14 @@ writes it.
   shows each place's tasks.
 - Clearing the `counting` marks earlier task starts left: that is the person's call, place by
   place (`ev review <place> --as raw`), since some of those places may have been worked in.
+
+## The final photo, checked against the records (decided 2026-10-06)
+
+The person asked that a place's final photo be matched to its records before its tour closes
+(which record is which thing on it); an agent closed a drawer on its photo without doing so.
+ev does not refuse the tour over it (closing is the person's word), but `ev review <place> --as
+toured` answers with `photo_check`: the records in the place shown on its newest whole photo (a
+crop of theirs was cut from that photo) and those not yet, so the agent frames the rest (`ev
+photo mark`, `ev photo cut`) or says why one cannot be seen, before the person calls it done.
+Recording "not visible, under the set" as data, and marks by record id, wait until the check
+has been used.

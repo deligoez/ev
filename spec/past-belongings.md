@@ -47,7 +47,8 @@ it once", and whether a marketplace's sale mails could be a source too.
 
   Broken and thrown out stays `trash` with a `--why`; given away stays `give`.
 - **A sale in progress** (`ev sale --listed --price … --where …`) is carried into the row when the
-  thing goes `--as sell`: its price and where it was listed, for `ev sold` to correct.
+  thing goes `--as sell`: where it was listed becomes what it went through. Its asking price is
+  not carried: what a thing asked is not what it brought, and only `ev sold` says that.
 - **Where it was:** `--where <place>`: a named place (`ev place add "Eski ev"`), reused for every
   thing left there, with aliases as today. A former home is a place, not a node: nothing is
   toured there.

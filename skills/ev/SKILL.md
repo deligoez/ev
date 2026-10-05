@@ -468,7 +468,9 @@ draws the numbers it was marked with, so give its crops in the order of the mark
 and a number is a picture of the series (`f12`, as its title in `ev ui` reads), `#` and a number
 is a record (`#12`). Number your table's rows with the frames' numbers. Commands take `f12` for a
 photo (`ev photo cut f12 …`, `ev photo add <ref> f12`, `ev focus f12` to show it again), so you
-carry no file paths.
+carry no file paths. Attaching a batch already in the series: `ev photo add <ref> f2 f3 f4` for
+one record, `ev photo add --stdin` with `{"ref": "…", "photo": "f5"}` a line for many; each
+keeps the note it was sent with, and nothing is sent to the screen again.
 
 **A question about one thing names it and shows it.** Before asking about a single thing ("where
 did this go?"), mark it on the photo it is in, or `ev focus` it, so the question is on their

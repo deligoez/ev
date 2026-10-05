@@ -211,6 +211,27 @@ fn review_mark(r: &Value) -> &'static str {
     }
 }
 
+/// A place not counted yet, as `left_here` and `left_nearby` give it: its state, its path and
+/// the tasks it is in, or that no task holds it.
+fn left_place_line(p: &Value) -> String {
+    let tasks: Vec<String> = p["tasks"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|t_| format!("#{} {}", t_["id"], s(t_, "title")))
+        .collect();
+    let tasks = if tasks.is_empty() {
+        t("in no task").to_string()
+    } else {
+        tasks.join(", ")
+    };
+    format!(
+        "  {} {}  [{tasks}]",
+        review_mark(&serde_json::json!({ "status": p["status"] })),
+        s(&p["node"], "path_text")
+    )
+}
+
 /// `due 2026-10-04 (in 2 days)`, `(today)` or `(3 days overdue)`.
 fn due_text(due: &str, days: &Value) -> String {
     let when = match days.as_i64() {
@@ -2222,6 +2243,20 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(node) = v.get("node").filter(|_| v.get("children").is_some()) {
         show(&mut out, v, node);
+        // `ev review`: what is still not counted around the place (spec/counting.md).
+        let left = &v["left_here"];
+        for (key, head) in [
+            ("furniture", "Still not counted in {}:"),
+            ("room", "Still not counted elsewhere in {}:"),
+        ] {
+            if left[key].is_object() {
+                let where_ = s(&left[key]["node"], "path_text");
+                let _ = writeln!(out, "\n{}", tf(head, &[&where_]));
+                for p in left[key]["places"].as_array().into_iter().flatten() {
+                    let _ = writeln!(out, "{}", left_place_line(p));
+                }
+            }
+        }
         return out;
     }
     if let (Some(kit), Some(parts)) = (
@@ -2923,6 +2958,20 @@ fn next(out: &mut String, v: &Value) {
                 _ => continue,
             };
             let _ = writeln!(out, "  #{}  {text}", h["task"]);
+        }
+    }
+    let near = v["left_nearby"].as_array().map_or(0, Vec::len);
+    if near > 0 {
+        let _ = writeln!(
+            out,
+            "\n{}",
+            tf(
+                "Not counted in the same furniture, outside this task ({}):",
+                &[&near]
+            )
+        );
+        for p in v["left_nearby"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "{}", left_place_line(p));
         }
     }
     let un = v["unplanned"].as_array().map_or(0, Vec::len);

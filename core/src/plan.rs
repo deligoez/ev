@@ -1239,13 +1239,68 @@ impl Inventory {
         }
         event(&tx, id, "review", json!({ "as": status, "note": note }))?;
         tx.commit()?;
-        show(&self.conn, id)
+        let mut v = show(&self.conn, id)?;
+        // Settled: what is still not counted around it, so nothing in the same cabinet is
+        // forgotten (spec/counting.md).
+        if matches!(status.as_str(), "toured" | "kept") {
+            let left = self.left_around(id, &HashSet::from([id]))?;
+            if !left["furniture"].is_null() || !left["room"].is_null() {
+                v["left_here"] = left;
+            }
+        }
+        Ok(v)
     }
 
     /// Every unit (see `units`) with how far it has been gone through, and which toured ones
     /// changed since.
     pub fn progress(&self) -> Result<Value> {
         self.progress_in(None)
+    }
+
+    /// What is not counted yet (`raw` or `counting`) around `id` (spec/counting.md): in the
+    /// nearest piece of furniture it is in (or is) and in its room, each place with its status
+    /// and tasks; the room leaves out what the furniture already names. `skip` holds the
+    /// places the caller names itself. Either part is null when nothing is left in it.
+    fn left_around(&self, id: i64, skip: &HashSet<i64>) -> Result<Value> {
+        let mut chain = Vec::new();
+        let mut cur = Some(id);
+        while let Some(c) = cur {
+            let n = crate::store::load(&self.conn, c)?;
+            cur = n.parent_id;
+            chain.push(n);
+        }
+        let nearest = |k: Kind| chain.iter().find(|n| n.kind == k).map(|n| n.id);
+        let mut named: HashSet<i64> = skip.clone();
+        let mut part = |scope: Option<i64>| -> Result<Value> {
+            let Some(s) = scope else {
+                return Ok(Value::Null);
+            };
+            let p = self.progress_in(Some(&s.to_string()))?;
+            let places: Vec<Value> = p["places"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|x| matches!(x["review"]["status"].as_str(), Some("raw" | "counting")))
+                .filter(|x| x["id"].as_i64().is_some_and(|i| !named.contains(&i)))
+                .map(|x| {
+                    json!({
+                        "node": { "id": x["id"], "name": x["name"], "code": x["code"],
+                                  "path_text": x["path_text"] },
+                        "status": x["review"]["status"],
+                        "tasks": x["tasks"],
+                    })
+                })
+                .collect();
+            named.extend(places.iter().filter_map(|x| x["node"]["id"].as_i64()));
+            Ok(if places.is_empty() {
+                Value::Null
+            } else {
+                json!({ "node": brief(&self.conn, s)?, "places": places })
+            })
+        };
+        let furniture = part(nearest(Kind::Furniture))?;
+        let room = part(nearest(Kind::Room))?;
+        Ok(json!({ "furniture": furniture, "room": room }))
     }
 
     /// `progress` of the places inside `scope` (a piece of furniture, a room; the place itself
@@ -1606,9 +1661,31 @@ impl Inventory {
                 .cloned()
                 .collect()
         };
+        // While a task is in progress: the places not counted in the furniture its places are
+        // in, that it does not cover, each with its own tasks or none (spec/counting.md).
+        let mut left_nearby: Vec<Value> = Vec::new();
+        if let Some(t) = doing.map(|d| d.0) {
+            let ours = task_nodes(&self.conn, t)?;
+            for n in &ours {
+                let around = self.left_around(*n, &ours.iter().copied().collect())?;
+                for p in around["furniture"]["places"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                {
+                    let covered = p["tasks"]
+                        .as_array()
+                        .is_some_and(|ts| ts.iter().any(|x| x["id"] == json!(t)));
+                    if !covered && !left_nearby.contains(p) {
+                        left_nearby.push(p.clone());
+                    }
+                }
+            }
+        }
         let mut v = json!({
             "goal": goal,
             "task": task,
+            "left_nearby": left_nearby,
             "open_tasks": open.len(),
             "progress": progress_summary(&progress),
             "unplanned": unplanned,

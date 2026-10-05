@@ -167,6 +167,26 @@ fn a_pack_spreads_one_bought_line_over_several_things() {
 }
 
 #[test]
+fn a_pack_linked_without_a_count_gives_each_thing_its_own_units() {
+    let (_d, mut inv) = setup();
+    let set = inv
+        .buy_add(
+            &json!({"name": "Set: body, lens, two caps", "qty": 1}),
+            None,
+        )
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    inv.buy_pack(set, 4).unwrap();
+    // One thing is one unit: the next things still find units left.
+    let p = &inv.buy_link(set, "Matkap", None).unwrap()["purchase"];
+    assert_eq!(p["open_qty"], 3, "{p}");
+    inv.edit("Kart", &["qty=2".into()]).unwrap();
+    let p = &inv.buy_link(set, "Kart", None).unwrap()["purchase"];
+    assert_eq!(p["open_qty"], 1, "a thing of two takes two");
+}
+
+#[test]
 fn a_pack_cannot_shrink_below_what_is_already_linked() {
     let (_d, mut inv) = setup();
     let cells = inv

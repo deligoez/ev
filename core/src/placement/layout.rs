@@ -309,18 +309,42 @@ impl Inventory {
             "split": split,
         });
         if propose {
-            out["proposal"] = self.draft_layout(&index, &places, &common, &form)?;
+            // What a draft never moves on its own: a thing in a box of its own inside the place
+            // (a themed or labelled bin moves as one, if at all), a thing inside another thing
+            // (a device's leads, a case's contents), and a part of a kit (its set stays together).
+            let kit_parts: HashSet<i64> =
+                crate::store::ids(&self.conn, "SELECT DISTINCT node_id FROM kit_links", [])?
+                    .into_iter()
+                    .collect();
+            let stays: HashSet<i64> = places
+                .iter()
+                .flat_map(|p| p.things.iter().map(move |t| (p, t)))
+                .filter(|(p, t)| {
+                    kit_parts.contains(&t.id)
+                        || t.parent_id
+                            .filter(|h| *h != p.node.id)
+                            .and_then(|h| by_id.get(&h))
+                            .is_some_and(|h| {
+                                h.kind == Kind::Item || h.theme.is_some() || h.code.is_some()
+                            })
+                })
+                .map(|(_, t)| t.id)
+                .collect();
+            out["proposal"] = self.draft_layout(&index, &places, &stays, &common, &form)?;
         }
         Ok(out)
     }
 
     /// A layout from the contents alone: each thing in the group of its kind, the groups
     /// largest first, each to the place holding most of it and not yet given a group
-    /// (else the emptiest place left); the moves that takes, and a theme per place.
+    /// (else the emptiest place left); the moves that takes, and a theme per place. Things in
+    /// `stays` are left where they are; a parking place (`temporary`) is given no group, and
+    /// what waits in it goes to its kind's place like anything else.
     fn draft_layout(
         &self,
         index: &Index,
         places: &[Place],
+        stays: &HashSet<i64>,
         common: &dyn Fn(&str) -> bool,
         form: &dyn Fn(&str) -> String,
     ) -> Result<Value> {
@@ -328,7 +352,7 @@ impl Inventory {
         // and stays where it is.
         let mut groups: BTreeMap<String, Vec<(usize, &Node)>> = BTreeMap::new();
         for (pi, p) in places.iter().enumerate() {
-            for t in &p.things {
+            for t in p.things.iter().filter(|t| !stays.contains(&t.id)) {
                 if let Some((k, _)) = kind_of(index, &t.name).filter(|(k, _)| !common(k)) {
                     groups.entry(k).or_default().push((pi, t));
                 }
@@ -337,7 +361,7 @@ impl Inventory {
         groups.retain(|_, members| members.len() >= 2);
         let mut order: Vec<(String, Vec<(usize, &Node)>)> = groups.into_iter().collect();
         order.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
-        let mut taken = vec![false; places.len()];
+        let mut taken: Vec<bool> = places.iter().map(|p| p.node.temporary).collect();
         let (mut moves, mut themes, mut kept) = (Vec::new(), Vec::new(), Vec::new());
         for (word, members) in order {
             let mut held: BTreeMap<usize, usize> = BTreeMap::new();

@@ -815,8 +815,8 @@ impl Inventory {
         }
         self.send_focus(&req)?;
         Ok(json!({ "focus": {
-            "files": [req["files"][n - 1].clone()], "note": req["notes"][n - 1].clone(),
-            "series": count, "at": at,
+            "files": [req["files"][n - 1].clone()], "f": [format!("f{n}")],
+            "note": req["notes"][n - 1].clone(), "series": count, "at": at,
         } }))
     }
 

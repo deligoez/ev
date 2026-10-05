@@ -1999,7 +1999,7 @@ pub(crate) fn event(conn: &Connection, id: i64, kind: &str, data: Value) -> Resu
         "INSERT INTO events (node_id, at, type, data) VALUES (?1, ?2, ?3, ?4)",
         params![id, now(), kind, data.to_string()],
     )?;
-    Ok(())
+    crate::plan::mark_work(conn, id, kind)
 }
 
 pub(crate) fn brief_json(conn: &Connection, id: i64) -> Result<Value> {

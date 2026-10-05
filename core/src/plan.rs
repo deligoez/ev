@@ -367,6 +367,58 @@ fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
     Ok(Some((u, r["status"].as_str().unwrap_or("raw").to_string())))
 }
 
+/// What is work in a place (spec/counting.md): written for something inside it. A photo is work
+/// on the place itself too; making, moving or editing the place itself is not opening it.
+const WORK: [&str; 11] = [
+    "create",
+    "move",
+    "done",
+    "gone",
+    "found",
+    "cell",
+    "split",
+    "portion_in",
+    "portion_out",
+    "more_of",
+    "edit",
+];
+
+/// After an event on `node`: a place not counted yet, that the task in progress is about (it or
+/// a holder above it), and that this is work in, is being counted now. Work outside a tour (a
+/// thing put away on an errand) counts nothing. A place counted or kept stays as it is.
+pub(crate) fn mark_work(conn: &Connection, node: i64, kind: &str) -> Result<()> {
+    if kind != "photo" && !WORK.contains(&kind) {
+        return Ok(());
+    }
+    let Some((unit, status)) = unit_state(conn, node)? else {
+        return Ok(());
+    };
+    if status != "raw" || (unit == node && kind != "photo") {
+        return Ok(());
+    }
+    let toured: bool = conn.query_row(
+        "WITH RECURSIVE up(id) AS (SELECT ?1 UNION SELECT n.parent_id FROM nodes n
+           JOIN up ON n.id = up.id WHERE n.parent_id IS NOT NULL)
+         SELECT EXISTS (SELECT 1 FROM task_nodes tn JOIN tasks t ON t.id = tn.task_id
+           WHERE t.status = 'doing' AND tn.node_id IN (SELECT id FROM up))",
+        [unit],
+        |r| r.get(0),
+    )?;
+    if !toured {
+        return Ok(());
+    }
+    conn.execute(
+        "INSERT OR IGNORE INTO reviews (node_id, status, at) VALUES (?1, 'counting', ?2)",
+        params![unit, crate::store::now()],
+    )?;
+    event(
+        conn,
+        unit,
+        "review",
+        json!({ "as": "counting", "by": kind }),
+    )
+}
+
 /// The review a unit inherits: its own, or the nearest reviewed ancestor's.
 pub(crate) fn effective_review(
     id: i64,
@@ -1334,32 +1386,12 @@ impl Inventory {
             params![status, t, closed, note.map(str::trim), id],
         )?;
         if status == "doing" {
-            // One task at a time: whatever was in progress goes back to open.
+            // One task at a time: whatever was in progress goes back to open. Its places are
+            // not marked: a place is being counted once work in it starts (spec/counting.md).
             tx.execute(
                 "UPDATE tasks SET status = 'open', updated_at = ?1 WHERE status = 'doing' AND id != ?2",
                 params![t, id],
             )?;
-            // Its places are being counted now, unless they already have a state.
-            for n in task_nodes(&tx, id)? {
-                if tx.execute(
-                    "INSERT OR IGNORE INTO reviews (node_id, status, at) VALUES (?1, 'counting', ?2)",
-                    params![n, t],
-                )? > 0
-                {
-                    event(&tx, n, "review", json!({ "as": "counting", "task": id }))?;
-                }
-            }
-        } else {
-            // Stopped or finished: what is still being counted was not finished, so not counted.
-            for n in task_nodes(&tx, id)? {
-                if tx.execute(
-                    "DELETE FROM reviews WHERE node_id = ?1 AND status = 'counting'",
-                    [n],
-                )? > 0
-                {
-                    event(&tx, n, "review", json!({ "as": "raw", "task": id }))?;
-                }
-            }
         }
         rerank(&tx, None, None)?;
         tx.commit()?;

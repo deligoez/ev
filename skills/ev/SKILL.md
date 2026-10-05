@@ -114,7 +114,8 @@ a portion, an ordinary record with its own count, and the portions share what th
    set" from the records; a part missing from its bag is a record marked `ev lost` and linked,
    so it is counted as lost, not forgotten. A part the list lacks is added with `ev kit part
    <kit> "<part>"`; a record linked as the wrong part leaves with `ev kit unlink <kit> <n>
-   <record>`. **A set bought as one purchase line** is linked to
+   <record>`; a part entered by mistake is `ev kit drop <kit> <n>`, one named wrong `ev kit
+   rename <kit> <n> "<part>"`. **A set bought as one purchase line** is linked to
    that line once, on the kit (`ev kit purchase <kit> <line>`, or `--purchase` on `ev kit add`),
    never part by part and never by `ev buy pack`: the line is settled, and every linked part
    shows it as its purchase and is offered no other.

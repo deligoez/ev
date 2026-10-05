@@ -468,3 +468,51 @@ fn a_past_thing_takes_its_documents_and_old_photos_by_id() {
         3
     );
 }
+
+#[test]
+fn what_was_remembered_is_listed_apart_from_what_left_the_inventory() {
+    let (_d, mut inv) = setup();
+    // Seen leaving on a tour.
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Trash),
+        None,
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    // Recorded long after it left, in one step or with a date said.
+    past_thing(&mut inv, "Oyun konsolu", "sell", "2019", None);
+    inv.add(NewNode {
+        name: "Klavye".into(),
+        kind: "item".into(),
+        parent: Some("Oda".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    inv.gone_left(
+        "Klavye",
+        Some(Disposition::Give),
+        None,
+        false,
+        None,
+        Some("2015"),
+        None,
+    )
+    .unwrap();
+    let v = inv.past(None, None).unwrap();
+    let names = |key: &str| -> Vec<String> {
+        v[key]["past"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names("remembered"), ["Oyun konsolu", "Klavye"]);
+    assert_eq!(names("left_inventory"), ["Eski telefon"]);
+    // The stats still count both.
+    assert_eq!(inv.stats().unwrap()["past"]["records"], 3);
+}

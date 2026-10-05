@@ -1698,3 +1698,37 @@ fn g_shows_the_series_as_a_grid_moved_through_by_arrows_and_f_numbers() {
     term.draw(|f| app.draw(f)).unwrap();
     assert!(screen(&term).contains("f4/5 · kutu 4"));
 }
+
+#[test]
+fn a_click_on_the_series_grid_opens_the_picture_under_it() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let files: Vec<(std::path::PathBuf, Option<String>)> = (1..=5)
+        .map(|i| {
+            (
+                picture(&dir, &format!("p{i}.png")),
+                Some(format!("kutu {i}")),
+            )
+        })
+        .collect();
+    app.inv.focus_noted(&files, None).unwrap();
+    app.apply_focus().unwrap();
+    press(&mut app, KeyCode::Home);
+    press(&mut app, KeyCode::Char('g'));
+    let mut term = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    // The wheel moves a row: three pictures a row, from f1 to f4.
+    click(&mut app, MouseEventKind::ScrollDown, 50, 10);
+    assert_eq!(app.overlay.as_ref().unwrap().at, 3);
+    // A click on the second row's second picture (f5) opens it on its own.
+    let (r, _) = app.grid_hits[4];
+    click(
+        &mut app,
+        MouseEventKind::Down(MouseButton::Left),
+        r.x + 2,
+        r.y + 1,
+    );
+    assert!(!app.series_grid);
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("f5/5 · kutu 5"));
+}

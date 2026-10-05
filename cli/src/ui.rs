@@ -86,7 +86,7 @@ const ESC_WAIT: Duration = Duration::from_millis(30);
 const BACKGROUND_POLL: Duration = Duration::from_secs(3);
 
 /// Tab titles in the current language.
-fn tab_titles() -> [&'static str; 9] {
+fn tab_titles() -> [&'static str; 10] {
     [
         t("Layout"),
         t("Pending"),
@@ -97,6 +97,7 @@ fn tab_titles() -> [&'static str; 9] {
         t("To do"),
         t("Settings"),
         t("Statistics"),
+        t("Past"),
     ]
 }
 
@@ -105,6 +106,8 @@ const UNCLEAR_SECTION: i64 = -14;
 /// The Statistics tab's sections count down from here, clear of the To do sections, the lost
 /// heading and the settings.
 const STATS_SECTION: i64 = -3000;
+/// The Past tab's year headings: this less the year, clear of every other heading.
+const PAST_SECTION: i64 = -4000;
 /// The To do section of places not counted yet, which also starts collapsed: every place in
 /// the home is on it until it is counted.
 const UNCOUNTED_SECTION: i64 = -10;
@@ -127,10 +130,13 @@ enum Tab {
     Settings,
     /// `ev stats` on one page (spec/stats.md).
     Stats,
+    /// `ev past`: what was ours and left, by year, apart from the inventory
+    /// (spec/past-belongings.md).
+    Past,
 }
 
 impl Tab {
-    const ALL: [Tab; 9] = [
+    const ALL: [Tab; 10] = [
         Tab::Tree,
         Tab::Pending,
         Tab::Disposals,
@@ -140,6 +146,7 @@ impl Tab {
         Tab::Plan,
         Tab::Settings,
         Tab::Stats,
+        Tab::Past,
     ];
 
     fn index(self) -> usize {
@@ -1596,7 +1603,7 @@ impl App {
 fn tab_at(x: u16) -> Option<Tab> {
     let mut start = 0u16;
     for (i, t) in tab_titles().iter().enumerate() {
-        let width = format!("{} {t}", i + 1).chars().count() as u16 + 2;
+        let width = format!("{} {t}", (i + 1) % 10).chars().count() as u16 + 2;
         if x >= start && x < start + width {
             return Some(Tab::from_index(i));
         }

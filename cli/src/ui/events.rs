@@ -96,6 +96,7 @@ impl App {
             KeyCode::Char(c @ '1'..='9') => {
                 self.switch(Tab::from_index(c as usize - '1' as usize))?
             }
+            KeyCode::Char('0') => self.switch(Tab::Past)?,
             KeyCode::Char('m') => self.reopen_marked(),
             KeyCode::Char('X') => self.close_series()?,
             KeyCode::Char('M') => self.open_map(),
@@ -142,8 +143,9 @@ impl App {
                         if self.collapsed.contains(&id) || k.code == KeyCode::Enter {
                             self.toggle_section(id)?;
                         }
-                    } else if id == 0 {
-                        // A line of the Statistics tab that names no record.
+                    } else if id == 0 || self.tab == Tab::Past {
+                        // A line of the Statistics tab that names no record, or a past thing,
+                        // which is in no tree to show it in.
                     } else if self.tab == Tab::Tree {
                         self.expanded.insert(id);
                         self.rebuild()?;
@@ -152,7 +154,9 @@ impl App {
                     }
                 }
             }
-            KeyCode::Left | KeyCode::Char('h') if matches!(self.tab, Tab::Plan | Tab::Stats) => {
+            KeyCode::Left | KeyCode::Char('h')
+                if matches!(self.tab, Tab::Plan | Tab::Stats | Tab::Past) =>
+            {
                 // On an item, go up to its section; on an open section, close it.
                 let Some(i) = self.state.selected() else {
                     return Ok(());

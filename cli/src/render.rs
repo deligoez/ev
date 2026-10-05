@@ -289,6 +289,41 @@ fn need_line(n: &Value) -> String {
     format!("#{} {qty}{}{make}{for_}", n["id"], s(n, "text"))
 }
 
+/// How a gone record left, in one line (spec/past-belongings.md): when, how, where it was, and
+/// what a sale brought through what. None for a record that has not left.
+pub(crate) fn departure_text(v: &Value) -> Option<String> {
+    let d = v["departure"].as_object()?;
+    let mut parts = vec![
+        d.get("at")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+    ];
+    if let Some(how) = v["node"]["disposition"].as_str() {
+        parts.push(disposition(how));
+    }
+    if let Some(w) = d.get("where").and_then(Value::as_str) {
+        parts.push(tf("in {}", &[&w]));
+    }
+    let via = d.get("via").and_then(Value::as_str);
+    match d.get("price").and_then(Value::as_str) {
+        Some(p) => parts.push(format!(
+            "{}{}",
+            tf(
+                "sold for {}",
+                &[&amount(
+                    p,
+                    d.get("currency").and_then(Value::as_str).unwrap_or("TRY")
+                )]
+            ),
+            via.map(|v| format!(" ({v})")).unwrap_or_default()
+        )),
+        None => parts.extend(via.map(|v| tf("via {}", &[&v]))),
+    }
+    parts.retain(|p| !p.is_empty());
+    Some(parts.join(" · "))
+}
+
 /// An amount in the reader's way of writing it: `1234.56 TRY` in English, `1.234,56 TL` in
 /// Turkish (thousands by dots, decimals by a comma, the lira as TL).
 pub(crate) fn amount(a: &str, currency: &str) -> String {
@@ -3151,30 +3186,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     if let Some(c) = v["came"].as_str() {
         let _ = writeln!(out, "  {}: {c}", t("came"));
     }
-    let d = &v["departure"];
-    if d.is_object() {
-        let mut parts = vec![s(d, "at")];
-        if let Some(how) = v["node"]["disposition"].as_str() {
-            parts.push(disposition(how));
-        }
-        if let Some(w) = d["where"].as_str() {
-            parts.push(tf("in {}", &[&w]));
-        }
-        let via = d["via"].as_str();
-        match d["price"].as_str() {
-            Some(p) => parts.push(format!(
-                "{}{}",
-                tf(
-                    "sold for {}",
-                    &[&amount(p, d["currency"].as_str().unwrap_or("TRY"))]
-                ),
-                via.map(|v| format!(" ({v})")).unwrap_or_default()
-            )),
-            None => parts.extend(via.map(|v| tf("via {}", &[&v]))),
-        }
-        let parts: Vec<String> = parts.into_iter().filter(|p| !p.is_empty()).collect();
-        let _ = writeln!(out, "  {}: {}", t("left"), parts.join(" · "));
-        if let Some(n) = d["note"].as_str() {
+    if let Some(left) = departure_text(v) {
+        let _ = writeln!(out, "  {}: {left}", t("left"));
+        if let Some(n) = v["departure"]["note"].as_str() {
             let _ = writeln!(out, "    {n}");
         }
     }

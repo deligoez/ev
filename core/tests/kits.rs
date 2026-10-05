@@ -303,3 +303,22 @@ fn a_part_of_a_kit_bought_as_one_line_is_asked_no_purchase() {
         "{h}"
     );
 }
+
+#[test]
+fn adding_parts_answers_with_the_new_parts_only() {
+    let (_d, mut inv) = setup();
+    inv.kit_add("Set", None, None, &[("RC522 okuyucu".into(), 1)], None)
+        .unwrap();
+    let v = inv
+        .kit_parts_add("Set", &[("Kablo".into(), 3), ("Kart".into(), 2)])
+        .unwrap();
+    let added: Vec<(i64, &str)> = v["added"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| (p["n"].as_i64().unwrap(), p["text"].as_str().unwrap()))
+        .collect();
+    assert_eq!(added, [(2, "Kablo"), (3, "Kart")]);
+    assert!(v.get("parts").is_none(), "{v}");
+    assert_eq!(v["counts"]["expected"], 6);
+}

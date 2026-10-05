@@ -62,6 +62,16 @@ puts the attached photo into the marked photo series, unframed and titled with i
 the record), as `photo mark` and `photo cut` do; `--no-show` keeps it off the screen. Pictures sent
 together with `ev focus --file` can each carry a note of their own: `--file a.jpg=<note>`.
 
+## `f12` names a picture
+
+`#` named three things in conversation: records, the rows of the agent's table and the photos of
+a batch, and `#2` was also a real record. The person settled one scheme, and ev now backs it: a
+bare number is a frame of the open series, `f12` is the series' twelfth picture, `#12` is a
+record. Each picture in `ev ui` is titled `f12/20 · <note>`, and `ev focus --list` carries `f` (and
+`source`, the photo it was drawn on). Commands that take a photo take `f12` too (`ev photo add`,
+`ev photo cut`, `ev photo mark`, `ev focus --file`), meaning that photo unmarked, so the agent
+carries no file paths; `ev focus f12` shows that picture again.
+
 ## Smaller fixes
 
 - A kit bought as one purchase line showed that line as ×1 whatever its quantity: `ev kit show`

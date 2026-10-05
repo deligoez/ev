@@ -246,7 +246,7 @@ screen), into the **marked photo series**: everything shown piles up there, step
 until the person closes it with `X`. ev numbers the frames across a series, so "3 at, 7 ver"
 means one frame each until it is closed; a photo marked again keeps its numbers, and a cut of a
 marked photo draws the same ones. Esc only hides the series (a stray click does not), and `m`
-brings it back, even after a restart; `g` shows the whole series as a grid, as many a row as
+brings it back, even after a restart; `g` shows the whole series as a grid, a click opening a picture, as many a row as
 the screen holds (`ev settings series_tile` sets the picture width), and `f12` then Enter goes
 straight to a picture; `ev focus --list` reads it. A photo the agent only shows joins it too
 (`ev focus --file photo.jpg="what this is"`), and a picture of the series is attached by its

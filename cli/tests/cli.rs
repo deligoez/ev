@@ -62,6 +62,61 @@ fn seeded() -> Ev {
 }
 
 #[test]
+fn photo_add_of_several_attaches_none_when_one_is_refused_and_names_it() {
+    let ev = seeded();
+    ev.ok(&["add", "Kutu", "--kind", "container", "--in", "Salon"]);
+    let dir = ev.db.parent().unwrap().to_path_buf();
+    let (a, b) = (dir.join("a.png"), dir.join("b.png"));
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&a)
+        .unwrap();
+    image::RgbImage::from_pixel(8, 8, image::Rgb([9, 8, 7]))
+        .save(&b)
+        .unwrap();
+    // b.png already shows the whole room.
+    ev.ok(&["photo", "add", "Salon", b.to_str().unwrap(), "--no-show"]);
+    let photos = |ev: &Ev| {
+        ev.ok(&["photo", "list", "Kutu"])["photos"]
+            .as_array()
+            .unwrap()
+            .len()
+    };
+    let (code, _, err) = ev.run(&[
+        "photo",
+        "add",
+        "Kutu",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--no-show",
+    ]);
+    assert_eq!(code, 5, "{err}");
+    assert!(
+        err.contains("b.png: this photo is already attached whole"),
+        "{err}"
+    );
+    assert_eq!(photos(&ev), 0);
+    // The same photo given whole to two records in one call is refused before either.
+    let lines = format!(
+        "{{\"ref\":\"Kutu\",\"photo\":\"{0}\"}}\n{{\"ref\":\"Ev\",\"photo\":\"{0}\"}}\n",
+        a.display()
+    );
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["photo", "add", "--stdin", "--no-show"])
+        .write_stdin(lines)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(5));
+    let err = String::from_utf8(out.stderr).unwrap();
+    assert!(err.contains("line 2: the same photo as line 1"), "{err}");
+    assert_eq!(photos(&ev), 0);
+}
+
+#[test]
 fn a_batch_line_without_a_kind_says_the_kind_is_required() {
     let ev = Ev::new();
     let out = Command::cargo_bin("ev")

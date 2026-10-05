@@ -510,8 +510,9 @@ screen with the thing framed.
 parts (`ev photo mark <file> "1 → A6"=x,y,w,h …`), then the destination's cells with the numbers
 that mark returned, as drawn (`ev photo mark <drawer> 3=A6 4=B6 --keep-numbers`; `--grid
 <corners>` for a photo cut before corners were kept). Both join the series; the person steps
-with `[` `]`. Marked copies are temporary: nothing to undo after the move. The text still names
-each part and its destination by position.
+with `[` `]`. When the series grows long, tell them `g` shows it as a grid and `f12` then Enter
+opens a picture, so they can find the one you name. Marked copies are temporary: nothing to
+undo after the move. The text still names each part and its destination by position.
 
 **Unpacking a bag: record in the bag, then plan.** When parts come out of a bag or box, record
 each one in that bag first (`"in": "<bag>"`), then plan its move to the place you propose

@@ -415,8 +415,8 @@ screen (the last one by default). `ev focus --file <picture>… [--note text]` (
 are no record (marked photos) to the **marked photo series** (spec/focus-stack.md): `photo mark`,
 `photo cut` and its preview add theirs on their own. A series holds every picture sent until the
 person closes it, each titled with its note and `n/total`, stepped with `[` `]`, the newest one
-sent shown; a new copy of a photo in it (marked again, or cut after it was marked) takes that
-photo's place. Esc hides it (a click does not), `m` brings it back, also after a restart, and `X`
+sent shown; a new copy of a photo in it (marked again, or cut after it was marked, also by its
+`f`) takes that photo's place. Esc hides it (a click does not), `m` brings it back, also after a restart, and `X`
 closes it: what is sent next starts a new series, numbered from 1. Within a series ev numbers the
 frames, so a number on screen means one frame until it is closed. A picture of the series is
 named `f12` (its title in `ev ui` reads `f12/20 · <note>`), a frame by its bare number, a record

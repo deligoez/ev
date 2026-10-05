@@ -1068,6 +1068,8 @@ static TR: &[(&str, &str)] = &[
     ("(nothing past)", "(giden bir şey yok)"),
     ("PAST", "GİDENLER"),
     ("when not known", "ne zaman bilinmiyor"),
+    ("Remembered ({})", "Hatırlananlar ({})"),
+    ("Left the inventory ({})", "Envanterden çıkanlar ({})"),
     ("Still not counted in {}:", "{} içinde hâlâ sayılmamış:"),
     (
         "Still not counted elsewhere in {}:",

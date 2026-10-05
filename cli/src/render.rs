@@ -212,6 +212,64 @@ fn review_mark(r: &Value) -> &'static str {
     }
 }
 
+/// One list of `ev past`: its years with what left and the money, then each thing.
+fn past_list(out: &mut String, l: &Value) {
+    let sums = |m: &Value| -> String {
+        m.as_object()
+            .into_iter()
+            .flatten()
+            .map(|(c, a)| amount(a.as_str().unwrap_or_default(), c))
+            .collect::<Vec<_>>()
+            .join(" + ")
+    };
+    let undated = Some(&l["undated"]).filter(|u| u.is_object());
+    for y in l["years"].as_array().into_iter().flatten().chain(undated) {
+        let mut parts = vec![tf("{} left", &[&y["left"]])];
+        let (paid, got) = (sums(&y["paid"]), sums(&y["got"]));
+        if !paid.is_empty() {
+            parts.push(tf("paid {}", &[&paid]));
+        }
+        if !got.is_empty() {
+            parts.push(tf("got {}", &[&got]));
+        }
+        let year = match y["year"].as_i64() {
+            Some(n) => n.to_string(),
+            None => t("when not known").to_string(),
+        };
+        let _ = writeln!(out, "  {year}  {}", parts.join(" · "));
+    }
+    for n in l["past"].as_array().into_iter().flatten() {
+        let mut parts = Vec::new();
+        if let Some(c) = n["came"].as_str() {
+            parts.push(tf("came {}", &[&c]));
+        }
+        let left = n["left"].as_str().unwrap_or(t("when not known"));
+        parts.push(tf("left {}", &[&left]));
+        parts.push(crate::history::left_as(&s(n, "how")).to_string());
+        if let Some(w) = n["where"].as_str() {
+            parts.push(tf("in {}", &[&w]));
+        }
+        let paid = sums(&n["paid"]);
+        if !paid.is_empty() {
+            parts.push(tf("paid {}", &[&paid]));
+        }
+        if let Some(g) = n["got"].as_object() {
+            let price = amount(
+                g["price"].as_str().unwrap_or_default(),
+                g["currency"].as_str().unwrap_or("TRY"),
+            );
+            parts.push(tf("got {}", &[&price]));
+        }
+        let _ = writeln!(
+            out,
+            "  #{} {}\n      {}",
+            n["id"],
+            s(n, "name"),
+            parts.join(" · ")
+        );
+    }
+}
+
 /// A place not counted yet, as `left_here` and `left_nearby` give it: its state, its path and
 /// the tasks it is in, or that no task holds it.
 fn left_place_line(p: &Value) -> String {
@@ -2597,69 +2655,30 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
-    // `ev past`: by year, then each thing, last gone first (spec/past-belongings.md).
-    if let (Some(list), Some(years)) = (
-        v.get("past").and_then(Value::as_array),
-        v.get("years").and_then(Value::as_array),
+    // `ev past`: two lists, remembered first, each by year then each thing (spec/past-belongings.md).
+    if let (Some(remembered), Some(recorded)) = (
+        v.get("remembered").filter(|l| l.is_object()),
+        v.get("left_inventory").filter(|l| l.is_object()),
     ) {
-        if list.is_empty() {
+        let count = |l: &Value| l["past"].as_array().map_or(0, Vec::len);
+        if count(remembered) + count(recorded) == 0 {
             let _ = writeln!(out, "{}", t("(nothing past)"));
             return out;
         }
-        let sums = |m: &Value| -> String {
-            m.as_object()
-                .into_iter()
-                .flatten()
-                .map(|(c, a)| amount(a.as_str().unwrap_or_default(), c))
-                .collect::<Vec<_>>()
-                .join(" + ")
-        };
-        let undated = Some(&v["undated"]).filter(|u| u.is_object());
-        for y in years.iter().chain(undated) {
-            let mut parts = vec![tf("{} left", &[&y["left"]])];
-            let (paid, got) = (sums(&y["paid"]), sums(&y["got"]));
-            if !paid.is_empty() {
-                parts.push(tf("paid {}", &[&paid]));
+        let mut first = true;
+        for (l, head) in [
+            (remembered, "Remembered ({})"),
+            (recorded, "Left the inventory ({})"),
+        ] {
+            if count(l) == 0 {
+                continue;
             }
-            if !got.is_empty() {
-                parts.push(tf("got {}", &[&got]));
+            if !first {
+                let _ = writeln!(out);
             }
-            let year = match y["year"].as_i64() {
-                Some(n) => n.to_string(),
-                None => t("when not known").to_string(),
-            };
-            let _ = writeln!(out, "{year}  {}", parts.join(" · "));
-        }
-        let _ = writeln!(out);
-        for n in list {
-            let mut parts = Vec::new();
-            if let Some(c) = n["came"].as_str() {
-                parts.push(tf("came {}", &[&c]));
-            }
-            let left = n["left"].as_str().unwrap_or(t("when not known"));
-            parts.push(tf("left {}", &[&left]));
-            parts.push(crate::history::left_as(&s(n, "how")).to_string());
-            if let Some(w) = n["where"].as_str() {
-                parts.push(tf("in {}", &[&w]));
-            }
-            let paid = sums(&n["paid"]);
-            if !paid.is_empty() {
-                parts.push(tf("paid {}", &[&paid]));
-            }
-            if let Some(g) = n["got"].as_object() {
-                let price = amount(
-                    g["price"].as_str().unwrap_or_default(),
-                    g["currency"].as_str().unwrap_or("TRY"),
-                );
-                parts.push(tf("got {}", &[&price]));
-            }
-            let _ = writeln!(
-                out,
-                "#{} {}\n    {}",
-                n["id"],
-                s(n, "name"),
-                parts.join(" · ")
-            );
+            first = false;
+            let _ = writeln!(out, "{}", tf(head, &[&count(l)]));
+            past_list(&mut out, l);
         }
         return out;
     }

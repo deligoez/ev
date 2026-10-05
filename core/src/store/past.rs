@@ -253,9 +253,13 @@ impl Inventory {
             .transpose()?;
         let word = name.map(crate::fold::fold).filter(|w| !w.is_empty());
         let home = crate::money::home_currency(conn)?;
+        // Remembered: it left before it was recorded, so it was added already gone, or gone with
+        // a date said (decided with the person, 2026-10-06).
         let mut stmt = conn.prepare(&format!(
             "SELECT n.id, n.name, n.disposition, {CAME}, {LEFT}, pl.name, d.place_id,
-                    d.price, d.currency, d.via
+                    d.price, d.currency, d.via,
+                    d.at IS NOT NULL OR EXISTS (SELECT 1 FROM events e WHERE e.node_id = n.id
+                      AND e.type = 'gone' AND json_extract(e.data, '$.past') = 1)
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
                LEFT JOIN places pl ON pl.id = d.place_id
               WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}"
@@ -271,6 +275,7 @@ impl Inventory {
             Option<String>,
             Option<String>,
             Option<String>,
+            bool,
         );
         let rows: Vec<Row> = stmt
             .query_map([], |r| {
@@ -285,6 +290,7 @@ impl Inventory {
                     r.get(7)?,
                     r.get(8)?,
                     r.get(9)?,
+                    r.get(10)?,
                 ))
             })?
             .collect::<std::result::Result<_, _>>()?;
@@ -295,11 +301,17 @@ impl Inventory {
         )?;
         // Year -> (how many left, paid, got).
         type Year = (usize, BTreeMap<String, i64>, BTreeMap<String, i64>);
-        let mut years: BTreeMap<i32, Year> = BTreeMap::new();
-        // Those nothing says when they left: counted apart, never put in a year.
-        let mut undated = Year::default();
-        let mut things = Vec::new();
-        for (id, name, how, came, left, where_, place_id, price, currency, via) in rows {
+        // Per list: its years, those nothing says when they left (counted apart, never put in a
+        // year), and its things.
+        #[derive(Default)]
+        struct List {
+            years: BTreeMap<i32, Year>,
+            undated: Year,
+            things: Vec<Value>,
+        }
+        let mut lists: [List; 2] = Default::default();
+        for (id, name, how, came, left, where_, place_id, price, currency, via, remembered) in rows
+        {
             if place.is_some() && place_id != place {
                 continue;
             }
@@ -308,6 +320,7 @@ impl Inventory {
             {
                 continue;
             }
+            let list = &mut lists[usize::from(!remembered)];
             let mut paid: BTreeMap<String, i64> = BTreeMap::new();
             for row in
                 paid_stmt.query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
@@ -323,8 +336,8 @@ impl Inventory {
             let currency = currency.unwrap_or_else(|| home.clone());
             {
                 let e = match left.as_deref().and_then(year_of) {
-                    Some(y) => years.entry(y).or_default(),
-                    None => &mut undated,
+                    Some(y) => list.years.entry(y).or_default(),
+                    None => &mut list.undated,
                 };
                 e.0 += 1;
                 for (c, cents) in &paid {
@@ -334,7 +347,7 @@ impl Inventory {
                     *e.2.entry(currency.clone()).or_default() += g;
                 }
             }
-            things.push(json!({
+            list.things.push(json!({
                 "id": id, "name": name, "came": came, "left": left, "how": how,
                 "where": where_, "paid": sums_json(&paid),
                 "got": got.map(|g| json!({
@@ -342,21 +355,26 @@ impl Inventory {
                 })),
             }));
         }
-        // Last gone first, those nothing dates at the end; a year sorts before any month or
-        // day in it, which is the order a person reading back expects.
-        things.sort_by(|a, b| b["left"].as_str().cmp(&a["left"].as_str()));
         let year = |(n, paid, got): Year| json!({ "left": n, "paid": sums_json(&paid), "got": sums_json(&got) });
-        let years: Vec<Value> = years
-            .into_iter()
-            .rev()
-            .map(|(y, e)| {
-                let mut v = year(e);
-                v["year"] = json!(y);
-                v
-            })
-            .collect();
-        let undated = (undated.0 > 0).then(|| year(undated));
-        Ok(json!({ "past": things, "years": years, "undated": undated }))
+        let [remembered, recorded] = lists.map(|mut l| {
+            // Last gone first, those nothing dates at the end; a year sorts before any month or
+            // day in it, which is the order a person reading back expects.
+            l.things
+                .sort_by(|a, b| b["left"].as_str().cmp(&a["left"].as_str()));
+            let years: Vec<Value> = l
+                .years
+                .into_iter()
+                .rev()
+                .map(|(y, e)| {
+                    let mut v = year(e);
+                    v["year"] = json!(y);
+                    v
+                })
+                .collect();
+            let undated = (l.undated.0 > 0).then(|| year(l.undated));
+            json!({ "past": l.things, "years": years, "undated": undated })
+        });
+        Ok(json!({ "remembered": remembered, "left_inventory": recorded }))
     }
 
     /// What was ours in `year` (spec/past-belongings.md): every thing, past or present, that
@@ -415,24 +433,32 @@ impl Inventory {
     /// paid for them and got for them by currency. Today's numbers never count them.
     pub(crate) fn past_summary(&self) -> Result<Value> {
         let all = self.past(None, None)?;
+        let lists = [&all["remembered"], &all["left_inventory"]];
         let mut how: BTreeMap<String, usize> = BTreeMap::new();
-        for n in all["past"].as_array().into_iter().flatten() {
+        let mut records = 0;
+        for n in lists
+            .iter()
+            .flat_map(|l| l["past"].as_array().into_iter().flatten())
+        {
+            records += 1;
             *how.entry(n["how"].as_str().unwrap_or_default().to_string())
                 .or_default() += 1;
         }
         let total = |key: &str| -> Result<Value> {
             let mut sums: BTreeMap<String, i64> = BTreeMap::new();
-            let years = all["years"].as_array().into_iter().flatten();
-            for y in years.chain(Some(&all["undated"]).filter(|u| u.is_object())) {
-                for (c, a) in y[key].as_object().into_iter().flatten() {
-                    *sums.entry(c.clone()).or_default() +=
-                        crate::purchases::parse_money(a.as_str().unwrap_or_default())?;
+            for l in lists {
+                let years = l["years"].as_array().into_iter().flatten();
+                for y in years.chain(Some(&l["undated"]).filter(|u| u.is_object())) {
+                    for (c, a) in y[key].as_object().into_iter().flatten() {
+                        *sums.entry(c.clone()).or_default() +=
+                            crate::purchases::parse_money(a.as_str().unwrap_or_default())?;
+                    }
                 }
             }
             Ok(sums_json(&sums))
         };
         Ok(json!({
-            "records": all["past"].as_array().map_or(0, Vec::len),
+            "records": records,
             "how": how,
             "paid": total("paid")?,
             "got": total("got")?,

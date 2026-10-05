@@ -494,8 +494,103 @@ impl App {
                 .collect::<Vec<_>>()
                 .join(" + ")
         };
-        let things = v["past"].as_array().cloned().unwrap_or_default();
-        if things.is_empty() {
+        // Two lists, remembered first (decided with the person, 2026-10-06), each a heading
+        // that opens and closes, with its years under it.
+        let lists = [
+            (&v["remembered"], "Remembered ({})", 0),
+            (&v["left_inventory"], "Left the inventory ({})", 1),
+        ];
+        for (list, label, n) in lists {
+            let things = list["past"].as_array().cloned().unwrap_or_default();
+            if things.is_empty() {
+                continue;
+            }
+            let id = PAST_LIST - n;
+            let open = !self.collapsed.contains(&id);
+            out.push(Row {
+                id,
+                depth: 0,
+                spans: vec![Span::styled(
+                    tf(label, &[&things.len()]),
+                    Style::new().fg(pal().blue).bold(),
+                )],
+                expandable: true,
+                expanded: open,
+            });
+            if !open {
+                continue;
+            }
+            // Each year, then those nothing says when they left.
+            let undated = Some(&list["undated"]).filter(|u| u.is_object());
+            for y in list["years"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .chain(undated)
+            {
+                let year = y["year"].as_i64();
+                let id = PAST_SECTION - n * PAST_LIST_SPAN - year.unwrap_or_default();
+                let open = !self.collapsed.contains(&id);
+                let mut head = vec![tf("{} left", &[&y["left"]])];
+                for (key, label) in [("paid", "paid {}"), ("got", "got {}")] {
+                    let s = sums(&y[key]);
+                    if !s.is_empty() {
+                        head.push(tf(label, &[&s]));
+                    }
+                }
+                let title = year.map_or_else(|| t("when not known").to_string(), |y| y.to_string());
+                out.push(Row {
+                    id,
+                    depth: 1,
+                    spans: vec![
+                        Span::styled(format!("{title}  "), Style::new().fg(pal().blue)),
+                        Span::styled(head.join(" · "), Style::new().fg(pal().muted)),
+                    ],
+                    expandable: true,
+                    expanded: open,
+                });
+                if !open {
+                    continue;
+                }
+                let in_year = |n: &&Value| {
+                    n["left"]
+                        .as_str()
+                        .and_then(|l| l.get(..4)?.parse::<i64>().ok())
+                        == year
+                };
+                for n in things.iter().filter(in_year) {
+                    let mut what = vec![
+                        crate::history::left_as(n["how"].as_str().unwrap_or_default()).to_string(),
+                    ];
+                    if let Some(w) = n["where"].as_str() {
+                        what.push(tf("in {}", &[&w]));
+                    }
+                    if let Some(g) = n["got"].as_object() {
+                        what.push(tf(
+                            "got {}",
+                            &[&crate::render::amount(
+                                g["price"].as_str().unwrap_or_default(),
+                                g["currency"].as_str().unwrap_or_default(),
+                            )],
+                        ));
+                    }
+                    out.push(Row {
+                        id: n["id"].as_i64().unwrap_or_default(),
+                        depth: 2,
+                        spans: vec![
+                            Span::raw(str_of(n, "name")),
+                            Span::styled(
+                                format!("  {}", what.join(" · ")),
+                                Style::new().fg(pal().mark),
+                            ),
+                        ],
+                        expandable: false,
+                        expanded: false,
+                    });
+                }
+            }
+        }
+        if out.is_empty() {
             out.push(Row {
                 id: 0,
                 depth: 0,
@@ -506,71 +601,6 @@ impl App {
                 expandable: false,
                 expanded: false,
             });
-            return Ok(out);
-        }
-        // Each year, then those nothing says when they left.
-        let undated = Some(&v["undated"]).filter(|u| u.is_object());
-        for y in v["years"].as_array().into_iter().flatten().chain(undated) {
-            let year = y["year"].as_i64();
-            let id = PAST_SECTION - year.unwrap_or_default();
-            let open = !self.collapsed.contains(&id);
-            let mut head = vec![tf("{} left", &[&y["left"]])];
-            for (key, label) in [("paid", "paid {}"), ("got", "got {}")] {
-                let s = sums(&y[key]);
-                if !s.is_empty() {
-                    head.push(tf(label, &[&s]));
-                }
-            }
-            let title = year.map_or_else(|| t("when not known").to_string(), |y| y.to_string());
-            out.push(Row {
-                id,
-                depth: 0,
-                spans: vec![
-                    Span::styled(format!("{title}  "), Style::new().fg(pal().blue).bold()),
-                    Span::styled(head.join(" · "), Style::new().fg(pal().muted)),
-                ],
-                expandable: true,
-                expanded: open,
-            });
-            if !open {
-                continue;
-            }
-            let in_year = |n: &&Value| {
-                n["left"]
-                    .as_str()
-                    .and_then(|l| l.get(..4)?.parse::<i64>().ok())
-                    == year
-            };
-            for n in things.iter().filter(in_year) {
-                let mut what = vec![
-                    crate::history::left_as(n["how"].as_str().unwrap_or_default()).to_string(),
-                ];
-                if let Some(w) = n["where"].as_str() {
-                    what.push(tf("in {}", &[&w]));
-                }
-                if let Some(g) = n["got"].as_object() {
-                    what.push(tf(
-                        "got {}",
-                        &[&crate::render::amount(
-                            g["price"].as_str().unwrap_or_default(),
-                            g["currency"].as_str().unwrap_or_default(),
-                        )],
-                    ));
-                }
-                out.push(Row {
-                    id: n["id"].as_i64().unwrap_or_default(),
-                    depth: 1,
-                    spans: vec![
-                        Span::raw(str_of(n, "name")),
-                        Span::styled(
-                            format!("  {}", what.join(" · ")),
-                            Style::new().fg(pal().mark),
-                        ),
-                    ],
-                    expandable: false,
-                    expanded: false,
-                });
-            }
         }
         Ok(out)
     }

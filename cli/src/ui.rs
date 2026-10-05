@@ -106,8 +106,12 @@ const UNCLEAR_SECTION: i64 = -14;
 /// The Statistics tab's sections count down from here, clear of the To do sections, the lost
 /// heading and the settings.
 const STATS_SECTION: i64 = -3000;
-/// The Past tab's year headings: this less the year, clear of every other heading.
+/// The Past tab's two lists' headings: this, and one less.
+const PAST_LIST: i64 = -3500;
+/// The Past tab's year headings: this less the list's span and the year, clear of every other
+/// heading.
 const PAST_SECTION: i64 = -4000;
+const PAST_LIST_SPAN: i64 = 3000;
 /// The To do section of places not counted yet, which also starts collapsed: every place in
 /// the home is on it until it is counted.
 const UNCOUNTED_SECTION: i64 = -10;

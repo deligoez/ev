@@ -140,6 +140,13 @@ until the thing is moved. Noun compounds
 Facets keep kinds of things apart when placing (`ev facet add modül --words "modül, kart"`, then
 tag the holders): a buzzer module is never proposed for the bare-buzzer box, a novel never for
 the technical shelf.
+**What would a new layout be?** Once every drawer of a piece of furniture is toured, `ev layout
+<furniture>` reads all its places at once by what they hold, never by their themes: kinds of
+thing kept in several places (a thing's kind is the last word of its name before the first comma:
+`Kablo, USB-C` is a cable), places that read alike, nearly empty places and the one they could
+join, full or mixed places. `--propose` drafts a layout from the contents alone: each kind, largest
+first, goes to the place holding most of it, with the moves that takes and a theme per place.
+Nothing is moved; the person changes the draft and the moves are planned on their word.
 `ev themes` lists the places with things in them and no theme, with what a theme could be read
 from: the words their contents share and the themed place they read most like (a theme is the
 summary every placement answer leans on, so the agent writes one from this with the person).

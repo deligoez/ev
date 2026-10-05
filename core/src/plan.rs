@@ -720,6 +720,15 @@ impl Inventory {
             })
     }
 
+    /// The note the series' `n`th picture was sent with, if any: the note a photo attached from
+    /// it (`ev photo add <ref> f12`) takes by default.
+    pub fn series_note(&self, n: usize) -> Result<Option<String>> {
+        let series = series_of(&self.focus_request()?);
+        Ok(series
+            .get(n.wrapping_sub(1))
+            .and_then(|m| m.note.as_str().map(str::to_string)))
+    }
+
     /// `ev focus f12`: the series' twelfth picture on the person's screen again.
     pub fn focus_picture(&mut self, n: usize) -> Result<Value> {
         let mut req = self.focus_request()?;

@@ -272,15 +272,17 @@ mod tests {
             language: LangPref::Fixed(Lang::Tr),
             theme: ThemePref::Fixed(Mode::Light),
             resume: false,
+            series_tile: 40,
         };
         s.save_to(&path).unwrap();
         assert_eq!(Settings::load_from(&path), s);
-        // A file written before `resume` existed keeps resuming on.
+        // A file written before `resume` and `series_tile` existed keeps their defaults.
         std::fs::write(&path, r#"{"language":"klingon","theme":"dark"}"#).unwrap();
         let s = Settings::load_from(&path);
         assert_eq!(s.language, LangPref::Auto);
         assert_eq!(s.theme, ThemePref::Fixed(Mode::Dark));
         assert!(s.resume);
+        assert_eq!(s.series_tile, SERIES_TILE);
         assert_eq!(parse_switch("off"), Some(false));
         assert_eq!(parse_switch("maybe"), None);
     }

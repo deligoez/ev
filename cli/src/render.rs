@@ -2082,6 +2082,32 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Goal: {}", &[&goal(v)]));
         return out;
     }
+    // `ev kit part` / `drop`: the parts added, or the one taken off, and the kit's counts.
+    if let Some(kit) = v.get("kit").filter(|k| k.is_object())
+        && (v.get("added").is_some() || v.get("dropped").is_some())
+    {
+        for p in v["added"].as_array().into_iter().flatten() {
+            kit_part_lines(&mut out, p);
+        }
+        if let Some(d) = v.get("dropped") {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("Part {} taken off: {}", &[&d["n"], &s(d, "text")])
+            );
+        }
+        let c = &v["counts"];
+        let _ = writeln!(
+            out,
+            "{}  {}",
+            s(kit, "name"),
+            tf(
+                "{} of {} found · {} lost · {} still missing",
+                &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
+            )
+        );
+        return out;
+    }
     // `ev photo add` of several photos: each record with the photo it got and where from.
     if let Some(added) = v.get("added").and_then(Value::as_array) {
         let _ = writeln!(out, "{}", tf("Attached {} photo(s):", &[&added.len()]));

@@ -188,7 +188,10 @@ fn lines_are_listed_and_found_by_the_account_they_were_billed_to() {
     ))
     .unwrap();
     let v = inv
-        .buy_list_billed(false, None, None, None, None, Some("AYSE"))
+        .buy_list_where(&ev_core::BuyFilter {
+            billed_to: Some("AYSE"),
+            ..Default::default()
+        })
         .unwrap();
     let rows = v["purchases"].as_array().unwrap();
     assert_eq!(rows.len(), 1, "{v}");

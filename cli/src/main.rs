@@ -901,6 +901,13 @@ enum BuyCmd {
         /// part of it is enough.
         #[arg(long)]
         billed_to: Option<String>,
+        /// Only lines from this source (`ak`, a shop's importer), exactly as imported.
+        #[arg(long)]
+        source: Option<String>,
+        /// Only the line with this key and the lines keyed as its parts: `412` finds `412` and
+        /// `412.2` (an ak payment and its items), `412.2` that item alone.
+        #[arg(long)]
+        key: Option<String>,
     },
     /// One line with what it is linked to and its documents.
     Show {
@@ -2160,14 +2167,18 @@ fn run(cli: Cli) -> Result<Value> {
             since,
             query,
             billed_to,
-        }) => inv.buy_list_billed(
+            source,
+            key,
+        }) => inv.buy_list_where(&ev_core::BuyFilter {
             open,
-            bucket.as_deref(),
-            shop.as_deref(),
-            since.as_deref(),
-            query.as_deref(),
-            billed_to.as_deref(),
-        ),
+            bucket: bucket.as_deref(),
+            shop: shop.as_deref(),
+            since: since.as_deref(),
+            query: query.as_deref(),
+            billed_to: billed_to.as_deref(),
+            source: source.as_deref(),
+            key: key.as_deref(),
+        }),
         Cmd::Cover(CoverCmd::Add(a)) => {
             let a = *a;
             // The line is checked before the coverage is written, so a wrong id leaves nothing.

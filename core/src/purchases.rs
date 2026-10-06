@@ -334,6 +334,28 @@ struct Line {
     bucket_said: bool,
 }
 
+/// Which lines `buy_list_where` keeps: each filter given narrows them, none keeps every line.
+#[derive(Clone, Copy, Default)]
+pub struct BuyFilter<'a> {
+    /// Only lines with something left to link, not dismissed.
+    pub open: bool,
+    pub bucket: Option<&'a str>,
+    /// Only lines whose shop holds it, compared folded.
+    pub shop: Option<&'a str>,
+    /// Only lines ordered (else delivered) on this day or later.
+    pub since: Option<&'a str>,
+    /// Only lines where every word of it is in the name, shop, brand, product code, order
+    /// number or account, compared folded.
+    pub query: Option<&'a str>,
+    /// Only lines billed to an account holding it (an Apple ID of a family member), folded.
+    pub billed_to: Option<&'a str>,
+    /// Only lines from this source (`ak`, a shop's importer), exactly.
+    pub source: Option<&'a str>,
+    /// Only the line keyed so and the lines keyed as its parts: `412` keeps `412` and `412.2`
+    /// (one of ak's payments and its items, spec/ak.md), `412.2` that item alone.
+    pub key: Option<&'a str>,
+}
+
 /// The fields of a purchase line ev reads besides `LINE_FIELDS`.
 const PURCHASE_KEYS: [&str; 8] = [
     "type", "source", "key", "name", "status", "bucket", "qty", "paid",
@@ -749,20 +771,28 @@ impl Inventory {
         since: Option<&str>,
         query: Option<&str>,
     ) -> Result<Value> {
-        self.buy_list_billed(open, bucket, shop, since, query, None)
+        self.buy_list_where(&BuyFilter {
+            open,
+            bucket,
+            shop,
+            since,
+            query,
+            ..BuyFilter::default()
+        })
     }
 
-    /// `buy_list_matching`, with `billed_to`: only the lines billed to an account holding it
-    /// (an Apple ID of a family member), compared folded.
-    pub fn buy_list_billed(
-        &self,
-        open: bool,
-        bucket: Option<&str>,
-        shop: Option<&str>,
-        since: Option<&str>,
-        query: Option<&str>,
-        billed_to: Option<&str>,
-    ) -> Result<Value> {
+    /// The lines `filter` keeps, newest first.
+    pub fn buy_list_where(&self, filter: &BuyFilter) -> Result<Value> {
+        let BuyFilter {
+            open,
+            bucket,
+            shop,
+            since,
+            query,
+            billed_to,
+            source,
+            key,
+        } = *filter;
         let billed = billed_to.map(crate::fold);
         if let Some(b) = bucket
             && !BUCKETS.contains(&b)
@@ -790,6 +820,12 @@ impl Inventory {
             let is_open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
             if open && !is_open
                 || bucket.is_some_and(|b| p["bucket"] != b)
+                || source.is_some_and(|s| p["source"] != s)
+                || key.is_some_and(|k| {
+                    !p["source_key"].as_str().is_some_and(|x| {
+                        x == k || x.strip_prefix(k).is_some_and(|r| r.starts_with('.'))
+                    })
+                })
                 || shop.as_ref().is_some_and(|s| {
                     !p["shop"]
                         .as_str()

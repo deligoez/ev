@@ -14,7 +14,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result, refuse};
+use crate::error::{Error, Result, not_found, refuse, usage};
 use crate::model::{Kind, Node, State};
 use crate::store::{
     Inventory, brief_json, event, item_total, load, path, path_text, resolve, touch,
@@ -189,11 +189,7 @@ pub(crate) fn carry_sketch(conn: &Connection, id: i64, from: i64, to: i64) -> Re
 
 /// `x,y x,y …` from the command line: the corners of an outline, three or more.
 pub fn parse_points(s: &str) -> Result<Vec<[f64; 2]>> {
-    let bad = || {
-        Error::Usage(format!(
-            "--points is three or more corners in centimetres, like `0,0 400,0 400,300`; got `{s}`"
-        ))
-    };
+    let bad = || usage("sketch_points_bad", json!({ "points": s }));
     let pts = s
         .split_whitespace()
         .map(|p| {
@@ -210,11 +206,7 @@ pub fn parse_points(s: &str) -> Result<Vec<[f64; 2]>> {
 
 /// `a,b` from the command line (`120,40`, `120x40`, `120×40`) as two numbers of centimetres.
 pub fn parse_pair(s: &str, what: &str) -> Result<[f64; 2]> {
-    let bad = || {
-        Error::Usage(format!(
-            "{what} is two numbers of centimetres, like 120,40; got `{s}`"
-        ))
-    };
+    let bad = || usage("sketch_pair_bad", json!({ "what": what, "value": s }));
     let (a, b) = s.split_once([',', 'x', '×']).ok_or_else(bad)?;
     let num = |t: &str| {
         t.trim()
@@ -568,9 +560,7 @@ fn clear_in(conn: &Connection, id: i64) -> Result<()> {
 /// Applies one change inside a transaction: its node and its sketch after.
 fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
     if c.is_empty() {
-        return Err(Error::Usage(
-            "give --size w,d, --at x,y, --points, --on <ref>, --right-of/--left-of/--above/--below <ref> or --clear".into(),
-        ));
+        return Err(usage("sketch_nothing_given", Value::Null));
     }
     let id = resolve(conn, &c.reference, false)?;
     if c.clear {
@@ -579,7 +569,7 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
             ..c.clone()
         };
         if !rest.is_empty() {
-            return Err(Error::Usage("--clear takes nothing else".into()));
+            return Err(usage("sketch_clear_alone", Value::Null));
         }
         clear_in(conn, id)?;
         return Ok((id, Sketch::default()));
@@ -592,39 +582,31 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
             .count()
             > 1
     {
-        return Err(Error::Usage(
-            "a place is given once: --at, --points, or beside one other thing".into(),
-        ));
+        return Err(usage("sketch_place_once", Value::Null));
     }
     let finite = |v: &[f64]| v.iter().all(|x| x.is_finite());
     let mut p = sketch_of(conn, id)?;
     if let Some(pts) = &c.points {
         if pts.len() < 3 || !pts.iter().all(|q| finite(q)) {
-            return Err(Error::Usage("an outline is three or more corners".into()));
+            return Err(usage("sketch_outline_too_few", Value::Null));
         }
         if c.size.is_some() {
-            return Err(Error::Usage(
-                "an outline has its own size; give --points or --size".into(),
-            ));
+            return Err(usage("sketch_outline_or_size", Value::Null));
         }
         p.set_outline(pts.clone());
     }
     if let Some([w, d]) = c.size {
         if !(w > 0.0 && d > 0.0 && finite(&[w, d])) {
-            return Err(Error::Usage(
-                "a size is two positive numbers of centimetres".into(),
-            ));
+            return Err(usage("sketch_size_bad", Value::Null));
         }
         if p.points.is_some() {
-            return Err(Error::Usage(
-                "it has an outline, which gives its size; give new --points instead".into(),
-            ));
+            return Err(usage("sketch_size_has_outline", Value::Null));
         }
         (p.w, p.d) = (Some(w), Some(d));
     }
     if let Some([x, y]) = c.at {
         if !finite(&[x, y]) {
-            return Err(Error::Usage("a place is two numbers of centimetres".into()));
+            return Err(usage("sketch_at_bad", Value::Null));
         }
         move_to(&mut p, x, y);
     }
@@ -660,9 +642,7 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
         };
         move_to(&mut p, x, y);
     } else if c.offset.is_some() {
-        return Err(Error::Usage(
-            "--offset goes with --right-of, --left-of, --above or --below".into(),
-        ));
+        return Err(usage("sketch_offset_alone", Value::Null));
     }
     if let Some(on) = &c.on {
         let base = resolve(conn, on, false)?;
@@ -761,11 +741,11 @@ impl Inventory {
                     |r| r.get(0),
                 )
                 .optional()?
-                .ok_or_else(|| Error::NotFound("no home yet; add one with `ev add <name> --kind home`".into()))?,
+                .ok_or_else(|| not_found("map_no_home", Value::Null))?,
         };
         let node = load(&self.conn, id)?;
         if node.state == State::Gone {
-            return Err(Error::NotFound(format!("#{id} is gone")));
+            return Err(not_found("map_place_gone", json!({ "id": id })));
         }
         let segs = path(&self.conn, id)?;
         let base = stack_base(&self.conn, id)?;

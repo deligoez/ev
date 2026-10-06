@@ -7,10 +7,10 @@
 use rusqlite::{Connection, params};
 use serde_json::{Value, json};
 
-use crate::error::refuse;
+use crate::Result;
+use crate::error::{refuse, usage};
 use crate::model::{Kind, Node, State};
 use crate::store::{apply_edit, brief_json, event, ids, label, load, touch};
-use crate::{Error, Result};
 
 /// The fields every portion of a thing shares (spec §3); an edit of one reaches them all.
 const SHARED: [&str; 5] = ["name", "make", "model", "size", "tags"];
@@ -60,7 +60,7 @@ fn check_spreadable(conn: &Connection, n: &Node) -> Result<()> {
 pub(crate) fn part_of(n: &Node, qty: Option<i64>) -> Result<Option<i64>> {
     let Some(q) = qty else { return Ok(None) };
     if q < 1 {
-        return Err(Error::Usage("--qty must be at least 1".into()));
+        return Err(usage("portion_qty_too_small", Value::Null));
     }
     let have = units(n);
     if q > have {

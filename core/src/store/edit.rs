@@ -2,6 +2,7 @@
 //! record.
 
 use super::*;
+use crate::error::usage;
 
 /// What a gone record still lets change: what it was, never where it stands.
 const GONE_FIELDS: [&str; 10] = [
@@ -51,7 +52,7 @@ pub(super) fn field_value(n: &Node, field: &str) -> Value {
 /// `WxDxH` or `WxD`, each a positive number (`,` or `.` for decimals, `x`, `×` or `*`
 /// between); written back as `1x2x0.5`.
 pub(crate) fn parse_size(s: &str) -> Result<Vec<f64>> {
-    let bad = || Error::Usage(format!("size is WxDxH or WxD, like 1x2x0.5; got `{s}`"));
+    let bad = || usage("edit_size_bad", json!({ "size": s }));
     let parts: Vec<f64> = s
         .trim()
         .to_lowercase()
@@ -91,7 +92,7 @@ fn parse_int(field: &str, value: &str) -> Result<Option<i64>> {
     }
     v.parse::<i64>()
         .map(Some)
-        .map_err(|_| Error::Usage(format!("{field} must be an integer, got `{v}`")))
+        .map_err(|_| usage("edit_not_integer", json!({ "field": field, "value": v })))
 }
 
 /// One record's `field=value` assignments inside the caller's transaction, recorded as one
@@ -134,7 +135,7 @@ pub(super) fn edit_in(
     for a in assignments {
         let (field, value) = a
             .split_once('=')
-            .ok_or_else(|| Error::Usage(format!("`{a}` is not field=value")))?;
+            .ok_or_else(|| usage("edit_not_assignment", json!({ "assignment": a })))?;
         let field = field.trim();
         let before = load(conn, id)?;
         // When and where a gone record left are on its departure, not on the record.
@@ -171,7 +172,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
     let text = |v: &str| -> Option<String> { Some(v.trim().to_string()).filter(|s| !s.is_empty()) };
     match field {
         "name" => {
-            let v = text(value).ok_or_else(|| Error::Usage("name cannot be empty".into()))?;
+            let v = text(value).ok_or_else(|| usage("edit_name_empty", Value::Null))?;
             conn.execute("UPDATE nodes SET name = ?1 WHERE id = ?2", params![v, n.id])?;
         }
         "code" => {
@@ -226,7 +227,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         // A note is a log the person adds to: `note=+text` appends it on a new line.
         "note" if value.trim_start().starts_with('+') => {
             let added = text(&value.trim_start()[1..])
-                .ok_or_else(|| Error::Usage("note=+ needs the text to add".into()))?;
+                .ok_or_else(|| usage("edit_note_add_empty", Value::Null))?;
             let note = match n.note.as_deref() {
                 Some(old) if !old.trim().is_empty() => format!("{old}\n{added}"),
                 _ => added,
@@ -295,9 +296,10 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 "true" | "yes" | "1" => true,
                 "false" | "no" | "0" | "" => false,
                 other => {
-                    return Err(Error::Usage(format!(
-                        "{field} takes true or false, got `{other}`"
-                    )));
+                    return Err(usage(
+                        "edit_not_boolean",
+                        json!({ "field": field, "value": other }),
+                    ));
                 }
             };
             conn.execute(
@@ -341,10 +343,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                 if v.as_deref()
                     .is_some_and(|p| p.starts_with('#') || p.chars().all(|c| c.is_ascii_digit()))
                 {
-                    return Err(Error::Usage(
-                        "left_in names a place (a former home) by its name, not a record or an id"
-                            .into(),
-                    ));
+                    return Err(usage("edit_left_in_not_place", Value::Null));
                 }
                 let place = v
                     .map(|p| super::places::place_or_create(conn, &p))
@@ -390,9 +389,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             )?;
         }
         other => {
-            return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, size, tags, photos, to, owner, with, temporary, waits_for, make, model, serial, came, and on a gone record left and left_in (how far a place is counted is `ev review`)"
-            )));
+            return Err(usage("edit_field_unknown", json!({ "field": other })));
         }
     }
     Ok(())
@@ -402,8 +399,9 @@ fn split_op<'a>(field: &str, value: &'a str) -> Result<(char, &'a str)> {
     let v = value.trim();
     match v.chars().next() {
         Some(c @ ('+' | '-')) => Ok((c, &v[1..])),
-        _ => Err(Error::Usage(format!(
-            "{field} takes +value or -value, got `{v}`"
-        ))),
+        _ => Err(usage(
+            "edit_not_plus_minus",
+            json!({ "field": field, "value": v }),
+        )),
     }
 }

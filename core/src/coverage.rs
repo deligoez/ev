@@ -6,6 +6,7 @@ use chrono::{Days, Months, NaiveDate, NaiveDateTime};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
+use crate::error::{not_found, usage};
 use crate::purchases::{money, parse_money};
 use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
@@ -54,7 +55,7 @@ fn parse_day(d: &str) -> Result<NaiveDate> {
     let d = d.trim();
     NaiveDate::parse_from_str(d.get(..10).unwrap_or(d), "%Y-%m-%d")
         .or_else(|_| NaiveDate::parse_from_str(&format!("{d}-01"), "%Y-%m-%d"))
-        .map_err(|_| Error::Usage(format!("`{d}` is not a date YYYY-MM-DD")))
+        .map_err(|_| usage("not_a_date", json!({ "date": d })))
 }
 
 /// `2y` → (2, year); `lifetime` → (0, lifetime).
@@ -63,7 +64,7 @@ fn parse_term(t: &str) -> Result<(i64, &'static str)> {
     if t == "lifetime" {
         return Ok((0, "lifetime"));
     }
-    let bad = || Error::Usage(format!("term `{t}`; use e.g. 2y, 18m, 6w, 90d or lifetime"));
+    let bad = || usage("coverage_bad_term", json!({ "term": t }));
     let (n, unit) = t.split_at(t.find(|c: char| !c.is_ascii_digit()).ok_or_else(bad)?);
     let n: i64 = n.parse().map_err(|_| bad())?;
     let unit = match unit.trim() {
@@ -176,7 +177,7 @@ fn row(conn: &Connection, id: i64) -> Result<Row> {
         },
     )
     .optional()?
-    .ok_or_else(|| Error::NotFound(format!("no coverage with id {id}")))
+    .ok_or_else(|| not_found("coverage_not_found", json!({ "id": id })))
 }
 
 fn nodes_of(conn: &Connection, id: i64) -> Result<Vec<i64>> {
@@ -643,14 +644,20 @@ impl Inventory {
                 "valuable_threshold" => parse_money(v).is_ok_and(|m| m >= 0),
                 "coverage_warning_days" => v.parse::<i64>().is_ok_and(|d| d > 0),
                 other => {
-                    return Err(Error::Usage(format!(
-                        "`{other}` is not an inventory setting; use {}",
-                        INVENTORY_SETTINGS.map(|(k, _)| k).join(", ")
-                    )));
+                    return Err(usage(
+                        "coverage_setting_unknown",
+                        json!({
+                            "setting": other,
+                            "settings": INVENTORY_SETTINGS.map(|(k, _)| k).join(", "),
+                        }),
+                    ));
                 }
             };
             if !ok {
-                return Err(Error::Usage(format!("`{v}` is not a value for {n}")));
+                return Err(usage(
+                    "coverage_setting_bad_value",
+                    json!({ "value": v, "setting": n }),
+                ));
             }
             let v = if n.starts_with("home_") {
                 v.to_uppercase()
@@ -682,7 +689,7 @@ impl Inventory {
     /// A warranty or an insurance covering one or more things.
     pub fn cover_add(&mut self, refs: &[String], new: &NewCoverage) -> Result<Value> {
         if refs.is_empty() {
-            return Err(Error::Usage("name at least one thing it covers".into()));
+            return Err(usage("coverage_covers_nothing", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let nodes = refs
@@ -700,7 +707,7 @@ impl Inventory {
             .query_row("SELECT id FROM coverages WHERE id = ?1", [id], |r| r.get(0))
             .optional()?;
         if found.is_none() {
-            return Err(Error::NotFound(format!("no coverage with id {id}")));
+            return Err(not_found("coverage_not_found", json!({ "id": id })));
         }
         Ok(json!({ "coverage": coverage_json(&self.conn, id, warning_days(&self.conn)?)? }))
     }
@@ -726,7 +733,7 @@ impl Inventory {
             )
             .optional()?;
         let Some((old_line, premium, currency)) = found else {
-            return Err(Error::NotFound(format!("no coverage with id {coverage}")));
+            return Err(not_found("coverage_not_found", json!({ "id": coverage })));
         };
         let new = line
             .map(|l| line_for_coverage(&tx, l, Some(coverage)))
@@ -804,7 +811,7 @@ fn line_for_coverage(
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?
-        .ok_or_else(|| Error::NotFound(format!("no purchase with id {line}")))?;
+        .ok_or_else(|| not_found("no_purchase_with_id", json!({ "id": line })))?;
     if let Some(d) = dismissed {
         return Err(crate::error::refuse(
             "coverage_line_dismissed",
@@ -849,11 +856,10 @@ fn line_for_coverage(
 pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) -> Result<i64> {
     let kind = new.kind.trim().to_lowercase();
     if !COVERAGE_KINDS.contains(&kind.as_str()) {
-        return Err(Error::Usage(format!(
-            "`{}` is not a coverage kind; use {}",
-            new.kind,
-            COVERAGE_KINDS.join(", ")
-        )));
+        return Err(usage(
+            "coverage_kind_unknown",
+            json!({ "kind": new.kind, "kinds": COVERAGE_KINDS.join(", ") }),
+        ));
     }
     let (starts, start_date, after_id) = match text(&new.from).as_deref() {
         None | Some("delivery") => ("delivery", None, None),
@@ -861,7 +867,7 @@ pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) ->
             let id: i64 = a[6..]
                 .trim()
                 .parse()
-                .map_err(|_| Error::Usage(format!("`{a}`: after:<coverage id>")))?;
+                .map_err(|_| usage("coverage_bad_after", json!({ "after": a })))?;
             ("after", None, Some(id))
         }
         Some(d) => ("date", Some(parse_day(d)?.to_string()), None),
@@ -871,14 +877,10 @@ pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) ->
         .map(|e| parse_day(&e).map(|d| d.to_string()))
         .transpose()?;
     if term.is_none() && ends.is_none() {
-        return Err(Error::Usage(
-            "give a --term (2y, 18m, lifetime) or an --ends date".into(),
-        ));
+        return Err(usage("coverage_needs_term", Value::Null));
     }
     if kind == "insurance" && ends.is_none() && term.is_none_or(|(_, u)| u == "lifetime") {
-        return Err(Error::Usage(
-            "an insurance runs out: give an --ends date or a term in years, months, weeks or days, not lifetime".into(),
-        ));
+        return Err(usage("coverage_insurance_lifetime", Value::Null));
     }
     let premium = text(&new.premium).map(|p| parse_money(&p)).transpose()?;
     let deductible = text(&new.deductible).map(|p| parse_money(&p)).transpose()?;
@@ -980,9 +982,10 @@ impl Inventory {
         why: Option<&str>,
     ) -> Result<Value> {
         if !["value", "coverage"].contains(&subject) {
-            return Err(Error::Usage(format!(
-                "`{subject}` is not tracked; use value or coverage"
-            )));
+            return Err(usage(
+                "coverage_track_unknown",
+                json!({ "subject": subject }),
+            ));
         }
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
@@ -1003,7 +1006,10 @@ impl Inventory {
             }
             "yes" => clear_decision(&tx, id, subject)?,
             other => {
-                return Err(Error::Usage(format!("`{other}`; use no, later or yes")));
+                return Err(usage(
+                    "coverage_track_decision",
+                    json!({ "decision": other }),
+                ));
             }
         }
         event(

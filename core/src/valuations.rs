@@ -5,9 +5,10 @@
 use rusqlite::{Connection, params};
 use serde_json::{Value, json};
 
+use crate::Result;
+use crate::error::{not_found, usage};
 use crate::purchases::{money, parse_money};
 use crate::store::{Inventory, brief, now, resolve};
-use crate::{Error, Result};
 
 /// A new observation; the amount is required, the rest defaults (home currency, today).
 #[derive(Debug, Clone, Default)]
@@ -71,7 +72,7 @@ pub(crate) fn valuations_of(conn: &Connection, node: i64) -> Result<Vec<Value>> 
 pub(crate) fn add_valuation(conn: &Connection, node: i64, new: &NewValuation) -> Result<i64> {
     let amount = parse_money(&new.amount)?;
     if amount <= 0 {
-        return Err(Error::Usage("a value must be more than zero".into()));
+        return Err(usage("valuation_not_positive", Value::Null));
     }
     let currency = match text(&new.currency) {
         Some(c) => crate::money::currency_code(&c)?,
@@ -83,7 +84,7 @@ pub(crate) fn add_valuation(conn: &Connection, node: i64, new: &NewValuation) ->
     };
     // What a thing is worth is seen, never foreseen.
     if at > crate::store::today().to_string() {
-        return Err(Error::Usage(format!("`{at}` is still to come")));
+        return Err(usage("date_still_to_come", json!({ "date": at })));
     }
     conn.execute(
         "INSERT INTO valuations (node_id, amount, currency, at, approximate, source, note, added_at)
@@ -125,7 +126,7 @@ impl Inventory {
             .query_row("SELECT node_id FROM valuations WHERE id = ?1", [id], |r| {
                 r.get(0)
             })
-            .map_err(|_| Error::NotFound(format!("no value with id {id}")))?;
+            .map_err(|_| not_found("valuation_no_such_id", json!({ "id": id })))?;
         self.conn
             .execute("DELETE FROM valuations WHERE id = ?1", [id])?;
         Ok(json!({

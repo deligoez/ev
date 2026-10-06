@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
-use crate::error::refuse;
+use crate::error::{not_found, refuse, usage};
 use crate::model::{Disposition, Kind, Node, State};
 use crate::store::{Inventory, brief, ids, live_nodes, now, place_errands, resolve, show};
 use crate::{Error, Result};
@@ -130,7 +130,7 @@ fn parse_date(s: &str) -> Result<NaiveDate> {
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         return Ok(d);
     }
-    let bad = || Error::Usage(format!("`{s}` is not YYYY-MM-DD or YYYY-MM"));
+    let bad = || usage("mark_bad_use_by", json!({ "date": s }));
     let first = NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d").map_err(|_| bad())?;
     let next = if first.month() == 12 {
         NaiveDate::from_ymd_opt(first.year() + 1, 1, 1)
@@ -166,7 +166,7 @@ fn need_json(conn: &Connection, id: i64) -> Result<Value> {
             },
         )
         .optional()?;
-    let (mut v, for_node) = row.ok_or_else(|| Error::NotFound(format!("no need with id {id}")))?;
+    let (mut v, for_node) = row.ok_or_else(|| not_found("need_not_found", json!({ "id": id })))?;
     v["for"] = json!(for_node.map(|n| brief_value(conn, n)).transpose()?);
     Ok(v)
 }
@@ -517,7 +517,7 @@ impl Inventory {
     /// refused, and one that gets something later is simply no longer empty. All or none.
     pub fn mark_empty(&mut self, references: &[String], note: Option<&str>) -> Result<Value> {
         if references.is_empty() {
-            return Err(Error::Usage("name the boxes that are empty".into()));
+            return Err(usage("mark_empty_names_none", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let mut marked = Vec::new();
@@ -674,10 +674,10 @@ impl Inventory {
         if let Some(c) = condition
             && !SALE_CONDITIONS.contains(&c)
         {
-            return Err(Error::Usage(format!(
-                "`{c}` is not a condition; use {}",
-                SALE_CONDITIONS.join(", ")
-            )));
+            return Err(usage(
+                "mark_condition_unknown",
+                json!({ "condition": c, "conditions": SALE_CONDITIONS.join(", ") }),
+            ));
         }
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
@@ -706,9 +706,7 @@ impl Inventory {
                 set_mark(&tx, id, "sale", Some(s), price, place.as_deref())?;
             }
             Some(other) => {
-                return Err(Error::Usage(format!(
-                    "`{other}` is not a sale state; use listed or reserved"
-                )));
+                return Err(usage("mark_sale_state_unknown", json!({ "state": other })));
             }
         }
         tx.commit()?;
@@ -725,10 +723,10 @@ impl Inventory {
     ) -> Result<Value> {
         let text = text.trim();
         if text.is_empty() {
-            return Err(Error::Usage("need text is empty".into()));
+            return Err(usage("need_text_empty", Value::Null));
         }
         if qty.is_some_and(|q| q < 1) {
-            return Err(Error::Usage("qty must be at least 1".into()));
+            return Err(usage("qty_below_one", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let for_node = for_ref.map(|r| resolve(&tx, r, false)).transpose()?;

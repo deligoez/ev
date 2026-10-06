@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use rusqlite::Connection;
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result};
+use crate::error::{Result, not_found, usage};
 use crate::fold;
 use crate::model::{Kind, Node};
 use crate::store::{
@@ -226,7 +226,7 @@ impl Inventory {
             let n = all
                 .iter()
                 .find(|n| n.id == id)
-                .ok_or_else(|| Error::NotFound(format!("no live node {r}")))?;
+                .ok_or_else(|| not_found("placement_no_live_node", json!({ "ref": r })))?;
             query.extend(node_terms(n));
             exclude.insert(id);
             // A box cannot go into itself or anything inside it.
@@ -234,10 +234,7 @@ impl Inventory {
             for_node = brief_json(&self.conn, id)?;
         }
         if query.is_empty() {
-            return Err(Error::Usage(
-                "describe the thing to place (a word of 3+ letters or a part code), or give --for"
-                    .into(),
-            ));
+            return Err(usage("placement_nothing_described", Value::Null));
         }
         let index = self.word_index(&all)?;
         let groups: Vec<(i64, Vec<Term>)> = synonym_groups(&self.conn)?
@@ -715,7 +712,7 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
         let Some(holder) = crate::store::load(&tx, id)?.parent_id else {
-            return Err(Error::Usage("it is in no holder to stay in".into()));
+            return Err(usage("placement_no_holder_to_stay", Value::Null));
         };
         tx.execute(
             "INSERT INTO declines (node_id, holder_id, why, at) VALUES (?1, ?2, ?3, ?4)

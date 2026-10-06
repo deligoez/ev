@@ -1,6 +1,7 @@
 //! Words and stems, the holders things can go into, the placement rules, and `audit`.
 
 use super::*;
+use crate::error::{not_found, usage};
 
 // ---------- placement: rules, suggest, audit (spec §14) ----------
 
@@ -220,7 +221,7 @@ impl Inventory {
     pub fn rule_add(&mut self, text: &str) -> Result<Value> {
         let t = text.trim();
         if t.is_empty() {
-            return Err(Error::Usage("rule text is empty".into()));
+            return Err(usage("audit_rule_empty", Value::Null));
         }
         self.conn.execute(
             "INSERT INTO rules (text, created_at) VALUES (?1, ?2)",
@@ -235,7 +236,7 @@ impl Inventory {
 
     pub fn rule_remove(&mut self, id: i64) -> Result<Value> {
         if self.conn.execute("DELETE FROM rules WHERE id = ?1", [id])? == 0 {
-            return Err(Error::NotFound(format!("no rule with id {id}")));
+            return Err(not_found("audit_no_rule", json!({ "id": id })));
         }
         Ok(json!({ "rules": rules_json(&self.conn)? }))
     }

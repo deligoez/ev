@@ -1,6 +1,6 @@
 //! Spec §17: the tidy-up plan — units, reviews, observations, tasks, `next`, goal.
 
-use ev_core::{Error, Inventory, NewNode};
+use ev_core::{Inventory, NewNode};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -226,7 +226,7 @@ fn tasks_keep_an_order_and_one_is_in_progress() {
         2
     );
     assert_eq!(inv.task_add("  ", "why", &[], None).unwrap_err().code(), 2);
-    assert!(matches!(inv.task_show(99).unwrap_err(), Error::NotFound(_)));
+    assert!(inv.task_show(99).unwrap_err().is_not_found());
 }
 
 #[test]

@@ -2,6 +2,7 @@
 //! shown and forgotten.
 
 use super::*;
+use crate::error::{not_found, usage};
 
 /// Removes the files in `dir` last changed more than `age` ago; a scratch folder's housekeeping,
 /// so whatever fails is left alone.
@@ -122,10 +123,10 @@ impl Inventory {
         let id = super::resolve_for_history(&self.conn, reference)?;
         // Only a picture ev can open is a photo: anything else fails later, when it is cut.
         if file.exists() && crate::photo::short_side(file).is_none() {
-            return Err(Error::Usage(format!(
-                "{} is no image ev can read (a JPEG or PNG photo)",
-                file.display()
-            )));
+            return Err(usage(
+                "photo_not_an_image",
+                json!({ "file": file.display().to_string() }),
+            ));
         }
         let original = crate::photo::store_file(&self.photo_dir, file)?;
         if !cut_or_whole {
@@ -240,14 +241,10 @@ impl Inventory {
         series: bool,
     ) -> Result<Value> {
         if place.is_none() && crops.is_empty() {
-            return Err(Error::Usage(
-                "give at least one <ref>=x,y,w,h, or --place <ref>".into(),
-            ));
+            return Err(usage("photo_cut_nothing", Value::Null));
         }
         if grid.is_some() && place.is_none() {
-            return Err(Error::Usage(
-                "--grid reads the boxes of the --place grid; give --place too".into(),
-            ));
+            return Err(usage("photo_grid_needs_place", Value::Null));
         }
         let place = place.map(|p| resolve(&self.conn, p, false)).transpose()?;
         let mut targets = crops
@@ -402,7 +399,10 @@ impl Inventory {
     ) -> Result<Value> {
         use crate::photo::Shape;
         if !file.is_file() {
-            return Err(Error::NotFound(format!("no file {}", file.display())));
+            return Err(not_found(
+                "no_such_file",
+                json!({ "file": file.display().to_string() }),
+            ));
         }
         let mut shapes = Vec::new();
         let mut tiles: Vec<(i64, String, crate::Crop)> = Vec::new();
@@ -413,9 +413,7 @@ impl Inventory {
         }
         if let Some(corners) = grid {
             let Some(p) = place else {
-                return Err(Error::Usage(
-                    "--grid reads the boxes of the --place grid; give --place too".into(),
-                ));
+                return Err(usage("photo_grid_needs_place", Value::Null));
             };
             let pid = resolve(&self.conn, p, false)?;
             for (_, cells) in crate::grid::placed(&self.conn, pid)? {
@@ -430,9 +428,7 @@ impl Inventory {
             }
         }
         if shapes.is_empty() {
-            return Err(Error::Usage(
-                "nothing to preview: give <ref>=x,y,w,h, or --place with --grid".into(),
-            ));
+            return Err(usage("photo_preview_nothing", Value::Null));
         }
         let out = out.map_or_else(|| scratch_copy(file), Path::to_path_buf);
         crate::photo::draw_marks(file, &shapes, &out)?;
@@ -496,9 +492,7 @@ impl Inventory {
     ) -> Result<Value> {
         use crate::photo::Shape;
         if marks.is_empty() {
-            return Err(Error::Usage(
-                "give at least one <label>=x,y,w,h or <label>=<cell>".into(),
-            ));
+            return Err(usage("photo_mark_nothing", Value::Null));
         }
         let by_cell = |spec: &str| !spec.contains(',');
         let (file, holder, stored) = if Path::new(target).is_file() {
@@ -562,9 +556,7 @@ impl Inventory {
             let shape = if by_cell(spec) {
                 let cells = crate::grid::Cells::parse(spec)?;
                 let (Some(h), Some(c)) = (holder, corners) else {
-                    return Err(Error::Usage(format!(
-                        "`{spec}` is a cell: mark a place with a grid (by its code), not a file"
-                    )));
+                    return Err(usage("photo_mark_cell_on_file", json!({ "spec": spec })));
                 };
                 Shape::Quad(crate::grid::cells_quad(&self.conn, h, c, &cells)?)
             } else {
@@ -661,10 +653,10 @@ impl Inventory {
             .checked_sub(1)
             .and_then(|i| positions.get(i))
             .ok_or_else(|| {
-                Error::NotFound(format!(
-                    "photo {n} does not exist; it has {}",
-                    positions.len()
-                ))
+                not_found(
+                    "photo_number_missing",
+                    json!({ "n": n, "count": positions.len() }),
+                )
             })?;
         let (path, source): (String, Option<String>) = self.conn.query_row(
             "SELECT ev_file(path), ev_file(source) FROM photos WHERE node_id = ?1 AND position = ?2",
@@ -784,10 +776,10 @@ impl Inventory {
             .checked_sub(1)
             .and_then(|i| positions.get(i))
             .ok_or_else(|| {
-                Error::NotFound(format!(
-                    "photo {n} does not exist; it has {}",
-                    positions.len()
-                ))
+                not_found(
+                    "photo_number_missing",
+                    json!({ "n": n, "count": positions.len() }),
+                )
             })?;
         let tx = self.conn.transaction()?;
         let (path, crop, note): (String, Option<String>, Option<String>) = tx.query_row(

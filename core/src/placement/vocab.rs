@@ -230,9 +230,7 @@ impl Inventory {
     pub fn facet_add(&mut self, name: &str, words: Option<&str>) -> Result<Value> {
         let name = name.trim().to_lowercase();
         if terms(&name).is_empty() {
-            return Err(Error::Usage(
-                "a facet needs a name with a searchable word (3+ letters)".into(),
-            ));
+            return Err(usage("vocab_facet_name_bad", Value::Null));
         }
         let words: Vec<&str> = words
             .unwrap_or_default()
@@ -280,7 +278,7 @@ impl Inventory {
             .execute("DELETE FROM facets WHERE name = ?1", [&name])?
             == 0
         {
-            return Err(Error::NotFound(format!("no facet {name}")));
+            return Err(not_found("vocab_no_facet", json!({ "name": name })));
         }
         self.facet_list()
     }
@@ -296,10 +294,7 @@ impl Inventory {
             .filter(|p| !p.is_empty())
             .collect();
         if phrases.len() < 2 || phrases.iter().any(|p| terms(p).is_empty()) {
-            return Err(Error::Usage(
-                "give two or more comma-separated words or phrases, each with a searchable word"
-                    .into(),
-            ));
+            return Err(usage("vocab_synonyms_too_few", Value::Null));
         }
         self.conn.execute(
             "INSERT INTO synonyms (words, created_at) VALUES (?1, ?2)",
@@ -326,7 +321,7 @@ impl Inventory {
             .execute("DELETE FROM synonyms WHERE id = ?1", [id])?
             == 0
         {
-            return Err(Error::NotFound(format!("no synonym group {id}")));
+            return Err(not_found("vocab_no_synonym_group", json!({ "id": id })));
         }
         self.synonym_list()
     }

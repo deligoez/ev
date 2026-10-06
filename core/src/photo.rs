@@ -9,6 +9,9 @@ use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, ImageDecoder, ImageReader};
 use sha2::{Digest, Sha256};
 
+use serde_json::json;
+
+use crate::error::usage;
 use crate::{Error, Result};
 
 /// A crop in fractions of the upright photo: left, top, width, height, each 0–1.
@@ -27,17 +30,13 @@ impl FromStr for Crop {
             .split(',')
             .map(|p| p.trim().parse::<f64>())
             .collect::<std::result::Result<_, _>>()
-            .map_err(|_| Error::Usage(format!("crop `{s}` is not four numbers x,y,w,h")))?;
+            .map_err(|_| usage("photo_crop_not_numbers", json!({ "crop": s })))?;
         let [x, y, w, h] = parts[..] else {
-            return Err(Error::Usage(format!(
-                "crop `{s}` needs exactly four numbers x,y,w,h"
-            )));
+            return Err(usage("photo_crop_not_four", json!({ "crop": s })));
         };
         let ok = |v: f64| (0.0..=1.0).contains(&v);
         if !(ok(x) && ok(y) && w > 0.0 && h > 0.0 && x + w <= 1.0001 && y + h <= 1.0001) {
-            return Err(Error::Usage(format!(
-                "crop `{s}` must lie inside the photo: fractions 0–1 with x+w ≤ 1 and y+h ≤ 1"
-            )));
+            return Err(usage("photo_crop_outside", json!({ "crop": s })));
         }
         Ok(Crop { x, y, w, h })
     }
@@ -85,9 +84,7 @@ pub fn quarter_turns(degrees: u16) -> Result<u8> {
         90 => Ok(1),
         180 => Ok(2),
         270 => Ok(3),
-        _ => Err(Error::Usage(format!(
-            "turn a photo by 90, 180 or 270 degrees clockwise, not {degrees}"
-        ))),
+        _ => Err(usage("photo_turn_bad", json!({ "degrees": degrees }))),
     }
 }
 

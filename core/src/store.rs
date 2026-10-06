@@ -5,7 +5,7 @@ use std::time::Duration;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 
-use crate::error::refuse;
+use crate::error::{not_found, refuse, usage};
 use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 use crate::{Error, Fault, Result, fold};
 
@@ -278,9 +278,7 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let parent = match new.parent.as_deref() {
             Some(r) if r.starts_with('@') => {
-                return Err(Error::Usage(
-                    "`@key` references only work inside a batch".into(),
-                ));
+                return Err(usage("batch_key_outside_batch", Value::Null));
             }
             Some(r) => Some(resolve(&tx, r, false)?),
             None => None,
@@ -300,7 +298,7 @@ impl Inventory {
             let line = i + 1;
             let parent = match new.parent.as_deref() {
                 Some(r) if r.starts_with('@') => Some(*keys.get(&r[1..]).ok_or_else(|| {
-                    Error::Usage(format!("unknown batch key `{r}`")).at_line(line)
+                    usage("batch_key_unknown", json!({ "key": r })).at_line(line)
                 })?),
                 Some(r) => Some(resolve(&tx, r, false).map_err(|e| e.at_line(line))?),
                 None => None,
@@ -309,7 +307,7 @@ impl Inventory {
             if let Some(key) = &new.key
                 && keys.insert(key.clone(), id).is_some()
             {
-                return Err(Error::Usage(format!("duplicate batch key `{key}`")).at_line(line));
+                return Err(usage("batch_key_duplicate", json!({ "key": key })).at_line(line));
             }
             created.push(id);
         }
@@ -385,9 +383,7 @@ impl Inventory {
         let query = search::Query::parse(&self.conn, text)?;
         // Without text a filter must narrow it: `--tag x` alone lists everything tagged x.
         if query.is_empty() && tag.is_none() && kind.is_none() && !empty {
-            return Err(Error::Usage(
-                "search text is empty; give text, or --tag / --kind / --empty to list".into(),
-            ));
+            return Err(usage("search_text_empty", Value::Null));
         }
         let tag = tag.map(|t| t.trim().to_lowercase());
         let filled: std::collections::HashSet<i64> = ids(
@@ -481,13 +477,13 @@ impl Inventory {
     /// (by its number) leaves every record as it was. Each record gets its own `edit` event.
     pub fn edit_batch(&mut self, lines: &[(String, Vec<String>)]) -> Result<Value> {
         if lines.is_empty() {
-            return Err(Error::Usage("no lines to edit".into()));
+            return Err(usage("edit_no_lines", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let mut edited = Vec::with_capacity(lines.len());
         for (i, (reference, assignments)) in lines.iter().enumerate() {
             if assignments.is_empty() {
-                return Err(Error::Usage("nothing to set".into()).at_line(i + 1));
+                return Err(usage("edit_nothing_to_set", Value::Null).at_line(i + 1));
             }
             edited.push(edit_in(&tx, reference, assignments).map_err(|e| e.at_line(i + 1))?);
         }
@@ -539,9 +535,7 @@ impl Inventory {
         take: bool,
     ) -> Result<Value> {
         if parts.is_empty() {
-            return Err(Error::Usage(
-                "give at least one <name>=<qty> to split off".into(),
-            ));
+            return Err(usage("split_no_parts", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let n = load(&tx, resolve(&tx, reference, false)?)?;
@@ -564,7 +558,7 @@ impl Inventory {
         for (name, q) in parts {
             let name = name.trim();
             if name.is_empty() {
-                return Err(Error::Usage("a split-off part needs a name".into()));
+                return Err(usage("split_part_needs_name", Value::Null));
             }
             let new = NewNode {
                 name: name.to_string(),
@@ -590,9 +584,7 @@ impl Inventory {
             let taken: Option<i64> = parts.iter().map(|(_, q)| *q).sum();
             match (qty, n.qty, taken) {
                 (Some(_), _, _) => {
-                    return Err(Error::Usage(
-                        "--take sets the original's count itself; leave --qty out".into(),
-                    ));
+                    return Err(usage("split_take_with_qty", Value::Null));
                 }
                 (None, Some(had), Some(t)) if t < had => Some(had - t),
                 (None, Some(had), Some(t)) => {
@@ -603,9 +595,7 @@ impl Inventory {
                     ));
                 }
                 _ => {
-                    return Err(Error::Usage(
-                        "--take needs a count on the original and on every part".into(),
-                    ));
+                    return Err(usage("split_take_needs_counts", Value::Null));
                 }
             }
         } else {
@@ -656,14 +646,14 @@ impl Inventory {
     /// the ones they are leaving. An empty code clears it. All or nothing.
     pub fn recode(&mut self, pairs: &[(String, String)]) -> Result<Value> {
         if pairs.is_empty() {
-            return Err(Error::Usage("give at least one <ref>=<code>".into()));
+            return Err(usage("codes_none_given", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let mut nodes = Vec::new();
         for (reference, code) in pairs {
             let n = load(&tx, resolve(&tx, reference, false)?)?;
             if nodes.iter().any(|(m, _): &(Node, &String)| m.id == n.id) {
-                return Err(Error::Usage(format!("{} is given twice", label(&n))));
+                return Err(usage("node_given_twice", json!({ "node": label(&n) })));
             }
             nodes.push((n, code));
         }
@@ -671,7 +661,7 @@ impl Inventory {
         for (_, code) in &nodes {
             let c = code.trim();
             if !c.is_empty() && !folded.insert(fold(c)) {
-                return Err(Error::Usage(format!("code `{c}` is given twice")));
+                return Err(usage("code_given_twice", json!({ "code": c })));
             }
         }
         for (n, _) in &nodes {
@@ -756,7 +746,7 @@ impl Inventory {
             }
         }
         if nodes.len() < 2 {
-            return Err(Error::Usage("name at least two records to join".into()));
+            return Err(usage("join_needs_two", Value::Null));
         }
         let holder = crate::portions::join(&tx, &nodes)?;
         tx.commit()?;
@@ -870,28 +860,22 @@ impl Inventory {
         check_shred(disposition, shred)?;
         not_merged(Some(disposition))?;
         if disposition == Disposition::Used {
-            return Err(Error::Usage(
-                "nothing waits to be used up; when it is, record it with `ev gone --as used`"
-                    .into(),
-            ));
+            return Err(usage("nothing_to_use_up", Value::Null));
         }
         if matches!(
             disposition,
             Disposition::Left | Disposition::Stolen | Disposition::Unknown
         ) {
-            return Err(Error::Usage(format!(
-                "nothing is set aside to be {d}; record it with `ev gone --as {d}`",
-                d = disposition.as_str()
-            )));
+            return Err(usage(
+                "nothing_set_aside",
+                json!({ "way": disposition.as_str() }),
+            ));
         }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         let node = crate::portions::take(&tx, node, qty)?;
         if disposition == Disposition::Mistake {
-            return Err(Error::Usage(
-                "a mistaken record is not set aside; close it with `ev gone --as mistake --why`"
-                    .into(),
-            ));
+            return Err(usage("mistake_not_set_aside", Value::Null));
         }
         if node.state != State::Active {
             return Err(refuse(
@@ -1024,9 +1008,7 @@ impl Inventory {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
         not_merged(disposition)?;
         if disposition == Some(Disposition::Mistake) && why.is_none() {
-            return Err(Error::Usage(
-                "say why the record was a mistake with --why".into(),
-            ));
+            return Err(usage("mistake_needs_why", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
@@ -1416,7 +1398,7 @@ pub(crate) fn load(conn: &Connection, id: i64) -> Result<Node> {
             node_row,
         )
         .optional()?;
-    let mut node = node.ok_or_else(|| Error::NotFound(format!("no node with id {id}")))?;
+    let mut node = node.ok_or_else(|| not_found("no_record_with_id", json!({ "id": id })))?;
     node.tags = strings(
         conn,
         "SELECT tag FROM tags WHERE node_id = ?1 ORDER BY tag",
@@ -2074,7 +2056,7 @@ pub(crate) fn resolve_for_history(conn: &Connection, reference: &str) -> Result<
 pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) -> Result<i64> {
     let r = reference.trim();
     if r.is_empty() {
-        return Err(Error::Usage("empty reference".into()));
+        return Err(usage("reference_empty", Value::Null));
     }
     // `#534`, as `ev ui` and the readable output print ids, is the id 534.
     let r = match r.strip_prefix('#') {
@@ -2217,9 +2199,7 @@ fn expand_code(conn: &Connection, code: &str) -> Result<String> {
         return Ok(c.to_string());
     };
     if prefix.is_empty() || prefix.contains('*') {
-        return Err(Error::Usage(format!(
-            "`{c}`: a series is a prefix followed by one `*`, like GF1x1-*"
-        )));
+        return Err(usage("code_series_malformed", json!({ "code": c })));
     }
     // One series whatever its labels' separator and padding (spec/codes.md): `S3_*` continues
     // after `S3-11` and `S03_12`; the padding is the printed one, the widest in the series.
@@ -2251,7 +2231,7 @@ fn expand_code(conn: &Connection, code: &str) -> Result<String> {
 fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<String> {
     let c = code.trim();
     if c.is_empty() {
-        return Err(Error::Usage("code is empty".into()));
+        return Err(usage("code_empty", Value::Null));
     }
     if c.chars().all(|ch| ch.is_ascii_digit()) {
         return Err(refuse(
@@ -2356,10 +2336,10 @@ fn check_placement(
 
 fn check_ranges(qty: Option<i64>, fill: Option<i64>) -> Result<()> {
     if qty.is_some_and(|q| q < 1) {
-        return Err(Error::Usage("qty must be at least 1".into()));
+        return Err(usage("qty_below_one", Value::Null));
     }
     if fill.is_some_and(|f| !(0..=100).contains(&f)) {
-        return Err(Error::Usage("fill must be between 0 and 100".into()));
+        return Err(usage("fill_out_of_range", Value::Null));
     }
     Ok(())
 }
@@ -2367,7 +2347,7 @@ fn check_ranges(qty: Option<i64>, fill: Option<i64>) -> Result<()> {
 fn normalize_tag(t: &str) -> Result<String> {
     let t = t.trim().to_lowercase();
     if t.is_empty() {
-        return Err(Error::Usage("tag is empty".into()));
+        return Err(usage("tag_empty", Value::Null));
     }
     Ok(t)
 }
@@ -2375,11 +2355,16 @@ fn normalize_tag(t: &str) -> Result<String> {
 fn absolute(p: &str) -> Result<String> {
     let p = p.trim();
     if p.is_empty() {
-        return Err(Error::Usage("photo path is empty".into()));
+        return Err(usage("photo_path_empty", Value::Null));
     }
     std::path::absolute(p)
         .map(|a| a.to_string_lossy().into_owned())
-        .map_err(|e| Error::Usage(format!("photo path `{p}`: {e}")))
+        .map_err(|e| {
+            usage(
+                "photo_path_invalid",
+                json!({ "path": p, "error": e.to_string() }),
+            )
+        })
 }
 
 fn non_empty(v: &Option<String>) -> Option<String> {
@@ -2391,9 +2376,7 @@ fn non_empty(v: &Option<String>) -> Option<String> {
 fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64> {
     // `ev add` refuses the two together on its command line; a batch line says why.
     if non_empty(&new.gone).is_some() && non_empty(&new.of).is_some() {
-        return Err(Error::Usage(
-            "a past thing is added on its own: `gone` and `of` do not go together".into(),
-        ));
+        return Err(usage("past_with_of", Value::Null));
     }
     if let Some(of) = non_empty(&new.of) {
         return add_of(conn, new, &of, parent);
@@ -2402,9 +2385,7 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     if non_empty(&new.gone).is_none()
         && (non_empty(&new.at).is_some() || non_empty(&new.place).is_some())
     {
-        return Err(Error::Usage(
-            "--at and --where say how a thing left: add it with --gone".into(),
-        ));
+        return Err(usage("leaving_details_without_gone", Value::Null));
     }
     // A past thing is a thing, unless said otherwise.
     let kind: Kind = match new.kind.trim() {
@@ -2413,7 +2394,7 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     };
     let name = new.name.trim();
     if name.is_empty() {
-        return Err(Error::Usage("name is empty".into()));
+        return Err(usage("name_empty", Value::Null));
     }
     check_ranges(new.qty, new.fill)?;
     let address = non_empty(&new.address);
@@ -2421,11 +2402,10 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         return Err(refuse("address_only_home", Value::Null, Value::Null));
     }
     // A past thing is recorded already gone, in no holder (spec/past-belongings.md).
-    const PAST_WAYS: &str = "sell, give, trash, used, trade, return, left, stolen or unknown";
     let gone: Option<Disposition> = non_empty(&new.gone)
         .map(|g| {
             g.parse()
-                .map_err(|_| Error::Usage(format!("`{g}` is no way of leaving; use {PAST_WAYS}")))
+                .map_err(|_| usage("leaving_way_unknown", json!({ "way": g })))
         })
         .transpose()?;
     if let Some(g) = gone {
@@ -2433,38 +2413,25 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             g,
             Disposition::Mistake | Disposition::Merged | Disposition::Digitize
         ) {
-            return Err(Error::Usage(format!(
-                "a past thing is not added as {}: give how it left ({PAST_WAYS})",
-                g.as_str()
-            )));
+            return Err(usage("past_way_not_allowed", json!({ "way": g.as_str() })));
         }
         if matches!(kind, Kind::Home | Kind::Room) || parent.is_some() || new.lost {
-            return Err(Error::Usage(
-                "a past thing is added on its own: no --in, --lost, home or room".into(),
-            ));
+            return Err(usage("past_in_a_place", Value::Null));
         }
         // Where a thing stands, or is to go, says nothing of one that left.
         if non_empty(&new.to).is_some() || new.temporary || non_empty(&new.code).is_some() {
-            return Err(Error::Usage(
-                "a past thing has no --to, --temporary or --code: it is no longer here".into(),
-            ));
+            return Err(usage("past_no_place_fields", Value::Null));
         }
         if non_empty(&new.place).is_some_and(|p| p.starts_with('#')) {
-            return Err(Error::Usage(
-                "--where names a place (a former home), not a record".into(),
-            ));
+            return Err(usage("past_where_is_a_place", Value::Null));
         }
     } else if non_empty(&new.at).is_some() || non_empty(&new.place).is_some() {
-        return Err(Error::Usage(
-            "--at and --where say how a thing left: add it with --gone".into(),
-        ));
+        return Err(usage("leaving_details_without_gone", Value::Null));
     }
     // What came in exchange is said of a swap only.
     let traded_for = non_empty(&new.traded_for);
     if traded_for.is_some() && gone != Some(Disposition::Trade) {
-        return Err(Error::Usage(
-            "traded_for goes with a trade: `--gone trade`".into(),
-        ));
+        return Err(usage("traded_for_without_trade", Value::Null));
     }
     let came = non_empty(&new.came)
         .map(|c| past::partial_date(&c))
@@ -2616,7 +2583,7 @@ fn add_of(conn: &Connection, new: &NewNode, of: &str, parent: Option<i64>) -> Re
         return Err(e);
     }
     if parent.is_none() {
-        return Err(Error::Usage("say where they are with --in".into()));
+        return Err(usage("say_where_with_in", Value::Null));
     }
     let made = NewNode {
         name: src.name.clone(),
@@ -2731,9 +2698,7 @@ fn require_no_active_inside(conn: &Connection, node: &Node) -> Result<Vec<Node>>
 /// Only what goes in the bin is shredded; a thing given away or sold leaves whole.
 fn check_shred(d: Disposition, shred: bool) -> Result<()> {
     if shred && !matches!(d, Disposition::Trash | Disposition::Digitize) {
-        return Err(Error::Usage(format!(
-            "--shred is for what goes in the bin (trash, digitize), not `{d}`"
-        )));
+        return Err(usage("shred_not_for_way", json!({ "way": d.as_str() })));
     }
     Ok(())
 }
@@ -2745,9 +2710,7 @@ const COPY_SHORT_SIDE: u32 = 800;
 /// `merged` is ev's own word for a portion that joined another; nobody says a thing left so.
 fn not_merged(disposition: Option<Disposition>) -> Result<()> {
     if disposition == Some(Disposition::Merged) {
-        return Err(Error::Usage(
-            "`merged` is not a way to leave: ev sets it when a portion joins another".into(),
-        ));
+        return Err(usage("merged_not_a_way", Value::Null));
     }
     Ok(())
 }
@@ -2856,7 +2819,7 @@ impl Inventory {
     pub fn correct_gone(&mut self, reference: &str, why: &str) -> Result<Value> {
         let why = why.trim();
         if why.is_empty() {
-            return Err(Error::Usage("say why the node was not really gone".into()));
+            return Err(usage("restore_needs_why", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, true)?)?;

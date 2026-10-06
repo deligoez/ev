@@ -7,6 +7,7 @@ use chrono::{Datelike, NaiveDate};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
+use crate::error::usage;
 use crate::purchases::money;
 use crate::store::{Inventory, now};
 use crate::{Error, Result};
@@ -56,10 +57,10 @@ pub(crate) fn currency_code(text: &str) -> Result<String> {
     if CURRENCIES.contains(&c.as_str()) {
         Ok(c)
     } else {
-        Err(Error::Usage(format!(
-            "`{}` is no currency code like EUR, USD or TRY",
-            text.trim()
-        )))
+        Err(usage(
+            "money_currency_unknown",
+            json!({ "currency": text.trim() }),
+        ))
     }
 }
 
@@ -222,17 +223,17 @@ impl Inventory {
             }
             let at = |e: Error| e.at_line(i + 1);
             let v: Value = serde_json::from_str(raw)
-                .map_err(|e| Error::Usage(format!("not JSON: {e}")))
+                .map_err(|e| usage("line_not_json", json!({ "error": e.to_string() })))
                 .map_err(at)?;
             let s = |k: &str| v[k].as_str().map(str::to_string);
             let need = |k: &str| {
-                s(k).ok_or_else(|| Error::Usage(format!("`{k}` is required")).at_line(i + 1))
+                s(k).ok_or_else(|| usage("field_required", json!({ "field": k })).at_line(i + 1))
             };
             let num = |k: &str| {
                 v[k].as_f64()
                     .filter(|x| x.is_finite() && *x > 0.0)
                     .ok_or_else(|| {
-                        Error::Usage(format!("`{k}` must be a positive number")).at_line(i + 1)
+                        usage("money_not_positive", json!({ "field": k })).at_line(i + 1)
                     })
             };
             match v["type"].as_str() {
@@ -241,7 +242,7 @@ impl Inventory {
                     let ok = period.len() == 4 && period.chars().all(|c| c.is_ascii_digit())
                         || period.len() == 7 && day(&format!("{period}-01")).is_some();
                     if !ok {
-                        return Err(Error::Usage(format!("period `{period}`: YYYY-MM or YYYY"))
+                        return Err(usage("money_period_malformed", json!({ "period": period }))
                             .at_line(i + 1));
                     }
                     tx.execute(
@@ -256,7 +257,9 @@ impl Inventory {
                 Some("rate") => {
                     let d = need("day")?;
                     if day(&d).is_none() {
-                        return Err(Error::Usage(format!("day `{d}`: YYYY-MM-DD")).at_line(i + 1));
+                        return Err(
+                            usage("money_day_malformed", json!({ "day": d })).at_line(i + 1)
+                        );
                     }
                     tx.execute(
                         "INSERT INTO fx_rates (currency, home, day, rate, source, fetched_at)
@@ -275,10 +278,11 @@ impl Inventory {
                     rates += 1;
                 }
                 other => {
-                    return Err(
-                        Error::Usage(format!("line type {other:?}; use index or rate"))
-                            .at_line(i + 1),
-                    );
+                    return Err(usage(
+                        "money_line_type_unknown",
+                        json!({ "type": format!("{other:?}") }),
+                    )
+                    .at_line(i + 1));
                 }
             }
         }

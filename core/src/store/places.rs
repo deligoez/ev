@@ -2,6 +2,7 @@
 //! from each.
 
 use super::*;
+use crate::error::{not_found, usage};
 
 // ---------- places (spec §13) ----------
 
@@ -14,7 +15,7 @@ fn place_key(text: &str) -> String {
 fn find_place(conn: &Connection, text: &str) -> Result<Option<i64>> {
     let folded = place_key(text);
     if folded.is_empty() {
-        return Err(Error::Usage("place name is empty".into()));
+        return Err(usage("place_name_empty", Value::Null));
     }
     Ok(conn
         .query_row(
@@ -54,12 +55,8 @@ fn place_json(conn: &Connection, id: i64) -> Result<Value> {
 }
 
 pub(super) fn resolve_place(conn: &Connection, text: &str) -> Result<i64> {
-    find_place(conn, text)?.ok_or_else(|| {
-        Error::NotFound(format!(
-            "no place named `{}`; `ev place list` shows them",
-            text.trim()
-        ))
-    })
+    find_place(conn, text)?
+        .ok_or_else(|| not_found("place_no_such", json!({ "name": text.trim() })))
 }
 
 fn nodes_at(conn: &Connection, column: &str, place: i64) -> Result<Vec<Value>> {

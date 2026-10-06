@@ -7,8 +7,9 @@ use std::path::Path;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
+use crate::Result;
+use crate::error::{not_found, usage};
 use crate::store::{Inventory, brief, event, ids, now, resolve};
-use crate::{Error, Result};
 
 /// The kinds of document, in the order a list shows them.
 pub const DOC_KINDS: [&str; 9] = [
@@ -50,10 +51,10 @@ fn check_kind(kind: &str) -> Result<String> {
     if DOC_KINDS.contains(&k.as_str()) {
         Ok(k)
     } else {
-        Err(Error::Usage(format!(
-            "`{kind}` is not a document kind; use one of {}",
-            DOC_KINDS.join(", ")
-        )))
+        Err(usage(
+            "doc_kind_unknown",
+            json!({ "kind": kind, "kinds": DOC_KINDS.join(", ") }),
+        ))
     }
 }
 
@@ -68,9 +69,7 @@ fn check_date(d: &str) -> Result<String> {
     if ok {
         Ok(d.to_string())
     } else {
-        Err(Error::Usage(format!(
-            "`{d}` is not a date; use YYYY-MM-DD, YYYY-MM or YYYY"
-        )))
+        Err(usage("doc_date_malformed", json!({ "date": d })))
     }
 }
 
@@ -105,7 +104,7 @@ pub(crate) fn doc_json(conn: &Connection, id: i64) -> Result<Value> {
             },
         )
         .optional()?;
-    let mut doc = row.ok_or_else(|| Error::NotFound(format!("no document with id {id}")))?;
+    let mut doc = row.ok_or_else(|| not_found("doc_no_such_id", json!({ "id": id })))?;
     let nodes = ids(
         conn,
         "SELECT target_id FROM document_links WHERE document_id = ?1 AND target = 'node'
@@ -191,7 +190,7 @@ fn kind_of(conn: &Connection, doc: i64) -> Result<String> {
         r.get(0)
     })
     .optional()?
-    .ok_or_else(|| Error::NotFound(format!("no document with id {doc}")))
+    .ok_or_else(|| not_found("doc_no_such_id", json!({ "id": doc })))
 }
 
 /// Copies a file into the store and records it, or finds the document already holding the
@@ -206,10 +205,17 @@ pub(crate) fn store_doc(
     let kind = check_kind(&new.kind)?;
     let issued = text(&new.issued).map(|d| check_date(&d)).transpose()?;
     if !file.is_file() {
-        return Err(Error::Usage(format!("{}: no such file", file.display())));
+        return Err(usage(
+            "doc_no_such_file",
+            json!({ "file": file.display().to_string() }),
+        ));
     }
-    let bytes =
-        std::fs::read(file).map_err(|e| Error::Usage(format!("{}: {e}", file.display())))?;
+    let bytes = std::fs::read(file).map_err(|e| {
+        usage(
+            "doc_file_unreadable",
+            json!({ "file": file.display().to_string(), "error": e.to_string() }),
+        )
+    })?;
     let stored = crate::photo::store_bytes(dir, &bytes, &extension(file))?;
     let stored = stored.to_string_lossy().into_owned();
     let existing: Option<i64> = conn

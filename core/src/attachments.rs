@@ -6,11 +6,12 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Map, Value, json};
 
+use crate::Result;
 use crate::coverage::{COVERAGE_KINDS, NewCoverage};
+use crate::error::usage;
 use crate::purchases::{money, parse_money};
 use crate::store::{Inventory, ids, resolve};
 use crate::valuations::NewValuation;
-use crate::{Error, Result};
 
 pub(crate) const ATTACHMENT_KINDS: [&str; 4] = ["link", "valuation", "coverage", "image"];
 
@@ -34,22 +35,23 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
     };
     match kind {
         "link" => {
-            let url = text(v, "url").ok_or_else(|| Error::Usage("`url` is required".into()))?;
+            let url =
+                text(v, "url").ok_or_else(|| usage("field_required", json!({ "field": "url" })))?;
             if !url.starts_with("http://") && !url.starts_with("https://") {
-                return Err(Error::Usage(format!("`{url}` is not a web address")));
+                return Err(usage("not_web_address", json!({ "url": url })));
             }
             put("url", Some(url));
             let k = text(v, "kind").unwrap_or_else(|| "info".into());
             if !crate::links::LINK_KINDS.contains(&k.as_str()) {
-                return Err(Error::Usage(format!("`{k}` is not a link kind")));
+                return Err(usage("attachment_link_kind_unknown", json!({ "kind": k })));
             }
             put("kind", Some(k));
             put("archive", text(v, "archive"));
             put("note", text(v, "note"));
         }
         "valuation" => {
-            let amount =
-                text(v, "amount").ok_or_else(|| Error::Usage("`amount` is required".into()))?;
+            let amount = text(v, "amount")
+                .ok_or_else(|| usage("field_required", json!({ "field": "amount" })))?;
             put("amount", Some(money(parse_money(&amount)?)));
             put(
                 "currency",
@@ -70,9 +72,13 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
             put("note", text(v, "note"));
         }
         "coverage" => {
-            let k = text(v, "kind").ok_or_else(|| Error::Usage("`kind` is required".into()))?;
+            let k = text(v, "kind")
+                .ok_or_else(|| usage("field_required", json!({ "field": "kind" })))?;
             if !COVERAGE_KINDS.contains(&k.as_str()) {
-                return Err(Error::Usage(format!("`{k}` is not a coverage kind")));
+                return Err(usage(
+                    "attachment_coverage_kind_unknown",
+                    json!({ "kind": k }),
+                ));
             }
             put("kind", Some(k));
             for f in ["term", "from", "ends", "issuer", "number", "note"] {
@@ -82,11 +88,12 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
         // The shop's product picture, downloaded by the adapter: brought as a document of kind
         // `image`, so it never stands in for the thing's own photo.
         "image" => {
-            let file = text(v, "file").ok_or_else(|| Error::Usage("`file` is required".into()))?;
+            let file = text(v, "file")
+                .ok_or_else(|| usage("field_required", json!({ "field": "file" })))?;
             put("file", Some(file));
             put("note", text(v, "note"));
         }
-        other => return Err(Error::Usage(format!("unknown attachment `{other}`"))),
+        other => return Err(usage("attachment_unknown", json!({ "attachment": other }))),
     }
     Ok(Value::Object(d).to_string())
 }
@@ -294,10 +301,10 @@ impl Inventory {
             .map(|o| format!("#{o}"))
             .collect();
         if !unknown.is_empty() {
-            return Err(Error::Usage(format!(
-                "purchase {id} carries no attachment {}; ev buy show {id} lists them",
-                unknown.join(", ")
-            )));
+            return Err(usage(
+                "attachment_not_carried",
+                json!({ "id": id, "attachments": unknown.join(", ") }),
+            ));
         }
         let picked: Vec<Value> = attachments
             .into_iter()
@@ -392,10 +399,10 @@ fn check_types(types: &[String]) -> Result<()> {
         .iter()
         .find(|t| !ATTACHMENT_KINDS.contains(&t.as_str()))
     {
-        Some(t) => Err(Error::Usage(format!(
-            "attachment type '{t}' is not one of: {}",
-            ATTACHMENT_KINDS.join(", ")
-        ))),
+        Some(t) => Err(usage(
+            "attachment_type_unknown",
+            json!({ "type": t, "types": ATTACHMENT_KINDS.join(", ") }),
+        )),
         None => Ok(()),
     }
 }

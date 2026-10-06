@@ -7,17 +7,13 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use super::{Inventory, event, resolve, show};
-use crate::error::{Error, Result, refuse};
+use crate::error::{Result, refuse, usage};
 
 /// A date as a person remembers it: a year (`2016`), a month (`2016-06`) or a day
 /// (`2016-06-14`). Never widened to a day nobody said.
 pub(crate) fn partial_date(text: &str) -> Result<String> {
     let t = text.trim();
-    let bad = || {
-        Error::Usage(format!(
-            "`{t}` is no date: give a year (2016), a month (2016-06) or a day (2016-06-14)"
-        ))
-    };
+    let bad = || usage("past_date_bad", json!({ "date": t }));
     let parts: Vec<&str> = t.split('-').collect();
     let num = |s: &str, len: usize| -> Option<u32> {
         (s.len() == len && s.chars().all(|c| c.is_ascii_digit()))
@@ -44,7 +40,7 @@ pub(crate) fn partial_date(text: &str) -> Result<String> {
     // A date remembered is a date that was: never one still to come.
     let today = crate::store::today().format("%Y-%m-%d").to_string();
     if t > &today[..t.len()] {
-        return Err(Error::Usage(format!("`{t}` is still to come")));
+        return Err(usage("date_still_to_come", json!({ "date": t })));
     }
     Ok(t.to_string())
 }
@@ -53,9 +49,10 @@ pub(crate) fn partial_date(text: &str) -> Result<String> {
 pub(crate) fn came_before_left(came: &str, left: &str) -> Result<()> {
     let n = came.len().min(left.len());
     if came[..n] > left[..n] {
-        return Err(Error::Usage(format!(
-            "it came {came} but left {left}; one of the dates is not right"
-        )));
+        return Err(usage(
+            "past_came_after_left",
+            json!({ "came": came, "left": left }),
+        ));
     }
     Ok(())
 }
@@ -100,9 +97,7 @@ pub(super) fn set_departure(
         let p = p.trim();
         p.starts_with('#') || (!p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
     }) {
-        return Err(Error::Usage(
-            "--where names a place (a former home) by its name, not a record or an id".into(),
-        ));
+        return Err(usage("past_where_not_place", Value::Null));
     }
     let place = place
         .map(|p| super::places::place_or_create(conn, p))
@@ -256,7 +251,7 @@ impl Inventory {
         }
         let cents = crate::purchases::parse_money(price)?;
         if cents <= 0 {
-            return Err(Error::Usage("a sale brought more than nothing".into()));
+            return Err(usage("past_sale_price_zero", Value::Null));
         }
         // Not said again, the currency said before stands; never said, the home one.
         let said_before: Option<String> = tx
@@ -335,7 +330,7 @@ impl Inventory {
             .map(|r| super::resolve_for_history(&tx, r))
             .transpose()?;
         if other == Some(id) {
-            return Err(Error::Usage("a thing is not traded for itself".into()));
+            return Err(usage("trade_for_itself", Value::Null));
         }
         let before: Option<i64> = tx
             .query_row(
@@ -380,9 +375,7 @@ pub(crate) fn trade_check(conn: &Connection, left: Option<&str>, other: i64) -> 
         r.get(0)
     })?;
     if matches!(kind.as_str(), "home" | "room") {
-        return Err(Error::Usage(format!(
-            "#{other} is a place; a thing is traded for a thing"
-        )));
+        return Err(usage("trade_for_place", json!({ "other": other })));
     }
     let Some(left) = left else { return Ok(()) };
     let before = |a: &str, b: &str| {
@@ -398,20 +391,23 @@ pub(crate) fn trade_check(conn: &Connection, left: Option<&str>, other: i64) -> 
         && let Some(o) = left_of(conn, other)?
         && before(&o, left)
     {
-        return Err(Error::Usage(format!(
-            "#{other} left {o}, before the swap ({left}); it cannot have come in exchange"
-        )));
+        return Err(usage(
+            "trade_other_left_before",
+            json!({ "other": other, "other_left": o, "left": left }),
+        ));
     }
     if let Some(c) = came_of(conn, other)? {
         if before(&c, left) {
-            return Err(Error::Usage(format!(
-                "#{other} came {c}, before the swap ({left}); it was ours already"
-            )));
+            return Err(usage(
+                "trade_other_came_before",
+                json!({ "other": other, "came": c, "left": left }),
+            ));
         }
         if c.get(..4) > left.get(..4) {
-            return Err(Error::Usage(format!(
-                "#{other} came {c}, years after the swap ({left}); one of the dates is not right"
-            )));
+            return Err(usage(
+                "trade_other_came_years_after",
+                json!({ "other": other, "came": c, "left": left }),
+            ));
         }
     }
     Ok(())
@@ -629,7 +625,7 @@ impl Inventory {
     pub fn past_year(&self, year: i32) -> Result<Value> {
         use chrono::Datelike;
         if !(1900..=crate::store::today().year()).contains(&year) {
-            return Err(Error::Usage(format!("`{year}` is no year to look back on")));
+            return Err(usage("past_year_bad", json!({ "year": year })));
         }
         let conn = &self.conn;
         let mut stmt = conn.prepare(&format!(

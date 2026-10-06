@@ -5,7 +5,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result};
+use crate::error::{Result, not_found, usage};
 use crate::fold::fold;
 use crate::store::{Inventory, brief_json, event, load, now, resolve};
 
@@ -26,7 +26,7 @@ fn kit_id(conn: &Connection, reference: &str) -> Result<i64> {
         |row| row.get(0),
     )
     .optional()?
-    .ok_or_else(|| Error::NotFound(format!("no kit `{r}`; `ev kit list` shows them")))
+    .ok_or_else(|| not_found("kit_not_found", json!({ "kit": r })))
 }
 
 /// Appends parts to a kit, numbering on from its last; their numbers.
@@ -40,12 +40,10 @@ fn add_parts(conn: &Connection, kit: i64, parts: &[(String, i64)]) -> Result<Vec
     for (text, qty) in parts {
         let text = text.trim();
         if text.is_empty() {
-            return Err(Error::Usage("a kit part needs a name".into()));
+            return Err(usage("kit_part_needs_name", Value::Null));
         }
         if *qty < 1 {
-            return Err(Error::Usage(format!(
-                "`{text}`: a part comes at least once"
-            )));
+            return Err(usage("kit_part_qty_too_small", json!({ "part": text })));
         }
         next += 1;
         conn.execute(
@@ -74,13 +72,13 @@ fn part(conn: &Connection, kit: i64, n: i64) -> Result<String> {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .unwrap_or((0, None));
-        let has = match last {
-            Some(last) if last != count => format!("{count} parts, numbered up to {last}"),
-            _ => format!("{count} parts"),
-        };
-        Error::NotFound(format!(
-            "part {n} does not exist; the kit has {has} (`ev kit show` lists them)"
-        ))
+        match last {
+            Some(last) if last != count => not_found(
+                "kit_part_missing_numbered",
+                json!({ "n": n, "count": count, "last": last }),
+            ),
+            _ => not_found("kit_part_missing", json!({ "n": n, "count": count })),
+        }
     })
 }
 
@@ -92,7 +90,7 @@ fn set_purchase(conn: &Connection, kit: i64, line: Option<i64>) -> Result<()> {
             .query_row("SELECT id FROM purchases WHERE id = ?1", [l], |r| r.get(0))
             .optional()?;
         if found.is_none() {
-            return Err(Error::NotFound(format!("no purchase with id {l}")));
+            return Err(not_found("no_purchase_with_id", json!({ "id": l })));
         }
     }
     let name: String =
@@ -153,11 +151,11 @@ impl Inventory {
     ) -> Result<Value> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(Error::Usage("a kit needs a name".into()));
+            return Err(usage("kit_needs_name", Value::Null));
         }
         let copies = copies.unwrap_or(1);
         if copies < 1 {
-            return Err(Error::Usage("a kit is bought at least once".into()));
+            return Err(usage("kit_copies_too_few", Value::Null));
         }
         let tx = self.conn.transaction()?;
         tx.execute(
@@ -189,7 +187,7 @@ impl Inventory {
     /// Adds parts to the end of a kit's list.
     pub fn kit_parts_add(&mut self, kit: &str, parts: &[(String, i64)]) -> Result<Value> {
         if parts.is_empty() {
-            return Err(Error::Usage("give at least one part".into()));
+            return Err(usage("kit_needs_parts", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let id = kit_id(&tx, kit)?;
@@ -250,12 +248,10 @@ impl Inventory {
     pub fn kit_part_set(&mut self, kit: &str, n: i64, text: &str, qty: i64) -> Result<Value> {
         let text = text.trim();
         if text.is_empty() {
-            return Err(Error::Usage("a kit part needs a name".into()));
+            return Err(usage("kit_part_needs_name", Value::Null));
         }
         if qty < 1 {
-            return Err(Error::Usage(format!(
-                "`{text}`: a part comes at least once"
-            )));
+            return Err(usage("kit_part_qty_too_small", json!({ "part": text })));
         }
         let tx = self.conn.transaction()?;
         let id = kit_id(&tx, kit)?;
@@ -271,7 +267,7 @@ impl Inventory {
     /// Says these records are part `n` of a kit. Each record's history keeps it.
     pub fn kit_link(&mut self, kit: &str, n: i64, references: &[String]) -> Result<Value> {
         if references.is_empty() {
-            return Err(Error::Usage("give the records that are this part".into()));
+            return Err(usage("kit_link_needs_records", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let id = kit_id(&tx, kit)?;

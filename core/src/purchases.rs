@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use crate::docs::NewDoc;
-use crate::error::refuse;
+use crate::error::{not_found, refuse, usage};
 use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
 
@@ -28,7 +28,7 @@ pub const DISMISSALS: [&str; 6] = [
 
 /// An amount in minor units (kuruş, cents) from `1234.56`, `1.234,56` or `1234`.
 pub(crate) fn parse_money(s: &str) -> Result<i64> {
-    let bad = || Error::Usage(format!("`{s}` is not an amount like 1234.56"));
+    let bad = || usage("purchase_not_an_amount", json!({ "amount": s }));
     let t: String = s.trim().chars().filter(|c| !c.is_whitespace()).collect();
     let neg = t.starts_with('-');
     let t = t.trim_start_matches('-');
@@ -85,7 +85,7 @@ pub(crate) fn date(v: &Option<String>) -> Result<Option<String>> {
             let d = d.get(..10).unwrap_or(d);
             chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
                 .map(|_| d.to_string())
-                .map_err(|_| Error::Usage(format!("`{d}` is not a date YYYY-MM-DD")))
+                .map_err(|_| usage("not_a_date", json!({ "date": d })))
         })
         .transpose()
 }
@@ -153,7 +153,7 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
             },
         )
         .optional()?;
-    let mut p = row.ok_or_else(|| Error::NotFound(format!("no purchase with id {id}")))?;
+    let mut p = row.ok_or_else(|| not_found("no_purchase_with_id", json!({ "id": id })))?;
     let mut stmt = conn.prepare(
         "SELECT node_id, qty FROM purchase_links WHERE purchase_id = ?1 ORDER BY node_id",
     )?;
@@ -356,9 +356,11 @@ const LINE_FIELDS: [(&str, &str); 13] = [
 ];
 
 fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
-    let source = text(v, "source").ok_or_else(|| Error::Usage("`source` is required".into()))?;
-    let key = text(v, "key").ok_or_else(|| Error::Usage("`key` is required".into()))?;
-    let name = text(v, "name").ok_or_else(|| Error::Usage("`name` is required".into()))?;
+    let source =
+        text(v, "source").ok_or_else(|| usage("field_required", json!({ "field": "source" })))?;
+    let key = text(v, "key").ok_or_else(|| usage("field_required", json!({ "field": "key" })))?;
+    let name =
+        text(v, "name").ok_or_else(|| usage("field_required", json!({ "field": "name" })))?;
     let status = text(v, "status").unwrap_or_else(|| "delivered".into());
     let bucket_said = text(v, "bucket").is_some();
     let bucket = text(v, "bucket").unwrap_or_else(|| "durable".into());
@@ -367,19 +369,20 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
         return Ok(None);
     }
     if !["delivered", "returned"].contains(&status.as_str()) {
-        return Err(Error::Usage(format!(
-            "status `{status}`; use delivered, returned or cancelled"
-        )));
+        return Err(usage(
+            "purchase_status_unknown",
+            json!({ "status": status }),
+        ));
     }
     if !BUCKETS.contains(&bucket.as_str()) {
-        return Err(Error::Usage(format!(
-            "bucket `{bucket}`; use {} (an adapter's consumable lines are left out)",
-            BUCKETS.join(", ")
-        )));
+        return Err(usage(
+            "purchase_import_bucket_unknown",
+            json!({ "bucket": bucket, "buckets": BUCKETS.join(", ") }),
+        ));
     }
     let qty = v.get("qty").and_then(Value::as_i64).unwrap_or(1);
     if qty < 1 {
-        return Err(Error::Usage("qty must be at least 1".into()));
+        return Err(usage("qty_below_one", Value::Null));
     }
     let paid = text(v, "paid").map(|p| parse_money(&p)).transpose()?;
     let mut fields = LINE_FIELDS.map(|(col, k)| (col, text(v, k)));
@@ -548,7 +551,7 @@ impl Inventory {
             }
             let at = |e: Error| e.at_line(i + 1);
             let v: Value = serde_json::from_str(raw)
-                .map_err(|e| Error::Usage(format!("not JSON: {e}")))
+                .map_err(|e| usage("line_not_json", json!({ "error": e.to_string() })))
                 .map_err(at)?;
             match v.get("type").and_then(Value::as_str).unwrap_or("purchase") {
                 "purchase" => {
@@ -570,10 +573,10 @@ impl Inventory {
                 }
                 "document" => {
                     let source = text(&v, "source")
-                        .ok_or_else(|| Error::Usage("`source` is required".into()))
+                        .ok_or_else(|| usage("field_required", json!({ "field": "source" })))
                         .map_err(at)?;
                     let file = text(&v, "file")
-                        .ok_or_else(|| Error::Usage("`file` is required".into()))
+                        .ok_or_else(|| usage("field_required", json!({ "field": "file" })))
                         .map_err(at)?;
                     let keys: Vec<String> = v
                         .get("purchases")
@@ -622,7 +625,7 @@ impl Inventory {
                 }
                 kind if crate::attachments::ATTACHMENT_KINDS.contains(&kind) => {
                     let source = text(&v, "source")
-                        .ok_or_else(|| Error::Usage("`source` is required".into()))
+                        .ok_or_else(|| usage("field_required", json!({ "field": "source" })))
                         .map_err(at)?;
                     let data = crate::attachments::attachment_data(kind, &v).map_err(at)?;
                     let mut keys: Vec<String> = v
@@ -654,7 +657,10 @@ impl Inventory {
                     }
                 }
                 other => {
-                    return Err(Error::Usage(format!("unknown line type `{other}`")).at_line(i + 1));
+                    return Err(
+                        usage("purchase_line_type_unknown", json!({ "type": other }))
+                            .at_line(i + 1),
+                    );
                 }
             }
         }
@@ -698,16 +704,16 @@ impl Inventory {
         if let Some(d) = v["ordered_at"].as_str()
             && d.get(..10).unwrap_or(d) > crate::store::today().to_string().as_str()
         {
-            return Err(Error::Usage(format!("`{d}` is still to come")));
+            return Err(usage("date_still_to_come", json!({ "date": d })));
         }
         if v["bucket"] == "consumable" {
-            return Err(Error::Usage(format!(
-                "consumables are not recorded as purchases; use {}",
-                BUCKETS.join(", ")
-            )));
+            return Err(usage(
+                "purchase_consumable_not_recorded",
+                json!({ "buckets": BUCKETS.join(", ") }),
+            ));
         }
-        let (l, name) = line_from(&v)?
-            .ok_or_else(|| Error::Usage("a manual purchase cannot be cancelled".into()))?;
+        let (l, name) =
+            line_from(&v)?.ok_or_else(|| usage("purchase_manual_cancelled", Value::Null))?;
         let (id, _) = upsert(&tx, &l, &name)?;
         let pack = v.get("pack").and_then(Value::as_i64).unwrap_or(1);
         set_pack(&tx, id, pack)?;
@@ -761,10 +767,10 @@ impl Inventory {
         if let Some(b) = bucket
             && !BUCKETS.contains(&b)
         {
-            return Err(Error::Usage(format!(
-                "bucket `{b}`; use {}",
-                BUCKETS.join(", ")
-            )));
+            return Err(usage(
+                "purchase_bucket_unknown",
+                json!({ "bucket": b, "buckets": BUCKETS.join(", ") }),
+            ));
         }
         let words: Vec<String> = query
             .map(crate::fold)
@@ -864,7 +870,7 @@ impl Inventory {
             left
         };
         if qty.is_some_and(|q| q < 1) {
-            return Err(Error::Usage("qty must be at least 1".into()));
+            return Err(usage("qty_below_one", Value::Null));
         }
         let qty = qty.unwrap_or(default);
         if qty < 1 {
@@ -897,10 +903,10 @@ impl Inventory {
     pub fn buy_bucket(&mut self, id: i64, bucket: &str) -> Result<Value> {
         let bucket = bucket.trim().to_lowercase();
         if !BUCKETS.contains(&bucket.as_str()) {
-            return Err(Error::Usage(format!(
-                "bucket `{bucket}`; use {}",
-                BUCKETS.join(", ")
-            )));
+            return Err(usage(
+                "purchase_bucket_unknown",
+                json!({ "bucket": bucket, "buckets": BUCKETS.join(", ") }),
+            ));
         }
         let p = purchase_json(&self.conn, id)?;
         if p["bucket"] == bucket.as_str() {
@@ -964,10 +970,10 @@ impl Inventory {
         if let Some(r) = reason
             && !DISMISSALS.contains(&r)
         {
-            return Err(Error::Usage(format!(
-                "`{r}` is not a reason; use {}",
-                DISMISSALS.join(", ")
-            )));
+            return Err(usage(
+                "purchase_reason_unknown",
+                json!({ "reason": r, "reasons": DISMISSALS.join(", ") }),
+            ));
         }
         self.conn.execute(
             "UPDATE purchases SET dismissed = ?1, why = ?2 WHERE id = ?3",
@@ -1041,7 +1047,7 @@ impl Inventory {
 /// A pack below 1, or one that would leave fewer units than are already linked, is refused.
 fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
     if pack < 1 {
-        return Err(Error::Usage("pack must be at least 1".into()));
+        return Err(usage("purchase_pack_below_one", Value::Null));
     }
     let p = purchase_json(conn, id)?;
     let qty = p["qty"].as_i64().unwrap_or(1);
@@ -1052,10 +1058,10 @@ fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
         .filter_map(|l| l["qty"].as_i64())
         .sum();
     if qty * pack < linked {
-        return Err(Error::Usage(format!(
-            "purchase {id} has {linked} units linked; a pack of {pack} leaves {}",
-            qty * pack
-        )));
+        return Err(usage(
+            "purchase_pack_too_small",
+            json!({ "id": id, "linked": linked, "pack": pack, "units": qty * pack }),
+        ));
     }
     conn.execute(
         "UPDATE purchases SET pack = ?1 WHERE id = ?2",
@@ -1072,9 +1078,7 @@ fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
     )?;
     if matches!(kind.as_str(), "home" | "room") {
-        return Err(Error::Usage(format!(
-            "#{node} is a place; a purchase is linked to a thing"
-        )));
+        return Err(usage("purchase_link_to_place", json!({ "node": node })));
     }
     if state == "gone"
         && let Some(h @ ("mistake" | "merged" | "digitize")) = how.as_deref()

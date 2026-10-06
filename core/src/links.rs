@@ -7,8 +7,9 @@ use std::path::Path;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
+use crate::Result;
+use crate::error::{not_found, usage};
 use crate::store::{Inventory, brief, now, resolve};
-use crate::{Error, Result};
 
 pub const LINK_KINDS: [&str; 5] = ["info", "manual", "support", "driver", "other"];
 
@@ -17,10 +18,10 @@ fn check_kind(kind: &str) -> Result<String> {
     if LINK_KINDS.contains(&k.as_str()) {
         Ok(k)
     } else {
-        Err(Error::Usage(format!(
-            "`{kind}` is not a link kind; use one of {}",
-            LINK_KINDS.join(", ")
-        )))
+        Err(usage(
+            "link_kind_unknown",
+            json!({ "kind": kind, "kinds": LINK_KINDS.join(", ") }),
+        ))
     }
 }
 
@@ -38,11 +39,14 @@ fn archive_of(dir: &Path, archive: Option<&str>) -> Result<Option<String>> {
     }
     let file = Path::new(a);
     if !file.is_file() {
-        return Err(Error::Usage(format!(
-            "archive `{a}`: neither a web address nor a file"
-        )));
+        return Err(usage("link_archive_neither", json!({ "archive": a })));
     }
-    let bytes = std::fs::read(file).map_err(|e| Error::Usage(format!("{a}: {e}")))?;
+    let bytes = std::fs::read(file).map_err(|e| {
+        usage(
+            "link_archive_unreadable",
+            json!({ "archive": a, "error": e.to_string() }),
+        )
+    })?;
     let ext = file
         .extension()
         .and_then(|e| e.to_str())
@@ -87,7 +91,7 @@ pub(crate) fn add_link(
     let kind = check_kind(kind)?;
     let url = url.trim();
     if !web(url) {
-        return Err(Error::Usage(format!("`{url}` is not a web address")));
+        return Err(usage("not_web_address", json!({ "url": url })));
     }
     let archive = archive_of(dir, archive)?;
     let note = note.map(str::trim).filter(|n| !n.is_empty());
@@ -133,7 +137,7 @@ impl Inventory {
                 r.get(0)
             })
             .optional()?;
-        let node = node.ok_or_else(|| Error::NotFound(format!("link {id}")))?;
+        let node = node.ok_or_else(|| not_found("link_no_such_id", json!({ "id": id })))?;
         self.conn.execute("DELETE FROM links WHERE id = ?1", [id])?;
         Ok(json!({ "node": brief(&self.conn, node)?, "links": links_of(&self.conn, node)? }))
     }

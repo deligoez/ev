@@ -4,7 +4,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result, refuse};
+use crate::error::{Error, Result, refuse, usage};
 use crate::store::{Inventory, brief_json, event, load, resolve, touch};
 
 const MAX_COLS: i64 = 26;
@@ -34,7 +34,7 @@ fn cell_name(col: i64, row: i64) -> String {
 
 fn parse_cell(s: &str) -> Result<(i64, i64)> {
     let s = s.trim();
-    let bad = || Error::Usage(format!("`{s}` is not a cell like A3"));
+    let bad = || usage("cell_bad", json!({ "cell": s }));
     let mut chars = s.chars();
     let letter = chars.next().ok_or_else(bad)?.to_ascii_uppercase();
     if !letter.is_ascii_uppercase() {
@@ -106,12 +106,7 @@ pub struct GridCorners(pub [(f64, f64); 4]);
 impl std::str::FromStr for GridCorners {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
-        let bad = || {
-            Error::Usage(format!(
-                "grid corners `{s}` are eight fractions 0–1: back-left x,y, back-right x,y, \
-                 front-right x,y, front-left x,y"
-            ))
-        };
+        let bad = || usage("grid_corners_bad", json!({ "corners": s }));
         let v: Vec<f64> = s
             .split(',')
             .map(|p| p.trim().parse::<f64>())
@@ -405,9 +400,10 @@ pub(crate) fn grid_json(conn: &Connection, holder: i64) -> Result<Option<Value>>
 /// Lays `id` out in `cols` × `rows` cells inside the caller's transaction.
 fn grid_set_in(conn: &Connection, id: i64, cols: i64, rows: i64) -> Result<()> {
     if !(1..=MAX_COLS).contains(&cols) || !(1..=MAX_ROWS).contains(&rows) {
-        return Err(Error::Usage(format!(
-            "a grid is 1–{MAX_COLS} columns and 1–{MAX_ROWS} rows"
-        )));
+        return Err(usage(
+            "grid_size_bad",
+            json!({ "max_cols": MAX_COLS, "max_rows": MAX_ROWS }),
+        ));
     }
     let outside: Vec<Value> = placed(conn, id)?
         .iter()
@@ -473,9 +469,7 @@ impl Inventory {
     /// a holder without a grid.
     pub fn grid_face(&mut self, references: &[String], face: &str) -> Result<Value> {
         if !matches!(face, "above" | "front") {
-            return Err(Error::Usage(format!(
-                "a grid is seen from `above` or from the `front`; got `{face}`"
-            )));
+            return Err(usage("grid_face_bad", json!({ "face": face })));
         }
         let tx = self.conn.transaction()?;
         let mut ids = Vec::new();
@@ -554,14 +548,14 @@ impl Inventory {
     /// places in one step. A box keeps its code: it is the box's serial label, not its place.
     pub fn cells_set(&mut self, pairs: &[(String, String)]) -> Result<Value> {
         if pairs.is_empty() {
-            return Err(Error::Usage("give at least one <ref>=<cells>".into()));
+            return Err(usage("cell_nothing_given", Value::Null));
         }
         let tx = self.conn.transaction()?;
         let mut moves: Vec<(crate::Node, i64, Option<Cells>)> = Vec::new();
         for (reference, range) in pairs {
             let n = load(&tx, resolve(&tx, reference, false)?)?;
             if moves.iter().any(|(m, _, _)| m.id == n.id) {
-                return Err(Error::Usage(format!("`{reference}` is given twice")));
+                return Err(usage("cell_ref_twice", json!({ "ref": reference })));
             }
             let holder = n.parent_id.ok_or_else(|| {
                 refuse(

@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{refuse, refused};
+use crate::error::{not_found, refuse, refused, usage};
 use crate::model::{Kind, Node, State};
 use crate::store::{Inventory, brief, event, ids, live_nodes, now, resolve, rules_json, show};
 use crate::{Error, Result};
@@ -601,7 +601,7 @@ fn task_json(conn: &Connection, id: i64) -> Result<Value> {
             },
         )
         .optional()?
-        .ok_or_else(|| Error::NotFound(format!("no task with id {id}")))?;
+        .ok_or_else(|| not_found("task_not_found", json!({ "id": id })))?;
     let nodes = task_nodes(conn, id)?
         .into_iter()
         .map(|n| {
@@ -648,7 +648,7 @@ fn parse_due(due: Option<&str>) -> Result<Option<String>> {
         None => Ok(None),
         Some(d) => chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
             .map(|d| Some(d.to_string()))
-            .map_err(|_| Error::Usage(format!("due is YYYY-MM-DD, got `{d}`"))),
+            .map_err(|_| usage("task_bad_due", json!({ "due": d }))),
     }
 }
 
@@ -767,7 +767,7 @@ fn while_there(
 fn non_empty<'a>(what: &str, s: &'a str) -> Result<&'a str> {
     let t = s.trim();
     if t.is_empty() {
-        return Err(Error::Usage(format!("{what} is empty")));
+        return Err(usage("plan_field_empty", json!({ "field": what })));
     }
     Ok(t)
 }
@@ -799,10 +799,10 @@ impl Inventory {
         if let Some(g) = goal {
             let g = g.trim().to_lowercase();
             if !GOALS.contains(&g.as_str()) {
-                return Err(Error::Usage(format!(
-                    "goal must be one of {}",
-                    GOALS.join(", ")
-                )));
+                return Err(usage(
+                    "plan_goal_unknown",
+                    json!({ "goals": GOALS.join(", ") }),
+                ));
             }
             self.conn.execute(
                 "INSERT INTO settings (key, value) VALUES ('goal', ?1)
@@ -837,7 +837,7 @@ impl Inventory {
         )?;
         let photo = match photo {
             Some(n) if n == 0 || n as i64 > photos => {
-                return Err(Error::NotFound(format!("node {id} has no photo {n}")));
+                return Err(not_found("node_has_no_photo", json!({ "id": id, "n": n })));
             }
             Some(n) => Some(n as i64),
             None if photos > 0 => Some(photos),
@@ -917,10 +917,10 @@ impl Inventory {
             .get(n.wrapping_sub(1))
             .map(|m| std::path::PathBuf::from(&m.source))
             .ok_or_else(|| {
-                Error::NotFound(format!(
-                    "the marked photo series has no f{n} ({} picture(s))",
-                    series.len()
-                ))
+                not_found(
+                    "plan_series_has_no",
+                    json!({ "n": n, "count": series.len() }),
+                )
             })
     }
 
@@ -939,9 +939,10 @@ impl Inventory {
         let series = series_of(&req);
         let count = series.len();
         if n == 0 || n > count {
-            return Err(Error::NotFound(format!(
-                "the marked photo series has no f{n} ({count} picture(s))"
-            )));
+            return Err(not_found(
+                "plan_series_has_no",
+                json!({ "n": n, "count": count }),
+            ));
         }
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         // Written back as the series reads, so `f12` counts what is on screen.
@@ -971,12 +972,15 @@ impl Inventory {
         source: Option<&std::path::Path>,
     ) -> Result<Value> {
         if files.is_empty() {
-            return Err(Error::Usage("name at least one picture".into()));
+            return Err(usage("plan_names_no_picture", Value::Null));
         }
         let mut paths = Vec::new();
         for (file, own) in files {
             if !file.is_file() {
-                return Err(Error::NotFound(format!("no file {}", file.display())));
+                return Err(not_found(
+                    "no_such_file",
+                    json!({ "file": file.display().to_string() }),
+                ));
             }
             let abs = std::path::absolute(file).unwrap_or_else(|_| file.clone());
             paths.push((abs.to_string_lossy().into_owned(), own.as_deref().or(note)));
@@ -1196,7 +1200,7 @@ impl Inventory {
                     |r| r.get::<_, String>(0),
                 )
                 .optional()?
-                .ok_or_else(|| Error::NotFound(format!("node {id} has no photo {n}")))?,
+                .ok_or_else(|| not_found("node_has_no_photo", json!({ "id": id, "n": n })))?,
             ),
         };
         tx.execute(
@@ -1221,7 +1225,7 @@ impl Inventory {
             )
             .optional()?;
         let (node, text) =
-            row.ok_or_else(|| Error::NotFound(format!("no observation {observation}")))?;
+            row.ok_or_else(|| not_found("plan_no_observation", json!({ "id": observation })))?;
         let tx = self.conn.transaction()?;
         tx.execute("DELETE FROM observations WHERE id = ?1", [observation])?;
         event(
@@ -1244,9 +1248,7 @@ impl Inventory {
         let id = resolve(&tx, reference, false)?;
         // A place is counted, a thing is counted with the place it is in.
         if crate::store::load(&tx, id)?.kind == Kind::Item && status != "raw" {
-            return Err(Error::Usage(format!(
-                "#{id} is a thing, not a place; review the place it is in"
-            )));
+            return Err(usage("review_thing_not_place", json!({ "id": id })));
         }
         match status.as_str() {
             "raw" => {
@@ -1327,9 +1329,7 @@ impl Inventory {
                 )?;
             }
             _ => {
-                return Err(Error::Usage(
-                    "review must be counting, toured, kept or raw".to_string(),
-                ));
+                return Err(usage("review_status_unknown", Value::Null));
             }
         }
         event(&tx, id, "review", json!({ "as": status, "note": note }))?;
@@ -1412,9 +1412,7 @@ impl Inventory {
         if let Some(s) = scope {
             let n = crate::store::load(&self.conn, s)?;
             if n.kind == Kind::Item {
-                return Err(Error::Usage(format!(
-                    "#{s} is a thing, not a place: give the furniture or room it is in"
-                )));
+                return Err(usage("progress_thing_not_place", json!({ "id": s })));
             }
             // A box inside a place is counted with that place: read the place.
             if let Some((unit, _)) = unit_state(&self.conn, s)?
@@ -1582,10 +1580,10 @@ impl Inventory {
     /// Moves a task to `status`. `done` and `dropped` close it; `open`/`doing` reopen it.
     pub fn task_set(&mut self, id: i64, status: &str, note: Option<&str>) -> Result<Value> {
         if !TASK_STATES.contains(&status) {
-            return Err(Error::Usage(format!(
-                "status must be one of {}",
-                TASK_STATES.join(", ")
-            )));
+            return Err(usage(
+                "task_status_unknown",
+                json!({ "states": TASK_STATES.join(", ") }),
+            ));
         }
         let tx = self.conn.transaction()?;
         let before = task_json(&tx, id)?;

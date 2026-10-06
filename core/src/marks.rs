@@ -445,6 +445,17 @@ impl Inventory {
     /// since; it leaves the photo-needed list until the next change.
     pub fn photo_current(&mut self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
+        let photos: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM photos WHERE node_id = ?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        if photos == 0 {
+            return Err(refused(
+                format!("node {id} has no photo to call current; `ev photo add {id} <file>`"),
+                Value::Null,
+            ));
+        }
         set_mark(&self.conn, id, "photo_ok", None, None, None)?;
         // Current again: the out-of-date mark it carried no longer says anything.
         clear_mark(&self.conn, id, "photo_stale")?;

@@ -125,7 +125,7 @@ pub fn error_sentence(s: &ev_core::Said) -> String {
     // in the reader's language too.
     let mut values = s.values.clone();
     if lang() == Lang::Tr {
-        for key in ["kind", "bucket", "as"] {
+        for key in ["kind", "bucket", "as", "status"] {
             if let Some(serde_json::Value::String(word)) = values.get(key)
                 && let Some(tr) = turkish().get(word.as_str())
             {
@@ -311,6 +311,99 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "cells_shared",
         "{a} ({a_cells}) ile {b} ({b_cells}) aynı hücreleri paylaşır",
     ),
+    (
+        "spread_items_only",
+        "{node}: yalnız eşyalar birkaç yerde tutulur",
+    ),
+    (
+        "spread_serial_one_unit",
+        "{node}: seri numaralı bir kayıt tek birimdir",
+    ),
+    ("spread_lost", "{node}: kayıp; önce bul"),
+    ("spread_lent", "{node}: ödünçte; önce geri al"),
+    (
+        "spread_pending",
+        "{node}: zaten bekleyen bir taşıması var; önce iptal et",
+    ),
+    (
+        "spread_holds_things",
+        "{node}: içinde şeyler var; önce içindekileri taşı",
+    ),
+    (
+        "not_that_many",
+        "{node} kaydında {have} var; alınacak {qty} yok",
+    ),
+    (
+        "portion_not_an_item",
+        "{node} bir {kind}, yalnız eşyalar birkaç yerde tutulur; birkaç kutuyu tutan tek kaydı ikiye ayırmak için `ev split <box> <name>=<n> --take` ile bir kısmını al",
+    ),
+    (
+        "portion_has_serial",
+        "{node} kaydının seri numarası var: tek birimdir, birkaç yerde tutulmaz",
+    ),
+    (
+        "join_all_gone",
+        "hepsi gitmiş; birleştirmek için hâlâ burada olan biri gerekir",
+    ),
+    (
+        "join_differ",
+        "{field} alanında farklılar ({seen}); tek bir şeyse önce hepsine aynı {field} değerini ver",
+    ),
+    ("not_in_several_places", "{node} birkaç yerde tutulmuyor"),
+    (
+        "portion_field_apart",
+        "{node}, birkaç yerde tutulan bir şeyin bir parçası; {field} onu ayırır: önce `ev unjoin`",
+    ),
+    (
+        "review_unchanged",
+        "#{id} zaten {status}; o zamandan beri bir şey değişmedi",
+    ),
+    (
+        "task_done_reopen_first",
+        "{id} numaralı iş bitmiş; bitmediyse önce `ev task reopen {id}`",
+    ),
+    (
+        "task_already",
+        "{id} numaralı iş zaten {status}; değişecek bir şey yok",
+    ),
+    (
+        "task_not_closed",
+        "{id} numaralı iş kapalı değil; yeniden açılacak bir şey yok",
+    ),
+    (
+        "task_dropped_reopen_first",
+        "{id} numaralı iş bırakılmış; bittiyse önce `ev task reopen {id}`",
+    ),
+    (
+        "task_closed_reopen_first",
+        "{id} numaralı iş kapalı; önce `ev task reopen {id}`",
+    ),
+    (
+        "task_closed_no_move",
+        "{id} numaralı iş kapalı; yerini değiştirmeden önce yeniden aç",
+    ),
+    (
+        "no_photo_to_call_current",
+        "#{id} kaydının güncel sayılacak bir fotoğrafı yok; `ev photo add {id} <file>`",
+    ),
+    (
+        "no_code_no_label",
+        "#{id} kaydının kodu yok, basılacak bir etiketi de yok",
+    ),
+    (
+        "empty_not_a_box",
+        "{ref} bir {kind}, kutu değil: yalnız bir kap boş sayılır",
+    ),
+    (
+        "empty_has_records",
+        "{ref} içinde {count} kayıt var; boşsa önce onları çıkar",
+    ),
+    ("not_broken", "#{id} bozuk olarak işaretli değil"),
+    (
+        "not_for_sale",
+        "#{id} satılmak üzere ayrılmamış; önce `ev dispose {id} --as sell`",
+    ),
+    ("need_closed", "{id} numaralı ihtiyaç zaten kapalı"),
 ];
 
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.

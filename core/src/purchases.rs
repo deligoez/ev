@@ -201,6 +201,25 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
         "SELECT id FROM purchases WHERE same_as = ?1 ORDER BY id",
         [id]
     )?);
+    // A joined line names the line it joins and what that is linked to, so the way back from
+    // a source's key to the thing is one call (spec/ak.md).
+    if let Some(t) = p["same_as"].as_i64() {
+        let (source, key): (String, String) = conn.query_row(
+            "SELECT source, source_key FROM purchases WHERE id = ?1",
+            [t],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT node_id, qty FROM purchase_links WHERE purchase_id = ?1 ORDER BY node_id",
+        )?;
+        let linked = stmt
+            .query_map([t], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+            .into_iter()
+            .map(|(n, q)| Ok(json!({ "node": brief(conn, n)?, "qty": q })))
+            .collect::<Result<Vec<_>>>()?;
+        p["joined_to"] = json!({ "id": t, "source": source, "source_key": key, "linked": linked });
+    }
     // The things the person said it is not.
     let mut stmt = conn.prepare(
         "SELECT node_id, why FROM purchase_declines WHERE purchase_id = ?1 ORDER BY node_id",

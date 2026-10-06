@@ -374,3 +374,12 @@ fn lending_to_whom_it_is_with_is_refused_but_passing_it_on_is_not() {
     let v = inv.lend("Tablet", "Mehmet").unwrap();
     assert_eq!(v["node"]["with"], "Mehmet", "{v}");
 }
+
+#[test]
+fn a_place_said_to_be_what_it_already_is_records_nothing() {
+    let (_d, mut inv) = setup();
+    inv.review("Kutu", "toured", None).unwrap();
+    assert_eq!(inv.review("Kutu", "toured", None).unwrap_err().code(), 5);
+    inv.review("Kutu", "kept", None).unwrap();
+    assert_eq!(inv.review("Kutu", "kept", None).unwrap_err().code(), 5);
+}

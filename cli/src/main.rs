@@ -1842,6 +1842,16 @@ fn run(cli: Cli) -> Result<Value> {
             year: None,
         } => inv.past(name.as_deref(), place.as_deref()),
         Cmd::Disposals { disposition: d } => {
+            // Only what a thing can be set aside as has a pile.
+            const PILES: [&str; 6] = ["trash", "digitize", "give", "sell", "trade", "return"];
+            if let Some(x) = d.as_deref()
+                && !PILES.contains(&x.trim())
+            {
+                return Err(Error::Usage(format!(
+                    "no pile `{x}`; use {}",
+                    PILES.join(", ")
+                )));
+            }
             inv.disposals(d.as_deref().map(disposition).transpose()?)
         }
         Cmd::Lost {

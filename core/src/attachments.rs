@@ -168,6 +168,9 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
             ))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    // A relayed line (ak's) is never the one kept: it joins the shop's line, not the other way
+    // round (spec/ak.md), also while it waits unjoined.
+    let relays = serde_json::json!(RELAYS).to_string();
     let mut joined = 0;
     for (id, source, order_url, product_url) in lines {
         // A line already kept by another is not joined to a third.
@@ -190,8 +193,9 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
                 "SELECT id FROM purchases
                   WHERE source != ?1 AND same_as IS NULL AND length(order_no) >= 6
                     AND instr(?2, order_no) > 0
+                    AND source NOT IN (SELECT value FROM json_each(?3))
                   ORDER BY id",
-                params![source, u],
+                params![source, u, relays],
             )?,
             None => Vec::new(),
         };
@@ -201,8 +205,9 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
                 "SELECT id FROM purchases
                   WHERE source != ?1 AND same_as IS NULL AND length(shop_sku) >= 6
                     AND instr(?2, shop_sku) > 0
+                    AND source NOT IN (SELECT value FROM json_each(?3))
                   ORDER BY id",
-                params![source, urls],
+                params![source, urls, relays],
             )?;
             Ok(if among.is_empty() {
                 all

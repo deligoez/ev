@@ -118,7 +118,7 @@ fn a_coverage_s_line_is_checked_first_and_its_currency_follows_the_line() {
 #[test]
 fn the_dearest_things_cost_is_never_added_across_currencies() {
     let (_d, mut inv) = setup();
-    for (paid, currency) in [("299.95", "EUR"), ("6.38", "USD")] {
+    for (paid, currency) in [("299.00", "EUR"), ("6.00", "USD")] {
         inv.buy_add(
             &serde_json::json!({"name": "Telefon", "qty": 1, "paid": paid, "currency": currency}),
             Some("Telefon"),
@@ -127,8 +127,8 @@ fn the_dearest_things_cost_is_never_added_across_currencies() {
     }
     let v = inv.stats().unwrap();
     let cost = &v["value"]["dearest"][0]["cost"];
-    assert_eq!(cost["EUR"], "299.95", "{v}");
-    assert_eq!(cost["USD"], "6.38", "{v}");
+    assert_eq!(cost["EUR"], "299.00", "{v}");
+    assert_eq!(cost["USD"], "6.00", "{v}");
 }
 
 #[test]

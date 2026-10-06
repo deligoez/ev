@@ -22,7 +22,7 @@ fn a_warranty_bought_as_its_own_line_settles_it_and_takes_its_price() {
     }
     let line = inv
         .buy_add(
-            &serde_json::json!({"name": "3 Yıl Uzatılmış Garanti", "qty": 1, "paid": "4390.00"}),
+            &serde_json::json!({"name": "3 Yıl Uzatılmış Garanti", "qty": 1, "paid": "3999.00"}),
             None,
         )
         .unwrap()["purchase"]["id"]
@@ -49,7 +49,7 @@ fn a_warranty_bought_as_its_own_line_settles_it_and_takes_its_price() {
         .unwrap();
     let v = inv.cover_purchase(c, Some(line)).unwrap();
     assert_eq!(v["coverage"]["purchase"]["id"], line);
-    assert_eq!(v["coverage"]["premium"], "4390.00");
+    assert_eq!(v["coverage"]["premium"], "3999.00");
     assert_eq!(open(&inv), 0);
     assert_eq!(inv.todo().unwrap()["counts"]["purchases"], 0);
     // Taken back, the line waits again.

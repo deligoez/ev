@@ -548,7 +548,7 @@ fn what_is_never_a_thing_is_paid_for_apart_and_never_waits_to_be_linked() {
     let (_d, mut inv) = setup();
     for (name, bucket, paid) in [
         ("Geliştirici üyeliği", "digital", "99.00"),
-        ("Diyet programı", "service", "3000.00"),
+        ("Kurulum hizmeti", "service", "3000.00"),
         ("Matkap", "durable", "1999.00"),
     ] {
         inv.buy_add(

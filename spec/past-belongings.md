@@ -149,7 +149,7 @@ it once", and whether a marketplace's sale mails could be a source too.
    already gone, or gone with a date said, `--at`) first, then **left the inventory** (things
    recorded here and seen leaving). In `ev ui` each is a heading of its own that opens and
    closes, with its years under it. `ev stats` still counts both.
-9. **A swap is a way of leaving: `trade`.** "My laptop for my sibling's Mac mini" is neither
+9. **A swap is a way of leaving: `trade`.** "My bike for a friend's guitar" is neither
    given nor sold. `--as trade [--traded-for <ref>]` on `ev gone` and `--gone trade
    [--traded-for <ref>]` on `ev add`: what came in exchange, when it is recorded, is linked
    (`departures.traded_for`, schema 35); the departure shows it, and the record that came shows

@@ -76,7 +76,7 @@ fn a_former_place_given_as_a_bare_id_is_refused() {
         false,
         None,
         None,
-        Some("612"),
+        Some("42"),
     );
     assert_eq!(bare.unwrap_err().code(), 2);
 }

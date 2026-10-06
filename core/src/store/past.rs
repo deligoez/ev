@@ -489,7 +489,7 @@ impl Inventory {
         // `ev edit left=`) dates the leaving but does not make it remembered.
         let mut stmt = conn.prepare(&format!(
             "SELECT n.id, n.name, n.disposition, {CAME}, {LEFT}, pl.name, d.place_id,
-                    d.price, d.currency, d.via,
+                    d.price, d.currency, d.via, n.qty, d.traded_for,
                     EXISTS (SELECT 1 FROM events e WHERE e.node_id = n.id AND e.type = 'gone'
                       AND (json_extract(e.data, '$.past') = 1
                         OR json_extract(e.data, '$.at') IS NOT NULL))
@@ -508,6 +508,8 @@ impl Inventory {
             Option<String>,
             Option<String>,
             Option<String>,
+            Option<i64>,
+            Option<i64>,
             bool,
         );
         let rows: Vec<Row> = stmt
@@ -524,6 +526,8 @@ impl Inventory {
                     r.get(8)?,
                     r.get(9)?,
                     r.get(10)?,
+                    r.get(11)?,
+                    r.get(12)?,
                 ))
             })?
             .collect::<std::result::Result<_, _>>()?;
@@ -543,7 +547,21 @@ impl Inventory {
             things: Vec<Value>,
         }
         let mut lists: [List; 2] = Default::default();
-        for (id, name, how, came, left, where_, place_id, price, currency, via, remembered) in rows
+        for (
+            id,
+            name,
+            how,
+            came,
+            left,
+            where_,
+            place_id,
+            price,
+            currency,
+            via,
+            qty,
+            traded_for,
+            remembered,
+        ) in rows
         {
             if place.is_some() && place_id != place {
                 continue;
@@ -580,9 +598,11 @@ impl Inventory {
                     *e.2.entry(currency.clone()).or_default() += g;
                 }
             }
+            // How many there were, and what came in exchange for a swap.
+            let traded_for = traded_for.map(|t| super::brief_json(conn, t)).transpose()?;
             list.things.push(json!({
-                "id": id, "name": name, "came": came, "left": left, "how": how,
-                "where": where_, "paid": sums_json(&paid),
+                "id": id, "name": name, "qty": qty, "came": came, "left": left, "how": how,
+                "where": where_, "traded_for": traded_for, "paid": sums_json(&paid),
                 "got": got.map(|g| json!({
                     "price": crate::purchases::money(g), "currency": currency, "via": via,
                 })),

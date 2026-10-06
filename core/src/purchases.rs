@@ -670,6 +670,12 @@ impl Inventory {
                 r.get(0)
             })?;
         v["key"] = json!(format!("manual-{next}"));
+        // Recorded by hand, a purchase was made: its date is not one still to come.
+        if let Some(d) = v["ordered_at"].as_str()
+            && d.get(..10).unwrap_or(d) > crate::store::today().to_string().as_str()
+        {
+            return Err(Error::Usage(format!("`{d}` is still to come")));
+        }
         if v["bucket"] == "consumable" {
             return Err(Error::Usage(format!(
                 "consumables are not recorded as purchases; use {}",

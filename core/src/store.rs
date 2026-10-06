@@ -559,7 +559,8 @@ impl Inventory {
                 kind: n.kind.to_string(),
                 qty: *q,
                 tags: n.tags.clone(),
-                note: Some(format!("Split from #{} ({}).", n.id, n.name)),
+                // Where it came from is its history (`split_from`), read in the reader's
+                // language; a note in one language would stay in it.
                 ..Default::default()
             };
             let id = add_one(&tx, &new, n.parent_id)?;

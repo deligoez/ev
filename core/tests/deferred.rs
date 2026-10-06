@@ -330,3 +330,14 @@ fn a_things_worth_in_todo_is_its_lines_together_as_in_stats() {
     let top = &todo["values"]["top"][0];
     assert_eq!(top["worth"], "2000.00", "{todo}");
 }
+
+#[test]
+fn an_asking_price_comes_with_its_currency() {
+    use ev_core::Disposition;
+    let (_d, mut inv) = setup();
+    inv.dispose("Telefon", Disposition::Sell).unwrap();
+    let v = inv
+        .sale("Telefon", Some("listed"), Some(1500), Some("Letgo"), None)
+        .unwrap();
+    assert_eq!(v["marks"]["sale"]["currency"], "TRY", "{v}");
+}

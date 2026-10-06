@@ -469,7 +469,7 @@ are numbered by `ev photo cut` itself (`marked`, `legend`, `--show`).
 note; `ev dispose <ref> --as d --why "<text>"` appends it to the note too (an `edit` event) when the
 thing is set aside. A gone node is out of reach by name, but its id still works for `ev show <id> --include-gone`,
 `ev history <id>`, `ev edit <id> note=…` (a gone node lets change only what it was: `name`,
-`note`, `came`, `qty`, `make`, `model`, `serial`, and when and where it left: `left=<date>`,
+`note`, `came`, `qty`, `make`, `model`, `serial`, `tags`, its photos, and when and where it left: `left=<date>`,
 `left_in=<place>`, empty clears; any other field exits 5. A date still to come, or a coming
 after the leaving, exits 2), and for adding its
 history: `ev doc add <file> --for <id>`, `ev doc link <doc> <id>` and `ev photo add <id> <photo>`

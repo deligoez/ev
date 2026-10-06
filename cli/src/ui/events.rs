@@ -38,10 +38,13 @@ impl App {
                 Outcome::Quit => self.quit = true,
                 Outcome::Reveal(id) => {
                     self.map_view = None;
-                    self.reveal(id)?;
+                    self.jump_to(id)?;
                 }
             }
             return Ok(());
+        }
+        if self.palette.is_some() {
+            return self.palette_key(k);
         }
         if self.searching {
             match k.code {
@@ -112,7 +115,14 @@ impl App {
             KeyCode::Esc | KeyCode::Char('x') if self.tab == Tab::Search && self.has_search() => {
                 self.clear_search()?
             }
-            KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
+            // Esc steps back through what was opened; with nothing behind, it quits.
+            KeyCode::Esc => {
+                if !self.go_back()? {
+                    self.quit = true;
+                }
+            }
+            KeyCode::Char('q') => self.quit = true,
+            KeyCode::Char(':') => self.open_palette(),
             KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => self.quit = true,
             KeyCode::Down | KeyCode::Char('j') => self.step(1)?,
             KeyCode::Up | KeyCode::Char('k') => self.step(-1)?,
@@ -136,7 +146,7 @@ impl App {
             KeyCode::BackTab => self.next_pane(-1),
             KeyCode::Char('b') => self.toggle_sidebar(),
             KeyCode::Char(c) if Tab::from_digit(c).is_some() => {
-                self.switch(Tab::from_digit(c).unwrap_or(Tab::Tree))?
+                self.go(Tab::from_digit(c).unwrap_or(Tab::Tree))?
             }
             KeyCode::Char('m') => self.reopen_marked(),
             KeyCode::Char('X') => self.close_series()?,
@@ -191,7 +201,7 @@ impl App {
                         self.expanded.insert(id);
                         self.rebuild()?;
                     } else {
-                        self.reveal(id)?;
+                        self.jump_to(id)?;
                     }
                 }
             }
@@ -350,7 +360,7 @@ impl App {
                     .checked_sub(5)
                     .and_then(|y| grid_box_at(self.grid_hit.as_deref().unwrap_or_default(), x, y));
                 if let Some(id) = hit {
-                    return self.reveal(id);
+                    return self.jump_to(id);
                 }
                 return Ok(());
             }
@@ -364,7 +374,7 @@ impl App {
                 let line = (m.row - self.details_area.y - 1) as usize + self.detail_scroll as usize;
                 match self.detail_targets.get(line).copied().flatten() {
                     Some(Target::Node(id)) if self.snap.label.contains_key(&id) => {
-                        return self.reveal(id);
+                        return self.jump_to(id);
                     }
                     Some(Target::Node(id)) => {
                         self.status = tf("#{} is no longer in the tree (gone)", &[&id]);
@@ -393,7 +403,7 @@ impl App {
             MouseEventKind::Down(MouseButton::Left) if inside(self.sidebar_area) => {
                 let hit = self.sidebar_hits.iter().find(|(y, _)| *y == m.row);
                 if let Some(&(_, tab)) = hit {
-                    self.switch(tab)?;
+                    self.go(tab)?;
                     self.enter_list();
                 }
                 Ok(())

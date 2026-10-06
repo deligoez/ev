@@ -35,6 +35,7 @@ use crate::theme::{self, Mode, pal};
 mod details;
 mod draw;
 mod events;
+mod palette;
 mod prefs;
 mod rows;
 
@@ -780,6 +781,9 @@ struct App {
     sidebar_hits: Vec<(u16, Tab)>,
     /// The width the panes had when last drawn, which decides how the sidebar is shown.
     screen: u16,
+    /// `:` while open, and the lists and records opened before, newest last, for `Esc`.
+    palette: Option<palette::Palette>,
+    back: Vec<(Tab, Option<i64>)>,
     /// The sidebar's counts, from the queries that fill the lists, as of the last change.
     counts: HashMap<Tab, usize>,
     last_click: Option<(usize, Instant)>,
@@ -987,6 +991,8 @@ impl App {
             sidebar_area: Rect::default(),
             sidebar_hits: Vec::new(),
             screen: 0,
+            palette: None,
+            back: Vec::new(),
             counts: HashMap::new(),
             last_click: None,
             picker: None,
@@ -1470,7 +1476,7 @@ impl App {
             return Ok(());
         }
         if self.tab != Tab::Tree {
-            return self.reveal(id);
+            return self.jump_to(id);
         }
         if !self.expanded.remove(&id) {
             self.expanded.insert(id);

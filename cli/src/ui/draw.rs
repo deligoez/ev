@@ -354,6 +354,7 @@ impl App {
             self.help_line(bottom.width as usize, scrolls)
         };
         f.render_widget(Paragraph::new(help).fg(pal().muted), bottom);
+        self.draw_palette(f, body);
     }
 
     /// Where the person is, on the top line: the section and the list, and its count.
@@ -366,6 +367,10 @@ impl App {
         spans.push(Span::styled(self.tab.title(), Style::new().bold()));
         if let Some(n) = self.counts.get(&self.tab) {
             spans.push(Span::styled(format!(" · {n}"), muted));
+        }
+        // Where Esc goes back to.
+        if let Some((tab, _)) = self.back.last() {
+            spans.push(Span::styled(tf("    Esc ‹ {}", &[&tab.title()]), muted));
         }
         Line::from(spans)
     }
@@ -673,6 +678,7 @@ impl App {
             parts.push((1, t("X close series")));
         }
         parts.push((2, t("/ search")));
+        parts.push((2, t(": go to")));
         parts.push((2, t("M map")));
         if self.details.as_ref().is_some_and(|d| {
             d["thing"]["elsewhere"]

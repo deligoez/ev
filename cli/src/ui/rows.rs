@@ -14,9 +14,21 @@ impl App {
     /// passed through (the home, on every jump into the tree) cost a whole-house regroup.
     pub(super) fn rebuild_rows(&mut self) -> Result<()> {
         let keep = self.selected_id();
+        let was = self.state.selected();
         self.rows = self.rows_of(self.tab)?;
-        let idx = keep
-            .and_then(|id| self.rows.iter().position(|r| r.id == id))
+        let found = keep.and_then(|id| self.rows.iter().position(|r| r.id == id));
+        // A record that left a list (done, found, gone) while it was selected: its neighbour
+        // is selected, and the status line says why the selection moved.
+        if let (None, Some(id), Some(at)) = (found, keep, was)
+            && id > 0
+            && self.tab != Tab::Tree
+            && !self.rows.is_empty()
+        {
+            self.status = tf("#{} left this list", &[&id]);
+            self.state.select(Some(at.min(self.rows.len() - 1)));
+            return Ok(());
+        }
+        let idx = found
             // Start on the first real line, not on a section header.
             .or_else(|| {
                 self.rows

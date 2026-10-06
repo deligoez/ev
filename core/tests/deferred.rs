@@ -177,3 +177,24 @@ fn a_split_off_part_carries_its_origin_in_history_not_in_an_english_note() {
     let part = inv.show("Şarj kablosu", false).unwrap();
     assert!(part["node"]["note"].is_null(), "{part}");
 }
+
+#[test]
+fn lines_are_listed_and_found_by_the_account_they_were_billed_to() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(concat!(
+        r#"{"source":"apple","key":"a1","name":"Uygulama","billed_to":"ayse@example.com"}"#,
+        "\n",
+        r#"{"source":"apple","key":"a2","name":"Oyun","billed_to":"mehmet@example.com"}"#,
+    ))
+    .unwrap();
+    let v = inv
+        .buy_list_billed(false, None, None, None, None, Some("AYSE"))
+        .unwrap();
+    let rows = v["purchases"].as_array().unwrap();
+    assert_eq!(rows.len(), 1, "{v}");
+    assert_eq!(rows[0]["billed_to"], "ayse@example.com");
+    let q = inv
+        .buy_list_matching(false, None, None, None, Some("mehmet"))
+        .unwrap();
+    assert_eq!(q["purchases"].as_array().unwrap().len(), 1, "{q}");
+}

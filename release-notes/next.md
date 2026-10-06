@@ -51,6 +51,17 @@ and `at` (where it happened, such as a batch line, kept apart from the sentence)
 first: a reference that matches nothing, several things, or a thing gone or joined to
 another. The other errors follow phase by phase; a test keeps their number from growing.
 
+## Faster
+
+- `ev ui` started and refreshed most of a second slower once the sidebar counted the purchase
+  lines, since it read every line for it, at start and again on every change made elsewhere.
+  It now counts them in the database (`buy_counts`), and reads the lines only while a purchase
+  list is open.
+- `ev buy list` looked up every line's joined lines with a scan of the whole table, three
+  times a line: 0.47 s for one household's ~1,840 lines, 0.11 s now. The index it needed is
+  added the first time a file is opened; no schema version depends on it, so an older ev still
+  opens the file.
+
 ## Fixes
 
 - `ev find` compared a code as written: a box coded `X5_13` was not found by `ev find X5-13`,

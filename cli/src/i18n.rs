@@ -1320,9 +1320,17 @@ mod tests {
 
     #[test]
     fn every_text_in_the_code_has_a_turkish_translation() {
+        // Every file that shows words; the ui's own were missed for a while when it was split.
         let sources = [
             include_str!("ui.rs"),
+            include_str!("ui/details.rs"),
+            include_str!("ui/draw.rs"),
+            include_str!("ui/events.rs"),
+            include_str!("ui/prefs.rs"),
+            include_str!("ui/rows.rs"),
             include_str!("render.rs"),
+            include_str!("history.rs"),
+            include_str!("mapview.rs"),
             include_str!("settings.rs"),
         ];
         let map = turkish();

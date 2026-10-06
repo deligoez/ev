@@ -41,6 +41,16 @@ what was left under the last row that fit stayed empty: about a fifth of a tall 
 rows that fit now share that height (a short series takes the whole height in the rows it
 needs), so the usual portrait photo is drawn taller, and a picture sits centred in its tile.
 
+## Errors with ids
+
+An error now can carry a stable id and its values, so the text output can say it in the
+reader's language and an agent can match on it rather than on an English sentence
+(spec/error-ids.md, decided with the person for ev and ak alike). The JSON adds `id`, `values`
+and `at` (where it happened, such as a batch line, kept apart from the sentence); `code`,
+`kind` and the English `message` are as before. The errors every command meets first come
+first: a reference that matches nothing, several things, or a thing gone or joined to
+another. The other errors follow phase by phase; a test keeps their number from growing.
+
 ## Fixes
 
 - `ev find` compared a code as written: a box coded `X5_13` was not found by `ev find X5-13`,

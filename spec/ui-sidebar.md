@@ -78,6 +78,18 @@ desktop apps (Apple's sidebar guidelines, Things, OmniFocus, Linear, Under My Ro
    stack; a figure and that list come from one query.
 5. **Upkeep and people** join the sidebar as those features land.
 
+Phases 1–4 shipped on 2026-10-06. As built, phase 3 filters by where a line stands (`f`: all,
+open, linked, dismissed) and by words (`/`, live); a year and a shop narrow a list only when a
+figure of the statistics opened it. Phase 4 marks a figure with a list behind it `›`; the
+figures that open one are the purchase lines (all, a year's, a shop's), the counting (To do)
+and what left (the past).
+
+Still open from the inventory agent's needs list for the purchases, for when they are asked
+for: a filter by month, currency, source or account; sorting by amount; the line's history and
+its candidate things on the right; product images shown in the line's details; the views
+"open durable lines by probable place", "suspected duplicates" and "lines of things that left";
+a money panel on a thing's details (purchases, repairs, coverage premium, value, sale).
+
 ## Not now
 
 - Reordering or pinning lists by the person (Snipe-IT, Linear favourites): the order above is

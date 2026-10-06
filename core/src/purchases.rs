@@ -818,6 +818,20 @@ impl Inventory {
         Ok(json!({ "purchases": out }))
     }
 
+    /// How many lines each bucket has, every line counted: what `buy_list` returns for it with
+    /// no filter, without reading every line (a sidebar's counts on every change).
+    pub fn buy_counts(&self) -> Result<Value> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT bucket, COUNT(*) FROM purchases GROUP BY bucket")?;
+        let counts = stmt
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, json!(r.get::<_, i64>(1)?)))
+            })?
+            .collect::<rusqlite::Result<serde_json::Map<String, Value>>>()?;
+        Ok(Value::Object(counts))
+    }
+
     pub fn buy_show(&self, id: i64) -> Result<Value> {
         let mut p = purchase_json(&self.conn, id)?;
         let units = p["units"].as_i64().unwrap_or(1);

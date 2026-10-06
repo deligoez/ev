@@ -90,16 +90,22 @@ impl App {
         Ok(self.purchases.as_ref().expect("read above"))
     }
 
-    /// The sidebar's purchase counts: every line of the bucket, whatever the filter.
+    /// The sidebar's purchase counts: every line of the bucket, whatever the filter. Counted in
+    /// the database: reading every line took most of a second, at start and on every change.
     pub(super) fn count_purchases(&mut self) -> Result<()> {
-        let lines = self.purchase_lines()?.clone();
+        let counts = self.inv.buy_counts()?;
         for tab in sidebar_lists() {
             if let Some(bucket) = tab.bucket() {
-                let n = lines
-                    .iter()
-                    .filter(|p| bucket.is_none_or(|b| p["bucket"] == b))
-                    .count();
-                self.counts.insert(tab, n);
+                let n = match bucket {
+                    Some(b) => counts[b].as_u64().unwrap_or(0),
+                    None => counts
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|(_, n)| n.as_u64())
+                        .sum(),
+                };
+                self.counts.insert(tab, n as usize);
             }
         }
         Ok(())

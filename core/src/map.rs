@@ -39,6 +39,18 @@ impl Sketch {
         Some([self.x?, self.y?, self.w?, self.d?])
     }
 
+    /// Every measure to the millimetre, as a person measures: sums of tenths stay tenths
+    /// (`20.2 + 10.1` is `30.3`, not `30.299999999999997`).
+    fn to_mm(&mut self) {
+        let mm = |v: &mut Option<f64>| *v = v.map(|x| (x * 10.0).round() / 10.0);
+        for v in [&mut self.x, &mut self.y, &mut self.w, &mut self.d] {
+            mm(v);
+        }
+        for p in self.points.iter_mut().flatten() {
+            *p = p.map(|c| (c * 10.0).round() / 10.0);
+        }
+    }
+
     /// An outline: the corners, and the rectangle around them as the place and size.
     pub(crate) fn set_outline(&mut self, points: Vec<[f64; 2]>) {
         let [x, y, w, d] = bbox(&points);
@@ -658,6 +670,25 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
             ));
         }
         p.on = Some(base);
+    }
+    p.to_mm();
+    // Furniture and boxes lie inside their holder, when its size is known (a centimetre of
+    // slack for a tape measure's reading). A room may reach out of the one it hangs on (a
+    // balcony off the kitchen).
+    let node = load(conn, id)?;
+    if node.kind != crate::model::Kind::Room
+        && let Some([x, y, w, d]) = p.rect()
+        && let Some(parent) = node.parent_id
+        && let Some([_, _, pw, pd]) = sketch_of(conn, parent)?.rect().or_else(|| {
+            let s = sketch_of(conn, parent).ok()?;
+            Some([0.0, 0.0, s.w?, s.d?])
+        })
+        && (x < -1.0 || y < -1.0 || x + w > pw + 1.0 || y + d > pd + 1.0)
+    {
+        return Err(refused(
+            format!("at {x},{y} and {w}×{d} cm it would lie outside its holder, {pw}×{pd} cm"),
+            json!({ "node": brief_json(conn, id)?, "holder": brief_json(conn, parent)? }),
+        ));
     }
     write_sketch(conn, id, &p)?;
     Ok((id, p))

@@ -307,7 +307,11 @@ fn a_lost_thing_found_elsewhere_is_recorded_as_found_there() {
     let h = inv.history("Telefon").unwrap();
     let last = h["events"].as_array().unwrap().last().unwrap().clone();
     assert_eq!(last["type"], "found", "{h}");
-    assert_eq!(h["names"][format!("#{}", last["data"]["to"])], "Kutu", "{h}");
+    assert_eq!(
+        h["names"][format!("#{}", last["data"]["to"])],
+        "Kutu",
+        "{h}"
+    );
 }
 
 #[test]

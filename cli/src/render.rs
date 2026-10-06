@@ -60,7 +60,8 @@ fn line(n: &Value) -> String {
     if n["code"].is_string() {
         let _ = write!(out, "  [{}]", s(n, "name"));
     }
-    if let Some(q) = n.get("qty").and_then(Value::as_i64) {
+    // One is no count worth saying: a record with a count of one reads as one without.
+    if let Some(q) = n.get("qty").and_then(Value::as_i64).filter(|q| *q != 1) {
         let _ = write!(out, "  x{q}");
     }
     match s(n, "state").as_str() {

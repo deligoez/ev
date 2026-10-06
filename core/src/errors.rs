@@ -94,6 +94,85 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("not_gone", "{node} is not gone"),
     ("left_with", "{node} left with {holder}; restore that first"),
+    // Refusals of the purchases.
+    (
+        "purchase_dismissed",
+        "purchase {id} is dismissed as {as}; clear that first",
+    ),
+    (
+        "purchase_not_enough_open",
+        "purchase {id} has {open} left to link, not {qty}",
+    ),
+    (
+        "purchase_never_a_thing",
+        "purchase {id} is a {bucket} purchase; it is never a thing in the home",
+    ),
+    (
+        "purchase_nothing_open",
+        "purchase {id} has nothing left to link",
+    ),
+    (
+        "purchase_already_bucket",
+        "purchase {id} is already {bucket}",
+    ),
+    (
+        "purchase_linked_unlink_first",
+        "purchase {id} is linked to a thing; `ev buy unlink` it first",
+    ),
+    (
+        "purchase_not_linked_to",
+        "purchase {id} is not linked to node {node}",
+    ),
+    (
+        "line_linked_unlink_first",
+        "line {id} is linked to #{node}; `ev buy unlink {id} {node}` first",
+    ),
+    (
+        "line_not_declined",
+        "line {id} was not declined for #{node}",
+    ),
+    (
+        "left_holds_no_purchase",
+        "#{node} left as {how}; it holds no purchase",
+    ),
+    (
+        "bought_after_left",
+        "the purchase was bought {bought}, after #{node} left ({left})",
+    ),
+    // Refusals of the grids.
+    (
+        "grid_none",
+        "this place has no grid; set one with `ev grid <ref> --cols N --rows M`",
+    ),
+    (
+        "cells_outside_grid",
+        "{cells} is outside the {cols}×{rows} grid",
+    ),
+    (
+        "grid_too_small",
+        "{count} placed box(es) would fall outside a {cols}×{rows} grid",
+    ),
+    (
+        "face_needs_grid",
+        "it has no grid; give it one with --cols and --rows",
+    ),
+    (
+        "grid_has_boxes",
+        "{count} box(es) are placed in this grid; clear their cells first",
+    ),
+    ("not_inside_anything", "{node} is not inside anything"),
+    (
+        "holder_has_no_grid",
+        "{holder} has no grid; set one with `ev grid <holder> --cols N --rows M`",
+    ),
+    (
+        "cells_do_not_fit",
+        "{cells} does not fit in a {cols}×{rows} grid (columns A–{last_col}, rows 1–{rows})",
+    ),
+    (
+        "cells_shared",
+        "{a} ({a_cells}) and {b} ({b_cells}) would share cells",
+    ),
 ];
 
 /// The English template of an id.
@@ -184,7 +263,7 @@ mod tests {
     /// (spec/error-ids.md); lower the number as they are given ids.
     #[test]
     fn errors_without_an_id_only_become_fewer() {
-        const LEFT: usize = 293;
+        const LEFT: usize = 273;
         let n: usize = sources()
             .iter()
             .map(|(_, t)| {

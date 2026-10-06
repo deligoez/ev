@@ -963,6 +963,17 @@ enum BuyCmd {
         #[arg(long, conflicts_with = "reason")]
         clear: bool,
     },
+    /// The same purchase seen by two sources, on the person's word: LINE counts as settled
+    /// through OTHER, the line linked to a thing (an ak line an import listed `unjoined`);
+    /// `--clear` takes that back.
+    Join {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        #[arg(value_parser = record_id, required_unless_present = "clear")]
+        other: Option<i64>,
+        #[arg(long, conflicts_with = "other")]
+        clear: bool,
+    },
     /// The person's "not this one": the line is not this thing. It stays open for others and is
     /// no longer offered to this one; `--clear` takes that back.
     Decline {
@@ -2294,6 +2305,7 @@ fn run(cli: Cli) -> Result<Value> {
             if clear { None } else { reason.as_deref() },
             why.as_deref(),
         ),
+        Cmd::Buy(BuyCmd::Join { id, other, .. }) => inv.buy_join(id, other),
         Cmd::Doc(DocCmd::Show { id }) => inv.doc_show(id),
         Cmd::Doc(DocCmd::Link { id, reference }) => inv.doc_link(id, &reference),
         Cmd::Doc(DocCmd::Unlink { id, reference }) => inv.doc_unlink(id, &reference),

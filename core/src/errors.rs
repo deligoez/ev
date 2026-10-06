@@ -103,6 +103,19 @@ pub const ERRORS: &[(&str, &str)] = &[
         "purchase_not_enough_open",
         "purchase {id} has {open} left to link, not {qty}",
     ),
+    ("purchase_join_itself", "purchase {id} cannot join itself"),
+    (
+        "purchase_join_to_joined",
+        "purchase {into} joins {kept} already; join to {kept}",
+    ),
+    (
+        "purchase_join_linked",
+        "purchase {id} is linked to a thing; unlink it first, or join the other line to it",
+    ),
+    (
+        "purchase_join_kept",
+        "other lines join purchase {id}; join them to the other line instead",
+    ),
     (
         "purchase_never_a_thing",
         "purchase {id} is a {bucket} purchase; it is never a thing in the home",

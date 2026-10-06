@@ -1050,6 +1050,54 @@ impl Inventory {
         self.buy_show(id)
     }
 
+    /// Joins line `id` to `into` on the person's word: the same purchase seen by two sources, as
+    /// an import joins what it can tell (an ak line listed `unjoined`, spec/ak.md). `id` then
+    /// counts as settled through `into`, which is the line linked to a thing. `None` takes a
+    /// join back. Refused for a line joined to itself, to a line that joins another (join to
+    /// that one), for a line linked to a thing (unlink it first) or one others join.
+    pub fn buy_join(&mut self, id: i64, into: Option<i64>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        purchase_json(&tx, id)?;
+        if let Some(t) = into {
+            let other = purchase_json(&tx, t)?;
+            if t == id {
+                return Err(refuse(
+                    "purchase_join_itself",
+                    json!({ "id": id }),
+                    Value::Null,
+                ));
+            }
+            if let Some(kept) = other["same_as"].as_i64() {
+                return Err(refuse(
+                    "purchase_join_to_joined",
+                    json!({ "into": t, "kept": kept }),
+                    Value::Null,
+                ));
+            }
+            let count = |sql: &str| -> Result<i64> { Ok(tx.query_row(sql, [id], |r| r.get(0))?) };
+            if count("SELECT COUNT(*) FROM purchase_links WHERE purchase_id = ?1")? > 0 {
+                return Err(refuse(
+                    "purchase_join_linked",
+                    json!({ "id": id }),
+                    Value::Null,
+                ));
+            }
+            if count("SELECT COUNT(*) FROM purchases WHERE same_as = ?1")? > 0 {
+                return Err(refuse(
+                    "purchase_join_kept",
+                    json!({ "id": id }),
+                    Value::Null,
+                ));
+            }
+        }
+        tx.execute(
+            "UPDATE purchases SET same_as = ?1 WHERE id = ?2",
+            params![into, id],
+        )?;
+        tx.commit()?;
+        self.buy_show(id)
+    }
+
     /// The person's "not this one": line `id` is not the thing `reference`. The line stays
     /// open for other things and is no longer offered to this one; `clear` takes it back.
     pub fn buy_decline(

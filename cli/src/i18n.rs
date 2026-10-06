@@ -253,6 +253,22 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "{id} numaralı alımda bağlanacak {open} birim kaldı, {qty} değil",
     ),
     (
+        "purchase_join_itself",
+        "{id} numaralı alım kendisine birleştirilemez",
+    ),
+    (
+        "purchase_join_to_joined",
+        "{into} numaralı alım zaten {kept} ile birleşik; {kept} ile birleştirin",
+    ),
+    (
+        "purchase_join_linked",
+        "{id} numaralı alım bir eşyaya bağlı; önce bağı kaldırın ya da diğer satırı buna birleştirin",
+    ),
+    (
+        "purchase_join_kept",
+        "başka satırlar {id} numaralı alımla birleşik; onları diğer satıra birleştirin",
+    ),
+    (
         "purchase_never_a_thing",
         "{id} numaralı alım bir {bucket} alımı; evde hiçbir zaman bir eşya olmaz",
     ),

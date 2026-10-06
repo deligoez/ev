@@ -340,7 +340,13 @@ pub(crate) fn coverages_of(conn: &Connection, node: i64) -> Result<(Vec<Value>, 
     })
     .collect::<Result<Vec<Value>>>()?;
     let has_statutory = list.iter().any(|c| c["kind"] == "statutory");
-    let proposal = if has_statutory || decision(conn, node, "coverage")?.is_some() {
+    // A thing that left needs no warranty recorded.
+    let gone: bool = conn.query_row(
+        "SELECT state = 'gone' FROM nodes WHERE id = ?1",
+        [node],
+        |r| r.get(0),
+    )?;
+    let proposal = if gone || has_statutory || decision(conn, node, "coverage")?.is_some() {
         None
     } else {
         statutory_proposal(conn, node)?

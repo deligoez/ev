@@ -32,6 +32,8 @@ const TYPO_OF_A_START: f64 = 0.25;
 /// A query word with everything else it may be written as.
 struct Word {
     text: String,
+    /// The word as a code compares (spec/codes.md): `S5_13`, `S5-013` and `S5-13` are one.
+    code: String,
     stems: Vec<String>,
     synonyms: Vec<String>,
 }
@@ -61,6 +63,7 @@ impl Query {
                     .collect();
                 Word {
                     text: w.to_string(),
+                    code: crate::fold::fold_code(w),
                     stems,
                     synonyms,
                 }
@@ -76,7 +79,7 @@ impl Query {
     /// The nodes every query word meets, best first; ties keep the given order. A word that
     /// meets no node as written, by stem or by synonym is retried allowing typos.
     pub(super) fn rank(&self, nodes: &[Node]) -> Vec<(i64, f64)> {
-        let fields: Vec<Vec<(f64, String)>> = nodes.iter().map(fields).collect();
+        let fields: Vec<Vec<Field>> = nodes.iter().map(fields).collect();
         let typos: Vec<bool> = self
             .words
             .iter()
@@ -101,28 +104,43 @@ impl Query {
     }
 }
 
-/// The record's searchable text, folded, with each field's weight; the name comes first.
-fn fields(n: &Node) -> Vec<(f64, String)> {
-    let mut out = vec![(NAME, fold(&n.name))];
-    out.extend(n.code.iter().map(|c| (CODE, fold(c))));
+/// A searchable field: its weight, its folded text, and whether it is the record's code.
+type Field = (f64, String, bool);
+
+/// The record's searchable text, folded, with each field's weight; the name comes first. The
+/// code is folded as a code, so its separator and the padding of its numbers do not count.
+fn fields(n: &Node) -> Vec<Field> {
+    let mut out = vec![(NAME, fold(&n.name), false)];
+    out.extend(
+        n.code
+            .iter()
+            .map(|c| (CODE, crate::fold::fold_code(c), true)),
+    );
     // Make, model and serial are read off the label: as telling as the code.
     out.extend(
         [&n.make, &n.model, &n.serial]
             .into_iter()
             .flatten()
-            .map(|t| (CODE, fold(t))),
+            .map(|t| (CODE, fold(t), false)),
     );
-    out.extend(n.tags.iter().map(|t| (TAG, fold(t))));
-    out.extend(n.theme.iter().map(|t| (THEME, fold(t))));
-    out.extend(n.note.iter().map(|t| (NOTE, fold(t))));
+    out.extend(n.tags.iter().map(|t| (TAG, fold(t), false)));
+    out.extend(n.theme.iter().map(|t| (THEME, fold(t), false)));
+    out.extend(n.note.iter().map(|t| (NOTE, fold(t), false)));
     out
 }
 
-/// The best score a query word gets on any of the record's fields, if it meets one at all.
-fn meet(w: &Word, fields: &[(f64, String)], typos: bool) -> Option<f64> {
+/// The best score a query word gets on any of the record's fields, if it meets one at all. A
+/// code is met by the word as a code compares (`S5-13` meets `S5_13`), then as any field.
+fn meet(w: &Word, fields: &[Field], typos: bool) -> Option<f64> {
     fields
         .iter()
-        .filter_map(|(weight, text)| quality(w, text, typos).map(|q| weight * q))
+        .filter_map(|(weight, text, code)| {
+            let as_code = (*code && text.contains(&w.code))
+                .then(|| if *text == w.code { WHOLE_WORD } else { INSIDE });
+            as_code
+                .or_else(|| quality(w, text, typos))
+                .map(|q| weight * q)
+        })
         .max_by(f64::total_cmp)
 }
 

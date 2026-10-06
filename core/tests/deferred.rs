@@ -260,3 +260,41 @@ fn a_batch_line_records_a_swap_or_nothing() {
     let bike = inv.show("Eski bisiklet", true).unwrap();
     assert_eq!(bike["departure"]["traded_for"]["name"], "Tablet", "{bike}");
 }
+
+#[test]
+fn purchase_stats_count_only_the_households_own_spending() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(concat!(
+        r#"{"source":"apple","key":"s1","name":"Uygulama","bucket":"digital","paid":"100"}"#,
+        "\n",
+        r#"{"source":"apple","key":"s2","name":"Oyun","bucket":"digital","paid":"50"}"#,
+        "\n",
+        r#"{"source":"apple","key":"s3","name":"Kitap","bucket":"digital","paid":"20"}"#,
+    ))
+    .unwrap();
+    let ids: Vec<i64> = inv.buy_list(false, None, None, None).unwrap()["purchases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["id"].as_i64().unwrap())
+        .collect();
+    let by_name = |n: &str| -> i64 {
+        let v = inv
+            .buy_list_matching(false, None, None, None, Some(n))
+            .unwrap();
+        v["purchases"][0]["id"].as_i64().unwrap()
+    };
+    let (oyun, kitap) = (by_name("oyun"), by_name("kitap"));
+    assert_eq!(ids.len(), 3);
+    inv.buy_dismiss(oyun, Some("not-mine"), None).unwrap();
+    inv.buy_dismiss(kitap, Some("consumed"), None).unwrap();
+    let stats = inv.stats().unwrap();
+    let digital = stats["purchases"]["buckets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["bucket"] == "digital")
+        .cloned()
+        .unwrap();
+    assert_eq!(digital["lines"], 2, "{digital}");
+}

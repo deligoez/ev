@@ -320,3 +320,19 @@ fn importing_the_same_lines_again_leaves_the_database_file_as_it_was() {
         "a re-import that changes nothing writes nothing"
     );
 }
+
+#[test]
+fn what_an_unlink_leaves_comes_with_a_command_that_runs_as_it_is() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(&lines(&shop())).unwrap();
+    inv.buy_import(&lines(&other_app())).unwrap();
+    let tv = id_of(&inv, "o1:a");
+    inv.buy_link(tv, "Televizyon", None).unwrap();
+    inv.buy_bring(tv, "Televizyon", &[], &[]).unwrap();
+    let v = inv.buy_unlink(tv, "Televizyon").unwrap();
+    for left in v["left"].as_array().unwrap() {
+        let how = left["how"].as_str().unwrap();
+        assert!(!how.contains('<'), "{how}");
+        assert!(how.starts_with("ev "), "{how}");
+    }
+}

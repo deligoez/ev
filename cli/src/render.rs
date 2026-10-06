@@ -1039,7 +1039,20 @@ fn document(out: &mut String, v: &Value) {
 }
 
 fn todo(out: &mut String, v: &Value) {
-    let c = &v["counts"];
+    // Only some sections asked for (`--only`): the others are not listed, though counted.
+    let mut counts = v["counts"].clone();
+    if let Some(m) = counts.as_object_mut() {
+        for (k, n) in m.iter_mut() {
+            let section = match k.as_str() {
+                "photos_now" => "photos",
+                other => other,
+            };
+            if v.get(section).is_none() {
+                *n = Value::from(0);
+            }
+        }
+    }
+    let c = &counts;
     let _ = writeln!(
         out,
         "{}  ·  {}",
@@ -2128,7 +2141,8 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
-    if v.get("counts").is_some() && v.get("unclear").is_some() {
+    // `ev todo`, whole or only some of its sections (`--only`): its counts say what it is.
+    if v["counts"].get("uncounted").is_some() {
         todo(&mut out, v);
         return out;
     }

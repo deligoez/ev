@@ -646,6 +646,9 @@ impl Inventory {
                 }
                 Some(y) if y <= year => {}
                 Some(_) => continue,
+                // Nothing says when it came, but it is here this year, or it left in it.
+                None if (!gone && year == crate::store::today().year())
+                    || left.as_deref().and_then(year_of) == Some(year) => {}
                 None => {
                     unknown += 1;
                     continue;

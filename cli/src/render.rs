@@ -2204,6 +2204,10 @@ pub fn human(v: &Value) -> String {
         }
         for cv in list {
             let _ = writeln!(out, "{}", coverage_line(cv));
+            // What each covers, so the list answers "which thing?" without a `cover show`.
+            for n in cv["nodes"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  → #{} {}", n["id"], s(n, "path_text"));
+            }
         }
         return out;
     }

@@ -2371,6 +2371,12 @@ fn non_empty(v: &Option<String>) -> Option<String> {
 }
 
 fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64> {
+    // `ev add` refuses the two together on its command line; a batch line says why.
+    if non_empty(&new.gone).is_some() && non_empty(&new.of).is_some() {
+        return Err(Error::Usage(
+            "a past thing is added on its own: `gone` and `of` do not go together".into(),
+        ));
+    }
     if let Some(of) = non_empty(&new.of) {
         return add_of(conn, new, &of, parent);
     }

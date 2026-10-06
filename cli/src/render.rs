@@ -1079,10 +1079,18 @@ fn todo(out: &mut String, v: &Value) {
                             .map(|w| tf("  waits for #{} {}", &[&w["id"], &s(w, "name")]))
                             .unwrap_or_default()
                     )),
+                    // Begun, it is still to count, and says so.
+                    "uncounted" if n["review"]["status"] == "counting" => {
+                        Some(format!("  {}", t("[being counted]")))
+                    }
                     _ => None,
                 }
                 .unwrap_or_default();
-                let _ = writeln!(out, "  {}{extra}", s(n, "path_text"));
+                let id = n["id"]
+                    .as_i64()
+                    .map(|i| format!("#{i} "))
+                    .unwrap_or_default();
+                let _ = writeln!(out, "  {id}{}{extra}", s(n, "path_text"));
             }
         }
     }
@@ -2388,7 +2396,7 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(
             out,
             "{}  {}",
-            s(kit, "name"),
+            format!("#{} {}", kit["id"], s(kit, "name")),
             tf(
                 "{} of {} found · {} lost · {} still missing",
                 &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
@@ -2471,7 +2479,7 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(
             out,
             "{}  {}",
-            s(kit, "name"),
+            format!("#{} {}", kit["id"], s(kit, "name")),
             tf(
                 "{} of {} found · {} lost · {} still missing",
                 &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
@@ -3480,7 +3488,7 @@ fn kit_parts(out: &mut String, v: &Value, kit: &Value, parts: &[Value]) {
     let _ = writeln!(
         out,
         "{} ×{}  {}",
-        s(kit, "name"),
+        format!("#{} {}", kit["id"], s(kit, "name")),
         kit["copies"],
         tf(
             "{} of {} found · {} lost · {} still missing",

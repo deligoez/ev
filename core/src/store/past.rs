@@ -263,10 +263,22 @@ impl Inventory {
         if other == Some(id) {
             return Err(Error::Usage("a thing is not traded for itself".into()));
         }
+        // What came is a thing, not a place.
+        if let Some(o) = other {
+            let kind: String =
+                tx.query_row("SELECT kind FROM nodes WHERE id = ?1", [o], |r| r.get(0))?;
+            if matches!(kind.as_str(), "home" | "room") {
+                return Err(Error::Usage(format!(
+                    "#{o} is a {kind}; a thing is traded for a thing"
+                )));
+            }
+        }
         tx.execute("UPDATE nodes SET disposition = 'trade' WHERE id = ?1", [id])?;
+        // A swap brought no money: a sale price said before no longer stands.
         tx.execute(
             "INSERT INTO departures (node_id, traded_for) VALUES (?1, ?2)
-             ON CONFLICT(node_id) DO UPDATE SET traded_for = COALESCE(excluded.traded_for, traded_for)",
+             ON CONFLICT(node_id) DO UPDATE SET traded_for = COALESCE(excluded.traded_for, traded_for),
+               price = NULL, currency = NULL",
             params![id, other],
         )?;
         event(&tx, id, "traded", json!({ "was": how, "for": other }))?;

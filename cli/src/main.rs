@@ -1801,7 +1801,7 @@ fn run(cli: Cli) -> Result<Value> {
             place,
             traded_for,
         } => {
-            traded_check(&inv, d.as_deref(), traded_for.as_deref())?;
+            traded_check(&inv, Some(&reference), d.as_deref(), traded_for.as_deref())?;
             let v = inv.gone_left(
                 &reference,
                 d.as_deref().map(disposition).transpose()?,
@@ -2639,7 +2639,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         ),
     };
     warn_missing_photos(a.photos.iter().map(String::as_str));
-    traded_check(inv, a.gone.as_deref(), a.traded_for.as_deref())?;
+    traded_check(inv, None, a.gone.as_deref(), a.traded_for.as_deref())?;
     let added = inv.add(NewNode {
         key: None,
         name,
@@ -2676,14 +2676,43 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
 
 /// `--traded-for` goes with a trade only, and names a record that exists, checked before
 /// anything is written so a refused swap leaves nothing half recorded.
-fn traded_check(inv: &Inventory, how: Option<&str>, traded_for: Option<&str>) -> Result<()> {
+/// `--traded-for` goes with a trade only (said, or the thing set aside to trade), names a thing
+/// that exists and is not the one leaving, all checked before anything is written so a refused
+/// swap leaves nothing half recorded.
+fn traded_check(
+    inv: &Inventory,
+    leaving: Option<&str>,
+    how: Option<&str>,
+    traded_for: Option<&str>,
+) -> Result<()> {
     let Some(t) = traded_for else { return Ok(()) };
-    if how.map(str::trim) != Some("trade") {
+    let leaving = leaving.map(|r| inv.resolve(r, false)).transpose()?;
+    let set_aside = leaving
+        .map(|id| inv.node(id))
+        .transpose()?
+        .and_then(|n| n.disposition);
+    let trade = match how {
+        Some(h) => h.trim() == "trade",
+        None => set_aside == Some(Disposition::Trade),
+    };
+    if !trade {
         return Err(Error::Usage(
             "--traded-for goes with a trade: `--as trade` (or `--gone trade`)".into(),
         ));
     }
-    inv.resolve(t, true).map(|_| ())
+    let other = inv.resolve(t, true)?;
+    if leaving == Some(other) {
+        return Err(Error::Usage("a thing is not traded for itself".into()));
+    }
+    if matches!(
+        inv.node(other)?.kind,
+        ev_core::Kind::Home | ev_core::Kind::Room
+    ) {
+        return Err(Error::Usage(format!(
+            "#{other} is a place; a thing is traded for a thing"
+        )));
+    }
+    Ok(())
 }
 
 fn warn_missing_photos<'a>(paths: impl Iterator<Item = &'a str>) {

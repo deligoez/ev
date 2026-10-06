@@ -1,4 +1,4 @@
-use super::{App, DetailTab, Drag, Tab};
+use super::{App, DetailTab, Drag, Pane, Tab};
 use crate::i18n::Lang;
 use crate::input::Input;
 use crate::settings::{LangPref, Settings, ThemePref};
@@ -1822,4 +1822,34 @@ fn the_sidebar_lists_every_list_under_its_heading_with_digit_and_count() {
             .unwrap()
             .contains("HOME › Lost · 2")
     );
+}
+
+#[test]
+fn tab_moves_the_keys_between_the_panes_and_the_sidebar_opens_lists_as_it_moves() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let mut term = Terminal::new(TestBackend::new(140, 24)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.pane, Pane::List);
+    press(&mut app, KeyCode::Tab);
+    assert_eq!(app.pane, Pane::Details);
+    // Esc in the details goes back to the list, it does not quit.
+    press(&mut app, KeyCode::Esc);
+    assert_eq!(app.pane, Pane::List);
+    assert!(!app.quit);
+    press(&mut app, KeyCode::BackTab);
+    assert_eq!(app.pane, Pane::Sidebar);
+    // Moving in the sidebar opens the next list at once; the ends hold.
+    press(&mut app, KeyCode::Down);
+    assert!(app.tab == Tab::Plan);
+    press(&mut app, KeyCode::Char('k'));
+    press(&mut app, KeyCode::Char('k'));
+    assert!(app.tab == Tab::Tree);
+    press(&mut app, KeyCode::End);
+    assert!(app.tab == Tab::Settings);
+    // Enter goes into the list, and its keys work there again.
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.pane, Pane::List);
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("Language:"));
 }

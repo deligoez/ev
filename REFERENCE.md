@@ -172,7 +172,9 @@ both; the details are `ev buy show` of the line; Enter opens the thing it is lin
 here, in the tree); HISTORY — the past `7` (`ev past`: a
 collapsible heading per year with how many left and the money paid and got, each thing under it;
 its details say when it came and how it left); INSIGHT — statistics `8` (`ev stats`, a
-collapsible section per heading; a line that names a record opens it); then search `/` and
+collapsible section per heading; a line that names a record opens it; a figure marked `›` opens
+the list it counts: the purchase lines, all of them or a year's or a shop's, the To do list for
+the counting, the past for what left; Esc comes straight back); then search `/` and
 settings `0`. A list's count is its own length: pending, leaving, lost, errands, past, the
 purchase lists (every line of the bucket, whatever the filter) and a search's results show one,
 the others none. The top line names the section and list. A

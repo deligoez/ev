@@ -721,7 +721,7 @@ impl App {
         } else if self.picture_count() > 0 {
             parts.push((3, t("[ ] o photos")));
         }
-        parts.push((4, t("Tab pane · 1-8 0 lists · b sidebar")));
+        parts.push((4, t("Tab pane · 0-9 lists · b sidebar")));
         parts.push((5, t("< > { } or drag: resize")));
         parts.push((0, t("q quit")));
         fit_hints(parts, width, &self.status)

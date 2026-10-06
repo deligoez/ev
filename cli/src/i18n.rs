@@ -437,8 +437,8 @@ static TR: &[(&str, &str)] = &[
     ("J/K scroll", "J/K kaydır"),
     ("[ ] o photos", "[ ] o fotoğraf"),
     (
-        "Tab pane · 1-8 0 lists · b sidebar",
-        "Tab bölme · 1-8 0 liste · b kenar çubuğu",
+        "Tab pane · 0-9 lists · b sidebar",
+        "Tab bölme · 0-9 liste · b kenar çubuğu",
     ),
     ("< > { } or drag: resize", "< > { } ya da sürükle: boyut"),
     ("q quit", "q çık"),

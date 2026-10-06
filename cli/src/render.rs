@@ -2395,8 +2395,9 @@ pub fn human(v: &Value) -> String {
         let c = &v["counts"];
         let _ = writeln!(
             out,
-            "{}  {}",
-            format!("#{} {}", kit["id"], s(kit, "name")),
+            "#{} {}  {}",
+            kit["id"],
+            s(kit, "name"),
             tf(
                 "{} of {} found · {} lost · {} still missing",
                 &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
@@ -2478,8 +2479,9 @@ pub fn human(v: &Value) -> String {
         let c = &v["counts"];
         let _ = writeln!(
             out,
-            "{}  {}",
-            format!("#{} {}", kit["id"], s(kit, "name")),
+            "#{} {}  {}",
+            kit["id"],
+            s(kit, "name"),
             tf(
                 "{} of {} found · {} lost · {} still missing",
                 &[&c["found"], &c["expected"], &c["lost"], &c["open"]]
@@ -3487,8 +3489,9 @@ fn kit_parts(out: &mut String, v: &Value, kit: &Value, parts: &[Value]) {
     let c = &v["counts"];
     let _ = writeln!(
         out,
-        "{} ×{}  {}",
-        format!("#{} {}", kit["id"], s(kit, "name")),
+        "#{} {} ×{}  {}",
+        kit["id"],
+        s(kit, "name"),
         kit["copies"],
         tf(
             "{} of {} found · {} lost · {} still missing",

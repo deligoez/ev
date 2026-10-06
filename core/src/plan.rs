@@ -368,7 +368,13 @@ fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
     }
     let Some(u) = unit else { return Ok(None) };
     let r = review_inherited(conn, u)?;
-    Ok(Some((u, r["status"].as_str().unwrap_or("raw").to_string())))
+    // As `unit_review`: a holder's `counting` is not the unit's.
+    let status = match r["status"].as_str() {
+        Some("counting") if r["from"] != json!(u) => "raw",
+        Some(s) => s,
+        None => "raw",
+    };
+    Ok(Some((u, status.to_string())))
 }
 
 /// What is work in a place (spec/counting.md): written for something inside it. A photo is work
@@ -437,6 +443,18 @@ pub(crate) fn effective_review(
         cur = parent.get(&c).copied().flatten();
     }
     None
+}
+
+/// The review a unit stands under: `effective_review`, except that a holder's `counting` is not
+/// passed down. A holder above a unit is no unit itself, so its `counting` is left from before
+/// the unit was one (drawers labelled after their cabinet began to be counted): nothing has been
+/// done in the unit yet.
+pub(crate) fn unit_review(
+    u: i64,
+    parent: &HashMap<i64, Option<i64>>,
+    reviews: &HashMap<i64, (String, String)>,
+) -> Option<(i64, String, String)> {
+    effective_review(u, parent, reviews).filter(|(from, s, _)| *from == u || s != "counting")
 }
 
 /// The review a place stands under: its own, or its nearest reviewed ancestor's (a toured
@@ -1426,7 +1444,7 @@ impl Inventory {
             // Planned through a task on it or on a holder above it (a task on the cabinet
             // plans its drawers).
             v["planned"] = json!(planned.contains(&u) || !tasks.is_empty());
-            match effective_review(u, &parent, &reviews) {
+            match unit_review(u, &parent, &reviews) {
                 Some((from, status, at)) => {
                     // Only a change to what the place holds dates a tour: re-coding a box,
                     // linking a document or editing a note leaves the count as it was.

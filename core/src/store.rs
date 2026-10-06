@@ -1778,7 +1778,7 @@ impl TreeIndex {
         let count = crate::plan::units(&all)
             .into_iter()
             .map(|u| {
-                let s = match crate::plan::effective_review(u, &parent, &reviews) {
+                let s = match crate::plan::unit_review(u, &parent, &reviews) {
                     Some((_, s, at)) => {
                         // As `ev progress` says it: only a change to what it holds dates a tour.
                         if s == "toured" && changes.at(u).is_some_and(|c| c > at) {

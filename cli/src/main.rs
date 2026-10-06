@@ -74,7 +74,9 @@ enum Cmd {
         #[arg(long)]
         empty: bool,
     },
-    /// Change fields: name, code, kind, address, qty, note, theme, fill, make, model, serial, tags=+x/-x, photos=+p/-p.
+    /// Change fields: name, code, kind, address, qty, note, theme, fill, size, make, model,
+    /// serial, came, to, owner, with, temporary, waits_for, tags=+x/-x, photos=+p/-p; on a gone
+    /// record also left and left_in.
     Edit {
         #[arg(required_unless_present = "stdin")]
         reference: Option<String>,
@@ -219,8 +221,9 @@ enum Cmd {
         #[arg(long)]
         note: Option<String>,
     },
-    /// The past belongings, last gone first, with per year how many left and the money paid
-    /// for them and got for them; --year Y: what was ours in that year.
+    /// The past belongings in two lists, what was remembered first and then what left the
+    /// inventory, each last gone first with per year how many left and the money paid for them
+    /// and got for them; --year Y: what was ours in that year.
     Past {
         /// Only those whose name holds this word.
         #[arg(long, conflicts_with = "year")]
@@ -251,7 +254,8 @@ enum Cmd {
         #[arg(long = "in")]
         place: Option<String>,
     },
-    /// A node's events, oldest first; `--contents` adds what came in, went out or was added.
+    /// A node's events (JSON oldest first; the text by day, newest first); `--contents` adds
+    /// what came in, went out or was added.
     History {
         reference: String,
         #[arg(long)]

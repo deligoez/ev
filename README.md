@@ -341,7 +341,9 @@ record could be, with the reasons, while the thing is in hand; a purchase names 
 (`--type image` for the pictures, `--all` for every linked line at once), the pictures as
 documents shown with the photos in `ev ui`, never as the thing's own photos, and ev says what
 it brought, what it left and why. Warranties and insurance have a computed status
-(`ev cover add X --kind manufacturer --term 2y`; repair time extends it), values are dated
+(`ev cover add X --kind manufacturer --term 2y`; repair time extends it; an extended warranty
+bought as a purchase line of its own settles that line and takes its price as the premium,
+`ev cover purchase 3 412`), values are dated
 observations (`ev value X 2500 --source "listing"`), links keep an archive copy
 (`ev link add X <url> --archive page.html`), and "don't track this" or "not now" is never asked
 again (`ev track X coverage no`). A price shows in today's money: `ev money needs`, piped

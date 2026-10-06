@@ -4,7 +4,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result, refused};
+use crate::error::{Error, Result, refuse};
 use crate::store::{Inventory, brief_json, event, load, resolve, touch};
 
 const MAX_COLS: i64 = 26;
@@ -17,6 +17,15 @@ pub struct Cells {
     pub row: i64,
     pub width: i64,
     pub depth: i64,
+}
+
+/// A place without a grid, asked for one of its cells.
+fn no_grid(conn: &Connection, holder: i64) -> Result<Error> {
+    Ok(refuse(
+        "grid_none",
+        Value::Null,
+        json!({ "holder": brief_json(conn, holder)? }),
+    ))
 }
 
 fn cell_name(col: i64, row: i64) -> String {
@@ -149,15 +158,13 @@ pub(crate) fn cells_quad(
     cells: &Cells,
 ) -> Result<[(f64, f64); 4]> {
     let Some((cols, rows)) = grid_of(conn, holder)? else {
-        return Err(refused(
-            "this place has no grid; set one with `ev grid <ref> --cols N --rows M`",
-            json!({ "holder": brief_json(conn, holder)? }),
-        ));
+        return Err(no_grid(conn, holder)?);
     };
     if cells.col + cells.width > cols || cells.row + cells.depth > rows {
-        return Err(crate::error::refused(
-            format!("{} is outside the {cols}×{rows} grid", cells.name()),
-            serde_json::Value::Null,
+        return Err(refuse(
+            "cells_outside_grid",
+            json!({ "cells": cells.name(), "cols": cols, "rows": rows }),
+            Value::Null,
         ));
     }
     let map = projection(corners);
@@ -226,10 +233,7 @@ pub(crate) fn grid_crops(
     corners: &GridCorners,
 ) -> Result<Vec<(i64, crate::Crop)>> {
     let Some((cols, rows)) = grid_of(conn, holder)? else {
-        return Err(refused(
-            "this place has no grid; set one with `ev grid <ref> --cols N --rows M`",
-            json!({ "holder": brief_json(conn, holder)? }),
-        ));
+        return Err(no_grid(conn, holder)?);
     };
     let map = projection(corners);
     let (cols, rows) = (cols as f64, rows as f64);
@@ -415,11 +419,9 @@ fn grid_set_in(conn: &Connection, id: i64, cols: i64, rows: i64) -> Result<()> {
         })
         .collect::<Result<_>>()?;
     if !outside.is_empty() {
-        return Err(refused(
-            format!(
-                "{} placed box(es) would fall outside a {cols}×{rows} grid",
-                outside.len()
-            ),
+        return Err(refuse(
+            "grid_too_small",
+            json!({ "count": outside.len(), "cols": cols, "rows": rows }),
             json!({ "outside": outside }),
         ));
     }
@@ -480,8 +482,9 @@ impl Inventory {
         for r in references {
             let id = resolve(&tx, r, false)?;
             if grid_of(&tx, id)?.is_none() {
-                return Err(refused(
-                    "it has no grid; give it one with --cols and --rows",
+                return Err(refuse(
+                    "face_needs_grid",
+                    Value::Null,
                     json!({ "node": brief_json(&tx, id)? }),
                 ));
             }
@@ -515,11 +518,9 @@ impl Inventory {
         let id = resolve(&tx, reference, false)?;
         let boxes = placed(&tx, id)?;
         if !boxes.is_empty() {
-            return Err(refused(
-                format!(
-                    "{} box(es) are placed in this grid; clear their cells first",
-                    boxes.len()
-                ),
+            return Err(refuse(
+                "grid_has_boxes",
+                json!({ "count": boxes.len() }),
                 Value::Null,
             ));
         }
@@ -563,15 +564,17 @@ impl Inventory {
                 return Err(Error::Usage(format!("`{reference}` is given twice")));
             }
             let holder = n.parent_id.ok_or_else(|| {
-                refused(format!("{} is not inside anything", n.name), Value::Null)
+                refuse(
+                    "not_inside_anything",
+                    json!({ "node": n.name }),
+                    Value::Null,
+                )
             })?;
             let Some((cols, rows)) = grid_of(&tx, holder)? else {
                 let h = load(&tx, holder)?;
-                return Err(refused(
-                    format!(
-                        "{} has no grid; set one with `ev grid <holder> --cols N --rows M`",
-                        h.code.unwrap_or(h.name)
-                    ),
+                return Err(refuse(
+                    "holder_has_no_grid",
+                    json!({ "holder": h.code.unwrap_or(h.name) }),
                     json!({ "holder": brief_json(&tx, holder)? }),
                 ));
             };
@@ -580,12 +583,14 @@ impl Inventory {
             } else {
                 let c = Cells::parse(range)?;
                 if c.col + c.width > cols || c.row + c.depth > rows {
-                    return Err(refused(
-                        format!(
-                            "{} does not fit in a {cols}×{rows} grid (columns A–{}, rows 1–{rows})",
-                            c.name(),
-                            (b'A' + (cols - 1) as u8) as char
-                        ),
+                    return Err(refuse(
+                        "cells_do_not_fit",
+                        json!({
+                            "cells": c.name(),
+                            "cols": cols,
+                            "rows": rows,
+                            "last_col": ((b'A' + (cols - 1) as u8) as char).to_string(),
+                        }),
                         json!({ "node": brief_json(&tx, n.id)? }),
                     ));
                 }
@@ -614,14 +619,14 @@ impl Inventory {
             for (i, (a, ca)) in after.iter().enumerate() {
                 for (b, cb) in &after[i + 1..] {
                     if ca.overlaps(cb) && !(item(*a)? && item(*b)?) {
-                        return Err(refused(
-                            format!(
-                                "{} ({}) and {} ({}) would share cells",
-                                crate::store::label(&crate::store::load(&tx, *a)?),
-                                ca.name(),
-                                crate::store::label(&crate::store::load(&tx, *b)?),
-                                cb.name()
-                            ),
+                        return Err(refuse(
+                            "cells_shared",
+                            json!({
+                                "a": crate::store::label(&crate::store::load(&tx, *a)?),
+                                "a_cells": ca.name(),
+                                "b": crate::store::label(&crate::store::load(&tx, *b)?),
+                                "b_cells": cb.name(),
+                            }),
                             json!({ "boxes": [brief_json(&tx, *a)?, brief_json(&tx, *b)?] }),
                         ));
                     }

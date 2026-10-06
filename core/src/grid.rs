@@ -615,7 +615,13 @@ impl Inventory {
                 for (b, cb) in &after[i + 1..] {
                     if ca.overlaps(cb) && !(item(*a)? && item(*b)?) {
                         return Err(refused(
-                            format!("{} and {} would share cells", ca.name(), cb.name()),
+                            format!(
+                                "{} ({}) and {} ({}) would share cells",
+                                crate::store::label(&crate::store::load(&tx, *a)?),
+                                ca.name(),
+                                crate::store::label(&crate::store::load(&tx, *b)?),
+                                cb.name()
+                            ),
                             json!({ "boxes": [brief_json(&tx, *a)?, brief_json(&tx, *b)?] }),
                         ));
                     }

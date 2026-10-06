@@ -43,7 +43,7 @@ fn shred_mark(n: &Value) -> &'static str {
     }
 }
 
-fn kind(k: &str) -> String {
+pub(crate) fn kind(k: &str) -> String {
     match k {
         "home" => t("home"),
         "room" => t("room"),
@@ -380,13 +380,13 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
     // Sold while still here: only what it brought, it has not left yet.
     if d.get("pending").is_some_and(|p| p == true) {
         return d.get("price").and_then(Value::as_str).map(|p| {
-            tf(
-                "sold for {}",
-                &[&amount(
-                    p,
-                    d.get("currency").and_then(Value::as_str).unwrap_or("TRY"),
-                )],
-            )
+            let c = d.get("currency").and_then(Value::as_str).unwrap_or("TRY");
+            let via = d
+                .get("via")
+                .and_then(Value::as_str)
+                .map(|v| format!(" · {}", tf("via {}", &[&v])))
+                .unwrap_or_default();
+            format!("{}{via}", tf("for {}", &[&amount(p, c)]))
         });
     }
     let mut parts = vec![
@@ -401,20 +401,13 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
     if let Some(w) = d.get("where").and_then(Value::as_str) {
         parts.push(tf("was in {}", &[&w]));
     }
-    let via = d.get("via").and_then(Value::as_str);
-    match d.get("price").and_then(Value::as_str) {
-        Some(p) => parts.push(format!(
-            "{}{}",
-            tf(
-                "sold for {}",
-                &[&amount(
-                    p,
-                    d.get("currency").and_then(Value::as_str).unwrap_or("TRY")
-                )]
-            ),
-            via.map(|v| format!(" ({v})")).unwrap_or_default()
-        )),
-        None => parts.extend(via.map(|v| tf("via {}", &[&v]))),
+    // What it brought, then through what: one way of saying each.
+    if let Some(p) = d.get("price").and_then(Value::as_str) {
+        let c = d.get("currency").and_then(Value::as_str).unwrap_or("TRY");
+        parts.push(tf("for {}", &[&amount(p, c)]));
+    }
+    if let Some(v) = d.get("via").and_then(Value::as_str) {
+        parts.push(tf("via {}", &[&v]));
     }
     if let Some(t_) = d.get("traded_for").filter(|t_| t_.is_object()) {
         parts.push(tf("for {}", &[&format!("#{} {}", t_["id"], s(t_, "name"))]));
@@ -2916,15 +2909,20 @@ fn changed_lines(out: &mut String, changed: &Value) {
             .join(", "),
         other => other.to_string(),
     };
-    for (field, c) in fields {
-        let field = crate::history::field_word(field);
+    for (key, c) in fields {
+        let field = crate::history::field_word(key);
+        // A kind is a word the reader has, not the stored one.
+        let value = |v: &Value| match (key.as_str(), v.as_str()) {
+            ("kind", Some(k)) => kind(k),
+            _ => shown(v),
+        };
         let _ = match added(c) {
             Some(rest) => writeln!(out, "  {field}: + {rest}"),
             None => writeln!(
                 out,
                 "  {field}: {} → {}",
-                shown(&c["before"]),
-                shown(&c["after"])
+                value(&c["before"]),
+                value(&c["after"])
             ),
         };
     }

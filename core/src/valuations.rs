@@ -121,7 +121,7 @@ impl Inventory {
             .query_row("SELECT node_id FROM valuations WHERE id = ?1", [id], |r| {
                 r.get(0)
             })
-            .map_err(|_| Error::NotFound(format!("value {id}")))?;
+            .map_err(|_| Error::NotFound(format!("no value with id {id}")))?;
         self.conn
             .execute("DELETE FROM valuations WHERE id = ?1", [id])?;
         Ok(json!({

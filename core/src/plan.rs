@@ -118,6 +118,10 @@ fn not_toured(stale: &[Value], gridded: bool) -> String {
             let by = s["minutes_after"].as_i64();
             recent &= by.is_some_and(|m| m <= 120);
             lines.push(match by.filter(|m| *m <= 120) {
+                Some(0) => format!(
+                    "{}'s photo is less than a minute older than its last change",
+                    name(&s["node"])
+                ),
                 Some(m) => format!(
                     "{}'s photo is {m} min older than its last change",
                     name(&s["node"])

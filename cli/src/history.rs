@@ -136,6 +136,11 @@ pub(crate) fn edit_text(d: &Value) -> String {
     fields
         .iter()
         .map(|(k, c)| {
+            // A kind is a word the reader has, not the stored one.
+            let text = |v: &Value| match (k.as_str(), v.as_str()) {
+                ("kind", Some(x)) => crate::render::kind(x),
+                _ => text(v),
+            };
             let (before, after) = (text(&c["before"]), text(&c["after"]));
             if c["after"].is_null() {
                 format!("{}: {}", name(k), t("cleared"))
@@ -300,11 +305,12 @@ pub(crate) fn event_words(
         "sold" => own(
             "sold",
             format!(
-                "{} {}  {}",
-                str_of(d, "price"),
-                str_of(d, "currency"),
+                "{}  {}",
+                crate::render::amount(&str_of(d, "price"), &str_of(d, "currency")),
                 str_of(d, "via")
-            ),
+            )
+            .trim_end()
+            .to_string(),
         ),
         "restore" => own("restored", str_of(d, "correction")),
         "cell" => own(

@@ -1057,7 +1057,6 @@ static TR: &[(&str, &str)] = &[
     ("came", "geldi"),
     ("left", "gitti"),
     ("in {}", "{} içinde"),
-    ("sold for {}", "{} karşılığı satıldı"),
     ("sold", "satıldı"),
     ("thrown out", "atıldı"),
     ("given away", "verildi"),
@@ -1149,7 +1148,7 @@ static TR: &[(&str, &str)] = &[
     ("ours in {}: {}", "{} yılında bizimdi: {}"),
     (
         "{} more are not counted: nothing says when they came, or when they left",
-        "{} şey daha sayılmadı: ne zaman geldiği ya da gittiği bilinmiyor",
+        "ne zaman geldiği ya da gittiği bilinmeyen {} şey bu listede yok",
     ),
     (
         "thing: ×{} in {} places · in use {} · spare {}",

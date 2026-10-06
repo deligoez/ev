@@ -233,3 +233,34 @@ fn a_purchase_is_never_linked_to_a_place_or_a_mistake() {
     let tablet = id(&inv, "Tablet");
     assert_eq!(inv.buy_link(l, &tablet, None).unwrap_err().code(), 5);
 }
+
+fn place(inv: &mut Inventory, name: &str, kind: &str, parent: &str, code: &str) {
+    inv.add(NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        parent: Some(parent.into()),
+        code: Some(code.into()),
+        ..Default::default()
+    })
+    .unwrap();
+}
+
+#[test]
+fn drawers_labelled_after_their_cabinet_began_to_be_counted_are_not_counting() {
+    let (_d, mut inv) = setup();
+    place(&mut inv, "Dolap", "furniture", "Oda", "Q9");
+    let t = inv
+        .task_add("Dolabı say", "hiç sayılmadı", &["Q9".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "doing", None).unwrap();
+    inv.move_to("Tablet", "Q9", false).unwrap();
+    let count = |inv: &Inventory, r: &str| {
+        inv.tree(Some(r), Some(0)).unwrap()["tree"][0]["count"].clone()
+    };
+    assert_eq!(count(&inv, "Q9"), "counting");
+    place(&mut inv, "Üst çekmece", "container", "Q9", "Q9-A");
+    place(&mut inv, "Alt çekmece", "container", "Q9", "Q9-B");
+    assert_eq!(count(&inv, "Q9-B"), "raw");
+}

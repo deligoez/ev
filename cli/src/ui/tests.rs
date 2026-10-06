@@ -1853,3 +1853,40 @@ fn tab_moves_the_keys_between_the_panes_and_the_sidebar_opens_lists_as_it_moves(
     term.draw(|f| app.draw(f)).unwrap();
     assert!(screen(&term).contains("Language:"));
 }
+
+#[test]
+fn the_sidebar_narrows_to_a_rail_hides_opens_as_a_drawer_and_a_phone_sees_one_pane() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let mut draw = |app: &mut App, w: u16| {
+        let mut term = Terminal::new(TestBackend::new(w, 24)).unwrap();
+        term.draw(|f| app.draw(f)).unwrap();
+        screen(&term)
+    };
+    // Under 120 columns: digits and counts only.
+    let s = draw(&mut app, 100);
+    assert_eq!(app.sidebar_area.width, 7);
+    assert!(!s.contains("Layout │") && !s.contains(" Lists "), "{s}");
+    // Under 90: hidden, and `b` lays it over the list until a list is chosen.
+    draw(&mut app, 80);
+    assert_eq!(app.sidebar_area.width, 0);
+    press(&mut app, KeyCode::Char('b'));
+    let s = draw(&mut app, 80);
+    assert_eq!((app.sidebar_area.width, app.pane), (24, Pane::Sidebar));
+    assert!(s.contains(" 4 Leaving"), "{s}");
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Enter);
+    draw(&mut app, 80);
+    assert!(app.tab == Tab::Plan);
+    assert_eq!((app.sidebar_area.width, app.pane), (0, Pane::List));
+    // Under 70, as on a phone: the focused pane alone, the whole width.
+    draw(&mut app, 60);
+    assert_eq!((app.list_area.width, app.right_area.width), (60, 0));
+    press(&mut app, KeyCode::Tab);
+    draw(&mut app, 60);
+    assert_eq!((app.list_area.width, app.right_area.width), (0, 60));
+    press(&mut app, KeyCode::Tab);
+    let s = draw(&mut app, 60);
+    assert_eq!(app.sidebar_area.width, 60);
+    assert!(s.contains(" 2 To do"), "{s}");
+}

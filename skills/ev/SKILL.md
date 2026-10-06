@@ -204,7 +204,7 @@ places, and how far the whole home is (`progress`). Then:
 
 **How many, how much, how far: `ev stats`.** When the person asks how big the inventory is,
 what it cost, how far the counting has come or where the purchases stand, read `ev stats` and
-answer from it (numbers, never a score); `ev ui` shows the same on its Statistics tab (`9`).
+answer from it (numbers, never a score); `ev ui` shows the same as its Statistics list (`8`).
 Say what a sum covers: the cost is only that of things with a linked purchase ("known for 12
 of 300 records").
 
@@ -472,7 +472,7 @@ On a yes, record the thing as remembered, in no place, and link its line:
 - Old photos of it are attached like any photo. No successor chain: a later phone is only a
   later thing of the same kind.
 - **Reading it back:** `ev past` (by year, money paid and got), `ev past --year 2018` (what was
-  ours then; what nothing dates is counted apart), the Past tab on `0` in `ev ui`.
+  ours then; what nothing dates is counted apart), the Past list on `7` in `ev ui`.
 
 ## Warranty, insurance and what is not tracked
 

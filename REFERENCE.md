@@ -490,7 +490,9 @@ red frame (edged in dark, so it reads on a red thing too) and a label for each m
 (its newest whole photo), `<where>` is `x,y,w,h` in fractions of the upright photo or cells of
 the place's grid (`A6`, `A6-B7`). `--codes` adds a mark for every box placed in the place's grid
 that has a code, its code on its own cells (which label goes on which box). Cells are found through the grid corners the photo kept when
-it was cut with `--grid` (schema 11), or through `--grid`. The copy goes to `--out` or to
+it was cut with `--grid` (schema 11), or through `--grid`. Cells that are exactly one placed box's
+are framed out to where its rim leans, as `photo cut --grid` crops it: a box higher than 1 (its
+`size`) stands above the floor the corners are read at. The copy goes to `--out` or to
 `<temp>/ev-marks/` (files there older than a day are removed on each call); it is not stored,
 not attached and leaves no history. It is also sent to a running `ev ui`, into the marked photo
 series (titled with `--show <note>`, else with the labels), unless `--no-show` is given. There a

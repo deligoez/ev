@@ -3835,11 +3835,7 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             .unwrap_or_default();
         value.push(node(
             d,
-            format!(
-                "  {}{today}  {}",
-                amount(s(d, "cost").as_str(), s(d, "currency").as_str()),
-                s(d, "path_text")
-            ),
+            format!("  {}{today}  {}", amounts(&d["cost"]), s(d, "path_text")),
         ));
     }
     if m["valued"]["things"].as_i64().unwrap_or(0) > 0 {

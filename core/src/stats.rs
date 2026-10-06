@@ -124,9 +124,11 @@ impl Inventory {
         // Value: what the linked purchases say the things still here cost.
         let costs = costs(conn)?;
         let mut sums: BTreeMap<String, i64> = BTreeMap::new();
-        // Per record: what it cost as paid, its currency, what that is today (as paid where
-        // it cannot be converted), and whether every line of it could be.
-        let mut per_node: HashMap<i64, (i64, String, i64, bool)> = HashMap::new();
+        // Per record: what it cost as paid, by currency (never added across currencies), what
+        // that is today (as paid where it cannot be converted), and whether every line of it
+        // could be.
+        type PerNode = (BTreeMap<String, i64>, i64, bool);
+        let mut per_node: HashMap<i64, PerNode> = HashMap::new();
         let (mut today_cents, mut converted) = (0i64, 0usize);
         for c in &costs {
             *sums.entry(c.currency.clone()).or_default() += c.cents;
@@ -144,27 +146,23 @@ impl Inventory {
                 today_cents += t;
                 converted += 1;
             }
-            let e = per_node
-                .entry(c.node)
-                .or_insert((0, c.currency.clone(), 0, true));
-            e.0 += c.cents;
-            e.2 += t.unwrap_or(c.cents);
-            e.3 &= t.is_some();
+            let e = per_node.entry(c.node).or_insert((BTreeMap::new(), 0, true));
+            *e.0.entry(c.currency.clone()).or_default() += c.cents;
+            e.1 += t.unwrap_or(c.cents);
+            e.2 &= t.is_some();
         }
         // The dearest by what they cost in today's money, so a price from ten years ago does
         // not read as cheap.
-        let mut dearest: Vec<(i64, (i64, String, i64, bool))> =
-            per_node.clone().into_iter().collect();
-        dearest.sort_by_key(|(id, (_, _, rank, _))| (-rank, *id));
+        let mut dearest: Vec<(i64, PerNode)> = per_node.clone().into_iter().collect();
+        dearest.sort_by_key(|(id, (_, rank, _))| (-rank, *id));
         let dearest: Vec<(i64, Value)> = dearest
             .into_iter()
             .take(TOP)
-            .map(|(id, (cents, cur, today, all))| {
-                let cur = if cur.is_empty() { home.clone() } else { cur };
+            .map(|(id, (cost, today, all))| {
                 let today = all.then(|| json!({ "amount": money(today), "currency": home }));
                 (
                     id,
-                    json!({ "cost": money(cents), "currency": cur, "today": today }),
+                    json!({ "cost": per_currency(&cost, &home), "today": today }),
                 )
             })
             .collect();

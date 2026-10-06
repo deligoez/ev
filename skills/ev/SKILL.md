@@ -213,7 +213,9 @@ of 300 records").
 When the person asks what is left, or a session starts with no clear task, run `ev todo` and
 summarise by kind with counts ("19 tasks, 8 moves, 2 things to return to Annemler, 8 things
 leaving, 1 thing to buy"); for photos say `photos_now`, the ones needed today — the rest are
-taken on their places' tours, and asking for them earlier only makes photos that go stale. Most
+taken on their places' tours, and asking for them earlier only makes photos that go stale. Read a
+long list a part at a time with `ev todo --only tasks,uncounted` (through MCP, `todo` with
+`only`): the counts of all come with it. Most
 of it is state on the records — never copy it into tasks; it
 leaves the list when you record the thing itself (`done`, `gone`, `back`, `found`, …).
 Record the kinds that have their own verbs as you meet them:
@@ -394,9 +396,10 @@ bought from Amazon in 2024"), link it on their word: `ev buy link <line> <ref>`.
 reaches the line's invoice and order page. A line that will never be a thing (eaten, given,
 returned, someone else's) is settled with `ev buy dismiss <line> --as <reason>`. What was paid
 for and is never a thing in the home goes in with its bucket, not dismissed: `digital` (a
-licence, a game key, a membership) or `service` (a diet programme, a repair), in the adapter's
-lines or `ev buy add --bucket`; such lines never wait to be linked, and `ev stats` shows what
-went to them apart. Never link on
+licence, a game key, a membership) or `service` (an installation, a repair), in the adapter's
+lines or `ev buy add --bucket`, or set later with `ev buy bucket <line> <bucket>`; such lines
+never wait to be linked, and `ev stats` shows what went to them apart. Lines bought on a family
+member's account are found with `ev buy list --billed-to <account>`. Never link on
 your own reading of a name; ask. A link the person says was wrong is undone with `ev buy unlink
 <line> <ref>`: it takes back the pictures and pages the link brought; a value or coverage it
 brought is listed under `left` — ask whether to remove it.

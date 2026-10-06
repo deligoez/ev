@@ -448,9 +448,11 @@ fn activity_section(conn: &Connection) -> Result<Value> {
     let since_count =
         |sql: &str| -> Result<i64> { Ok(conn.query_row(sql, [&since], |r| r.get(0))?) };
     let mut gone = Map::new();
+    // What left in these days; a past thing recorded already gone left long before.
     let mut stmt = conn.prepare(
         "SELECT COALESCE(json_extract(data, '$.as'), '?'), COUNT(*) FROM events
-          WHERE type = 'gone' AND at >= ?1 GROUP BY 1 ORDER BY 2 DESC",
+          WHERE type = 'gone' AND at >= ?1 AND COALESCE(json_extract(data, '$.past'), 0) = 0
+          GROUP BY 1 ORDER BY 2 DESC",
     )?;
     let rows = stmt.query_map([&since], |r| {
         Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))

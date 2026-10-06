@@ -193,7 +193,7 @@ fn the_back_fill_offers_one_line_for_each_unlinked_thing_in_a_toured_place_best_
     )
     .unwrap();
     inv.review("Kart kutusu", "counting", None).unwrap();
-    inv.photo_current("Çekmece").unwrap();
+    photo_now(&mut inv, "Çekmece");
     inv.review("Çekmece", "toured", None).unwrap();
 
     let v = inv.buy_backfill().unwrap();
@@ -231,7 +231,7 @@ fn the_back_fill_offers_one_line_for_each_unlinked_thing_in_a_toured_place_best_
     assert!(scores[0] >= scores[1] && scores[1] > 15.0, "{scores:?}");
 
     // The box's own tour brings its card up; the same line stays offered to each thing.
-    inv.photo_current("Kart kutusu").unwrap();
+    photo_now(&mut inv, "Kart kutusu");
     inv.review("Kart kutusu", "toured", None).unwrap();
     let v = inv.buy_backfill().unwrap();
     assert_eq!(v["toured_things"], 5, "{v}");
@@ -446,4 +446,14 @@ fn a_bundle_line_naming_part_of_a_model_is_offered_for_that_component() {
     );
     // The camera's screen size is the camera's, not a length that rules the lens out.
     assert!(!why.iter().any(|w| w.ends_with("differs")), "{why:?}");
+}
+
+/// A whole photo of `place` taken now, so a tour of it finds its photo current.
+fn photo_now(inv: &mut Inventory, place: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("now.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&png)
+        .unwrap();
+    inv.photo_add_with(place, &png, None, None, true).unwrap();
 }

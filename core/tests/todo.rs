@@ -222,7 +222,7 @@ fn a_place_needs_a_new_photo_once_its_contents_change() {
     inv.move_to("Silikon", "Masa", false).unwrap();
     assert!(codes(&inv).contains(&("S5-01".to_string(), "changed".to_string())));
     // The person says the old photo is still good enough.
-    inv.photo_current("S5-01").unwrap();
+    photo_now(&mut inv, "S5-01");
     assert!(!codes(&inv).iter().any(|(c, _)| c == "S5-01"));
 }
 
@@ -447,7 +447,7 @@ fn a_counted_box_with_nothing_waiting_is_not_open_and_any_work_on_it_opens_it() 
     // Not counted yet: open.
     assert!(inv.open_nodes().unwrap().contains(&id(&inv, "S5-01")));
     inv.label(&["S5-01".into()], true).unwrap();
-    inv.photo_current("S5-01").unwrap();
+    photo_now(&mut inv, "S5-01");
     inv.review("S5-01", "toured", None).unwrap();
     let open = inv.open_nodes().unwrap();
     for r in ["S5-01", "Silikon", "Kulaklık"] {
@@ -568,4 +568,14 @@ fn pictures_sent_before_series_existed_start_no_series_and_numbering_starts_at_o
     assert_eq!(inv.focus_numbers(&new, 2).unwrap(), [1, 2]);
     let v = inv.focus_file(&[new], Some("after")).unwrap();
     assert_eq!(v["focus"]["series"], 1);
+}
+
+/// A whole photo of `place` taken now, so a tour of it finds its photo current.
+fn photo_now(inv: &mut Inventory, place: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("now.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&png)
+        .unwrap();
+    inv.photo_add_with(place, &png, None, None, true).unwrap();
 }

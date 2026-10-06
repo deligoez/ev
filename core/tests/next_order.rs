@@ -142,7 +142,7 @@ fn a_photo_is_needed_now_only_where_the_place_is_counted_or_kept() {
 fn next_notes_a_task_that_settles_moves_but_never_one_only_because_its_places_are_counted() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Pil", "item", Some("K1-U"), None);
-    inv.photo_current("K1-A").unwrap();
+    photo_now(&mut inv, "K1-A");
     let target = inv
         .task_add("Alta ızgara", "pil gelecek", &["K1-A".into()], None)
         .unwrap()["id"]
@@ -159,4 +159,14 @@ fn next_notes_a_task_that_settles_moves_but_never_one_only_because_its_places_ar
         .collect();
     // Work on a counted place (a grid to fit) is not a task to close.
     assert_eq!(kinds, ["settles_moves"], "{hints}");
+}
+
+/// A whole photo of `place` taken now, so a tour of it finds its photo current.
+fn photo_now(inv: &mut Inventory, place: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("now.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&png)
+        .unwrap();
+    inv.photo_add_with(place, &png, None, None, true).unwrap();
 }

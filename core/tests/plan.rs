@@ -95,7 +95,7 @@ fn a_drawer_with_labelled_boxes_of_another_series_stays_one_place() {
         .collect();
     assert_eq!(names, ["Üst", "Alt", "Karton kutu"], "{p}");
     // A bin in it is counted with the drawer, not on its own.
-    inv.photo_current("K1-01-U").unwrap();
+    photo_now(&mut inv, "K1-01-U");
     inv.review("K1-01-U", "toured", None).unwrap();
     let v = inv.progress().unwrap();
     assert_eq!(status_of(&v, "Üst"), "toured");
@@ -107,7 +107,7 @@ fn a_lost_thing_found_elsewhere_leaves_its_last_seen_place_unchanged() {
     let (_d, mut inv) = setup();
     add(&mut inv, "Gözlük", "item", Some("K1-01-U"), None);
     inv.mark_lost("Gözlük").unwrap();
-    inv.photo_current("K1-01-U").unwrap();
+    photo_now(&mut inv, "K1-01-U");
     inv.review("K1-01-U", "toured", None).unwrap();
     // A second later the glasses turn up in the cardboard box.
     std::thread::sleep(std::time::Duration::from_millis(1100));
@@ -144,7 +144,7 @@ fn a_review_covers_everything_below_and_notices_later_changes() {
     let (_d, mut inv) = setup();
     // No photo of the drawer: touring it needs one, or the person's word that none is needed.
     assert_eq!(inv.review("K1-01", "toured", None).unwrap_err().code(), 5);
-    inv.photo_current("K1-01").unwrap();
+    photo_now(&mut inv, "K1-01");
     inv.review("K1-01", "toured", None).unwrap();
     let p = inv.progress().unwrap();
     assert_eq!(status_of(&p, "Alt"), "toured");
@@ -522,4 +522,14 @@ fn a_place_settled_names_what_is_still_not_counted_around_it() {
         ],
         "{v}"
     );
+}
+
+/// A whole photo of `place` taken now, so a tour of it finds its photo current.
+fn photo_now(inv: &mut Inventory, place: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("now.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&png)
+        .unwrap();
+    inv.photo_add_with(place, &png, None, None, true).unwrap();
 }

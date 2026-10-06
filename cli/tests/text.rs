@@ -402,8 +402,23 @@ fn buy_for_toured_numbers_each_thing_with_its_path_then_the_line_and_its_reasons
         h.text(&["buy", "for", "--toured"]),
         "(none of 0 unlinked things in toured places could be a purchase)\n"
     );
+    // Toured with photos that show each place as it is now.
+    let png = h.dir.path().join("d.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+        .save(&png)
+        .unwrap();
     for place in ["D", "D-A1", "D-B1"] {
-        h.run(&["photo", "current", place], None);
+        h.run(
+            &[
+                "photo",
+                "add",
+                place,
+                png.to_str().unwrap(),
+                "--whole",
+                "--no-show",
+            ],
+            None,
+        );
     }
     h.run(&["review", "D", "--as", "toured"], None);
     let s = h.text(&["buy", "for", "--toured"]);

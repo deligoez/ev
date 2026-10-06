@@ -1285,7 +1285,7 @@ fn a_counted_box_with_nothing_waiting_turns_green_and_its_holders_wait_for_all_o
         .unwrap();
     let tour = |inv: &mut Inventory| {
         for b in ["D", "D-A1", "D-B1"] {
-            inv.photo_current(b).unwrap();
+            photo_now(inv, b);
         }
         for b in ["D-A1", "D-B1"] {
             inv.review(b, "toured", None).unwrap();
@@ -1335,7 +1335,7 @@ fn a_counted_place_takes_no_word_and_one_changed_since_says_so() {
     inv.label(&["D".into(), "D-A1".into(), "D-B1".into()], true)
         .unwrap();
     for b in ["D", "D-A1", "D-B1"] {
-        inv.photo_current(b).unwrap();
+        photo_now(&mut inv, b);
     }
     inv.review("D-A1", "toured", None).unwrap();
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
@@ -1347,7 +1347,7 @@ fn a_counted_place_takes_no_word_and_one_changed_since_says_so() {
     // Counted is the normal state: a green name, no word. The box not counted says so.
     assert!(!s.contains("[counted"), "{s}");
     assert!(s.contains("[not counted]"), "{s}");
-    assert_eq!(fg_of(&term, "D-A1"), Some(theme::pal().done));
+    assert_eq!(fg_of(&term, "D-A1"), Some(theme::pal().done), "{s}");
     // Something new lands in the counted box: now it says it changed since.
     std::thread::sleep(std::time::Duration::from_millis(1100));
     app.inv
@@ -1779,4 +1779,16 @@ fn zero_opens_the_past_by_year_apart_from_the_inventory() {
     app.select(year).unwrap();
     press(&mut app, KeyCode::Enter);
     assert!(app.rows.iter().all(|r| r.id <= 0));
+}
+
+/// A whole photo of `place` taken now, so a tour of it finds its photo current.
+fn photo_now(inv: &mut Inventory, place: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("now.png");
+    // A picture of its own for each place, as a camera gives.
+    let shade = place.bytes().fold(0u8, |a, b| a.wrapping_mul(31).wrapping_add(b));
+    image::RgbImage::from_pixel(8, 8, image::Rgb([shade, 2, 3]))
+        .save(&png)
+        .unwrap();
+    inv.photo_add_with(place, &png, None, None, true).unwrap();
 }

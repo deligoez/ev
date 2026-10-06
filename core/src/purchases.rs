@@ -962,6 +962,25 @@ fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
 }
 
 fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
+    // A purchase is a thing's: never a place's, nor a record that was never a thing of its own.
+    let (kind, state, how): (String, String, Option<String>) = conn.query_row(
+        "SELECT kind, state, disposition FROM nodes WHERE id = ?1",
+        [node],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )?;
+    if matches!(kind.as_str(), "home" | "room") {
+        return Err(Error::Usage(format!(
+            "#{node} is a place; a purchase is linked to a thing"
+        )));
+    }
+    if state == "gone"
+        && let Some(h @ ("mistake" | "merged" | "digitize")) = how.as_deref()
+    {
+        return Err(crate::error::refused(
+            format!("#{node} left as {h}; it holds no purchase"),
+            Value::Null,
+        ));
+    }
     check_open(conn, id, node, qty)?;
     // A thing that left was not bought after it left.
     let left = crate::store::past::departure_json(conn, node)?;

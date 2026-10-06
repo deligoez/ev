@@ -46,10 +46,14 @@ second open line for the same thing. Decided with ak's development agent:
   settled and is never offered for linking; the line it joins is the one linked to a thing.
 - **By the order number, exactly:** ak's `order` equal to another source's `order_no`, six
   characters or more, whatever the shop is called on either side (ak's App Store is one source
-  over two of ev's shops). One such line: joined. Several (an order of several lines): the one
-  whose `paid` is the same, when exactly one is; else the one whose name clearly shares most
-  words (ev's existing rule). An ak line already linked to a thing, or dismissed, is left as it
-  is.
+  over two of ev's shops), and each of ev's lines takes one ak line at most. First, every ak
+  line paid the same as exactly one free line of its order joins it (lines alike in name and
+  price are one product: one each); a sure join is never taken by a guess. Then a whole payment
+  meeting a one-line order joins it whatever the shipping added, and an item joins the line
+  whose name clearly shares most words only when its price is within a fifth: tried on a
+  sample, a name alone joined a spray of the same brand at half the price, and a cake the
+  order's only line ev had, a book. An ak line already linked to a thing, or dismissed, is left
+  as it is, and an ak line is never the one kept: a shop's line is never joined to it.
 - **Anything less certain is not joined, and said:** the import's result lists it under
   `unjoined` (`{id, key, order, candidates}`: the lines of that order), for the agent to show
   the person, who joins it by hand (`ev buy join <line> <other>`), or dismisses it as

@@ -704,6 +704,10 @@ used is part of every session.
 | 5 | a rule refused the change | read `error.message` / `error.details`; tell the person |
 | 6 | database is newer than this `ev` | stop; ask the person to upgrade `ev` |
 
+An error may carry `error.id` (stable, snake_case) and `error.values`: match on the id, never on
+the wording of `error.message`, which may change. `error.at` says where it happened (`line` of
+a batch). Tell the person what went wrong in your own words, in their language.
+
 A partial name never resolves (`flipper` does not find "Flipper Zero"): search first,
 then act by id. Codes and names compare case- and diacritic-insensitively, so `k4x4-07-u`
 finds `K4x4-07-Ü`; a code's `-` and `_` are one, and a number's leading zeros do not count

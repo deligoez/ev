@@ -107,12 +107,13 @@ pub(super) fn edit_in(
     // (spec/past-belongings.md) can be completed as it is remembered. Where it stands describes
     // a thing no longer here.
     let id = match resolve(conn, reference, false) {
-        Err(Error::NotFound(_))
-            if reference
-                .trim()
-                .trim_start_matches('#')
-                .chars()
-                .all(|c| c.is_ascii_digit()) =>
+        Err(e)
+            if e.is_not_found()
+                && reference
+                    .trim()
+                    .trim_start_matches('#')
+                    .chars()
+                    .all(|c| c.is_ascii_digit()) =>
         {
             let id = resolve(conn, reference, true)?;
             if let Some(a) = assignments.iter().find(|a| {

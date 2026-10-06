@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use crate::error::refused;
 use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
-use crate::{Error, Result, fold};
+use crate::{Error, Fault, Result, fold};
 
 mod audit;
 mod edit;
@@ -922,7 +922,7 @@ impl Inventory {
     pub fn restore(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let id = match resolve(&tx, reference, false) {
-            Err(Error::NotFound(_)) if resolve_for_history(&tx, reference).is_ok() => {
+            Err(e) if e.is_not_found() && resolve_for_history(&tx, reference).is_ok() => {
                 let id = resolve_for_history(&tx, reference)?;
                 return Err(refused(
                     format!("node {id} is gone; `ev restore {id} --correction \"why\"` undoes it"),
@@ -2051,12 +2051,13 @@ fn subtree(t: &TreeIndex, id: i64, depth: usize) -> Value {
 /// history too (spec/past-belongings.md).
 pub(crate) fn resolve_for_history(conn: &Connection, reference: &str) -> Result<i64> {
     match resolve(conn, reference, false) {
-        Err(Error::NotFound(_))
-            if reference
-                .trim()
-                .trim_start_matches('#')
-                .chars()
-                .all(|c| c.is_ascii_digit()) =>
+        Err(e)
+            if e.is_not_found()
+                && reference
+                    .trim()
+                    .trim_start_matches('#')
+                    .chars()
+                    .all(|c| c.is_ascii_digit()) =>
         {
             resolve(conn, reference, true)
         }
@@ -2097,14 +2098,21 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
                     )
                     .optional()?
                     .flatten();
-                Err(Error::NotFound(match into {
-                    Some(i) => format!("node {r} joined #{i}; it is counted there now"),
-                    None => format!(
-                        "node {r} is gone; `ev show {r} --include-gone` or `ev history {r}` still find it"
+                let id: i64 = r.parse().unwrap_or_default();
+                Err(match into {
+                    Some(i) => Error::said(
+                        Fault::NotFound,
+                        "record_joined",
+                        json!({ "id": id, "into": i }),
                     ),
-                }))
+                    None => Error::said(Fault::NotFound, "record_gone", json!({ "id": id })),
+                })
             }
-            None => Err(Error::NotFound(format!("no node with id {r}"))),
+            None => Err(Error::said(
+                Fault::NotFound,
+                "no_record_with_id",
+                json!({ "id": r.parse::<i64>().unwrap_or_default() }),
+            )),
         };
     }
     let wanted = fold(r);
@@ -2135,9 +2143,11 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
     }
     let name_hits: Vec<_> = visible.iter().filter(|x| fold(&x.2) == wanted).collect();
     match name_hits.len() {
-        0 => Err(Error::NotFound(format!(
-            "no node matches `{r}`; search with `ev find` and retry with an id"
-        ))),
+        0 => Err(Error::said(
+            Fault::NotFound,
+            "no_record_matches",
+            json!({ "ref": r }),
+        )),
         1 => Ok(name_hits[0].0),
         _ => ambiguous(conn, r, name_hits.iter().map(|x| x.0)),
     }
@@ -2150,10 +2160,12 @@ fn ambiguous(conn: &Connection, r: &str, hits: impl Iterator<Item = i64>) -> Res
                 .and_then(|b| serde_json::to_value(b).map_err(|e| Error::Internal(e.to_string())))
         })
         .collect::<Result<Vec<_>>>()?;
-    Err(Error::Ambiguous {
-        message: format!("`{r}` matches {} nodes; retry with an id", candidates.len()),
-        candidates,
-    })
+    Err(Error::said(
+        Fault::Ambiguous,
+        "ref_matches_several",
+        json!({ "ref": r, "count": candidates.len() }),
+    )
+    .with_candidates(candidates))
 }
 
 // ---------- writing ----------

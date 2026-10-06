@@ -877,10 +877,16 @@ impl Inventory {
         purchase_json(&tx, id)?;
         let node = resolve(&tx, reference, false)?;
         if clear {
-            tx.execute(
+            if tx.execute(
                 "DELETE FROM purchase_declines WHERE purchase_id = ?1 AND node_id = ?2",
                 params![id, node],
-            )?;
+            )? == 0
+            {
+                return Err(crate::error::refused(
+                    format!("line {id} was not declined for #{node}"),
+                    Value::Null,
+                ));
+            }
             event(
                 &tx,
                 node,

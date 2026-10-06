@@ -1547,6 +1547,20 @@ impl Inventory {
                 json!({ "task": before }),
             ));
         }
+        // Reopened, only a closed task; a dropped one is not done without being reopened.
+        let was = before["status"].as_str().unwrap_or_default().to_string();
+        if status == "open" && matches!(was.as_str(), "open" | "doing") {
+            return Err(crate::error::refused(
+                format!("task {id} is not closed; nothing to reopen"),
+                json!({ "task": before }),
+            ));
+        }
+        if status == "done" && was == "dropped" {
+            return Err(crate::error::refused(
+                format!("task {id} was dropped; `ev task reopen {id}` it first if it was done"),
+                json!({ "task": before }),
+            ));
+        }
         // Started again, a closed task is reopened on purpose, never by a start.
         if status == "doing" && matches!(before["status"].as_str(), Some("done" | "dropped")) {
             return Err(crate::error::refused(

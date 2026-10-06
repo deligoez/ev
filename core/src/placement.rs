@@ -735,9 +735,13 @@ impl Inventory {
     pub fn regroup_allow(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
-        if tx.execute("DELETE FROM declines WHERE node_id = ?1", [id])? > 0 {
-            crate::store::event(&tx, id, "decline_cleared", json!({}))?;
+        if tx.execute("DELETE FROM declines WHERE node_id = ?1", [id])? == 0 {
+            return Err(crate::error::refused(
+                format!("node {id} has no move declined to take back"),
+                Value::Null,
+            ));
         }
+        crate::store::event(&tx, id, "decline_cleared", json!({}))?;
         tx.commit()?;
         Ok(json!({ "item": brief_json(&self.conn, id)?, "declined": null }))
     }

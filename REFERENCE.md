@@ -157,7 +157,18 @@ kit_unlink (`kit`, `part`, `text`), sketch (`before`, `after`: `{x, y, w, d, on}
 A read-only terminal browser. It never writes the database; it polls SQLite's `data_version`
 every half second and re-reads when another process has written, highlighting the nodes that
 changed and expanding their parents so they are in view. The files it writes are the display
-settings file, from its Settings tab, and on exit the tree state it reopens with.
+settings file, from its Settings list, and on exit the tree state it reopens with.
+
+Three panes (spec/ui-sidebar.md): the sidebar of lists, the list, the details. The sidebar is
+shown in full from 120 columns, as a rail of digits and counts from 90, hidden below that, and
+below 70 only the focused pane is shown. Its lists, under their headings, with their digits:
+HOME — layout `1` (the tree of places and things), To do `2` (everything waiting), pending moves
+`3`, leaving `4`, lost `5`, errands `6` (take / return); HISTORY — the past `7` (`ev past`: a
+collapsible heading per year with how many left and the money paid and got, each thing under it;
+its details say when it came and how it left); INSIGHT — statistics `8` (`ev stats`, a
+collapsible section per heading; a line that names a record opens it); then search `/` and
+settings `0`. A list's count is its own length: pending, leaving, lost, errands, past and a
+search's results show one, the others none. The top line names the section and list.
 
 | Key | Action |
 |---|---|
@@ -167,10 +178,14 @@ settings file, from its Settings tab, and on exit the tree state it reopens with
 | d | in the tree: open the selected node two levels down, the nodes in it opened and nothing further (a Kallax shows its compartments and the drawers in each); the selection stays |
 | e / c | in the tree: open the selected node and everything below it, or close them all; the selection stays |
 | C | in the tree: close everything but the home, so its rooms show closed; the selection moves up to what still shows |
-| Tab, Shift-Tab, 1–9, 0 | tabs: layout (the tree of places and things), pending moves, leaving, lost, errands (take / return), search, everything waiting (To do), settings, statistics (`ev stats`, a collapsible section per heading; a line that names a record opens it), and on `0` the past (`ev past`: a collapsible heading per year with how many left and the money paid and got, each thing under it; its details say when it came and how it left) |
+| 1–8, 0 | open that list (see above) |
+| Tab, Shift-Tab | the next / previous pane: sidebar, list, details; a hidden sidebar is passed by. The focused pane's border is coloured |
+| in the sidebar: ↑ ↓ / j k, g G, Enter / → / l, Esc | open the previous / next list (the first / last) as the selection moves; go into the list |
+| in the details: j k, h l, Esc | scroll; the previous / next details tab; back to the list |
+| b | hide the sidebar, or show it (over the list below 90 columns, closing again when a list is chosen); kept in `ui-state.json` |
 | / | search (same folding as `ev find`), Enter to run; Esc clears the typed text, then closes the box; Ctrl-U clears |
-| x / Esc on the search tab, or click its title | clear the search and its results |
-| click / double click | select / expand, collapse or jump; wheel scrolls; click a tab title to switch |
+| x / Esc on the search list, or click its title | clear the search and its results |
+| click / double click | select / expand, collapse or jump; wheel scrolls; click a list in the sidebar to open it |
 | [ / ], wheel over the photo | previous / next picture of the selected node: its photos, then its product images (`o` full screen, `O` outside) |
 | H / L, click a details tab title | the previous / next details tab the node has something for; only those tabs are shown. Above every tab: the `#id` and name, then the place it is in. Summary: its state as badges (kind, count, set aside, lost, broken, on sale, label to print), its identity fields, then sections — Money (each purchase in one line: date, shop, quantity, price, today's money; the shop's own title dimmed under it; the current value), Coverage (status in colour, a proposal dimmed), Documents and links (counted, by kind), To do (its own tasks and needs; those of the places it is in only counted), Note — long values wrapped under their own column. Photos (every photo newest first with when it was added, crop or whole and its note; then, under their own heading, the product images that came with its purchases, never counted as a photo; the tab counts the two apart, `2+3`; the one shown is marked), Documents (its documents but the product images, also through its purchases, and its links with its purchases' order and product pages), Grid (the drawer's plate, a placed box framed), Contents, Suggestions (`ev regroup`, and theme words for an untitled place), History (`ev history --contents`, newest first by day, every event in words). The choice is kept |
 | Documents tab: [ / ], O / o, click | pick a document or link, open it in the program the system gives it (`open`, `xdg-open`) |
@@ -737,7 +752,7 @@ from the holder's (`K2-01-A` in `K2-01`, a drawer of that unit). A label of anot
 (`B1_007` in `K2-01-A`, a labelled bin) is a box in the place, gone through with it: the
 drawer stays the unit. `ev show` carries the node's
 `review`, `observations` and `tasks`: the unfinished tasks linked to the node or to a place that
-holds it, each with `via`, the node the link is on. In `ev ui`, tab 7 (Yapılacak) lists the tasks with progress in its
+holds it, each with `via`, the node the link is on. In `ev ui`, list 2 (Yapılacak) lists the tasks with progress in its
 title.
 
 ## Everything waiting
@@ -755,6 +770,6 @@ title.
 
 `ev show` carries `marks` (`label`, `broken`, `expires`, `sale`, `condition`, `shred`, `photo_ok`,
 `photo_stale`, each with `value`, `amount`, `note`, `at`; a sale's mark ends when the thing
-leaves) and `needs` (open needs for the node). In `ev ui`, tab 7 (Yapılacak) shows one
+leaves) and `needs` (open needs for the node). In `ev ui`, list 2 (Yapılacak) shows one
 collapsible section per kind: Enter or → on a header opens and closes it, ← on a line goes up to
 its header; unclear records start collapsed.

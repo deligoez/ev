@@ -289,7 +289,9 @@ digit that opens it and how many it holds: HOME has the layout (the tree, `1`), 
 waiting (one collapsible section per kind, `2`), pending moves (`3`), things leaving (`4`), lost
 items (`5`) and errands (`6`); HISTORY the past (`7`); INSIGHT the statistics (`8`); then search
 (`/`) and settings (`0`). `Tab` moves between the panes (the one the keys go to has a coloured
-border); in the sidebar the arrows open each list as they pass it and `Enter` goes into it. The
+border); in the sidebar the arrows open each list as they pass it and `Enter` goes into it. `:` finds any list
+or record by code, name or `#id`, typed with Turkish letters or without, and `Esc` steps back
+through what was opened. The
 sidebar narrows to a rail of digits and counts under 120 columns, hides under 90 (`b` opens it
 over the list), and under 70, as on a phone, one pane shows at a time; `b` hides or shows it at
 any width and is remembered. It refreshes the moment another process writes, flashes what

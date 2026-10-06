@@ -768,7 +768,7 @@ impl Inventory {
     }
 
     pub fn photo_remove(&mut self, reference: &str, n: usize) -> Result<Value> {
-        let id = resolve(&self.conn, reference, false)?;
+        let id = super::resolve_for_history(&self.conn, reference)?;
         let positions = ids(
             &self.conn,
             "SELECT position FROM photos WHERE node_id = ?1 ORDER BY position",

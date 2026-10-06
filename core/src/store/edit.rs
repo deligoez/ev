@@ -4,8 +4,8 @@
 use super::*;
 
 /// What a gone record still lets change: what it was, never where it stands.
-const GONE_FIELDS: [&str; 9] = [
-    "name", "note", "came", "left", "left_in", "qty", "make", "model", "serial",
+const GONE_FIELDS: [&str; 10] = [
+    "name", "note", "came", "left", "left_in", "qty", "make", "model", "serial", "tags",
 ];
 
 /// When (`left`, as said; null when only the day it was recorded stands for it) or where

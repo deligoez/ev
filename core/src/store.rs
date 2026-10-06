@@ -1543,9 +1543,14 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "waited_for_by": waited_for_by(conn, id)?,
         "empty": empty_of(conn, &n)?,
         // When it came and, gone, how it left (spec/past-belongings.md).
-        "came": conn.query_row("SELECT came_at FROM nodes WHERE id = ?1", [id], |r| {
-            r.get::<_, Option<String>>(0)
-        })?,
+        // As said, else the earliest order of a purchase linked to it, as `ev past` reads it.
+        "came": conn.query_row(
+            "SELECT COALESCE(n.came_at, (SELECT substr(MIN(COALESCE(p.ordered_at, p.delivered_at)), 1, 10)
+               FROM purchase_links l JOIN purchases p ON p.id = l.purchase_id WHERE l.node_id = n.id))
+               FROM nodes n WHERE n.id = ?1",
+            [id],
+            |r| r.get::<_, Option<String>>(0)
+        )?,
         "departure": past::departure_json(conn, id)?,
         "traded_from": past::traded_from(conn, id)?,
         "children": children,
@@ -2242,6 +2247,14 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     if let Some(of) = non_empty(&new.of) {
         return add_of(conn, new, &of, parent);
     }
+    // When it left and where it was then are said of a past thing only.
+    if non_empty(&new.gone).is_none()
+        && (non_empty(&new.at).is_some() || non_empty(&new.place).is_some())
+    {
+        return Err(Error::Usage(
+            "--at and --where say how a thing left: add it with --gone".into(),
+        ));
+    }
     // A past thing is a thing, unless said otherwise.
     let kind: Kind = match new.kind.trim() {
         "" if non_empty(&new.gone).is_some() => Kind::Item,
@@ -2257,20 +2270,26 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         return Err(refused("only a home has an address", Value::Null));
     }
     // A past thing is recorded already gone, in no holder (spec/past-belongings.md).
-    let gone: Option<Disposition> = non_empty(&new.gone).map(|g| g.parse()).transpose()?;
+    const PAST_WAYS: &str = "sell, give, trash, used, trade, return, left, stolen or unknown";
+    let gone: Option<Disposition> = non_empty(&new.gone)
+        .map(|g| {
+            g.parse()
+                .map_err(|_| Error::Usage(format!("`{g}` is no way of leaving; use {PAST_WAYS}")))
+        })
+        .transpose()?;
     if let Some(g) = gone {
         if matches!(
             g,
             Disposition::Mistake | Disposition::Merged | Disposition::Digitize
         ) {
             return Err(Error::Usage(format!(
-                "a past thing is not added as {}: give how it left (sell, give, trash, used, trade, left, stolen, unknown)",
+                "a past thing is not added as {}: give how it left ({PAST_WAYS})",
                 g.as_str()
             )));
         }
-        if kind == Kind::Home || parent.is_some() || new.lost {
+        if matches!(kind, Kind::Home | Kind::Room) || parent.is_some() || new.lost {
             return Err(Error::Usage(
-                "a past thing is added on its own: no --in, --lost, or home".into(),
+                "a past thing is added on its own: no --in, --lost, home or room".into(),
             ));
         }
         // Where a thing stands, or is to go, says nothing of one that left.

@@ -2082,3 +2082,27 @@ fn f_and_slash_filter_a_purchase_list_and_one_esc_clears_both() {
     press(&mut app, KeyCode::Esc);
     assert!(app.tab == Tab::Tree && !app.quit);
 }
+
+#[test]
+fn enter_on_a_linked_purchase_line_opens_its_thing_in_the_tree() {
+    let (_dir, mut app) = with_purchases();
+    let led = app.inv.resolve("Kırmızı LED 5 mm", false).unwrap();
+    press(&mut app, KeyCode::Char('9'));
+    let at = |app: &App, name: &str| {
+        app.rows
+            .iter()
+            .position(|r| r.spans.iter().any(|s| s.content.contains(name)))
+            .unwrap()
+    };
+    // A line linked to nothing stays, and says so.
+    app.select(at(&app, "Bir oyun")).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Buys);
+    assert_eq!(app.status, "this line is linked to no thing here");
+    app.select(at(&app, "LED seti")).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Tree);
+    assert_eq!(app.selected_id(), Some(led));
+    press(&mut app, KeyCode::Esc);
+    assert!(app.tab == Tab::Buys);
+}

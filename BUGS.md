@@ -6,13 +6,6 @@ that fixes them.
 
 ## Open
 
-- **`ev find` does not fold a code's `-` and `_` as `ev show` does.** A box coded `X5_13` is
-  found by `ev find x5_13` and `ev show X5-13`, but `ev find X5-13` answers nothing, and
-  `ev find "X5-" --kind container` leaves out `X5_12` and `X5_13`. The agent listed a series
-  that way and proposed a code already in use as the next free one. Expected: `find` compares
-  codes as references do (`-` and `_` one, leading zeros of a number ignored; spec/codes.md),
-  and the next free code of a series (`code=X5-*`) counts `X5_12` as taken. (Reported by the
-  inventory agent.)
 - **Where a marked-photo series ends is a guess.** A new drawer's photo batch joined the series
   still open from the previous drawer, so its frames were numbered 16–32 while its pictures were
   f16–f34: frame 16 and f16 named different things, and the person noticed only afterwards. The

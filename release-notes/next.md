@@ -33,6 +33,12 @@ details, whose tabs are now the only tab strip on screen (spec/ui-sidebar.md).
 
 ## Fixes
 
+- `ev find` compared a code as written: a box coded `X5_13` was not found by `ev find X5-13`,
+  and listing a series with `ev find "X5-"` left out its `X5_` labels, so an agent proposed a
+  code already in use as the next free one. A code is now matched as references match it, `-`
+  and `_` one and the padding of its numbers aside, as `ev show` and the next free code of a
+  series already did.
+
 - A place toured, then changed in the same second, could not be toured again: the check
   compared times kept to the second. It compares the order of the events now. A faster machine
   (CI) hit it; one at home could have too, with an agent writing quickly.

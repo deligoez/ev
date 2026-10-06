@@ -160,6 +160,8 @@ enum Cmd {
     /// Return a candidate to active; with --correction, undo a gone recorded by mistake.
     Restore {
         reference: String,
+        /// Why the gone record was not really gone; takes back a `gone` recorded by mistake
+        /// (give the record's id).
         #[arg(long)]
         correction: Option<String>,
     },
@@ -169,6 +171,8 @@ enum Cmd {
     /// record that should never have existed.
     Gone {
         reference: String,
+        /// How it left: trash, give, sell, trade, return, used, digitize, left, stolen,
+        /// unknown or mistake; a thing set aside leaves as it was set aside.
         #[arg(long = "as")]
         disposition: Option<String>,
         /// Why it left; recorded in the event and appended to the note.
@@ -230,6 +234,7 @@ enum Cmd {
     },
     /// Every candidate, grouped by disposition.
     Disposals {
+        /// One pile: trash, digitize, give, sell, trade or return.
         #[arg(long = "as")]
         disposition: Option<String>,
     },
@@ -1337,7 +1342,7 @@ struct AddArgs {
     /// the --in place).
     #[arg(long, conflicts_with_all = ["name", "kind", "make", "model", "serial"])]
     of: Option<String>,
-    /// A past thing, recorded already gone: how it left (sell, give, trash, used, left,
+    /// A past thing, recorded already gone: how it left (sell, give, trash, used, trade, left,
     /// stolen, unknown). It is in no holder; --kind defaults to item.
     #[arg(long, conflicts_with_all = ["parent", "lost", "of"])]
     gone: Option<String>,

@@ -422,3 +422,16 @@ fn a_holder_set_aside_to_leave_is_suggested_as_no_place() {
         .collect();
     assert!(!names.contains(&"Kablo kutusu"), "{names:?}");
 }
+
+#[test]
+fn a_batch_line_with_both_gone_and_of_says_why() {
+    let (_d, mut inv) = setup();
+    let e = inv
+        .add_batch(vec![NewNode {
+            gone: Some("trash".into()),
+            of: Some("Telefon".into()),
+            ..Default::default()
+        }])
+        .unwrap_err();
+    assert!(e.to_string().contains("do not go together"), "{e}");
+}

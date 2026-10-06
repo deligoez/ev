@@ -404,6 +404,52 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "#{id} satılmak üzere ayrılmamış; önce `ev dispose {id} --as sell`",
     ),
     ("need_closed", "{id} numaralı ihtiyaç zaten kapalı"),
+    (
+        "gone_fields_only",
+        "#{id} artık burada değil; yalnız {fields} değişebilir, `{given}` değil",
+    ),
+    (
+        "address_clear_first",
+        "yalnız evin adresi olur; önce adresi kaldır",
+    ),
+    (
+        "holds_rooms",
+        "{node} içinde odalar var, ev ya da oda olarak kalmalı",
+    ),
+    (
+        "has_not_left",
+        "#{id} gitmedi; ne zaman gittiğini `ev gone` söyler",
+    ),
+    (
+        "waits_for_itself",
+        "{node} kendisini ya da içindeki bir şeyi bekleyemez",
+    ),
+    ("not_ours_to_lend", "{node} bizim değil; ödünç verilemez"),
+    ("place_name_taken", "`{name}` zaten bir yerin adı"),
+    ("places_already_one", "iki ad da zaten aynı yeri gösteriyor"),
+    ("already_lent_to", "{node} zaten {to} kimsesinde"),
+    ("not_lent_out", "{node} ödünçte değil"),
+    (
+        "alias_names_another",
+        "`{alias}` zaten başka bir yerin adı; `ev place merge` kullan",
+    ),
+    (
+        "beside_needs_size",
+        "başka bir şeyin yanına koymak için önce --size ver",
+    ),
+    (
+        "beside_other_place",
+        "yalnız aynı yerdeki bir şeyin yanına konabilir",
+    ),
+    ("beside_unplaced", "ötekinin henüz yeri yok; önce onu çiz"),
+    (
+        "stands_on_itself",
+        "bir şey kendi üstünde ya da üstünde duranın üstünde duramaz",
+    ),
+    (
+        "outside_holder",
+        "{x},{y} konumunda ve {w}×{d} cm boyunda, {pw}×{pd} cm olan kabının dışına taşar",
+    ),
 ];
 
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.

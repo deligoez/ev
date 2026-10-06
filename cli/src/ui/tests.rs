@@ -1787,3 +1787,39 @@ fn photo_now(inv: &mut Inventory, place: &str) {
         .unwrap();
     inv.photo_add_with(place, &png, None, None, true).unwrap();
 }
+
+#[test]
+fn the_sidebar_lists_every_list_under_its_heading_with_digit_and_count() {
+    let (_dir, mut inv) = led_drawer();
+    inv.mark_lost("Aktif buzzer").unwrap();
+    inv.mark_lost("Pasif buzzer").unwrap();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let mut term = Terminal::new(TestBackend::new(140, 24)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    // The sidebar's own text on the line that holds `label`.
+    let side = |label: &str| {
+        let l = s.lines().find(|l| l.contains(label)).unwrap_or_default();
+        l.split('│').nth(1).unwrap_or_default().to_string()
+    };
+    for heading in ["HOME", "HISTORY", "INSIGHT"] {
+        assert!(s.contains(heading), "{s}");
+    }
+    // The count is the list's own length, at the sidebar's right edge.
+    assert!(side(" 5 Lost").ends_with(" 2"), "{s}");
+    assert!(side(" 3 Pending").ends_with(" 0"), "{s}");
+    // The tree has no single count.
+    assert!(side(" 1 Layout").trim_end().ends_with("Layout"), "{s}");
+    assert!(s.contains("/ Search") && s.contains("0 Settings"), "{s}");
+    // No tab bar: the top line says where you are.
+    assert!(s.lines().next().unwrap().contains("HOME › Layout"), "{s}");
+    press(&mut app, KeyCode::Char('5'));
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(
+        screen(&term)
+            .lines()
+            .next()
+            .unwrap()
+            .contains("HOME › Lost · 2")
+    );
+}

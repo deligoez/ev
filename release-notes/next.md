@@ -106,11 +106,17 @@ Found by three QA rounds on a copy of a real inventory before this release.
   takes no `--to`, `--temporary` or `--code`, and `--where` names a place, not a record.
 - **Swaps:** a thing is never traded for itself or for a place, nothing is half written when a
   swap is refused, and a swap drops a sale price said before.
-- **Purchases:** one open count in `ev todo`, `ev stats` and `ev buy list --open` (returned,
-  digital and service lines wait for nothing; lines settled by a kit no longer count); a line
-  linked to a thing, or already a coverage's, is not taken by another coverage, and a coverage's
-  premium follows its line; a link on the person's word takes back an earlier decline;
-  `--bucket` is checked.
+- **Purchases:** one open count in `ev todo` and `ev stats`, which `ev buy list --open --bucket
+  durable` lists (returned, digital and service lines wait for nothing; lines settled by a kit no
+  longer count); a line linked to a thing, dismissed, or already a coverage's is not taken by a
+  coverage, checked before the coverage is written, and a coverage's premium and its currency
+  follow its line; a link on the person's word takes back an earlier decline; a line bought
+  after its thing left is refused; a purchase entered by hand without a currency is in the home
+  one; `--bucket` is checked.
+- **Numbers:** the dearest things in `ev stats` show what they cost per currency; two lines in
+  different currencies were added as one.
+- **A command that changes nothing says so:** a dropped task is not done without being reopened,
+  an open task is not reopened, and a decline is not cleared where there is none.
 - **Tasks and places:** a closed task starts only once reopened, and a start says which task it
   stopped; `ev progress` of a thing is refused and of a box reads its place.
 - **Text:** fields, dismissal reasons, coverage terms, need states, marks and history events read

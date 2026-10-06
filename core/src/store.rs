@@ -946,8 +946,10 @@ impl Inventory {
         crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(&tx, node.id, "restore", json!({ "was": node.disposition }))?;
+        // Some of a thing set aside and kept after all: back with the rest beside it.
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, holder)
     }
 
     /// Final step of spec §3.3; one step from active when `--as` is given.
@@ -2807,8 +2809,10 @@ impl Inventory {
             "restore",
             json!({ "correction": why, "was": node.disposition }),
         )?;
+        // A part that never left is back with the rest beside it.
+        let holder = crate::portions::join_here(&tx, node.id)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, holder)
     }
 }
 

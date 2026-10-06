@@ -502,9 +502,22 @@ impl Inventory {
     /// and not dismissed, and any already linked to it.
     pub fn buy_for(&self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, true)?;
-        Ok(
-            json!({ "node": crate::store::brief(&self.conn, id)?, "candidates": candidates_for(&self.conn, id, 0.0, 12)? }),
-        )
+        // A thing that left was not bought after it left: those lines are no candidates.
+        let left = crate::store::past::departure_json(&self.conn, id)?;
+        let left = left["at"].as_str().filter(|_| left["pending"] != true);
+        let mut candidates = candidates_for(&self.conn, id, 0.0, 48)?;
+        candidates.retain(|c| {
+            let bought = c["purchase"]["ordered_at"]
+                .as_str()
+                .or(c["purchase"]["delivered_at"].as_str());
+            c["linked"] == true
+                || !matches!((left, bought), (Some(l), Some(b)) if {
+                    let n = l.len().min(b.len());
+                    b[..n] > l[..n]
+                })
+        });
+        candidates.truncate(12);
+        Ok(json!({ "node": crate::store::brief(&self.conn, id)?, "candidates": candidates }))
     }
 
     /// The back-fill (purchases spec §12.2): every thing in a toured place that no purchase is

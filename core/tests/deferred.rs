@@ -141,3 +141,22 @@ fn some_of_a_thing_set_aside_and_kept_joins_the_rest_again() {
     let back = inv.restore(&portion).unwrap();
     assert_eq!(back["node"]["qty"], 10, "{back}");
 }
+
+#[test]
+fn a_leaving_taken_back_takes_back_its_reason_from_the_note() {
+    use ev_core::Disposition;
+    let (_d, mut inv) = setup();
+    inv.edit("Telefon", &["note=şarjı zayıf".into()]).unwrap();
+    inv.gone_left(
+        "Telefon",
+        Some(Disposition::Mistake),
+        Some("typed twice"),
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let back = inv.correct_gone("4", "it was not a duplicate").unwrap();
+    assert_eq!(back["node"]["note"], "şarjı zayıf", "{back}");
+}

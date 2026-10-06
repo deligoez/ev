@@ -350,7 +350,9 @@ records a "not this one" so the line is not offered to that thing again. What wa
 is never a thing in the home goes in by its bucket, never waiting to be linked: `digital` (an
 app, a download) and `service` (a repair, an installation), beside `durable` and `clothing`
 (`ev buy add "Kurulum" --paid 500 --bucket service`, or later `ev buy bucket 412 digital`); the
-account a line was billed to is listed and filters the list (`ev buy list --billed-to ayse`).
+account a line was billed to is listed and filters the list (`ev buy list --billed-to ayse`), and
+so do the source and the key a line came with: `ev buy list --source ak --key 412` finds what one
+of ak's payments (the household's money, spec/ak.md) bought, the payment's own line or its items.
 `ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
 (`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line

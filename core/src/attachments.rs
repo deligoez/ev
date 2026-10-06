@@ -51,7 +51,12 @@ pub(crate) fn attachment_data(kind: &str, v: &Value) -> Result<String> {
             let amount =
                 text(v, "amount").ok_or_else(|| Error::Usage("`amount` is required".into()))?;
             put("amount", Some(money(parse_money(&amount)?)));
-            put("currency", text(v, "currency").map(|c| c.to_uppercase()));
+            put(
+                "currency",
+                text(v, "currency")
+                    .map(|c| crate::money::currency_code(&c))
+                    .transpose()?,
+            );
             put("at", crate::purchases::date(&text(v, "at"))?);
             if v.get("approximate").and_then(Value::as_bool) == Some(true) {
                 d.insert("approximate".into(), json!(true));

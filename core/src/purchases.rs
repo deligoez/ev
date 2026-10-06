@@ -387,7 +387,7 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
             *d = date(d)?;
         }
         if *col == "currency" {
-            *d = d.as_deref().map(str::to_uppercase);
+            *d = d.as_deref().map(crate::money::currency_code).transpose()?;
         }
     }
     Ok(Some((

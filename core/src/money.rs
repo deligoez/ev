@@ -34,6 +34,35 @@ pub(crate) fn home_country(conn: &Connection) -> Result<String> {
     setting(conn, "home_country", "TR")
 }
 
+/// The currencies in use (ISO 4217), so a typo (`TRL`, `EUO`) is not taken for one.
+const CURRENCIES: [&str; 155] = [
+    "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT",
+    "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD",
+    "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD",
+    "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ",
+    "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD",
+    "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR",
+    "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR",
+    "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN",
+    "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR",
+    "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS",
+    "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VED",
+    "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWG",
+];
+
+/// A currency code as written (`eur`, ` EUR `), checked against the codes in use.
+pub(crate) fn currency_code(text: &str) -> Result<String> {
+    let c = text.trim().to_uppercase();
+    if CURRENCIES.contains(&c.as_str()) {
+        Ok(c)
+    } else {
+        Err(Error::Usage(format!(
+            "`{}` is no currency code like EUR, USD or TRY",
+            text.trim()
+        )))
+    }
+}
+
 fn series(conn: &Connection) -> Result<String> {
     setting(conn, "price_index", "eurostat:TR")
 }

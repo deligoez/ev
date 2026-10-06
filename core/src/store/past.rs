@@ -272,9 +272,8 @@ impl Inventory {
             )
             .optional()?
             .flatten();
-        let currency = match currency.map(|c| c.trim().to_uppercase()) {
-            Some(c) if c.len() == 3 && c.chars().all(|ch| ch.is_ascii_alphabetic()) => c,
-            Some(c) => return Err(Error::Usage(format!("`{c}` is no currency code like EUR"))),
+        let currency = match currency {
+            Some(c) => crate::money::currency_code(c)?,
             None => match said_before {
                 Some(c) => c,
                 None => crate::money::home_currency(&tx)?,

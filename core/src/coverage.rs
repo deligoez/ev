@@ -639,7 +639,7 @@ impl Inventory {
             let v = v.trim();
             let ok = match n {
                 "home_country" => v.len() == 2 && v.chars().all(|c| c.is_ascii_alphabetic()),
-                "home_currency" => v.len() == 3 && v.chars().all(|c| c.is_ascii_alphabetic()),
+                "home_currency" => crate::money::currency_code(v).is_ok(),
                 "price_index" => v.contains(':'),
                 "valuable_threshold" => parse_money(v).is_ok_and(|m| m >= 0),
                 "coverage_warning_days" => v.parse::<i64>().is_ok_and(|d| d > 0),
@@ -902,7 +902,9 @@ pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) ->
             ends,
             premium,
             deductible,
-            text(&new.currency).map(|c| c.to_uppercase()),
+            text(&new.currency)
+                .map(|c| crate::money::currency_code(&c))
+                .transpose()?,
             text(&new.scope),
             text(&new.note),
             now()

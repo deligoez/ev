@@ -74,7 +74,7 @@ pub(crate) fn add_valuation(conn: &Connection, node: i64, new: &NewValuation) ->
         return Err(Error::Usage("a value must be more than zero".into()));
     }
     let currency = match text(&new.currency) {
-        Some(c) => c.to_uppercase(),
+        Some(c) => crate::money::currency_code(&c)?,
         None => crate::money::home_currency(conn)?,
     };
     let at = match text(&new.at) {

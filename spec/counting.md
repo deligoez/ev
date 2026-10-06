@@ -50,8 +50,8 @@ word.
   `{furniture: {node, places: [...]}, room: {node, places: [...]}}`, the places not counted
   (`raw` or `counting`) in the same piece of furniture and in the same room, each
   `{node, status, tasks: [{id, title}]}` (empty `tasks`: in no task). Either part is null when
-  there is none, or nothing is left in it. The text says "Bu mobilyada sayılmamış N yer kaldı"
-  with each place and its task.
+  there is none, or nothing is left in it. The text says "<furniture> içinde hâlâ sayılmamış:",
+  then each place with its state and its task, or "hiçbir görevde değil".
 - **In `ev next`:** while a task is in progress, `left_nearby` lists the places not counted in the
   furniture its places are in that are not in that task, each with its tasks: the drawer of the
   same cabinet that no task holds shows up while the cabinet is being toured.

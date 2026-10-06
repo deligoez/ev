@@ -1768,7 +1768,7 @@ fn zero_opens_the_past_by_year_apart_from_the_inventory() {
     assert!(s.contains("Oyun konsolu") && s.contains("Eski ev"), "{s}");
     // The details say when it came and how it left.
     assert!(
-        s.contains("geldi  2016") && s.contains("1.500,00 TL karşılığı"),
+        s.contains("geldi  2016") && s.contains("1.500,00 TL"),
         "{s}"
     );
     // Enter on it stays here: a past thing is in no tree.

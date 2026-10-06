@@ -2261,13 +2261,24 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             Disposition::Mistake | Disposition::Merged | Disposition::Digitize
         ) {
             return Err(Error::Usage(format!(
-                "a past thing is not added as {}: give how it left (sell, give, trash, used, left, stolen, unknown)",
+                "a past thing is not added as {}: give how it left (sell, give, trash, used, trade, left, stolen, unknown)",
                 g.as_str()
             )));
         }
         if kind == Kind::Home || parent.is_some() || new.lost {
             return Err(Error::Usage(
                 "a past thing is added on its own: no --in, --lost, or home".into(),
+            ));
+        }
+        // Where a thing stands, or is to go, says nothing of one that left.
+        if non_empty(&new.to).is_some() || new.temporary || non_empty(&new.code).is_some() {
+            return Err(Error::Usage(
+                "a past thing has no --to, --temporary or --code: it is no longer here".into(),
+            ));
+        }
+        if non_empty(&new.place).is_some_and(|p| p.starts_with('#')) {
+            return Err(Error::Usage(
+                "--where names a place (a former home), not a record".into(),
             ));
         }
     } else if non_empty(&new.at).is_some() || non_empty(&new.place).is_some() {
@@ -2278,6 +2289,9 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     let came = non_empty(&new.came)
         .map(|c| past::partial_date(&c))
         .transpose()?;
+    if let (Some(c), Some(a)) = (&came, non_empty(&new.at)) {
+        past::came_before_left(c, &past::partial_date(&a)?)?;
+    }
     if gone.is_none() {
         check_placement(conn, kind, parent, new.lost, None)?;
     }

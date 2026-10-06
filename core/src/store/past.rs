@@ -41,7 +41,23 @@ pub(crate) fn partial_date(text: &str) -> Result<String> {
         }
         _ => return Err(bad()),
     }
+    // A date remembered is a date that was: never one still to come.
+    let today = crate::store::today().format("%Y-%m-%d").to_string();
+    if t > &today[..t.len()] {
+        return Err(Error::Usage(format!("`{t}` is still to come")));
+    }
     Ok(t.to_string())
+}
+
+/// Refuses a thing said to have come after it left: compared as far as both dates say.
+pub(crate) fn came_before_left(came: &str, left: &str) -> Result<()> {
+    let n = came.len().min(left.len());
+    if came[..n] > left[..n] {
+        return Err(Error::Usage(format!(
+            "it came {came} but left {left}; one of the dates is not right"
+        )));
+    }
+    Ok(())
 }
 
 /// Records when and where a gone record left, keeping what a sale already said.
@@ -55,6 +71,20 @@ pub(super) fn set_departure(
         return Ok(());
     }
     let at = at.map(partial_date).transpose()?;
+    if let Some(a) = &at {
+        let came: Option<String> =
+            conn.query_row("SELECT came_at FROM nodes WHERE id = ?1", [node], |r| {
+                r.get(0)
+            })?;
+        if let Some(c) = came {
+            came_before_left(&c, a)?;
+        }
+    }
+    if place.is_some_and(|p| p.trim().starts_with('#')) {
+        return Err(Error::Usage(
+            "--where names a place (a former home), not a record".into(),
+        ));
+    }
     let place = place
         .map(|p| super::places::place_or_create(conn, p))
         .transpose()?;
@@ -486,8 +516,9 @@ impl Inventory {
     /// nothing says (no `came`, no linked purchase) cannot be placed in a year: those are
     /// counted apart, never guessed in. Things kept for someone else are not ours.
     pub fn past_year(&self, year: i32) -> Result<Value> {
-        if !(1900..=2100).contains(&year) {
-            return Err(Error::Usage(format!("`{year}` is no year")));
+        use chrono::Datelike;
+        if !(1900..=crate::store::today().year()).contains(&year) {
+            return Err(Error::Usage(format!("`{year}` is no year to look back on")));
         }
         let conn = &self.conn;
         let mut stmt = conn.prepare(&format!(

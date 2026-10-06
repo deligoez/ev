@@ -4,7 +4,23 @@
 use super::*;
 
 /// What a gone record still lets change: what it was, never where it stands.
-const GONE_FIELDS: [&str; 7] = ["name", "note", "came", "qty", "make", "model", "serial"];
+const GONE_FIELDS: [&str; 9] = [
+    "name", "note", "came", "left", "left_in", "qty", "make", "model", "serial",
+];
+
+/// When (`left`, as said; null when only the day it was recorded stands for it) or where
+/// (`left_in`) a gone record left.
+fn departure_field(conn: &Connection, id: i64, field: &str) -> Result<Value> {
+    let v: Option<Option<String>> = conn
+        .query_row(
+            "SELECT CASE ?2 WHEN 'left' THEN d.at ELSE p.name END
+               FROM departures d LEFT JOIN places p ON p.id = d.place_id WHERE d.node_id = ?1",
+            params![id, field],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(json!(v.flatten()))
+}
 
 pub(super) fn field_value(n: &Node, field: &str) -> Value {
     match field {
@@ -122,13 +138,21 @@ pub(super) fn edit_in(
             .ok_or_else(|| Error::Usage(format!("`{a}` is not field=value")))?;
         let field = field.trim();
         let before = load(conn, id)?;
+        // When and where a gone record left are on its departure, not on the record.
+        let value_of = |n: &Node| -> Result<Value> {
+            Ok(match field {
+                "left" | "left_in" => departure_field(conn, id, field)?,
+                _ => field_value(n, field),
+            })
+        };
+        let was = value_of(&before)?;
         apply_edit(conn, &before, field, value)?;
         let after = load(conn, id)?;
         let first = changes
             .get(field)
             .map(|c| c["before"].clone())
-            .unwrap_or_else(|| field_value(&before, field));
-        let last = field_value(&after, field);
+            .unwrap_or(was);
+        let last = value_of(&after)?;
         if first == last {
             changes.remove(field);
         } else {
@@ -289,10 +313,49 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             let v = text(value)
                 .map(|d| super::past::partial_date(&d))
                 .transpose()?;
+            if let (Some(c), Some(l)) = (&v, departure_field(conn, n.id, "left")?.as_str()) {
+                super::past::came_before_left(c, l)?;
+            }
             conn.execute(
                 "UPDATE nodes SET came_at = ?1 WHERE id = ?2",
                 params![v, n.id],
             )?;
+        }
+        "left" | "left_in" => {
+            // When a gone record left, and where it was then, said again as remembered;
+            // empty clears it.
+            if n.state != State::Gone {
+                return Err(refused(
+                    format!("node {} has not left; `ev gone` says when", n.id),
+                    Value::Null,
+                ));
+            }
+            let v = text(value);
+            if field == "left" {
+                let at = v.map(|d| super::past::partial_date(&d)).transpose()?;
+                if let (Some(c), Some(a)) = (&n.came_at, &at) {
+                    super::past::came_before_left(c, a)?;
+                }
+                conn.execute(
+                    "INSERT INTO departures (node_id, at) VALUES (?1, ?2)
+                     ON CONFLICT(node_id) DO UPDATE SET at = excluded.at",
+                    params![n.id, at],
+                )?;
+            } else {
+                if v.as_deref().is_some_and(|p| p.starts_with('#')) {
+                    return Err(Error::Usage(
+                        "left_in names a place (a former home), not a record".into(),
+                    ));
+                }
+                let place = v
+                    .map(|p| super::places::place_or_create(conn, &p))
+                    .transpose()?;
+                conn.execute(
+                    "INSERT INTO departures (node_id, place_id) VALUES (?1, ?2)
+                     ON CONFLICT(node_id) DO UPDATE SET place_id = excluded.place_id",
+                    params![n.id, place],
+                )?;
+            }
         }
         "waits_for" => {
             // What its place waits on (spec/waits-for.md): a record, lost or not; never itself or

@@ -568,10 +568,40 @@ pub(crate) fn take_back(
         if back {
             taken.push(json!({ "id": aid, "type": kind }));
         } else {
+            // The command that removes what was brought, ready to run: the value or the
+            // coverage on the thing that this attachment became.
             let how = match kind {
-                "valuation" => "ev value <ref> --remove",
-                "coverage" => "ev cover remove <id>",
-                _ => "not found on the record any more",
+                "valuation" => {
+                    let cents = crate::purchases::parse_money(&s("amount")).unwrap_or_default();
+                    let v: Option<i64> = tx
+                        .query_row(
+                            "SELECT id FROM valuations WHERE node_id = ?1 AND amount = ?2
+                              ORDER BY id DESC LIMIT 1",
+                            params![node, cents],
+                            |r| r.get(0),
+                        )
+                        .optional()?;
+                    match v {
+                        Some(v) => format!("ev value {node} --remove {v}"),
+                        None => "not found on the record any more".to_string(),
+                    }
+                }
+                "coverage" => {
+                    let c: Option<i64> = tx
+                        .query_row(
+                            "SELECT c.id FROM coverages c
+                               JOIN coverage_nodes n ON n.coverage_id = c.id
+                              WHERE n.node_id = ?1 AND c.kind = ?2 ORDER BY c.id DESC LIMIT 1",
+                            params![node, s("kind")],
+                            |r| r.get(0),
+                        )
+                        .optional()?;
+                    match c {
+                        Some(c) => format!("ev cover remove {c}"),
+                        None => "not found on the record any more".to_string(),
+                    }
+                }
+                _ => "not found on the record any more".to_string(),
             };
             left.push(json!({ "id": aid, "type": kind, "how": how }));
         }

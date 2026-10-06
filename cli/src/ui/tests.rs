@@ -2106,3 +2106,32 @@ fn enter_on_a_linked_purchase_line_opens_its_thing_in_the_tree() {
     press(&mut app, KeyCode::Esc);
     assert!(app.tab == Tab::Buys);
 }
+
+#[test]
+fn enter_on_a_shops_figure_opens_its_purchase_lines_and_esc_comes_back() {
+    let (_dir, mut app) = with_purchases();
+    press(&mut app, KeyCode::Char('8'));
+    let shop = app
+        .rows
+        .iter()
+        .position(|r| r.spans.iter().any(|s| s.content.starts_with("Store:")))
+        .unwrap();
+    // The figure says it has a list behind it.
+    assert!(app.rows[shop].spans.iter().any(|s| s.content.contains('›')));
+    app.select(shop).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Buys);
+    let lines: Vec<i64> = app.rows.iter().map(|r| r.id).filter(|&id| id > 0).collect();
+    assert_eq!(lines.len(), 1);
+    assert!(
+        app.purchase_title.contains("· Store "),
+        "{}",
+        app.purchase_title
+    );
+    // Esc goes straight back to the figure, and the shop narrows nothing any more.
+    press(&mut app, KeyCode::Esc);
+    assert!(app.tab == Tab::Stats);
+    assert!(app.buy_shop.is_none());
+    press(&mut app, KeyCode::Char('9'));
+    assert_eq!(app.rows.iter().filter(|r| r.id > 0).count(), 3);
+}

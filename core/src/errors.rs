@@ -470,7 +470,15 @@ mod tests {
     #[test]
     fn every_id_raised_has_a_sentence() {
         for (path, text) in sources() {
-            for start in ["Error::said(", "refuse(\n", "refuse(\""] {
+            for start in [
+                "Error::said(",
+                "refuse(\n",
+                "refuse(\"",
+                "usage(\n",
+                "usage(\"",
+                "not_found(\n",
+                "not_found(\"",
+            ] {
                 for part in text.split(start).skip(1) {
                     // `refuse(\n    "id"`, or `refuse("id"`; an id passed as a variable is
                     // checked where it is written.

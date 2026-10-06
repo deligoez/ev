@@ -229,6 +229,16 @@ impl Error {
     }
 }
 
+/// A request written wrong, by its id (exit 2).
+pub(crate) fn usage(id: &'static str, values: Value) -> Error {
+    Error::said(Fault::Usage, id, values)
+}
+
+/// Nothing matched, by its id (exit 3).
+pub(crate) fn not_found(id: &'static str, values: Value) -> Error {
+    Error::said(Fault::NotFound, id, values)
+}
+
 /// A refusal by its id (exit 5), with what it carries for the agent to act on, if anything.
 pub(crate) fn refuse(id: &'static str, values: Value, details: Value) -> Error {
     let mut e = Error::said(Fault::Refused, id, values);

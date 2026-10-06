@@ -1980,9 +1980,24 @@ pub(crate) fn resolve(conn: &Connection, reference: &str, include_gone: bool) ->
             .flatten();
         return match state {
             Some(s) if include_gone || s != "gone" => Ok(r.parse().unwrap_or_default()),
-            Some(_) => Err(Error::NotFound(format!(
-                "node {r} is gone; `ev show {r} --include-gone` or `ev history {r}` still find it"
-            ))),
+            Some(_) => {
+                // A portion that joined another is that one now: say which.
+                let into: Option<i64> = conn
+                    .query_row(
+                        "SELECT json_extract(data, '$.into') FROM events
+                          WHERE node_id = ?1 AND type = 'merged' ORDER BY id DESC LIMIT 1",
+                        [r],
+                        |x| x.get(0),
+                    )
+                    .optional()?
+                    .flatten();
+                Err(Error::NotFound(match into {
+                    Some(i) => format!("node {r} joined #{i}; it is counted there now"),
+                    None => format!(
+                        "node {r} is gone; `ev show {r} --include-gone` or `ev history {r}` still find it"
+                    ),
+                }))
+            }
             None => Err(Error::NotFound(format!("no node with id {r}"))),
         };
     }

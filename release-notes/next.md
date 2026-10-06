@@ -81,6 +81,10 @@ joins and what that is linked to (`joined_to`). An order of several lines is tol
 then by the name near that price, each shop line taking one ak line; one that cannot be told is listed under `unjoined` in the import's result, and
 `ev buy join <line> <other>` joins it on the person's word.
 
+`ev buy list --dismissed` lists the dismissed lines, and `--dismissed elsewhere` those of one
+reason: the lines the person said belong elsewhere, such as bills, which ak reads to see which of
+them it holds already.
+
 ## Faster
 
 - `ev ui` started and refreshed most of a second slower once the sidebar counted the purchase

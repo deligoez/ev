@@ -130,3 +130,26 @@ fn a_swap_already_recorded_is_not_written_again() {
     assert_eq!(inv.traded(&phone, None).unwrap_err().code(), 5);
     assert_eq!(inv.history(&phone).unwrap().to_string().len(), before);
 }
+
+#[test]
+fn a_swap_for_a_thing_that_had_already_left_or_was_ours_before_is_refused() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Konsol".into(),
+        gone: Some("give".into()),
+        at: Some("2020".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    inv.add(NewNode {
+        name: "Saat".into(),
+        gone: Some("give".into()),
+        at: Some("2018".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let (konsol, saat) = (id(&inv, "Konsol"), id(&inv, "Saat"));
+    assert_eq!(inv.traded(&konsol, Some(&saat)).unwrap_err().code(), 2);
+    inv.edit("Tablet", &["came=2010".into()]).unwrap();
+    assert_eq!(inv.traded(&konsol, Some("Tablet")).unwrap_err().code(), 2);
+}

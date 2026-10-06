@@ -121,7 +121,15 @@ pub fn error_sentence(s: &ev_core::Said) -> String {
     }
     .or_else(|| ev_core::template(s.id))
     .unwrap_or(s.id);
-    let mut out = ev_core::fill(template, &s.values);
+    // A value that is a word of ev's own (a kind) is said in the reader's language too.
+    let mut values = s.values.clone();
+    if lang() == Lang::Tr
+        && let Some(serde_json::Value::String(kind)) = values.get("kind")
+        && let Some(tr) = turkish().get(kind.as_str())
+    {
+        values.insert("kind".into(), serde_json::json!(tr));
+    }
+    let mut out = ev_core::fill(template, &values);
     for a in &s.at {
         let at = match &a["line"] {
             serde_json::Value::Number(n) => tf("line {}", &[n]),
@@ -151,6 +159,76 @@ static ERRORS_TR: &[(&str, &str)] = &[
     (
         "record_joined",
         "#{id}, #{into} kaydına katıldı; artık orada sayılıyor",
+    ),
+    (
+        "split_holds_things",
+        "{node} içinde {inside} şey var; içindekileri böl, önce dışarı taşı ya da --take ile boş birimleri ayır",
+    ),
+    (
+        "split_takes_all",
+        "parçalar {node} kaydının {had} biriminden {take} tanesini alıyor; geriye bir şey kalmaz: bunun yerine bir parçayı --rename ve --qty ile asıl kayıt olarak tut",
+    ),
+    (
+        "already_candidate",
+        "{node} zaten aday; `ev gone` ya da `ev restore` kullan",
+    ),
+    (
+        "restore_gone_by_correction",
+        "#{id} artık burada değil; `ev restore {id} --correction \"neden\"` bunu geri alır",
+    ),
+    ("not_a_candidate", "{node} aday değil"),
+    (
+        "gone_needs_how",
+        "{node} hâlâ evde; nasıl gittiğini --as trash|give|sell|trade|used|digitize|left|stolen|unknown ile söyle",
+    ),
+    ("already_lost", "{node} zaten kayıp"),
+    ("home_cannot_be_lost", "ev kaybolamaz"),
+    ("not_lost", "{node} kayıp değil"),
+    (
+        "never_seen",
+        "{node} hiçbir yerde görülmedi; nerede çıktığını `ev found <ref> --in <yer>` ile söyle",
+    ),
+    ("no_pending_move", "{node} için bekleyen bir taşıma yok"),
+    (
+        "already_there",
+        "{node} zaten {place} içinde; onun içindeki bir yer (bir göz) ya bir ızgara hücresidir (`ev grid`, `ev cell`) ya da kendi başına bir kap",
+    ),
+    (
+        "move_already_pending",
+        "{node} için zaten bekleyen bir taşıma var; önce onu iptal et",
+    ),
+    (
+        "code_only_digits",
+        "`{code}` kodu yalnız rakamlardan oluşuyor, id gibi okunur",
+    ),
+    ("code_in_use", "`{code}` kodu zaten kullanılıyor"),
+    ("home_inside_another", "ev başka bir kaydın içine konamaz"),
+    (
+        "needs_a_place",
+        "bir {kind} için yer gerekir: --in ver, yeri bilinmiyorsa --lost",
+    ),
+    ("holder_gone", "{node} artık burada değil, bir şey tutamaz"),
+    (
+        "room_inside_wrong_kind",
+        "oda yalnız bir evin ya da başka bir odanın içinde olabilir, bir {kind} içinde değil",
+    ),
+    (
+        "into_itself",
+        "bir kayıt kendi içine ya da içindeki bir şeyin içine taşınamaz",
+    ),
+    ("address_only_home", "yalnız evin adresi olur"),
+    (
+        "still_holds",
+        "{node} içinde hâlâ {count} kayıt var; önce onları taşı ya da elden çıkar",
+    ),
+    (
+        "digitize_needs_copy",
+        "{node} için henüz bir kopya yok; dijitale geçmeden önce `ev photo add` ya da `ev doc add --for` ile ekle",
+    ),
+    ("not_gone", "{node} gitmiş değil"),
+    (
+        "left_with",
+        "{node}, {holder} ile birlikte gitti; önce onu geri getir",
     ),
 ];
 

@@ -338,7 +338,9 @@ fn a_task_begun_counts_nothing_until_work_in_its_place_starts() {
     // Dropped half way: what was begun stays begun.
     inv.task_set(t, "dropped", None).unwrap();
     assert_eq!(count(&inv, "Karton kutu"), "counting");
-    // A place settled stays so when its task closes.
+    // A closed task starts again only once reopened; a place settled stays so when it closes.
+    assert_eq!(inv.task_set(t, "doing", None).unwrap_err().code(), 5);
+    inv.task_set(t, "open", None).unwrap();
     inv.task_set(t, "doing", None).unwrap();
     inv.review("Karton kutu", "kept", None).unwrap();
     inv.task_set(t, "done", None).unwrap();

@@ -293,3 +293,52 @@ fn the_counts_by_bucket_are_the_lengths_of_the_unfiltered_lists() {
         assert_eq!(counts[bucket].as_u64().unwrap_or(0), listed, "{bucket}");
     }
 }
+
+#[test]
+fn a_source_and_a_key_find_a_payments_line_and_its_items() {
+    let (_d, mut inv) = setup();
+    let line = |source: &str, key: &str| {
+        json!({"type": "purchase", "source": source, "key": key, "name": format!("{source} {key}"),
+               "qty": 1, "paid": "1999", "currency": "TRY", "bucket": "durable"})
+        .to_string()
+    };
+    let ndjson = [
+        line("ak", "41"),
+        line("ak", "42.1"),
+        line("ak", "42.2"),
+        line("ak", "420"),
+        line("shop", "42"),
+    ]
+    .join("\n");
+    inv.buy_import(&ndjson).unwrap();
+    let keys = |source: Option<&str>, key: Option<&str>| -> Vec<String> {
+        let mut k: Vec<String> = inv
+            .buy_list_where(&ev_core::BuyFilter {
+                source,
+                key,
+                ..Default::default()
+            })
+            .unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| {
+                format!(
+                    "{}:{}",
+                    p["source"].as_str().unwrap(),
+                    p["source_key"].as_str().unwrap()
+                )
+            })
+            .collect();
+        k.sort();
+        k
+    };
+    assert_eq!(keys(Some("ak"), None).len(), 4);
+    // A payment's key finds its items, not another payment that starts with the same digits.
+    assert_eq!(keys(Some("ak"), Some("42")), ["ak:42.1", "ak:42.2"]);
+    assert_eq!(keys(Some("ak"), Some("42.2")), ["ak:42.2"]);
+    assert_eq!(keys(Some("ak"), Some("41")), ["ak:41"]);
+    // The key alone spans the sources; the source is matched exactly.
+    assert_eq!(keys(None, Some("42")), ["ak:42.1", "ak:42.2", "shop:42"]);
+    assert!(keys(Some("a"), None).is_empty());
+}

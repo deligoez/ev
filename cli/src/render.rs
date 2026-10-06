@@ -298,7 +298,7 @@ fn due_text(due: &str, days: &Value) -> String {
         Some(0) => t("today").to_string(),
         Some(n) if n < 0 => tf("{} days overdue", &[&-n]),
         Some(n) => tf("in {} days", &[&n]),
-        None => String::new(),
+        None => return tf("due {}", &[&due]),
     };
     tf("due {} ({})", &[&due, &when])
 }
@@ -316,7 +316,14 @@ fn task_line(out: &mut String, t_: &Value) {
     };
     let _ = writeln!(out, "{pos} #{} {}{state}", t_["id"], s(t_, "title"));
     if let Some(d) = t_["due"].as_str() {
-        let _ = writeln!(out, "     {}", due_text(d, &t_["days_left"]));
+        // A closed task has no days left: only the date it was due.
+        let closed = matches!(t_["status"].as_str(), Some("done" | "dropped"));
+        let days = if closed {
+            &Value::Null
+        } else {
+            &t_["days_left"]
+        };
+        let _ = writeln!(out, "     {}", due_text(d, days));
     }
     let _ = writeln!(out, "     {}", tf("why: {}", &[&s(t_, "why")]));
     for n in t_["nodes"].as_array().into_iter().flatten() {

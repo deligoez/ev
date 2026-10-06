@@ -790,6 +790,7 @@ static TR: &[(&str, &str)] = &[
     ("{} days overdue", "{} gün gecikti"),
     ("in {} days", "{} gün kaldı"),
     ("due {} ({})", "son tarih {} ({})"),
+    ("due {}", "son tarih {}"),
     (
         "(first because it is due)",
         "(son tarihi geldiği için önde)",

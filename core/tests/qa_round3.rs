@@ -403,3 +403,16 @@ fn clearing_a_line_a_coverage_never_had_is_refused() {
         .unwrap();
     assert_eq!(inv.cover_purchase(c, None).unwrap_err().code(), 5);
 }
+
+#[test]
+fn a_thing_that_left_is_proposed_no_statutory_warranty() {
+    let (_d, mut inv) = setup();
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let l = line(&mut inv, "Telefon", &today, "durable");
+    inv.buy_link(l, "Telefon", None).unwrap();
+    let here = inv.show("Telefon", false).unwrap();
+    assert!(here["coverage_proposal"].is_object(), "{here}");
+    gone(&mut inv, "Telefon", Disposition::Give, None);
+    let v = inv.show(&id(&inv, "Telefon"), true).unwrap();
+    assert!(v["coverage_proposal"].is_null(), "{v}");
+}

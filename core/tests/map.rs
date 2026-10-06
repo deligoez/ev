@@ -503,7 +503,14 @@ fn a_move_out_of_a_holder_with_no_place_leaves_the_sketch_as_it_was() {
 fn furniture_outside_its_sized_room_is_refused() {
     let (_d, mut inv) = setup();
     sketch(&mut inv, "Çalışma odası", None, Some("300,400"), None, None).unwrap();
-    let out = sketch(&mut inv, "Masa", Some("99999,5"), Some("120,60"), None, None);
+    let out = sketch(
+        &mut inv,
+        "Masa",
+        Some("99999,5"),
+        Some("120,60"),
+        None,
+        None,
+    );
     assert_eq!(out.unwrap_err().code(), 5);
     sketch(&mut inv, "Masa", Some("180,5"), Some("120,60"), None, None).unwrap();
 }
@@ -511,7 +518,15 @@ fn furniture_outside_its_sized_room_is_refused() {
 #[test]
 fn a_sketch_keeps_its_measures_to_the_millimetre() {
     let (_d, mut inv) = setup();
-    sketch(&mut inv, "Kallax 2x2", Some("0.1,0"), Some("20.2,10.1"), None, None).unwrap();
+    sketch(
+        &mut inv,
+        "Kallax 2x2",
+        Some("0.1,0"),
+        Some("20.2,10.1"),
+        None,
+        None,
+    )
+    .unwrap();
     let v = inv
         .sketch_set(&SketchChange {
             reference: "Kallax 2x1".into(),

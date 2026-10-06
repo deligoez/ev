@@ -2157,7 +2157,10 @@ pub fn human(v: &Value) -> String {
             let _ = writeln!(
                 out,
                 "{}",
-                tf("Fields ev does not read, left out: {}", &[&fields.join(", ")])
+                tf(
+                    "Fields ev does not read, left out: {}",
+                    &[&fields.join(", ")]
+                )
             );
         }
         return out;

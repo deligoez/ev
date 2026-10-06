@@ -121,7 +121,15 @@ fn some_of_a_thing_that_never_left_joins_the_rest_again() {
     let (_d, mut inv) = setup();
     vida(&mut inv);
     let gone = inv
-        .gone_left("Vida", Some(Disposition::Trash), None, false, Some(4), None, None)
+        .gone_left(
+            "Vida",
+            Some(Disposition::Trash),
+            None,
+            false,
+            Some(4),
+            None,
+            None,
+        )
         .unwrap();
     let portion = format!("#{}", gone["node"]["id"]);
     let back = inv.correct_gone(&portion, "they were in the box").unwrap();

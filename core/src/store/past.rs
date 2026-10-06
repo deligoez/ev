@@ -412,12 +412,14 @@ impl Inventory {
         let word = name.map(crate::fold::fold).filter(|w| !w.is_empty());
         let home = crate::money::home_currency(conn)?;
         // Remembered: it left before it was recorded, so it was added already gone, or gone with
-        // a date said (decided with the person, 2026-10-06).
+        // a date said (decided with the person, 2026-10-06). A date said later (`ev sold --at`,
+        // `ev edit left=`) dates the leaving but does not make it remembered.
         let mut stmt = conn.prepare(&format!(
             "SELECT n.id, n.name, n.disposition, {CAME}, {LEFT}, pl.name, d.place_id,
                     d.price, d.currency, d.via,
-                    d.at IS NOT NULL OR EXISTS (SELECT 1 FROM events e WHERE e.node_id = n.id
-                      AND e.type = 'gone' AND json_extract(e.data, '$.past') = 1)
+                    EXISTS (SELECT 1 FROM events e WHERE e.node_id = n.id AND e.type = 'gone'
+                      AND (json_extract(e.data, '$.past') = 1
+                        OR json_extract(e.data, '$.at') IS NOT NULL))
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
                LEFT JOIN places pl ON pl.id = d.place_id
               WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}"

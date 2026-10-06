@@ -317,9 +317,10 @@ impl Inventory {
             params![id, node],
         )?;
         if removed == 0 {
-            return Err(Error::Usage(format!(
-                "document {id} is not linked to node {node}"
-            )));
+            return Err(crate::error::refused(
+                format!("document {id} is not linked to node {node}"),
+                serde_json::Value::Null,
+            ));
         }
         event(
             &tx,

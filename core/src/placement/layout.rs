@@ -166,10 +166,13 @@ impl Inventory {
             .filter(|u| *u != root && scope.contains(u))
             .collect();
         if units.len() < 2 {
-            return Err(Error::Usage(format!(
-                "{reference} has {} place(s) gone through on its own; a layout compares two or more",
-                units.len()
-            )));
+            return Err(crate::error::refused(
+                format!(
+                    "{reference} has {} place(s) gone through on its own; a layout compares two or more",
+                    units.len()
+                ),
+                serde_json::Value::Null,
+            ));
         }
         let index = self.word_index(&all)?;
         let mut places: Vec<Place> = Vec::new();

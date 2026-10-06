@@ -155,10 +155,10 @@ pub(crate) fn cells_quad(
         ));
     };
     if cells.col + cells.width > cols || cells.row + cells.depth > rows {
-        return Err(Error::Usage(format!(
-            "{} is outside the {cols}×{rows} grid",
-            cells.name()
-        )));
+        return Err(crate::error::refused(
+            format!("{} is outside the {cols}×{rows} grid", cells.name()),
+            serde_json::Value::Null,
+        ));
     }
     let map = projection(corners);
     let (cols, rows) = (cols as f64, rows as f64);

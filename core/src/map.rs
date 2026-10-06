@@ -619,8 +619,9 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
     if let Some((side, other)) = c.beside() {
         let o = resolve(conn, other, false)?;
         let (Some(w), Some(d)) = (p.w, p.d) else {
-            return Err(Error::Usage(
-                "give its --size first, to place it beside another".into(),
+            return Err(crate::error::refused(
+                "give its --size first, to place it beside another",
+                serde_json::Value::Null,
             ));
         };
         if load(conn, o)?.parent_id != load(conn, id)?.parent_id || o == id {

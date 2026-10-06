@@ -169,7 +169,10 @@ impl Inventory {
             rusqlite::Error::SqliteFailure(f, _)
                 if f.code == rusqlite::ErrorCode::ConstraintViolation =>
             {
-                Error::Usage(format!("there is already a kit named `{name}`"))
+                crate::error::refused(
+                    format!("there is already a kit named `{name}`"),
+                    serde_json::Value::Null,
+                )
             }
             e => e.into(),
         })?;
@@ -334,9 +337,10 @@ impl Inventory {
             params![id, n, node],
         )? == 0
         {
-            return Err(Error::Usage(format!(
-                "#{node} is not linked to part {n} of {name}"
-            )));
+            return Err(crate::error::refused(
+                format!("#{node} is not linked to part {n} of {name}"),
+                serde_json::Value::Null,
+            ));
         }
         event(
             &tx,

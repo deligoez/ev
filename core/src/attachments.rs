@@ -276,9 +276,10 @@ impl Inventory {
             )
             .optional()?;
         if linked.is_none() {
-            return Err(Error::Usage(format!(
-                "purchase {id} is not linked to {reference}; ev buy link it first"
-            )));
+            return Err(crate::error::refused(
+                format!("purchase {id} is not linked to {reference}; ev buy link it first"),
+                serde_json::Value::Null,
+            ));
         }
         let attachments = attachments_of(&tx, id)?;
         let unknown: Vec<String> = only

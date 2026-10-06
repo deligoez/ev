@@ -511,10 +511,13 @@ fn link_doc_to_purchase(conn: &Connection, doc: i64, purchase: i64) -> Result<bo
 fn check_open(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     let p = purchase_json(conn, id)?;
     if p["dismissed"].is_string() {
-        return Err(Error::Usage(format!(
-            "purchase {id} is dismissed as {}; clear that first",
-            p["dismissed"]
-        )));
+        return Err(crate::error::refused(
+            format!(
+                "purchase {id} is dismissed as {}; clear that first",
+                p["dismissed"]
+            ),
+            Value::Null,
+        ));
     }
     let already: i64 = conn
         .query_row(
@@ -526,9 +529,10 @@ fn check_open(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
         .unwrap_or(0);
     let open = p["open_qty"].as_i64().unwrap_or(0) + already;
     if qty > open {
-        return Err(Error::Usage(format!(
-            "purchase {id} has {open} left to link, not {qty}"
-        )));
+        return Err(crate::error::refused(
+            format!("purchase {id} has {open} left to link, not {qty}"),
+            Value::Null,
+        ));
     }
     Ok(())
 }
@@ -837,12 +841,15 @@ impl Inventory {
         let qty = qty.unwrap_or(default);
         if qty < 1 {
             // A service or a download is never a thing to link.
-            return Err(Error::Usage(match p["bucket"].as_str() {
-                Some(b @ ("digital" | "service")) => {
-                    format!("purchase {id} is a {b} purchase; it is never a thing in the home")
-                }
-                _ => format!("purchase {id} has nothing left to link"),
-            }));
+            return Err(crate::error::refused(
+                match p["bucket"].as_str() {
+                    Some(b @ ("digital" | "service")) => {
+                        format!("purchase {id} is a {b} purchase; it is never a thing in the home")
+                    }
+                    _ => format!("purchase {id} has nothing left to link"),
+                },
+                Value::Null,
+            ));
         }
         link_in(&tx, id, node, qty)?;
         tx.commit()?;
@@ -897,9 +904,10 @@ impl Inventory {
             params![id, node],
         )?;
         if removed == 0 {
-            return Err(Error::Usage(format!(
-                "purchase {id} is not linked to node {node}"
-            )));
+            return Err(crate::error::refused(
+                format!("purchase {id} is not linked to node {node}"),
+                Value::Null,
+            ));
         }
         event(&tx, node, "purchase_unlinked", json!({ "purchase": id }))?;
         // A wrong link's product pictures and pages show another product: they go with it.

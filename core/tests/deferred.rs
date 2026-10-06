@@ -383,3 +383,19 @@ fn a_place_said_to_be_what_it_already_is_records_nothing() {
     inv.review("Kutu", "kept", None).unwrap();
     assert_eq!(inv.review("Kutu", "kept", None).unwrap_err().code(), 5);
 }
+
+#[test]
+fn a_typo_of_a_whole_word_ranks_above_the_start_of_another() {
+    let (_d, mut inv) = setup();
+    for name in ["Diamond kitabı", "Vida"] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Kutu".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    let v = inv.find("vdia").unwrap();
+    assert_eq!(v["results"][0]["name"], "Vida", "{v}");
+}

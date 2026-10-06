@@ -280,3 +280,23 @@ fn a_place_with_no_photo_has_none_to_call_current() {
     let (_d, mut inv) = setup();
     assert_eq!(inv.photo_current("Oda").unwrap_err().code(), 5);
 }
+
+#[test]
+fn a_leaving_taken_back_or_a_mistake_is_not_counted_as_gone() {
+    let (_d, mut inv) = setup();
+    gone(&mut inv, "Telefon", Disposition::Stolen, None);
+    let phone = id(&inv, "Telefon");
+    inv.correct_gone(&phone, "it was in the car").unwrap();
+    inv.gone_left(
+        "Tablet",
+        Some(Disposition::Mistake),
+        Some("typed twice"),
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let gone = &inv.stats().unwrap()["activity"]["gone"];
+    assert!(gone.as_object().unwrap().is_empty(), "{gone}");
+}

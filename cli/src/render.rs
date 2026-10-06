@@ -3268,7 +3268,9 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         ("with", t("lent to")),
     ] {
         if let Some(x) = node[key].as_str() {
-            let _ = writeln!(out, "  {label}: {x}");
+            // A note of several lines keeps each line under the first.
+            let pad = " ".repeat(label.chars().count() + 4);
+            let _ = writeln!(out, "  {label}: {}", x.replace('\n', &format!("\n{pad}")));
         }
     }
     if let Some(f) = node["fill"].as_i64() {

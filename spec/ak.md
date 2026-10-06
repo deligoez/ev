@@ -21,6 +21,11 @@ is made in both repositories.
   whole (`412`) or as items (`412.1`, `412.2`). ak refuses marking the items of a payment sent
   whole, or the payment when an item of it was sent (`ev_whole_or_items`, exit 5), so an import,
   which never deletes, never leaves a stale line beside the new ones in ev.
+- **A mark taken back** (agreed 2026-10-07, ak's spec §5): ak never refuses taking `ev=` off a
+  payment or item already sent, and an import never deletes. The person's word moves both sides:
+  the agent finds the line (`ev buy list --source ak --key <id>`) and dismisses it there on that
+  word (`ev buy dismiss <line> --as not-mine`, or `duplicate`). A line joined to a shop's line
+  goes that way too; the shop's line, ev's own, stays as it was.
 - **One purchase, one line, in full.** A purchase paid in instalments is sent once: `paid` is the
   full price, `ordered_at` the day it was bought. The parts and the statements that billed
   them stay in ak. ev reckons today's money from the purchase day; a part's day would be wrong

@@ -1,7 +1,7 @@
 //! Coverage (purchases spec §3.6, §3.7): warranties and insurance with a computed status,
 //! proposals from linked purchases, and decisions not to track.
 
-use chrono::{Days, Months, Utc};
+use chrono::{Days, Local, Months};
 use ev_core::{Inventory, NewCoverage, NewNode};
 use serde_json::{Value, json};
 
@@ -27,8 +27,10 @@ fn setup() -> (tempfile::TempDir, Inventory) {
     (dir, inv)
 }
 
+/// A local day, as ev's own "today" is: a UTC one is the day before between midnight and the
+/// UTC offset.
 fn day(back_months: u32, back_days: u64) -> String {
-    Utc::now()
+    Local::now()
         .date_naive()
         .checked_sub_months(Months::new(back_months))
         .unwrap()

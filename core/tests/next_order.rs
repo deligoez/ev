@@ -28,7 +28,8 @@ fn setup() -> (TempDir, Inventory) {
 }
 
 fn day(offset: i64) -> String {
-    (chrono::Utc::now().date_naive() + chrono::Duration::days(offset)).to_string()
+    // Local, as ev's own "today" is.
+    (chrono::Local::now().date_naive() + chrono::Duration::days(offset)).to_string()
 }
 
 #[test]

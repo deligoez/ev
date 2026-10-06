@@ -2690,6 +2690,10 @@ impl Inventory {
             "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
             [node.id],
         )?;
+        // A thing recorded already gone was never in a place: back, its place is not known.
+        if node.parent_id.is_none() && node.kind != Kind::Home {
+            tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
+        }
         crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(

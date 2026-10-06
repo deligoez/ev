@@ -340,6 +340,11 @@ struct Line {
     bucket_said: bool,
 }
 
+/// The fields of a purchase line ev reads besides `LINE_FIELDS`.
+const PURCHASE_KEYS: [&str; 8] = [
+    "type", "source", "key", "name", "status", "bucket", "qty", "paid",
+];
+
 const LINE_FIELDS: [(&str, &str); 13] = [
     ("shop", "shop"),
     ("merchant", "merchant"),
@@ -535,6 +540,9 @@ impl Inventory {
     pub fn buy_import(&mut self, ndjson: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let mut counts = std::collections::BTreeMap::<&str, i64>::new();
+        // Fields of a purchase line that ev does not read: kept nowhere, so the adapter is told
+        // (a typo such as `orderd_at` would otherwise lose a date without a word).
+        let mut unknown = std::collections::BTreeMap::<String, i64>::new();
         let mut docs_added = 0;
         for (i, raw) in ndjson.lines().enumerate() {
             let raw = raw.trim();
@@ -546,7 +554,16 @@ impl Inventory {
                 .map_err(|e| Error::Usage(format!("not JSON: {e}")))
                 .map_err(at)?;
             match v.get("type").and_then(Value::as_str).unwrap_or("purchase") {
-                "purchase" => match line_from(&v).map_err(at)? {
+                "purchase" => match {
+                    for k in v.as_object().into_iter().flat_map(|o| o.keys()) {
+                        if !PURCHASE_KEYS.contains(&k.as_str())
+                            && !LINE_FIELDS.iter().any(|(_, f)| f == k)
+                        {
+                            *unknown.entry(k.clone()).or_default() += 1;
+                        }
+                    }
+                    line_from(&v).map_err(at)?
+                } {
                     None => *counts.entry("skipped").or_default() += 1,
                     Some((l, name)) => {
                         let (_, how) = upsert(&tx, &l, &name).map_err(at)?;
@@ -645,7 +662,7 @@ impl Inventory {
         }
         let joined = crate::attachments::join_same(&tx)?;
         tx.commit()?;
-        Ok(json!({
+        let mut v = json!({
             "imported": {
                 "new": counts.get("new").copied().unwrap_or(0),
                 "updated": counts.get("updated").copied().unwrap_or(0),
@@ -657,7 +674,11 @@ impl Inventory {
                 "attachments_skipped": counts.get("attachments_skipped").copied().unwrap_or(0),
                 "joined": joined,
             }
-        }))
+        });
+        if !unknown.is_empty() {
+            v["imported"]["unknown_fields"] = json!(unknown);
+        }
+        Ok(v)
     }
 
     /// A purchase entered by hand (bought in a shop, a gift); linked to `for_ref` at once when

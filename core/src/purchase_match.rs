@@ -380,13 +380,29 @@ impl<'a> Thing<'a> {
     }
 }
 
-/// The score of line `p` for thing `n`, with its reasons as `(why, points)`.
-fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
+/// One reason a line could be a thing: what kind of reason (`bought_before`, `model`, `serial`,
+/// `model_part`, `code`, `brand`, `words`, `words_aside`, `differs`), what it names, and its
+/// points.
+type Reason = (&'static str, String, f64);
+
+/// A reason in words, as `why` has always read: "brand Bosch", "storage differs".
+fn reason_text(kind: &str, value: &str) -> String {
+    match kind {
+        "bought_before" => format!("bought before for {value}"),
+        "model_part" => format!("model in part {value}"),
+        "words_aside" => format!("words aside {value}"),
+        "differs" => format!("{value} differs"),
+        k => format!("{k} {value}"),
+    }
+}
+
+/// The score of line `p` for thing `n`, with its reasons.
+fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<Reason>) {
     let mut why = Vec::new();
     let mut total = 0.0;
-    let mut add = |what: String, points: f64| {
+    let mut add = |kind: &'static str, what: String, points: f64| {
         total += points;
-        why.push((what, points));
+        why.push((kind, what, points));
     };
     // Whether anything stronger than words says it: an alias, a key, a code, the brand.
     let mut strong = false;
@@ -396,7 +412,7 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         .iter()
         .find(|(a, name)| *a != n.node.id && *name == n.folded_name)
     {
-        add(format!("bought before for #{a}"), ALIAS);
+        add("bought_before", format!("#{a}"), ALIAS);
         strong = true;
     }
     // 2. The thing's model or serial written in the line, as whole words: a short model (`561`)
@@ -404,7 +420,7 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     let mut whole_model = false;
     for (field, v) in &n.keys {
         if has_words(&p.tokens, v, 6) {
-            add(format!("{field} {v}"), EXACT_KEY);
+            add(field, v.clone(), EXACT_KEY);
             strong = true;
             whole_model |= *field == "model";
         }
@@ -425,7 +441,7 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
             .count();
         if digits >= 2 && others >= 2 {
             let shown: Vec<&str> = found.iter().map(|w| w.as_str()).collect();
-            add(format!("model in part {}", shown.join(" ")), MODEL_PART);
+            add("model_part", shown.join(" "), MODEL_PART);
             strong = true;
             in_bundle = true;
         }
@@ -434,7 +450,7 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     let mut shared: Vec<&String> = n.codes.intersection(&p.codes).collect();
     shared.sort();
     for c in shared.into_iter().take(2) {
-        add(format!("code {c}"), CODE);
+        add("code", c.clone(), CODE);
         strong = true;
     }
     // Whether the line shares any word of what the thing is (the head of its name).
@@ -448,10 +464,10 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
     //    thing's name or make only (a note says "for Arduino" of every module), never the
     //    shop's own name (a shop's own service names it as the brand).
     if let Some(b) = p.brand.as_ref().filter(|b| has_phrase(&n.own, b)) {
-        add(format!("brand {b}"), brand);
+        add("brand", b.clone(), brand);
         strong |= shares_head;
     } else if let Some(m) = n.make.as_ref().filter(|m| has_phrase(&p.name, m)) {
-        add(format!("brand {m}"), brand);
+        add("brand", m.clone(), brand);
         strong |= shares_head;
     }
     // 5. Words, weighted by how rare they are among the lines. On their own they must name
@@ -482,16 +498,16 @@ fn score(corpus: &Corpus, n: &Thing, p: &Line) -> (f64, Vec<(String, f64)>) {
         let (cap, what) = if strong || names_it {
             (WORDS_CAP, "words")
         } else {
-            (ASIDE_CAP, "words aside")
+            (ASIDE_CAP, "words_aside")
         };
-        add(format!("{what} {}", matched.join(", ")), points.min(cap));
+        add(what, matched.join(", "), points.min(cap));
     }
     // 6. Numbers of one unit that differ. Not in a line that names the thing only in part: such
     //    a bundle's other numbers are its other parts' (a camera's 7,4 cm screen beside its
     //    18-55 mm lens).
     if !in_bundle {
         for d in conflicting(&n.measures, &p.measures) {
-            add(format!("{d} differs"), CONFLICT);
+            add("differs", d.to_string(), CONFLICT);
         }
     }
     (total, why)
@@ -665,9 +681,12 @@ impl Matcher {
             if s > at || linked_here {
                 let why: Vec<Value> = why
                     .into_iter()
-                    .map(
-                        |(w, points)| json!({ "why": w, "points": (points * 10.0).round() / 10.0 }),
-                    )
+                    .map(|(kind, value, points)| {
+                        json!({
+                            "why": reason_text(kind, &value), "kind": kind, "value": value,
+                            "points": (points * 10.0).round() / 10.0,
+                        })
+                    })
                     .collect();
                 let mut c = json!({
                     "purchase": {

@@ -153,3 +153,10 @@ fn a_swap_for_a_thing_that_had_already_left_or_was_ours_before_is_refused() {
     inv.edit("Tablet", &["came=2010".into()]).unwrap();
     assert_eq!(inv.traded(&konsol, Some("Tablet")).unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_gone_thing_is_traded_by_its_name() {
+    let (_d, mut inv) = setup();
+    gone(&mut inv, "Telefon", Disposition::Give, None);
+    inv.traded("Telefon", Some("Tablet")).unwrap();
+}

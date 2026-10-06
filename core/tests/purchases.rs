@@ -648,3 +648,41 @@ fn a_shops_lines_never_join_an_ak_line_that_waits_unjoined() {
         assert!(p["same_as"].is_null(), "{p}");
     }
 }
+
+#[test]
+fn dismissed_lines_are_listed_of_any_reason_or_of_one() {
+    let (d, mut inv) = setup();
+    inv.buy_import(&export(&d, "1999.00")).unwrap();
+    let drill = id_of(&inv, "Bosch");
+    let card = id_of(&inv, "Kingston");
+    inv.buy_dismiss(drill, Some("elsewhere"), Some("a bill, kept elsewhere"))
+        .unwrap();
+    inv.buy_dismiss(card, Some("given"), None).unwrap();
+    let ids = |dismissed: Option<Option<&str>>| -> Vec<i64> {
+        let mut v: Vec<i64> = inv
+            .buy_list_where(&ev_core::BuyFilter {
+                dismissed,
+                ..Default::default()
+            })
+            .unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["id"].as_i64().unwrap())
+            .collect();
+        v.sort_unstable();
+        v
+    };
+    let mut both = vec![drill, card];
+    both.sort_unstable();
+    assert_eq!(ids(Some(None)), both);
+    assert_eq!(ids(Some(Some("elsewhere"))), [drill]);
+    assert!(ids(Some(Some("consumed"))).is_empty());
+    let e = inv
+        .buy_list_where(&ev_core::BuyFilter {
+            dismissed: Some(Some("bogus")),
+            ..Default::default()
+        })
+        .unwrap_err();
+    assert_eq!(e.id(), Some("purchase_reason_unknown"));
+}

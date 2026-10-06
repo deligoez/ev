@@ -1943,3 +1943,34 @@ fn colon_finds_a_list_without_turkish_letters_and_esc_comes_back() {
     press(&mut app, KeyCode::Esc);
     assert!(app.tab == Tab::Tree && !app.quit);
 }
+
+#[test]
+fn colon_finds_a_thing_by_name_or_id_and_opens_it_in_the_tree() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let buzzer = app.inv.resolve("Pasif buzzer", false).unwrap();
+    press(&mut app, KeyCode::Char('3'));
+    // By a word inside the name, with the place it is in beside it.
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, "pasif");
+    let hits = &app.palette.as_ref().unwrap().hits;
+    assert!(
+        hits[0].1.contains("Pasif buzzer") && hits[0].1.contains("D-B1"),
+        "{hits:?}"
+    );
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Tree);
+    assert_eq!(app.selected_id(), Some(buzzer));
+    // Esc goes back to the list it was opened from.
+    press(&mut app, KeyCode::Esc);
+    assert!(app.tab == Tab::Pending);
+    // By its #id; Esc closes the palette without going anywhere.
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, &format!("#{buzzer}"));
+    assert_eq!(
+        app.palette.as_ref().unwrap().hits[0].0,
+        super::palette::Goal::Node(buzzer)
+    );
+    press(&mut app, KeyCode::Esc);
+    assert!(app.palette.is_none() && app.tab == Tab::Pending);
+}

@@ -1150,7 +1150,12 @@ fn todo(out: &mut String, v: &Value) {
             )
         );
         for n in cv["top"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "worth"), s(n, "currency"));
+            let _ = writeln!(
+                out,
+                "  {}  {}",
+                line(n),
+                amount(&s(n, "worth"), n["currency"].as_str().unwrap_or("TRY"))
+            );
         }
     }
     if head(out, t("Value not asked"), &c["values"]) {
@@ -1160,7 +1165,12 @@ fn todo(out: &mut String, v: &Value) {
             t("bought things with no value recorded; the dearest:")
         );
         for n in v["values"]["top"].as_array().into_iter().flatten() {
-            let _ = writeln!(out, "  {}  {} {}", line(n), s(n, "worth"), s(n, "currency"));
+            let _ = writeln!(
+                out,
+                "  {}  {}",
+                line(n),
+                amount(&s(n, "worth"), n["currency"].as_str().unwrap_or("TRY"))
+            );
         }
     }
     if head(out, t("Purchases to link"), &c["purchases"]) {
@@ -1339,11 +1349,13 @@ fn grid_block(out: &mut String, node: &Value, grid: &Value) {
         .flatten()
         .filter_map(Value::as_str)
         .collect();
-    let _ = writeln!(
-        out,
-        "  {}",
-        tf("free ({}): {}", &[&free.len(), &free.join(" ")])
-    );
+    if !free.is_empty() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf("free ({}): {}", &[&free.len(), &free.join(" ")])
+        );
+    }
     // Each box by its cells, then its code (what its label says, for sticking labels on), then
     // its name.
     let boxes = grid["boxes"].as_array().cloned().unwrap_or_default();

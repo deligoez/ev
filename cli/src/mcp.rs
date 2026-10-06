@@ -533,8 +533,8 @@ fn shaped(v: &Value, format: Format) -> CallToolResult {
         if chars > MAX_CHARS {
             return CallToolResult::error(vec![ContentBlock::text(format!(
                 "the JSON result is {chars} characters, over the {MAX_CHARS} a call returns, and \
-                 cut JSON does not parse; narrow the call (a reference, --depth, a tag or a kind) \
-                 or ask for the text format"
+                 cut JSON does not parse; ask for the text format, or narrow the call where the \
+                 command takes it (a reference, --depth, a tag or a kind)"
             ))]);
         }
     }
@@ -621,7 +621,10 @@ fn photo_result(db: Option<PathBuf>, reference: String, n: Option<usize>) -> Cal
         .map(|t| format!(" — {t}"))
         .unwrap_or_default();
     CallToolResult::success(vec![
-        ContentBlock::text(format!("{name}: photo {n} of {}{note}", photos.len())),
+        ContentBlock::text(format!(
+            "{name}: {}{note}",
+            crate::i18n::tf("photo {} of {}", &[&n, &photos.len()])
+        )),
         block,
     ])
 }

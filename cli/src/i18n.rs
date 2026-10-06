@@ -1066,6 +1066,7 @@ static TR: &[(&str, &str)] = &[
     ("how not known", "nasıl bilinmiyor"),
     ("trade", "takas"),
     ("things", "eşya"),
+    ("photo {} of {}", "fotoğraf {}/{}"),
     (
         "#{} is back to open, not finished",
         "#{} yeniden açık, bitmedi",

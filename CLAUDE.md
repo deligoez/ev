@@ -35,11 +35,17 @@ purchase data (`~/.ev/purchases/`) never enters any repository. Scan the diff be
   the cause is understood and the fix is green locally. A test that passes here and fails
   there is a real bug (timing, time zone, a faster machine), not noise: reproduce it. CI
   cancels a run that a newer push to the same branch overtakes.
-- **Quality gate** before every commit that touches code, and before every push:
+- **Quality gate** before every push, on the commits pushed:
   `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo shear && cargo nextest run --workspace`.
+  Run it as `tools/gate.sh`: it checks the committed `HEAD` in a worktree of its own
+  (`target/gate`, its own target directory), so work goes on in the main tree while it runs and
+  nothing edited meanwhile leaks into what is checked (it did once: an edit made during a gate
+  failed a test that had nothing to do with it). Between pushes, each commit that touches code
+  passes `cargo clippy --all-targets -- -D warnings` and the tests of what it changed.
   A test reads every backticked `ev …` command in README, REFERENCE, the skill and
   `release-notes/next.md` and fails on one the CLI lacks; `i18n` tests fail on a text without a
-  Turkish translation or a duplicate key.
+  Turkish translation or a duplicate key. A test that takes seconds on its own is a finding: one
+  question to macOS cost every UI test ten seconds until it was found (fixed 2026-10-06).
 - **Specs** live in `spec/` (`purchases.md`, `mcp.md`, …): decision, why, data model, phases, not
   now. Write the spec first for a feature of any size, then implement phase by phase without
   stopping, unless the person asks otherwise. Design discussions end up in the spec, not in chat.

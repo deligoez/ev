@@ -6,6 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use crate::docs::NewDoc;
+use crate::error::refuse;
 use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
 
@@ -504,11 +505,9 @@ fn link_doc_to_purchase(conn: &Connection, doc: i64, purchase: i64) -> Result<bo
 fn check_open(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     let p = purchase_json(conn, id)?;
     if p["dismissed"].is_string() {
-        return Err(crate::error::refused(
-            format!(
-                "purchase {id} is dismissed as {}; clear that first",
-                p["dismissed"]
-            ),
+        return Err(refuse(
+            "purchase_dismissed",
+            json!({ "id": id, "as": p["dismissed"] }),
             Value::Null,
         ));
     }
@@ -522,8 +521,9 @@ fn check_open(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
         .unwrap_or(0);
     let open = p["open_qty"].as_i64().unwrap_or(0) + already;
     if qty > open {
-        return Err(crate::error::refused(
-            format!("purchase {id} has {open} left to link, not {qty}"),
+        return Err(refuse(
+            "purchase_not_enough_open",
+            json!({ "id": id, "open": open, "qty": qty }),
             Value::Null,
         ));
     }
@@ -855,15 +855,14 @@ impl Inventory {
         let qty = qty.unwrap_or(default);
         if qty < 1 {
             // A service or a download is never a thing to link.
-            return Err(crate::error::refused(
-                match p["bucket"].as_str() {
-                    Some(b @ ("digital" | "service")) => {
-                        format!("purchase {id} is a {b} purchase; it is never a thing in the home")
-                    }
-                    _ => format!("purchase {id} has nothing left to link"),
-                },
-                Value::Null,
-            ));
+            return Err(match p["bucket"].as_str() {
+                Some(b @ ("digital" | "service")) => refuse(
+                    "purchase_never_a_thing",
+                    json!({ "id": id, "bucket": b }),
+                    Value::Null,
+                ),
+                _ => refuse("purchase_nothing_open", json!({ "id": id }), Value::Null),
+            });
         }
         link_in(&tx, id, node, qty)?;
         tx.commit()?;
@@ -891,15 +890,17 @@ impl Inventory {
         }
         let p = purchase_json(&self.conn, id)?;
         if p["bucket"] == bucket.as_str() {
-            return Err(crate::error::refused(
-                format!("purchase {id} is already {bucket}"),
+            return Err(refuse(
+                "purchase_already_bucket",
+                json!({ "id": id, "bucket": bucket }),
                 Value::Null,
             ));
         }
         let linked = p["linked"].as_array().is_some_and(|l| !l.is_empty());
         if linked && matches!(bucket.as_str(), "digital" | "service") {
-            return Err(crate::error::refused(
-                format!("purchase {id} is linked to a thing; `ev buy unlink` it first"),
+            return Err(refuse(
+                "purchase_linked_unlink_first",
+                json!({ "id": id }),
                 Value::Null,
             ));
         }
@@ -918,8 +919,9 @@ impl Inventory {
             params![id, node],
         )?;
         if removed == 0 {
-            return Err(crate::error::refused(
-                format!("purchase {id} is not linked to node {node}"),
+            return Err(refuse(
+                "purchase_not_linked_to",
+                json!({ "id": id, "node": node }),
                 Value::Null,
             ));
         }
@@ -979,8 +981,9 @@ impl Inventory {
             |r| r.get(0),
         )?;
         if linked && !clear {
-            return Err(crate::error::refused(
-                format!("line {id} is linked to #{node}; `ev buy unlink {id} {node}` first"),
+            return Err(refuse(
+                "line_linked_unlink_first",
+                json!({ "id": id, "node": node }),
                 Value::Null,
             ));
         }
@@ -990,8 +993,9 @@ impl Inventory {
                 params![id, node],
             )? == 0
             {
-                return Err(crate::error::refused(
-                    format!("line {id} was not declined for #{node}"),
+                return Err(refuse(
+                    "line_not_declined",
+                    json!({ "id": id, "node": node }),
                     Value::Null,
                 ));
             }
@@ -1061,8 +1065,9 @@ fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     if state == "gone"
         && let Some(h @ ("mistake" | "merged" | "digitize")) = how.as_deref()
     {
-        return Err(crate::error::refused(
-            format!("#{node} left as {h}; it holds no purchase"),
+        return Err(refuse(
+            "left_holds_no_purchase",
+            json!({ "node": node, "how": h }),
             Value::Null,
         ));
     }
@@ -1079,8 +1084,9 @@ fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     {
         let n = l.len().min(b.len());
         if b[..n] > l[..n] {
-            return Err(crate::error::refused(
-                format!("the purchase was bought {b}, after #{node} left ({l})"),
+            return Err(refuse(
+                "bought_after_left",
+                json!({ "bought": b, "node": node, "left": l }),
                 Value::Null,
             ));
         }

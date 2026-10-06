@@ -330,7 +330,10 @@ each shop turns its saved export into lines (`… | ev buy import --stdin`; a wo
 how to write one are in `examples/purchases/`), and a line is linked to a thing only on the
 person's word (`ev buy link`);
 `ev buy for --toured` asks it for the things of toured places at once, and `ev buy decline`
-records a "not this one" so the line is not offered to that thing again.
+records a "not this one" so the line is not offered to that thing again. What was paid for but
+is never a thing in the home goes in by its bucket, never waiting to be linked: `digital` (an
+app, a download) and `service` (a repair, an installation), beside `durable` and `clothing`
+(`ev buy add "Kurulum" --paid 500 --bucket service`).
 `ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
 (`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line

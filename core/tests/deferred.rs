@@ -198,3 +198,21 @@ fn lines_are_listed_and_found_by_the_account_they_were_billed_to() {
         .unwrap();
     assert_eq!(q["purchases"].as_array().unwrap().len(), 1, "{q}");
 }
+
+#[test]
+fn a_reason_a_line_could_be_a_thing_carries_its_kind_and_value() {
+    let (_d, mut inv) = setup();
+    inv.edit("Telefon", &["make=Nokia".into()]).unwrap();
+    inv.buy_import(r#"{"source":"mail","key":"t1","name":"Nokia telefon","brand":"Nokia"}"#)
+        .unwrap();
+    let v = inv.buy_for("Telefon").unwrap();
+    let why = &v["candidates"][0]["why"];
+    let brand = why
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|w| w["kind"] == "brand")
+        .unwrap_or_else(|| panic!("{v}"));
+    assert_eq!(brand["value"], "nokia");
+    assert_eq!(brand["why"], "brand nokia");
+}

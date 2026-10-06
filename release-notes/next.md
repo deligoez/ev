@@ -88,3 +88,31 @@ price becomes the premium when none was given. Lines settled by a kit are now al
 newest whole photo shows (a crop of theirs was cut from it) and those it does not yet, so the
 agent says which record is which thing before the person calls a place done. Nothing is refused
 over it: closing a tour stays the person's word.
+
+## Smaller fixes
+
+Found by three QA rounds on a copy of a real inventory before this release.
+
+- **Today is the local day.** Due dates, use-by dates, values, the day a thing was seen leaving
+  and the busiest day in `ev stats` were read in UTC, so anything done after midnight but before
+  the offset landed on the day before.
+- **Leaving:** things set aside to trade or to return are in `ev disposals` and `ev todo`; a part
+  sold from a listing keeps where it was listed, and a thing that leaves is no longer on sale;
+  a sale said again keeps its currency, and one said before the thing leaves shows; a past thing
+  taken back with `--correction` has a place not known instead of none; `ev restore` of a gone
+  record says to add `--correction`.
+- **Dates remembered:** a date still to come, or a coming after the leaving, is refused, and when
+  and where a gone thing left can be said again (`ev edit <id> left=… left_in=…`). A past thing
+  takes no `--to`, `--temporary` or `--code`, and `--where` names a place, not a record.
+- **Swaps:** a thing is never traded for itself or for a place, nothing is half written when a
+  swap is refused, and a swap drops a sale price said before.
+- **Purchases:** one open count in `ev todo`, `ev stats` and `ev buy list --open` (returned,
+  digital and service lines wait for nothing; lines settled by a kit no longer count); a line
+  linked to a thing, or already a coverage's, is not taken by another coverage, and a coverage's
+  premium follows its line; a link on the person's word takes back an earlier decline;
+  `--bucket` is checked.
+- **Tasks and places:** a closed task starts only once reopened, and a start says which task it
+  stopped; `ev progress` of a thing is refused and of a box reads its place.
+- **Text:** fields, dismissal reasons, coverage terms, need states, marks and history events read
+  in words; moments read as local days; amounts in the reader's way; `ev fixed` needs something
+  broken, and `ev photo current` drops the out-of-date mark.

@@ -120,3 +120,13 @@ fn a_swap_is_said_of_a_giving_or_a_sale_only_and_once() {
     let phone = id(&inv, "Telefon");
     assert_eq!(inv.traded(&phone, None).unwrap_err().code(), 5);
 }
+
+#[test]
+fn a_swap_already_recorded_is_not_written_again() {
+    let (_d, mut inv) = setup();
+    gone(&mut inv, "Telefon", Disposition::Trade, None);
+    let phone = id(&inv, "Telefon");
+    let before = inv.history(&phone).unwrap().to_string().len();
+    assert_eq!(inv.traded(&phone, None).unwrap_err().code(), 5);
+    assert_eq!(inv.history(&phone).unwrap().to_string().len(), before);
+}

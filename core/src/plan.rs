@@ -1242,6 +1242,12 @@ impl Inventory {
         let status = status.trim().to_lowercase();
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
+        // A place is counted, a thing is counted with the place it is in.
+        if crate::store::load(&tx, id)?.kind == Kind::Item && status != "raw" {
+            return Err(Error::Usage(format!(
+                "#{id} is a thing, not a place; review the place it is in"
+            )));
+        }
         match status.as_str() {
             "raw" => {
                 tx.execute("DELETE FROM reviews WHERE node_id = ?1", [id])?;

@@ -822,3 +822,10 @@ fn suggest_names_a_word_found_on_a_thing_inside_by_the_thing() {
     let s = h.text(&["suggest", "aktif"]);
     assert!(s.contains("(a thing's name: Aktif buzzer)"), "{s}");
 }
+
+#[test]
+fn a_recode_that_changes_nothing_says_so() {
+    let h = Home::new();
+    let s = h.text(&["recode", "D-A1=D-A1"]);
+    assert!(s.contains("D-A1  (unchanged)"), "{s}");
+}

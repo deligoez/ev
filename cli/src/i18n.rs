@@ -460,6 +460,83 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "outside_holder",
         "{x},{y} konumunda ve {w}×{d} cm boyunda, {pw}×{pd} cm olan kabının dışına taşar",
     ),
+    (
+        "coverage_no_line_to_clear",
+        "{id} numaralı güvencenin kaldırılacak bir alım satırı yok",
+    ),
+    (
+        "coverage_line_dismissed",
+        "{line} numaralı satır kapatılmış ({as}); önce `ev buy dismiss {line} --clear`",
+    ),
+    (
+        "coverage_line_linked",
+        "{line} numaralı satır bir eşyaya bağlı; güvencenin satırıysa önce `ev buy unlink` ile ayır",
+    ),
+    (
+        "coverage_line_taken",
+        "{line} numaralı satır zaten {coverage} numaralı güvencenin",
+    ),
+    (
+        "not_sold",
+        "#{id} satılarak gitmedi; önce `ev gone {id} --as sell` (hâlâ buradaysa `ev dispose {id} --as sell`)",
+    ),
+    (
+        "trade_not_left",
+        "#{id} gitmedi; önce `ev gone {id} --as trade`",
+    ),
+    (
+        "trade_wrong_leaving",
+        "#{id} {how} olarak gitti; yalnız verilen, satılan ya da takas edilen bir şey takas olabilir",
+    ),
+    (
+        "already_traded_for",
+        "#{id} zaten #{for} karşılığında takas edilmiş; değişecek bir şey yok",
+    ),
+    (
+        "already_traded",
+        "#{id} zaten takas edilmiş; değişecek bir şey yok",
+    ),
+    ("kit_name_taken", "`{name}` adlı bir set zaten var"),
+    (
+        "kit_part_linked",
+        "{part}. parçaya ({text}) bağlı {count} kayıt var; önce `ev kit unlink` ile ayır",
+    ),
+    (
+        "kit_part_not_linked",
+        "#{node}, {kit} setinin {part}. parçasına bağlı değil",
+    ),
+    (
+        "photo_whole_elsewhere",
+        "bu fotoğraf zaten {count} başka kayda bütün olarak eklenmiş; #{id} kaydını gösteren parçayı --crop ile ekle, bütün görünüm kastediliyorsa --whole ver",
+    ),
+    (
+        "photo_whole_elsewhere_batch",
+        "bu fotoğraf zaten {count} başka kayda bütün olarak eklenmiş",
+    ),
+    (
+        "mark_needs_grid_photo",
+        "ızgara köşelerini tutan bir fotoğrafı yok; --grid ver ya da bir sonrakini --grid ile kes",
+    ),
+    (
+        "mark_needs_whole_photo",
+        "işaretlenecek bütün bir fotoğrafı yok",
+    ),
+    (
+        "document_not_linked",
+        "{id} numaralı belge #{node} kaydına bağlı değil",
+    ),
+    (
+        "no_decline_to_clear",
+        "#{id} için geri alınacak reddedilmiş bir taşıma yok",
+    ),
+    (
+        "bring_not_linked",
+        "{id} numaralı alım {ref} kaydına bağlı değil; önce ev buy link ile bağla",
+    ),
+    (
+        "layout_too_few_units",
+        "{ref} içinde kendi başına gezilen {count} yer var; bir yerleşim en az iki yeri karşılaştırır",
+    ),
 ];
 
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.

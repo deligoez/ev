@@ -309,3 +309,20 @@ fn a_lost_thing_found_elsewhere_is_recorded_as_found_there() {
     assert_eq!(last["type"], "found", "{h}");
     assert_eq!(h["names"][format!("#{}", last["data"]["to"])], "Kutu", "{h}");
 }
+
+#[test]
+fn a_things_worth_in_todo_is_its_lines_together_as_in_stats() {
+    let (_d, mut inv) = setup();
+    for (key, paid) in [("w1", "1500"), ("w2", "500")] {
+        inv.buy_import(&format!(
+            r#"{{"source":"shop","key":"{key}","name":"Telefon parça","paid":"{paid}","currency":"TRY"}}"#
+        ))
+        .unwrap();
+    }
+    for id in [1, 2] {
+        inv.buy_link(id, "Telefon", None).unwrap();
+    }
+    let todo = inv.todo().unwrap();
+    let top = &todo["values"]["top"][0];
+    assert_eq!(top["worth"], "2000.00", "{todo}");
+}

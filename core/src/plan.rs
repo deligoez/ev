@@ -1257,8 +1257,15 @@ impl Inventory {
                 // changed since; the same word otherwise records nothing.
                 let own = review_of(&tx, id)?;
                 if own["status"] == s {
-                    let changed = crate::marks::contents_changed_at(&tx, id)?
-                        .is_some_and(|c| own["at"].as_str().is_some_and(|at| c.as_str() > at));
+                    // By the events' order, not their times: those are kept to the second,
+                    // and a move in the same second as the tour came after it or not.
+                    let toured: Option<i64> = tx.query_row(
+                        "SELECT MAX(id) FROM events WHERE node_id = ?1 AND type = 'review'",
+                        [id],
+                        |r| r.get(0),
+                    )?;
+                    let changed = crate::marks::contents_changed_event(&tx, id)?
+                        .is_some_and(|c| toured.is_none_or(|t| c > t));
                     if s != "toured" || !changed {
                         return Err(refused(
                             format!("#{id} is already {s}; nothing changed since"),

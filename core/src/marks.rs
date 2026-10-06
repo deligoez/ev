@@ -204,12 +204,26 @@ const CONTENT_EVENTS: &str = "'create','move','done','gone','restore','lost','fo
 /// thing that left: it was never there, nor a lost thing found elsewhere: its last-seen place no
 /// longer held it.
 pub(crate) fn contents_changed_at(conn: &Connection, id: i64) -> Result<Option<String>> {
+    contents_last(conn, id, "at")
+}
+
+/// The last event that changed what `id` holds, by its order in the log: unlike its time, kept
+/// to the second, it tells apart two things done in the same second.
+pub(crate) fn contents_changed_event(conn: &Connection, id: i64) -> Result<Option<i64>> {
+    contents_last(conn, id, "id")
+}
+
+fn contents_last<T: rusqlite::types::FromSql>(
+    conn: &Connection,
+    id: i64,
+    column: &str,
+) -> Result<Option<T>> {
     Ok(conn.query_row(
         &format!(
             "WITH RECURSIVE d(id) AS (
                  SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
              )
-             SELECT MAX(e.at) FROM events e
+             SELECT MAX(e.{column}) FROM events e
               WHERE (e.node_id IN d AND e.node_id != ?1 AND e.type IN ({CONTENT_EVENTS})
                      AND NOT (e.type = 'create' AND EXISTS (
                          SELECT 1 FROM events s WHERE s.node_id = e.node_id AND s.type = 'split_from'))

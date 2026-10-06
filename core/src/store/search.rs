@@ -24,7 +24,10 @@ const WHOLE_WORD: f64 = 1.5;
 const INSIDE: f64 = 1.0;
 const STEM: f64 = 0.8;
 const SYNONYM: f64 = 0.7;
+/// A typo of the whole word (`vdia` for `vida`) says more than one of its start (`vdia` for
+/// `diamond`).
 const TYPO: f64 = 0.5;
+const TYPO_OF_A_START: f64 = 0.25;
 
 /// A query word with everything else it may be written as.
 struct Word {
@@ -142,7 +145,12 @@ fn quality(w: &Word, text: &str, typos: bool) -> Option<f64> {
         4..8 => 1,
         _ => 2,
     };
-    (typos && words(text).any(|t| near(&w.text, t, allowed))).then_some(TYPO)
+    if !typos {
+        return None;
+    }
+    words(text)
+        .filter_map(|t| typo(&w.text, t, allowed))
+        .max_by(f64::total_cmp)
 }
 
 fn words(text: &str) -> impl Iterator<Item = &str> {
@@ -152,11 +160,19 @@ fn words(text: &str) -> impl Iterator<Item = &str> {
 
 /// Whether `word` is within `allowed` edits (insert, delete, change, swap of neighbours) of
 /// `target` or of a start of it, so a typo in a word written with an ending still counts.
+#[cfg(test)]
 fn near(word: &str, target: &str, allowed: usize) -> bool {
+    typo(word, target, allowed).is_some()
+}
+
+/// How well `word` meets `target` with a typo: `TYPO` within `allowed` edits (insert, delete,
+/// change, swap of neighbours) of the whole of it, `TYPO_OF_A_START` of a start of it only (a
+/// typo in a word written with an ending, or a word that only looks like another's start).
+fn typo(word: &str, target: &str, allowed: usize) -> Option<f64> {
     let a: Vec<char> = word.chars().collect();
     let b: Vec<char> = target.chars().collect();
     if b.len() + allowed < a.len() {
-        return false;
+        return None;
     }
     // Optimal string alignment distance, keeping the last three rows.
     let mut prev2 = vec![0; b.len() + 1];
@@ -174,9 +190,13 @@ fn near(word: &str, target: &str, allowed: usize) -> bool {
     }
     // The last row holds the distance from the whole word to every start of the target; a
     // start much shorter than the word is not a match.
+    if prev[b.len()] <= allowed {
+        return Some(TYPO);
+    }
     prev[a.len().saturating_sub(allowed).min(b.len())..]
         .iter()
         .any(|&d| d <= allowed)
+        .then_some(TYPO_OF_A_START)
 }
 
 /// Synonym groups as folded phrases.

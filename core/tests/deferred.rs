@@ -216,3 +216,20 @@ fn a_reason_a_line_could_be_a_thing_carries_its_kind_and_value() {
     assert_eq!(brand["value"], "nokia");
     assert_eq!(brand["why"], "brand nokia");
 }
+
+#[test]
+fn a_currency_is_a_code_in_use_not_any_three_letters() {
+    let (_d, mut inv) = setup();
+    let typo = inv.buy_import(r#"{"source":"mail","key":"c1","name":"Kablo","currency":"EUO"}"#);
+    assert_eq!(typo.unwrap_err().code(), 2);
+    let v = ev_core::NewValuation {
+        amount: "100".into(),
+        currency: Some("eur".into()),
+        at: None,
+        approximate: false,
+        source: None,
+        note: None,
+    };
+    let added = inv.value("Telefon", Some(&v)).unwrap();
+    assert_eq!(added["valuations"][0]["currency"], "EUR", "{added}");
+}

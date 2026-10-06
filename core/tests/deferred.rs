@@ -358,3 +358,10 @@ fn a_past_thing_gives_how_many_and_what_came_for_a_swap() {
     assert_eq!(cup["qty"], 6, "{v}");
     assert_eq!(cup["traded_for"]["name"], "Tablet", "{v}");
 }
+
+#[test]
+fn a_thing_already_lost_is_refused_as_lost_again() {
+    let (_d, mut inv) = setup();
+    inv.mark_lost("Telefon").unwrap();
+    assert_eq!(inv.mark_lost("Telefon").unwrap_err().code(), 5);
+}

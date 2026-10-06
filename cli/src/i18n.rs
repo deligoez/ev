@@ -557,8 +557,8 @@ static TR: &[(&str, &str)] = &[
     ("Coverage ending", "Biten güvenceler"),
     ("Coverage not asked", "Garantisi sorulmamış"),
     (
-        "valuable things (from {} {}) with no warranty or insurance recorded; the dearest:",
-        "garanti ya da sigortası kayıtlı olmayan değerli eşyalar ({} {} ve üstü); en pahalılar:",
+        "valuable things (from {}) with no warranty or insurance recorded; the dearest:",
+        "garanti ya da sigortası kayıtlı olmayan değerli eşyalar ({} ve üstü); en pahalılar:",
     ),
     ("active, lifetime", "geçerli, ömür boyu"),
     ("active until {}", "{} tarihine kadar geçerli"),

@@ -1173,8 +1173,8 @@ fn todo(out: &mut String, v: &Value) {
             out,
             "  {}",
             tf(
-                "valuable things (from {} {}) with no warranty or insurance recorded; the dearest:",
-                &[&s(cv, "threshold"), &s(cv, "currency")]
+                "valuable things (from {}) with no warranty or insurance recorded; the dearest:",
+                &[&amount(&s(cv, "threshold"), &s(cv, "currency"))]
             )
         );
         for n in cv["top"].as_array().into_iter().flatten() {

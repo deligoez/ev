@@ -314,3 +314,16 @@ fn a_past_thing_is_not_counted_as_added() {
     let after = inv.stats().unwrap()["activity"]["added"].as_i64().unwrap();
     assert_eq!(after, before);
 }
+
+#[test]
+fn a_file_that_is_no_image_is_refused_as_a_photo() {
+    let (d, mut inv) = setup();
+    let text = d.path().join("not-a-photo.jpg");
+    std::fs::write(&text, "hello").unwrap();
+    assert_eq!(
+        inv.photo_add("Telefon", &text, None, None)
+            .unwrap_err()
+            .code(),
+        2
+    );
+}

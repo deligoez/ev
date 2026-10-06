@@ -24,6 +24,14 @@ fn str_of(n: &Value, key: &str) -> String {
 }
 
 /// When an event happened, in local time.
+/// A stored moment (`2026-10-05T22:47:35Z`) as the local day it fell on, for text; anything
+/// else as it is.
+pub(crate) fn local_day(ts: &str) -> String {
+    chrono::DateTime::parse_from_rfc3339(ts)
+        .map(|d| d.with_timezone(&chrono::Local).date_naive().to_string())
+        .unwrap_or_else(|_| ts.to_string())
+}
+
 pub(crate) fn local_time(e: &Value) -> Option<chrono::DateTime<chrono::Local>> {
     chrono::DateTime::parse_from_rfc3339(e["at"].as_str().unwrap_or_default())
         .map(|d| d.with_timezone(&chrono::Local))
@@ -80,24 +88,37 @@ pub(crate) fn left_as(d: &str) -> &'static str {
 
 /// An edit event in words: each field with what it became, and what it was when both are short
 /// enough to read side by side.
+/// A field of `ev edit` in the reader's words.
+pub(crate) fn field_word(k: &str) -> String {
+    match k {
+        "name" => t("name").into(),
+        "code" => t("code").into(),
+        "kind" => t("kind").into(),
+        "note" => t("note").into(),
+        "theme" => t("theme").into(),
+        "qty" => t("qty").into(),
+        "size" => t("size").into(),
+        "fill" => t("fill").into(),
+        "tags" => t("tags").into(),
+        "owner" => t("owner").into(),
+        "with" => t("with").into(),
+        "to" => t("to take to").into(),
+        "address" => t("address").into(),
+        "photos" => t("photos").into(),
+        "make" => t("make").into(),
+        "model" => t("model").into(),
+        "serial" => t("serial").into(),
+        "came" => t("came").into(),
+        "left" => t("left").into(),
+        "left_in" => t("left from").into(),
+        "temporary" => t("temporary").into(),
+        "waits_for" => t("waits for").into(),
+        other => other.into(),
+    }
+}
+
 pub(crate) fn edit_text(d: &Value) -> String {
-    let name = |k: &str| -> String {
-        match k {
-            "name" => t("name").into(),
-            "code" => t("code").into(),
-            "note" => t("note").into(),
-            "theme" => t("theme").into(),
-            "qty" => t("qty").into(),
-            "size" => t("size").into(),
-            "fill" => t("fill").into(),
-            "tags" => t("tags").into(),
-            "owner" => t("owner").into(),
-            "to" => t("to take to").into(),
-            "address" => t("address").into(),
-            "photos" => t("photos").into(),
-            other => other.into(),
-        }
-    };
+    let name = field_word;
     // A note of several lines reads on one: an event is one row.
     let text = |v: &Value| match v {
         Value::Null => "—".to_string(),
@@ -242,8 +263,18 @@ pub(crate) fn event_words(
             disposition_tr(d["as"].as_str().unwrap_or_default()).to_string(),
         ),
         "gone" => own("gone", {
-            let why = str_of(d, "why");
-            format!("{}  {why}", left_as(d["as"].as_str().unwrap_or_default()))
+            // How, and for a thing that left long ago, when and from where, as it was said.
+            let mut parts = vec![left_as(d["as"].as_str().unwrap_or_default()).to_string()];
+            if let Some(at) = d["at"].as_str() {
+                parts.push(at.to_string());
+            }
+            if let Some(w) = d["where"].as_str() {
+                parts.push(w.to_string());
+            }
+            if let Some(why) = d["why"].as_str() {
+                parts.push(why.to_string());
+            }
+            parts.join(" · ")
         }),
         "coverage_purchase" => own(
             "coverage bought as",
@@ -361,6 +392,21 @@ pub(crate) fn event_words(
                 .trim_end()
                 .to_string()
         }),
+        "photo_rotate" => own(
+            "photo turned",
+            tf("{}° clockwise", &[&d["degrees"].as_i64().unwrap_or(0)]),
+        ),
+        "portion_out" => own("part moved out", format!("×{}  → #{}", d["qty"], d["to"])),
+        "portion_in" => own("part came in", format!("×{}  ← #{}", d["qty"], d["from"])),
+        "merged" => own(
+            "joined another portion",
+            format!("×{}  → #{}", d["qty"], d["into"]),
+        ),
+        "joined" => own("portion joined", format!("×{}  ← #{}", d["qty"], d["from"])),
+        "more_of" => own("more of", format!("#{}", d["of"])),
+        "join" => own("joined to a thing", format!("#{}", d["thing"])),
+        "unjoin" => own("taken from a thing", format!("#{}", d["thing"])),
+        "empty" => own("found empty", str_of(d, "note")),
         other => (t("event"), format!("{other} {d}"), Tone::Other),
     }
 }

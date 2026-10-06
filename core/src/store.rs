@@ -1055,7 +1055,8 @@ impl Inventory {
             &tx,
             node.id,
             "gone",
-            json!({ "as": final_disposition, "why": why, "dropped_pending": node.pending_to }),
+            json!({ "as": final_disposition, "why": why, "dropped_pending": node.pending_to,
+                    "at": at, "where": place }),
         )?;
         // Candidates inside leave with it, each keeping its own disposition.
         for n in &inside {
@@ -2392,7 +2393,12 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             "UPDATE nodes SET state = 'gone', disposition = ?1 WHERE id = ?2",
             params![g.as_str(), id],
         )?;
-        event(conn, id, "gone", json!({ "as": g, "past": true }))?;
+        event(
+            conn,
+            id,
+            "gone",
+            json!({ "as": g, "past": true, "at": non_empty(&new.at), "where": non_empty(&new.place) }),
+        )?;
         past::set_departure(
             conn,
             id,

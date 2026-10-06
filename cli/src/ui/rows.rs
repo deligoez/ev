@@ -563,7 +563,7 @@ impl App {
                         crate::history::left_as(n["how"].as_str().unwrap_or_default()).to_string(),
                     ];
                     if let Some(w) = n["where"].as_str() {
-                        what.push(tf("in {}", &[&w]));
+                        what.push(tf("was in {}", &[&w]));
                     }
                     if let Some(g) = n["got"].as_object() {
                         what.push(tf(

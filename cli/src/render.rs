@@ -248,7 +248,7 @@ fn past_list(out: &mut String, l: &Value) {
         parts.push(tf("left {}", &[&left]));
         parts.push(crate::history::left_as(&s(n, "how")).to_string());
         if let Some(w) = n["where"].as_str() {
-            parts.push(tf("in {}", &[&w]));
+            parts.push(tf("was in {}", &[&w]));
         }
         let paid = sums(&n["paid"]);
         if !paid.is_empty() {
@@ -329,7 +329,10 @@ fn photo_reason(n: &Value) -> String {
     match n["photo_reason"].as_str() {
         Some("none") => t("  (no photo)").into(),
         Some("marked") => t("  (photo marked out of date)").into(),
-        _ => tf("  (changed {})", &[&s(n, "changed_at")]),
+        _ => tf(
+            "  (changed {})",
+            &[&crate::history::local_day(&s(n, "changed_at"))],
+        ),
     }
 }
 
@@ -396,7 +399,7 @@ pub(crate) fn departure_text(v: &Value) -> Option<String> {
         parts.push(crate::history::left_as(how).to_string());
     }
     if let Some(w) = d.get("where").and_then(Value::as_str) {
-        parts.push(tf("in {}", &[&w]));
+        parts.push(tf("was in {}", &[&w]));
     }
     let via = d.get("via").and_then(Value::as_str);
     match d.get("price").and_then(Value::as_str) {
@@ -1182,13 +1185,40 @@ fn coverage_status(cv: &Value) -> String {
     }
 }
 
+/// A coverage's term as `ev` keeps it (`2 years`, `1 month`, `lifetime`) in the reader's words.
+fn term_text(term: &str) -> String {
+    if term == "lifetime" {
+        return t("lifetime").to_string();
+    }
+    let Some((n, unit)) = term.split_once(' ') else {
+        return term.to_string();
+    };
+    let one = n == "1";
+    let unit = match unit.trim_end_matches('s') {
+        "year" if one => t("year"),
+        "year" => t("years"),
+        "month" if one => t("month"),
+        "month" => t("months"),
+        "week" if one => t("week"),
+        "week" => t("weeks"),
+        "day" if one => t("day"),
+        "day" => t("days"),
+        _ => return term.to_string(),
+    };
+    format!("{n} {unit}")
+}
+
 /// `#3 manufacturer  Bosch  2 years from delivery  active until 2026-05-03`.
 pub(crate) fn coverage_line(cv: &Value) -> String {
     let kind = coverage_kind(cv["kind"].as_str().unwrap_or_default());
     let mut parts = vec![format!("#{} {kind}", cv["id"])];
     for k in ["issuer", "number", "term", "usage"] {
         if let Some(x) = cv[k].as_str() {
-            parts.push(x.to_string());
+            parts.push(if k == "term" {
+                term_text(x)
+            } else {
+                x.to_string()
+            });
         }
     }
     if let Some(r) = cv["repair_days"].as_i64() {
@@ -2262,7 +2292,13 @@ pub fn human(v: &Value) -> String {
         return out;
     }
     if v.get("text").is_some() && v.get("make").is_some() {
-        let _ = writeln!(out, "{}  [{}]", need_line(v), s(v, "status"));
+        let status = match v["status"].as_str() {
+            Some("open") => t("still to get"),
+            Some("got") => t("got"),
+            Some("dropped") => t("dropped"),
+            _ => "?",
+        };
+        let _ = writeln!(out, "{}  [{status}]", need_line(v));
         return out;
     }
     if v.get("open_tasks").is_some() {
@@ -2852,6 +2888,7 @@ fn changed_lines(out: &mut String, changed: &Value) {
         other => other.to_string(),
     };
     for (field, c) in fields {
+        let field = crate::history::field_word(field);
         let _ = match added(c) {
             Some(rest) => writeln!(out, "  {field}: + {rest}"),
             None => writeln!(
@@ -3095,7 +3132,7 @@ fn accounted(th: &Value) -> Option<String> {
         .as_object()
         .into_iter()
         .flatten()
-        .map(|(d, n)| format!("{} {n}", disposition(d)))
+        .map(|(d, n)| format!("{} {n}", crate::history::left_as(d)))
         .collect();
     let bought = th["bought"].as_i64();
     if bought.is_none() && gone.is_empty() {
@@ -3218,7 +3255,10 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             "  {}",
             tf(
                 "review: {} ({})",
-                &[&s(&v["review"], "status"), &s(&v["review"], "at")]
+                &[
+                    &review_mark(&v["review"]),
+                    &crate::history::local_day(&s(&v["review"], "at"))
+                ]
             )
         );
     }
@@ -3237,6 +3277,8 @@ fn show(out: &mut String, v: &Value, node: &Value) {
             "sale" => t("sale"),
             "condition" => t("condition"),
             "shred" => t("shred first"),
+            "photo_ok" => t("photo still current"),
+            "photo_stale" => t("photo out of date"),
             other => other,
         };
         let what = [
@@ -3261,7 +3303,11 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         .flatten()
         .collect::<Vec<_>>()
         .join(" · ");
-        let _ = writeln!(out, "  {kind}: {what}");
+        if what.is_empty() {
+            let _ = writeln!(out, "  {kind}");
+        } else {
+            let _ = writeln!(out, "  {kind}: {what}");
+        }
     }
     for n in v["needs"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}: {}", t("to get"), need_line(n));
@@ -3888,10 +3934,10 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
         .as_object()
         .into_iter()
         .flatten()
-        .map(|(how, n)| format!("{} {n}", disposition(how)))
+        .map(|(how, n)| format!("{} {n}", crate::history::left_as(how)))
         .collect();
     if !gone.is_empty() {
-        recent.push(line(tf("left the home: {}", &[&gone.join(", ")])));
+        recent.push(line(tf("left the home: {}", &[&gone.join(" · ")])));
     }
     if let Some(d) = a["busiest_day"].as_object() {
         recent.push(line(tf(

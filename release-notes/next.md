@@ -86,6 +86,10 @@ receipt are things (spec/ak.md). To answer which thing a payment bought, `ev buy
 
 ## Fixes
 
+- `ev buy import` read `qty` only as a JSON number, so a count sent as text (`"qty": "2"`, as
+  ak writes a receipt's count) silently became 1. A whole number given as text is read now, and
+  anything else (`"1.5"`) is refused, naming the line, instead of becoming 1.
+
 - A frame `ev photo mark` drew on a grid's cells ran along the cells on the floor of the drawer,
   so on a tall box (`size` higher than 1) its top edge sat inside the box's rim, which a photo
   from above sees leaning out. Cells that are exactly one placed box's are now framed out to its

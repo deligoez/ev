@@ -2753,6 +2753,9 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(groups) = v.get("disposals").and_then(Value::as_object) {
         for (d, list) in groups {
+            if list.as_array().is_none_or(Vec::is_empty) {
+                continue;
+            }
             let _ = writeln!(out, "{}:", disposition(d));
             for n in list.as_array().into_iter().flatten() {
                 let _ = writeln!(out, "  {}{}", line(n), shred_mark(n));

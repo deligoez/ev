@@ -1071,6 +1071,8 @@ impl Inventory {
             Disposition::Digitize,
             Disposition::Give,
             Disposition::Sell,
+            Disposition::Trade,
+            Disposition::Return,
         ] {
             if filter.is_some_and(|f| f != d) {
                 continue;

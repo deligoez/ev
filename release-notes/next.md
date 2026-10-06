@@ -41,6 +41,17 @@ what was left under the last row that fit stayed empty: about a fifth of a tall 
 rows that fit now share that height (a short series takes the whole height in the rows it
 needs), so the usual portrait photo is drawn taller, and a picture sits centred in its tile.
 
+## A series knows which place it is about
+
+A batch of one drawer's photos joined the series still open from the previous drawer, so its
+frames were numbered 16–32 while its pictures were f16–f34, and "16" and "f16" named different
+things; nothing had told the agent that a new batch had begun. A marked photo series now
+remembers the place its first picture was about (the place `ev photo mark`, `ev photo cut
+--place` or `ev photo add` named, or `ev focus --file … --for <place>`). A picture about another
+place still joins the series, since closing it is the person's call, but the answer says so with
+`series_about: {about, now}`, for the agent to ask whether to close the series first, and the
+picture's title in `ev ui` names both places (spec/series-batches.md).
+
 ## Errors with ids
 
 An error now can carry a stable id and its values, so the text output can say it in the

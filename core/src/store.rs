@@ -911,6 +911,8 @@ impl Inventory {
             "UPDATE nodes SET state = 'active', disposition = NULL WHERE id = ?1",
             [node.id],
         )?;
+        // Kept after all: a sale said before it left no longer stands.
+        tx.execute("DELETE FROM departures WHERE node_id = ?1", [node.id])?;
         crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(&tx, node.id, "restore", json!({ "was": node.disposition }))?;
@@ -2700,6 +2702,8 @@ impl Inventory {
         if node.parent_id.is_none() && node.kind != Kind::Home {
             tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
         }
+        // It never left: how, when and for what it left were never so.
+        tx.execute("DELETE FROM departures WHERE node_id = ?1", [node.id])?;
         crate::marks::clear_shred(&tx, node.id)?;
         touch(&tx, node.id)?;
         event(

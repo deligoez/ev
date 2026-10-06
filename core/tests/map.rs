@@ -498,3 +498,12 @@ fn a_move_out_of_a_holder_with_no_place_leaves_the_sketch_as_it_was() {
     let s = inv.sketch("Masa").unwrap();
     assert_eq!((s["x"].as_f64(), s["y"].as_f64()), (Some(10.0), Some(20.0)));
 }
+
+#[test]
+fn furniture_outside_its_sized_room_is_refused() {
+    let (_d, mut inv) = setup();
+    sketch(&mut inv, "Çalışma odası", None, Some("300,400"), None, None).unwrap();
+    let out = sketch(&mut inv, "Masa", Some("99999,5"), Some("120,60"), None, None);
+    assert_eq!(out.unwrap_err().code(), 5);
+    sketch(&mut inv, "Masa", Some("180,5"), Some("120,60"), None, None).unwrap();
+}

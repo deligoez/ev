@@ -754,9 +754,15 @@ fn purchase(out: &mut String, p: &Value) {
         }
     }
     for l in p["linked"].as_array().into_iter().flatten() {
+        // A thing that left is named where it was, marked as gone.
+        let gone = if l["node"]["state"] == "gone" {
+            format!("  {}", t("[gone]"))
+        } else {
+            String::new()
+        };
         let _ = writeln!(
             out,
-            "  → #{} {} ×{}",
+            "  → #{} {} ×{}{gone}",
             l["node"]["id"],
             s(&l["node"], "path_text"),
             l["qty"]

@@ -1062,6 +1062,7 @@ static TR: &[(&str, &str)] = &[
     ("left, how not known", "gitti, nasıl bilinmiyor"),
     ("came", "geldi"),
     ("left", "gitti"),
+    ("[gone]", "[gitti]"),
     ("in {}", "{} içinde"),
     ("sold", "satıldı"),
     ("thrown out", "atıldı"),

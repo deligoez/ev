@@ -917,6 +917,13 @@ enum BuyCmd {
         id: i64,
         pack: i64,
     },
+    /// What kind of purchase a line is: durable, clothing, digital or service (a line entered
+    /// by hand, or from a source that cannot tell).
+    Bucket {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        bucket: String,
+    },
     /// Undo a link.
     Unlink {
         #[arg(value_parser = record_id)]
@@ -2229,6 +2236,7 @@ fn run(cli: Cli) -> Result<Value> {
         },
         Cmd::Buy(BuyCmd::Link { id, reference, qty }) => inv.buy_link(id, &reference, qty),
         Cmd::Buy(BuyCmd::Pack { id, pack }) => inv.buy_pack(id, pack),
+        Cmd::Buy(BuyCmd::Bucket { id, bucket }) => inv.buy_bucket(id, &bucket),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
         Cmd::Buy(BuyCmd::Decline {
             id,

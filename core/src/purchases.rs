@@ -832,6 +832,37 @@ impl Inventory {
         self.buy_show(id)
     }
 
+    /// Says what kind of purchase a line is (`BUCKETS`). A line linked to a thing stays a thing's
+    /// purchase: it is not made digital or a service while linked.
+    pub fn buy_bucket(&mut self, id: i64, bucket: &str) -> Result<Value> {
+        let bucket = bucket.trim().to_lowercase();
+        if !BUCKETS.contains(&bucket.as_str()) {
+            return Err(Error::Usage(format!(
+                "bucket `{bucket}`; use {}",
+                BUCKETS.join(", ")
+            )));
+        }
+        let p = purchase_json(&self.conn, id)?;
+        if p["bucket"] == bucket.as_str() {
+            return Err(crate::error::refused(
+                format!("purchase {id} is already {bucket}"),
+                Value::Null,
+            ));
+        }
+        let linked = p["linked"].as_array().is_some_and(|l| !l.is_empty());
+        if linked && matches!(bucket.as_str(), "digital" | "service") {
+            return Err(crate::error::refused(
+                format!("purchase {id} is linked to a thing; `ev buy unlink` it first"),
+                Value::Null,
+            ));
+        }
+        self.conn.execute(
+            "UPDATE purchases SET bucket = ?1, updated_at = ?2 WHERE id = ?3",
+            params![bucket, now(), id],
+        )?;
+        self.buy_show(id)
+    }
+
     pub fn buy_unlink(&mut self, id: i64, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = resolve(&tx, reference, true)?;

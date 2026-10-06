@@ -864,3 +864,17 @@ fn cover_list_names_what_each_coverage_covers_and_show_its_premium() {
     let s = h.text(&["cover", "show", "1"]);
     assert!(s.contains("  premium: 99.00 USD\n"), "{s}");
 }
+
+#[test]
+fn a_closed_task_gives_the_date_it_was_due_with_no_days_left() {
+    let h = Home::new();
+    h.run(
+        &[
+            "task", "add", "Etiketle", "--why", "yok", "--on", "D", "--due", "2026-01-05",
+        ],
+        None,
+    );
+    h.run(&["task", "done", "2"], None);
+    let s = h.text(&["task", "list", "--all"]);
+    assert!(s.contains("     due 2026-01-05\n"), "{s}");
+}

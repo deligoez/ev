@@ -1995,3 +1995,60 @@ fn a_record_that_leaves_the_list_hands_the_selection_to_its_neighbour_and_says_s
     assert_eq!(app.status, format!("#{last} left this list"));
     assert_eq!(app.counts[&Tab::Pending], 1);
 }
+
+/// One order of two durable lines, the first linked to a LED; a digital line on its own.
+fn with_purchases() -> (tempfile::TempDir, App) {
+    let (dir, mut inv) = led_drawer();
+    let lines = [
+        serde_json::json!({"type": "purchase", "source": "shop", "key": "o1:a", "shop": "Shop",
+            "order": "o1", "name": "LED seti", "ordered_at": "2024-05-01", "qty": 1,
+            "paid": "1999.00", "currency": "TRY"}),
+        serde_json::json!({"type": "purchase", "source": "shop", "key": "o1:b", "shop": "Shop",
+            "order": "o1", "name": "Buzzer", "ordered_at": "2024-05-01", "qty": 2,
+            "paid": "800.00", "currency": "TRY"}),
+        serde_json::json!({"type": "purchase", "source": "shop", "key": "o2:c", "shop": "Store",
+            "order": "o2", "name": "Bir oyun", "ordered_at": "2024-06-01", "qty": 1,
+            "paid": "99.00", "currency": "TRY", "bucket": "digital"}),
+    ]
+    .iter()
+    .map(serde_json::Value::to_string)
+    .collect::<Vec<_>>()
+    .join("\n");
+    inv.buy_import(&lines).unwrap();
+    let set = inv
+        .buy_list_matching(false, None, None, None, Some("LED seti"))
+        .unwrap();
+    let id = set["purchases"][0]["id"].as_i64().unwrap();
+    inv.buy_link(id, "Kırmızı LED 5 mm", None).unwrap();
+    let app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    (dir, app)
+}
+
+#[test]
+fn nine_lists_every_purchase_line_with_an_order_under_its_heading_and_the_totals() {
+    let (_dir, mut app) = with_purchases();
+    let mut term = Terminal::new(TestBackend::new(170, 30)).unwrap();
+    press(&mut app, KeyCode::Char('9'));
+    assert!(app.tab == Tab::Buys);
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains("All · 3 lines · 2898.00 TRY · all"), "{s}");
+    // The order's two lines under one heading with its total; the other line on its own.
+    assert!(s.contains("order o1 · 2 lines · 2799.00 TRY"), "{s}");
+    assert!(s.contains("Store  Bir oyun  99.00 TRY"), "{s}");
+    assert!(
+        s.contains("LED seti  1999.00 TRY  → Kırmızı LED 5 mm"),
+        "{s}"
+    );
+    // Each bucket is a list of its own, counted in the sidebar.
+    assert_eq!(
+        (app.counts[&Tab::Buys], app.counts[&Tab::BuysDurable]),
+        (3, 2)
+    );
+    assert_eq!(app.counts[&Tab::BuysDigital], 1);
+    // The details are the line's, as `ev buy show` writes them.
+    let line = app.rows.iter().position(|r| r.id > 0).unwrap();
+    app.select(line).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&term).contains("Purchase #"));
+}

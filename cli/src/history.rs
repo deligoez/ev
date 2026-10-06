@@ -123,6 +123,7 @@ pub(crate) fn edit_text(d: &Value) -> String {
     let text = |v: &Value| match v {
         Value::Null => "—".to_string(),
         Value::String(s) => s.split('\n').collect::<Vec<_>>().join(" / "),
+        Value::Array(a) if a.is_empty() => "—".to_string(),
         Value::Array(a) => a
             .iter()
             .map(|x| x.as_str().map_or_else(|| x.to_string(), str::to_string))

@@ -11,8 +11,11 @@ views.
   picture shown in single view is the one selected in the grid, and back.
 - **Columns follow the width, not a count.** Columns = the pane's width ÷ the tile width, at
   least one; recomputed on every draw, so a resized terminal re-flows at once. Tile height keeps
-  the pictures' shape (about 4:3, a terminal cell being twice as tall as wide). A tall picture
-  is fitted inside its tile, centred, as the photo pane fits one today.
+  the pictures' shape (about 4:3, a terminal cell being twice as tall as wide) at least; the
+  height left under the rows that fit is shared among them (a short series takes the whole
+  height in the rows it needs), so no band stays empty at the bottom and a portrait photo, the
+  usual one, is drawn taller (2026-10-06: a fifth of a tall screen stayed empty). A picture is fitted inside
+  its tile, centred both ways.
 - **One setting, one zoom.** `ev settings series_tile <cells>` sets the tile width (default 28
   cells, at least 12): the size that reads on the person's screen. `+` / `-` in the grid change
   it by a step for now and are remembered in `ui-state.json` with the other screen state; the

@@ -81,6 +81,15 @@ pub(crate) struct FormatOnly {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub(crate) struct TodoArgs {
+    /// Only these sections, comma-separated (tasks, uncounted, photos, …), with the counts of
+    /// all: the whole list can be longer than one answer holds.
+    only: Option<String>,
+    #[serde(default)]
+    format: Format,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(crate) struct FindArgs {
     /// Words to look for, in any order (stems, synonyms and typos match); may be left out with
     /// `tag` or `kind` to list all of them.
@@ -245,12 +254,13 @@ things leaving, labels to print, things to buy, repairs, use-by dates, lost thin
 counted, photos needed now, unclear records, coverage and value questions.",
         annotations(read_only_hint = true, idempotent_hint = true, open_world_hint = false)
     )]
-    async fn todo(
-        &self,
-        Parameters(p): Parameters<FormatOnly>,
-    ) -> Result<CallToolResult, McpError> {
-        self.call(argv("todo", vec![], vec![]), None, p.format)
-            .await
+    async fn todo(&self, Parameters(p): Parameters<TodoArgs>) -> Result<CallToolResult, McpError> {
+        self.call(
+            argv("todo", vec![flag("--only", p.only)], vec![]),
+            None,
+            p.format,
+        )
+        .await
     }
 
     #[tool(
@@ -537,7 +547,7 @@ fn shaped(v: &Value, format: Format) -> CallToolResult {
             return CallToolResult::error(vec![ContentBlock::text(format!(
                 "the JSON result is {chars} characters, over the {MAX_CHARS} a call returns, and \
                  cut JSON does not parse; ask for the text format, or narrow the call where the \
-                 command takes it (a reference, --depth, a tag or a kind)"
+                 command takes it (a reference, --depth, a tag or a kind; `todo --only <sections>`)"
             ))]);
         }
     }

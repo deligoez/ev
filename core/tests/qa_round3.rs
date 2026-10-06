@@ -264,3 +264,13 @@ fn drawers_labelled_after_their_cabinet_began_to_be_counted_are_not_counting() {
     place(&mut inv, "Alt çekmece", "container", "Q9", "Q9-B");
     assert_eq!(count(&inv, "Q9-B"), "raw");
 }
+
+#[test]
+fn a_thing_is_never_reviewed_as_a_place() {
+    let (_d, mut inv) = setup();
+    assert_eq!(
+        inv.review("Telefon", "toured", None).unwrap_err().code(),
+        2
+    );
+    assert_eq!(inv.review("Telefon", "kept", None).unwrap_err().code(), 2);
+}

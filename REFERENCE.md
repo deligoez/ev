@@ -466,13 +466,21 @@ frames, so a number on screen means one frame until it is closed. A picture of t
 named `f12` (its title in `ev ui` reads `f12/20 · <note>`), a frame by its bare number, a record
 by `#12`. `ev focus f12` shows that picture again, and `ev photo add`, `ev photo cut`, `ev photo
 mark` and `ev focus --file` take `f12` for a photo: the photo it was drawn on, unmarked (a file of
-that name wins). `ev focus --list` reads it:
-`{series: {since, next, pictures: [{f, file, source, note, frames: [{n, at, given} | {n, ref, crop}]}]}}`
+that name wins). A series knows what it is about (spec/series-batches.md): the place of its first
+picture that names one, the place `ev photo mark <place>`, `ev photo cut --place` or `ev photo add`
+named (a thing stands for the place it is in), or `ev focus --file … --for <place>`. A picture
+about another place joins the series all the same, and the answer's `shown` (`focus` for
+`--file`) carries `series_about: {about, now}` (each `{id, label}`): ask the person whether to
+close the series before that batch goes on; ev closes nothing by itself. Its title in `ev ui`
+says so too (`f17/20 · <note> · about K4x4-06-A, the series K4x4-07-B`). `ev focus --list` reads
+the series:
+`{series: {since, next, about, pictures: [{f, file, source, note, about, frames: [{n, at, given} | {n, ref, crop}]}]}}`
 (`f` names the picture; `source`, the photo it was drawn on, only when that is not `file`;
-`given`: the label number the agent gave a mark's frame on that photo, `n` the number drawn)
-(`series: null` when there is none); `ev focus --clear` closes it from outside, for an agent the
-person asked. The answer to `--file` is `{focus: {files, f, note, series, next, at}}`: this
-request's pictures, their `f` names, and the series' size. Each request is shown once, without restarting `ev ui`.
+`about` only when set; `given`: the label number the agent gave a mark's frame on that photo, `n`
+the number drawn) (`series: null` when there is none); `ev focus --clear` closes it from outside,
+for an agent the person asked. The answer to `--file` is
+`{focus: {files, f, note, series, next, at, series_about?}}`: this request's pictures, their `f`
+names, and the series' size. Each request is shown once, without restarting `ev ui`.
 A request is a message to the UI, not a change to the inventory: it is kept beside the database
 in `ev.db-focus.json`, and `ev.db` stays as it was; `X` removing it is the one write `ev ui`
 makes.

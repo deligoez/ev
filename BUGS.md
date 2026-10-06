@@ -6,6 +6,17 @@ that fixes them.
 
 ## Open
 
+- **Where a marked-photo series ends is a guess.** A new drawer's photo batch joined the series
+  still open from the previous drawer, so its frames were numbered 16–32 while its pictures were
+  f16–f34: frame 16 and f16 named different things, and the person noticed only afterwards. The
+  agent must not close a series on its own (`ev focus --clear` only on the person's word), and
+  closing one by mistake loses context, but nothing tells the agent that a new batch has begun
+  ("done" on a place does not mean the next photos are about another one). Expected: a series
+  knows which place (or batch) it is about (`ev focus --file … --for <place>`, or a series
+  title); when a photo for another place joins an open series, ev answers with a hint ("the
+  series is about A; this photo is about B — close it?") so the agent asks the person in one
+  line; and a new batch's frames are numbered from 1. ev still closes nothing by itself.
+  (Reported by the inventory agent.)
 - **A root the inventory never inflects is still cut to a shorter written word.** `kapı` →
   `kap`, `veri` → `ver`, `mini` → `min`, `yani` → `yan`, `boya` → `boy`, `powerline` →
   `power`: the word reads as that word plus a valid ending (`kap`+`ı`), and no other written

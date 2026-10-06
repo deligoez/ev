@@ -388,6 +388,11 @@ through an adapter you keep next to it, which also emits each line's product pic
 (`ev buy add`); none of them is a thing in the tree. A new shop gets a new adapter: start from
 `examples/purchases/` in the ev repository (its README walks through it) and keep the adapter
 with the shop's raw export and its `RECIPE.md`.
+Lines from ak (the household's money tool: `ak export --for ev | ev buy import --stdin`, only
+when the person asks) are joined on import to the shop lines ev already has of the same order.
+When the result lists `unjoined`, show each to the person with its `candidates`
+(`ev buy show <id>`) and, on their word, `ev buy join <line> <candidate>`, or
+`ev buy dismiss <line> --as duplicate`, or leave it as a purchase of its own.
 
 **Say the right date:** a line shows `ordered …` (the day it was
 bought, what the shop's order page says) and `delivered …` when it arrived; "bought on" is the

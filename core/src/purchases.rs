@@ -336,6 +336,8 @@ struct Line {
     paid: Option<i64>,
     status: String,
     bucket: String,
+    /// The line said its bucket; when it did not, a bucket set before (`ev buy bucket`) stays.
+    bucket_said: bool,
 }
 
 const LINE_FIELDS: [(&str, &str); 13] = [
@@ -359,6 +361,7 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
     let key = text(v, "key").ok_or_else(|| Error::Usage("`key` is required".into()))?;
     let name = text(v, "name").ok_or_else(|| Error::Usage("`name` is required".into()))?;
     let status = text(v, "status").unwrap_or_else(|| "delivered".into());
+    let bucket_said = text(v, "bucket").is_some();
     let bucket = text(v, "bucket").unwrap_or_else(|| "durable".into());
     // Cancelled lines and consumables are not imported (spec §3.2, §11).
     if status == "cancelled" || bucket == "consumable" {
@@ -398,6 +401,7 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
             paid,
             status,
             bucket,
+            bucket_said,
         },
         name,
     )))
@@ -451,7 +455,8 @@ fn upsert(conn: &Connection, l: &Line, name: &str) -> Result<(i64, &'static str)
         Some(id) => {
             let before = purchase_json(conn, id)?;
             let sql = format!(
-                "UPDATE purchases SET name = ?1, qty = ?2, paid = ?3, status = ?4, bucket = ?5, {}
+                "UPDATE purchases SET name = ?1, qty = ?2, paid = ?3, status = ?4,
+                   bucket = COALESCE(?5, bucket), {}
                  WHERE id = ?{}",
                 cols.iter()
                     .enumerate()
@@ -465,7 +470,7 @@ fn upsert(conn: &Connection, l: &Line, name: &str) -> Result<(i64, &'static str)
                 Box::new(l.qty),
                 Box::new(l.paid),
                 Box::new(l.status.clone()),
-                Box::new(l.bucket.clone()),
+                Box::new(l.bucket_said.then(|| l.bucket.clone())),
             ];
             p.extend(
                 vals.into_iter()

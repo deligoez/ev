@@ -128,3 +128,16 @@ fn some_of_a_thing_that_never_left_joins_the_rest_again() {
     assert_eq!(back["node"]["qty"], 10, "{back}");
     assert_eq!(back["node"]["name"], "Vida");
 }
+
+#[test]
+fn some_of_a_thing_set_aside_and_kept_joins_the_rest_again() {
+    use ev_core::Disposition;
+    let (_d, mut inv) = setup();
+    vida(&mut inv);
+    let aside = inv
+        .dispose_qty("Vida", Disposition::Give, false, Some(3), None)
+        .unwrap();
+    let portion = format!("#{}", aside["node"]["id"]);
+    let back = inv.restore(&portion).unwrap();
+    assert_eq!(back["node"]["qty"], 10, "{back}");
+}

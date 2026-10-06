@@ -378,7 +378,12 @@ enum Cmd {
     Next,
     /// Everything waiting, in one list: tasks, moves, errands, disposals, labels, needs, repairs,
     /// use-by dates, lost things, uninventoried and changed places, unclear records.
-    Todo,
+    Todo {
+        /// Only these sections (comma-separated: tasks, uncounted, photos, …), with the counts
+        /// of all: a long list read a part at a time.
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+    },
     /// Numbers about the home on one page: how much there is, what it cost, how far the counting
     /// has come, the purchases, the last 30 days, the boxes, coverages, tags, the oldest things.
     Stats,
@@ -2002,7 +2007,7 @@ fn run(cli: Cli) -> Result<Value> {
         } => inv.review(&reference, &status, note.as_deref()),
         Cmd::Progress { place } => inv.progress_in(place.as_deref()),
         Cmd::Next => inv.next(),
-        Cmd::Todo => inv.todo(),
+        Cmd::Todo { only } => todo_only(inv.todo()?, &only),
         Cmd::Stats => inv.stats(),
         Cmd::Focus { list: true, .. } => inv.focus_list(),
         Cmd::Focus { file, note, .. } if !file.is_empty() => {
@@ -2766,6 +2771,32 @@ fn traded_check(
         return Err(Error::Usage("a thing is not traded for itself".into()));
     }
     inv.check_trade(left.0, left.1, other)
+}
+
+/// `ev todo --only`: the sections asked for, with `goal` and the counts of all; a section ev
+/// does not have is refused with the ones it has.
+fn todo_only(mut v: Value, only: &[String]) -> Result<Value> {
+    if only.is_empty() {
+        return Ok(v);
+    }
+    let Some(all) = v.as_object_mut() else {
+        return Ok(v);
+    };
+    let sections: Vec<String> = all
+        .keys()
+        .filter(|k| !matches!(k.as_str(), "counts" | "goal" | "progress"))
+        .cloned()
+        .collect();
+    for o in only {
+        if !sections.contains(o) {
+            return Err(Error::Usage(format!(
+                "`{o}` is no section of todo; use {}",
+                sections.join(", ")
+            )));
+        }
+    }
+    all.retain(|k, _| matches!(k.as_str(), "counts" | "goal" | "progress") || only.contains(k));
+    Ok(v)
 }
 
 fn warn_missing_photos<'a>(paths: impl Iterator<Item = &'a str>) {

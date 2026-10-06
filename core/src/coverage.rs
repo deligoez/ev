@@ -817,7 +817,7 @@ pub(crate) fn add_coverage(tx: &Connection, nodes: &[i64], new: &NewCoverage) ->
     }
     if kind == "insurance" && ends.is_none() && term.is_none_or(|(_, u)| u == "lifetime") {
         return Err(Error::Usage(
-            "an insurance needs an --ends date or a term".into(),
+            "an insurance runs out: give an --ends date or a term in years, months, weeks or days, not lifetime".into(),
         ));
     }
     let premium = text(&new.premium).map(|p| parse_money(&p)).transpose()?;

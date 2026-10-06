@@ -1258,7 +1258,8 @@ impl Inventory {
                 }))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(json!({ "node": brief(&self.conn, id)?, "events": events }))
+        let names = history_names(&self.conn, &events)?;
+        Ok(json!({ "node": brief(&self.conn, id)?, "events": events, "names": names }))
     }
 
     /// A place's history as seen from it: its own events, and the events of things that came
@@ -1302,8 +1303,45 @@ impl Inventory {
             }
             events.push(e);
         }
-        Ok(json!({ "node": brief(&self.conn, id)?, "events": events }))
+        let names = history_names(&self.conn, &events)?;
+        Ok(json!({ "node": brief(&self.conn, id)?, "events": events, "names": names }))
     }
+}
+
+/// What a history's events name by id, so they are read by name: the records and places
+/// (`parent`, `to`, `from`, `into`, `with`, `for`) as `{"#12": "K4x4-07 Kutu"}`, and the
+/// purchase lines as `{"p486": "Nikon MH-24"}`.
+fn history_names(conn: &Connection, events: &[Value]) -> Result<Value> {
+    let mut names = serde_json::Map::new();
+    for e in events {
+        let d = &e["data"];
+        for key in ["parent", "to", "from", "into", "with", "for"] {
+            if let Some(id) = d[key].as_i64()
+                && !names.contains_key(&format!("#{id}"))
+                && let Some((code, name)) = conn
+                    .query_row("SELECT code, name FROM nodes WHERE id = ?1", [id], |r| {
+                        Ok((r.get::<_, Option<String>>(0)?, r.get::<_, String>(1)?))
+                    })
+                    .optional()?
+            {
+                let label = match code {
+                    Some(c) => format!("{c} {name}"),
+                    None => name,
+                };
+                names.insert(format!("#{id}"), json!(label));
+            }
+        }
+        if let Some(p) = d["purchase"].as_i64()
+            && let Some(name) = conn
+                .query_row("SELECT name FROM purchases WHERE id = ?1", [p], |r| {
+                    r.get::<_, String>(0)
+                })
+                .optional()?
+        {
+            names.insert(format!("p{p}"), json!(name));
+        }
+    }
+    Ok(Value::Object(names))
 }
 
 // ---------- reading ----------

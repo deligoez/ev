@@ -233,3 +233,30 @@ fn a_currency_is_a_code_in_use_not_any_three_letters() {
     let added = inv.value("Telefon", Some(&v)).unwrap();
     assert_eq!(added["valuations"][0]["currency"], "EUR", "{added}");
 }
+
+#[test]
+fn a_batch_line_records_a_swap_or_nothing() {
+    let (_d, mut inv) = setup();
+    let bad = inv.add_batch(vec![NewNode {
+        name: "Eski bisiklet".into(),
+        gone: Some("trade".into()),
+        traded_for: Some("Odaa".into()),
+        ..Default::default()
+    }]);
+    assert_eq!(bad.unwrap_err().code(), 3);
+    assert!(
+        inv.past(None, None).unwrap()["remembered"]["past"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    inv.add_batch(vec![NewNode {
+        name: "Eski bisiklet".into(),
+        gone: Some("trade".into()),
+        traded_for: Some("Tablet".into()),
+        ..Default::default()
+    }])
+    .unwrap();
+    let bike = inv.show("Eski bisiklet", true).unwrap();
+    assert_eq!(bike["departure"]["traded_for"]["name"], "Tablet", "{bike}");
+}

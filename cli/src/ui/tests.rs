@@ -2135,3 +2135,33 @@ fn enter_on_a_shops_figure_opens_its_purchase_lines_and_esc_comes_back() {
     press(&mut app, KeyCode::Char('9'));
     assert_eq!(app.rows.iter().filter(|r| r.id > 0).count(), 3);
 }
+
+#[test]
+fn enter_on_a_years_figure_narrows_the_purchases_to_that_year() {
+    let (_dir, mut app) = with_purchases();
+    press(&mut app, KeyCode::Char('8'));
+    let year = app
+        .rows
+        .iter()
+        .position(|r| r.spans.iter().any(|s| s.content.starts_with("2024:")))
+        .unwrap();
+    app.select(year).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Buys);
+    assert_eq!(app.rows.iter().filter(|r| r.id > 0).count(), 3);
+    assert!(
+        app.purchase_title.contains("· 2024 "),
+        "{}",
+        app.purchase_title
+    );
+    // A figure of the counting opens the To do list.
+    press(&mut app, KeyCode::Esc);
+    let counted = app
+        .rows
+        .iter()
+        .position(|r| r.spans.iter().any(|s| s.content.contains("places counted")))
+        .unwrap();
+    app.select(counted).unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Plan);
+}

@@ -441,10 +441,17 @@ fn activity_section(conn: &Connection) -> Result<Value> {
     let since_count =
         |sql: &str| -> Result<i64> { Ok(conn.query_row(sql, [&since], |r| r.get(0))?) };
     let mut gone = Map::new();
-    // What left in these days; a past thing recorded already gone left long before.
+    // What left in these days; a past thing recorded already gone left long before, a leaving
+    // taken back as a correction never happened, and a record that was a mistake or joined
+    // another was no thing leaving.
     let mut stmt = conn.prepare(
-        "SELECT COALESCE(json_extract(data, '$.as'), '?'), COUNT(*) FROM events
-          WHERE type = 'gone' AND at >= ?1 AND COALESCE(json_extract(data, '$.past'), 0) = 0
+        "SELECT COALESCE(json_extract(e.data, '$.as'), '?'), COUNT(*) FROM events e
+          WHERE e.type = 'gone' AND e.at >= ?1
+            AND COALESCE(json_extract(e.data, '$.past'), 0) = 0
+            AND COALESCE(json_extract(e.data, '$.as'), '') NOT IN ('mistake', 'merged')
+            AND NOT EXISTS (SELECT 1 FROM events r WHERE r.node_id = e.node_id
+              AND r.type = 'restore' AND r.id > e.id
+              AND json_extract(r.data, '$.correction') IS NOT NULL)
           GROUP BY 1 ORDER BY 2 DESC",
     )?;
     let rows = stmt.query_map([&since], |r| {

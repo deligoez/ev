@@ -2165,3 +2165,33 @@ fn enter_on_a_years_figure_narrows_the_purchases_to_that_year() {
     press(&mut app, KeyCode::Enter);
     assert!(app.tab == Tab::Plan);
 }
+
+#[test]
+fn the_series_grid_shares_the_height_left_under_its_rows_among_them() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let files: Vec<(std::path::PathBuf, Option<String>)> = (1..=13)
+        .map(|i| (picture(&dir, &format!("p{i}.png")), None))
+        .collect();
+    app.inv.focus_noted(&files, None).unwrap();
+    app.apply_focus().unwrap();
+    press(&mut app, KeyCode::Char('g'));
+    // 100 columns, 28-cell pictures: three a row, 32 cells wide and so at least 13 rows tall.
+    // The 37 rows inside hold two of those and leave eleven over, which the two rows share.
+    let mut term = Terminal::new(TestBackend::new(100, 40)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let heights: Vec<u16> = app.grid_hits.iter().map(|(r, _)| r.height).collect();
+    assert_eq!(heights.len(), 6);
+    assert!(heights.iter().all(|&h| h == 18), "{heights:?}");
+    // A short series takes the whole height in the rows it needs.
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let two: Vec<(std::path::PathBuf, Option<String>)> = (1..=2)
+        .map(|i| (picture(&dir, &format!("q{i}.png")), None))
+        .collect();
+    app.inv.focus_noted(&two, None).unwrap();
+    app.apply_focus().unwrap();
+    press(&mut app, KeyCode::Char('g'));
+    term.draw(|f| app.draw(f)).unwrap();
+    assert!(app.grid_hits.iter().all(|(r, _)| r.height == 37));
+}

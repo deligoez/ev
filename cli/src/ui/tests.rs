@@ -1648,6 +1648,37 @@ fn a_series_the_agent_ends_leaves_the_screen() {
 }
 
 #[test]
+fn a_picture_about_another_place_than_its_series_says_so_in_its_title() {
+    let (dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let id = |app: &App, r: &str| app.inv.resolve(r, false).unwrap();
+    let (a1, b1) = (id(&app, "D-A1"), id(&app, "D-B1"));
+    let one = |dir: &tempfile::TempDir, name: &str| vec![(picture(dir, name), Some(name.into()))];
+    app.inv
+        .focus_noted_about(&one(&dir, "a.png"), None, Some(a1))
+        .unwrap();
+    app.inv
+        .focus_noted_about(&one(&dir, "b.png"), None, Some(b1))
+        .unwrap();
+    app.apply_focus().unwrap();
+    let mut term = Terminal::new(TestBackend::new(100, 20)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(
+        s.contains("f2/2 · b.png · about D-B1, the series D-A1"),
+        "{s}"
+    );
+    // The series' own place says nothing more.
+    press(&mut app, KeyCode::Char('['));
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(
+        s.contains("f1/2 · a.png") && !s.contains("about D-A1"),
+        "{s}"
+    );
+}
+
+#[test]
 fn g_shows_the_series_as_a_grid_moved_through_by_arrows_and_f_numbers() {
     let (dir, inv) = led_drawer();
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);

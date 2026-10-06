@@ -14,7 +14,41 @@ impl App {
     /// passed through (the home, on every jump into the tree) cost a whole-house regroup.
     pub(super) fn rebuild_rows(&mut self) -> Result<()> {
         let keep = self.selected_id();
-        self.rows = match self.tab {
+        self.rows = self.rows_of(self.tab)?;
+        let idx = keep
+            .and_then(|id| self.rows.iter().position(|r| r.id == id))
+            // Start on the first real line, not on a section header.
+            .or_else(|| {
+                self.rows
+                    .iter()
+                    .position(|r| r.id >= 0)
+                    .or(if self.rows.is_empty() { None } else { Some(0) })
+            })
+            .map(|i| i.min(self.rows.len().saturating_sub(1)));
+        self.state.select(idx);
+        Ok(())
+    }
+
+    /// The sidebar's counts: a list of one line per record is counted by building it, so the
+    /// count and the list come from one query (spec/ui-sidebar.md); the past by its two lists,
+    /// whose years may be closed.
+    pub(super) fn count_lists(&mut self) -> Result<()> {
+        for tab in [Tab::Pending, Tab::Disposals, Tab::Lost, Tab::Places] {
+            let n = self.rows_of(tab)?.len();
+            self.counts.insert(tab, n);
+        }
+        let v = self.inv.past(None, None)?;
+        let n = ["remembered", "left_inventory"]
+            .iter()
+            .map(|k| v[k]["past"].as_array().map_or(0, Vec::len))
+            .sum();
+        self.counts.insert(Tab::Past, n);
+        Ok(())
+    }
+
+    /// The rows of a list.
+    pub(super) fn rows_of(&mut self, tab: Tab) -> Result<Vec<Row>> {
+        Ok(match tab {
             Tab::Tree => {
                 let mut out = Vec::new();
                 for r in &self.snap.roots {
@@ -134,19 +168,7 @@ impl App {
             Tab::Settings => self.settings_rows(),
             Tab::Stats => self.stats_rows()?,
             Tab::Past => self.past_rows()?,
-        };
-        let idx = keep
-            .and_then(|id| self.rows.iter().position(|r| r.id == id))
-            // Start on the first real line, not on a section header.
-            .or_else(|| {
-                self.rows
-                    .iter()
-                    .position(|r| r.id >= 0)
-                    .or(if self.rows.is_empty() { None } else { Some(0) })
-            })
-            .map(|i| i.min(self.rows.len().saturating_sub(1)));
-        self.state.select(idx);
-        Ok(())
+        })
     }
 
     /// The Yapılacak tab: one section per kind of waiting work, each headed by its count and

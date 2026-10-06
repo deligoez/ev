@@ -64,6 +64,49 @@ impl App {
             }
             return Ok(());
         }
+        // The sidebar's own keys: moving opens the list at once, Enter goes into it.
+        if self.pane == Pane::Sidebar {
+            match k.code {
+                KeyCode::Down | KeyCode::Char('j') => return self.step_list(1),
+                KeyCode::Up | KeyCode::Char('k') => return self.step_list(-1),
+                KeyCode::Home | KeyCode::Char('g') => return self.step_list(isize::MIN / 2),
+                KeyCode::End | KeyCode::Char('G') => return self.step_list(isize::MAX / 2),
+                KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') | KeyCode::Esc => {
+                    self.enter_list();
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+        // The details' own keys: scrolling and their tabs.
+        if self.pane == Pane::Details {
+            let handled = match k.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.scroll_details(1);
+                    true
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.scroll_details(-1);
+                    true
+                }
+                KeyCode::Left | KeyCode::Char('h') => {
+                    self.step_detail_tab(-1);
+                    true
+                }
+                KeyCode::Right | KeyCode::Char('l') => {
+                    self.step_detail_tab(1);
+                    true
+                }
+                KeyCode::Esc => {
+                    self.pane = Pane::List;
+                    true
+                }
+                _ => false,
+            };
+            if handled {
+                return Ok(());
+            }
+        }
         match k.code {
             // On the Ara tab, Esc and `x` clear the search instead of quitting.
             KeyCode::Esc | KeyCode::Char('x') if self.tab == Tab::Search && self.has_search() => {
@@ -89,14 +132,12 @@ impl App {
             KeyCode::PageUp => self.step(-15)?,
             KeyCode::Home | KeyCode::Char('g') => self.select(0)?,
             KeyCode::End | KeyCode::Char('G') => self.select(usize::MAX)?,
-            KeyCode::Tab => self.switch(Tab::from_index(self.tab.index() + 1))?,
-            KeyCode::BackTab => {
-                self.switch(Tab::from_index(self.tab.index() + Tab::ALL.len() - 1))?
+            KeyCode::Tab => self.next_pane(1),
+            KeyCode::BackTab => self.next_pane(-1),
+            KeyCode::Char('b') => self.toggle_sidebar(),
+            KeyCode::Char(c) if Tab::from_digit(c).is_some() => {
+                self.switch(Tab::from_digit(c).unwrap_or(Tab::Tree))?
             }
-            KeyCode::Char(c @ '1'..='9') => {
-                self.switch(Tab::from_index(c as usize - '1' as usize))?
-            }
-            KeyCode::Char('0') => self.switch(Tab::Past)?,
             KeyCode::Char('m') => self.reopen_marked(),
             KeyCode::Char('X') => self.close_series()?,
             KeyCode::Char('M') => self.open_map(),
@@ -348,6 +389,17 @@ impl App {
             _ => {}
         }
         match m.kind {
+            // The sidebar first: as a drawer it lies over the list.
+            MouseEventKind::Down(MouseButton::Left) if inside(self.sidebar_area) => {
+                let hit = self.sidebar_hits.iter().find(|(y, _)| *y == m.row);
+                if let Some(&(_, tab)) = hit {
+                    self.switch(tab)?;
+                    self.enter_list();
+                }
+                Ok(())
+            }
+            MouseEventKind::ScrollDown if inside(self.sidebar_area) => self.step_list(1),
+            MouseEventKind::ScrollUp if inside(self.sidebar_area) => self.step_list(-1),
             MouseEventKind::ScrollDown if inside(self.photo_area) => {
                 self.step_photo(1);
                 Ok(())
@@ -379,13 +431,8 @@ impl App {
             }
             MouseEventKind::ScrollDown if inside(self.list_area) => self.step(3),
             MouseEventKind::ScrollUp if inside(self.list_area) => self.step(-3),
-            MouseEventKind::Down(MouseButton::Left) if inside(self.tabs_area) => {
-                match tab_at(m.column.saturating_sub(self.tabs_area.x)) {
-                    Some(t) => self.switch(t),
-                    None => Ok(()),
-                }
-            }
             MouseEventKind::Down(MouseButton::Left) if inside(self.list_area) => {
+                self.pane = Pane::List;
                 // The list block has a one-cell border on every side.
                 if m.row == self.list_area.y
                     || m.row + 1 >= self.list_area.y + self.list_area.height

@@ -1,4 +1,4 @@
-use super::{App, DetailTab, Drag, Tab, tab_at};
+use super::{App, DetailTab, Drag, Tab};
 use crate::i18n::Lang;
 use crate::input::Input;
 use crate::settings::{LangPref, Settings, ThemePref};
@@ -48,7 +48,7 @@ fn english_is_shown_when_english_is_chosen() {
     let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
-    assert!(s.contains("1 Layout") && s.contains("8 Settings"), "{s}");
+    assert!(s.contains("1 Layout") && s.contains("0 Settings"), "{s}");
     // Only the tabs the node has something for: a bare home has its summary alone.
     assert!(s.contains("Summary") && !s.contains("Grid"), "{s}");
     assert!(s.contains("│home"), "{s}");
@@ -63,7 +63,7 @@ fn the_settings_tab_switches_language_and_appearance_and_saves_them() {
     app.settings_path = Some(path.clone());
     let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
 
-    press(&mut app, KeyCode::Char('8'));
+    press(&mut app, KeyCode::Char('0'));
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(s.contains("Language: English"), "{s}");
@@ -73,7 +73,7 @@ fn the_settings_tab_switches_language_and_appearance_and_saves_them() {
     press(&mut app, KeyCode::Enter);
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
-    assert!(s.contains("Dil: Türkçe") && s.contains("8 Ayarlar"), "{s}");
+    assert!(s.contains("Dil: Türkçe") && s.contains("0 Ayarlar"), "{s}");
     assert!(s.contains("ayarlar kaydedildi"), "{s}");
     assert_eq!(
         Settings::load_from(&path).language,
@@ -610,6 +610,8 @@ fn click(app: &mut App, kind: MouseEventKind, column: u16, row: u16) {
 fn the_divider_drags_resets_on_a_double_click_and_steps_with_keys() {
     let (_dir, inv) = led_drawer();
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    // The sidebar hidden, so the list and the details share the whole width.
+    app.sidebar = Some(false);
     let _ = shown(&mut app, "D-B1", 100, 30);
     // The list ends at column 54 of 100; the right side starts at 55.
     assert_eq!(app.right_area.x, 55);
@@ -907,7 +909,7 @@ fn a_settings_change_made_elsewhere_shows_up_without_restarting() {
     .unwrap();
     app.reload_settings().unwrap();
     assert_eq!(crate::i18n::lang(), Lang::Tr);
-    assert_eq!(super::tab_titles()[0], "Yerleşim");
+    assert_eq!(Tab::Tree.title(), "Yerleşim");
 }
 
 fn screen(term: &Terminal<TestBackend>) -> String {
@@ -1110,7 +1112,7 @@ fn the_plan_tab_lists_tasks_with_progress() {
     inv.task_add("Kutuyu aç", "hiç açılmadı", &["Kutu".into()], None)
         .unwrap();
     let mut app = app_tr(inv);
-    press(&mut app, KeyCode::Char('7'));
+    press(&mut app, KeyCode::Char('2'));
     let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
@@ -1196,15 +1198,6 @@ fn a_search_can_be_cleared_without_quitting() {
     // With nothing left to clear, Esc quits as before.
     press(&mut app, KeyCode::Esc);
     assert!(app.quit);
-}
-
-#[test]
-fn tab_titles_are_hit_by_their_columns() {
-    // " 1 Layout " spans columns 0..10, then a divider, then " 2 Pending ".
-    assert!(tab_at(0) == Some(Tab::Tree));
-    assert!(tab_at(9) == Some(Tab::Tree));
-    assert!(tab_at(10).is_none());
-    assert!(tab_at(11) == Some(Tab::Pending));
 }
 
 #[test]
@@ -1573,15 +1566,15 @@ fn product_images_show_on_the_photos_tab_after_the_persons_photos_never_as_one()
 }
 
 #[test]
-fn nine_opens_the_statistics_with_a_section_per_heading() {
+fn eight_opens_the_statistics_with_a_section_per_heading() {
     let (_dir, inv) = led_drawer();
     let mut app = app_tr(inv);
-    press(&mut app, KeyCode::Char('9'));
+    press(&mut app, KeyCode::Char('8'));
     assert!(app.tab == Tab::Stats);
     let mut term = Terminal::new(TestBackend::new(150, 50)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
-    assert!(s.contains("9 İstatistik"), "{s}");
+    assert!(s.contains("8 İstatistik"), "{s}");
     assert!(s.contains("GENEL") && s.contains("SAYIM"), "{s}");
     assert!(s.contains("eşya kaydı"), "{s}");
     // The first heading closes with Enter, and its lines go.
@@ -1734,7 +1727,7 @@ fn a_click_on_the_series_grid_opens_the_picture_under_it() {
 }
 
 #[test]
-fn zero_opens_the_past_by_year_apart_from_the_inventory() {
+fn seven_opens_the_past_by_year_apart_from_the_inventory() {
     let (_dir, mut inv) = home();
     inv.add(NewNode {
         name: "Oyun konsolu".into(),
@@ -1754,10 +1747,10 @@ fn zero_opens_the_past_by_year_apart_from_the_inventory() {
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(
-        s.contains("0 Gidenler") && !s.contains("Oyun konsolu"),
+        s.contains("7 Gidenler") && !s.contains("Oyun konsolu"),
         "{s}"
     );
-    press(&mut app, KeyCode::Char('0'));
+    press(&mut app, KeyCode::Char('7'));
     assert!(app.tab == Tab::Past);
     let thing = app.rows.iter().position(|r| r.id > 0).unwrap();
     app.select(thing).unwrap();

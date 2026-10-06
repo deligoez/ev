@@ -18,7 +18,7 @@ use ratatui::crossterm::execute;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Tabs, Wrap};
+use ratatui::widgets::{Block, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 use ratatui_image::picker::{Picker, ProtocolType};
 use ratatui_image::protocol::Protocol;
@@ -85,22 +85,6 @@ const ESC_WAIT: Duration = Duration::from_millis(30);
 /// How often a terminal without mode 2031 is asked for its background again.
 const BACKGROUND_POLL: Duration = Duration::from_secs(3);
 
-/// Tab titles in the current language.
-fn tab_titles() -> [&'static str; 10] {
-    [
-        t("Layout"),
-        t("Pending"),
-        t("Leaving"),
-        t("Lost"),
-        t("Errands"),
-        t("Search"),
-        t("To do"),
-        t("Settings"),
-        t("Statistics"),
-        t("Past"),
-    ]
-}
-
 /// The To do section that starts collapsed: unclear records are a long, low-priority list.
 const UNCLEAR_SECTION: i64 = -14;
 /// The Statistics tab's sections count down from here, clear of the To do sections, the lost
@@ -122,7 +106,7 @@ const SETTING_LANGUAGE: i64 = -1001;
 const SETTING_THEME: i64 = -1002;
 const SETTING_RESUME: i64 = -1003;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Tab {
     Tree,
     Pending,
@@ -140,26 +124,123 @@ enum Tab {
 }
 
 impl Tab {
-    const ALL: [Tab; 10] = [
-        Tab::Tree,
-        Tab::Pending,
-        Tab::Disposals,
-        Tab::Lost,
-        Tab::Places,
-        Tab::Search,
-        Tab::Plan,
-        Tab::Settings,
-        Tab::Stats,
-        Tab::Past,
-    ];
-
-    fn index(self) -> usize {
-        self as usize
+    /// The list's name in the current language.
+    fn title(self) -> &'static str {
+        match self {
+            Tab::Tree => t("Layout"),
+            Tab::Pending => t("Pending"),
+            Tab::Disposals => t("Leaving"),
+            Tab::Lost => t("Lost"),
+            Tab::Places => t("Errands"),
+            Tab::Search => t("Search"),
+            Tab::Plan => t("To do"),
+            Tab::Settings => t("Settings"),
+            Tab::Stats => t("Statistics"),
+            Tab::Past => t("Past"),
+        }
     }
-    fn from_index(i: usize) -> Self {
-        Tab::ALL[i % Tab::ALL.len()]
+
+    /// The digit that opens the list, in the sidebar's order; 9 is kept for the purchases.
+    fn digit(self) -> Option<char> {
+        match self {
+            Tab::Tree => Some('1'),
+            Tab::Plan => Some('2'),
+            Tab::Pending => Some('3'),
+            Tab::Disposals => Some('4'),
+            Tab::Lost => Some('5'),
+            Tab::Places => Some('6'),
+            Tab::Past => Some('7'),
+            Tab::Stats => Some('8'),
+            Tab::Settings => Some('0'),
+            Tab::Search => None,
+        }
+    }
+
+    fn from_digit(c: char) -> Option<Self> {
+        SIDEBAR.iter().find_map(|s| match s {
+            Side::List(t) if t.digit() == Some(c) => Some(*t),
+            _ => None,
+        })
+    }
+
+    /// The sidebar heading the list is under, if any.
+    fn section(self) -> Option<&'static str> {
+        let mut heading = None;
+        for s in SIDEBAR {
+            match s {
+                Side::Heading(h) => heading = Some(h),
+                Side::Gap => heading = None,
+                Side::List(list) if list == self => return heading.map(t),
+                Side::List(_) => {}
+            }
+        }
+        None
     }
 }
+
+/// A line of the sidebar (spec/ui-sidebar.md): a section heading, a list, or the gap before the
+/// lists kept at the bottom.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Side {
+    Heading(&'static str),
+    List(Tab),
+    Gap,
+}
+
+/// The sidebar, top to bottom: two levels, headings and the lists under them.
+const SIDEBAR: [Side; 14] = [
+    Side::Heading("HOME"),
+    Side::List(Tab::Tree),
+    Side::List(Tab::Plan),
+    Side::List(Tab::Pending),
+    Side::List(Tab::Disposals),
+    Side::List(Tab::Lost),
+    Side::List(Tab::Places),
+    Side::Heading("HISTORY"),
+    Side::List(Tab::Past),
+    Side::Heading("INSIGHT"),
+    Side::List(Tab::Stats),
+    Side::Gap,
+    Side::List(Tab::Search),
+    Side::List(Tab::Settings),
+];
+
+/// The lists in the sidebar's order.
+fn sidebar_lists() -> impl Iterator<Item = Tab> {
+    SIDEBAR.into_iter().filter_map(|s| match s {
+        Side::List(t) => Some(t),
+        _ => None,
+    })
+}
+
+/// The pane the keys go to; its border stands out.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Pane {
+    Sidebar,
+    List,
+    Details,
+}
+
+/// How the sidebar is shown at a width (spec/ui-sidebar.md).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum SideMode {
+    /// Names and counts, beside the list.
+    Full,
+    /// Digits and counts only.
+    Rail,
+    /// Names and counts, over the list.
+    Drawer,
+    Hidden,
+}
+
+/// The sidebar's width in columns, with its borders, and the rail's.
+const SIDEBAR_WIDTH: u16 = 24;
+const RAIL_WIDTH: u16 = 7;
+/// Below these widths the sidebar becomes a rail, then is hidden, then one pane is shown at a
+/// time.
+const WIDE: u16 = 120;
+const MEDIUM: u16 = 90;
+const NARROW: u16 = 70;
 
 /// The tabs of the details pane. Each shows the node's `#id` and path on top; only the tabs
 /// the selected node has something for are shown.
@@ -691,7 +772,16 @@ struct App {
     status: String,
     quit: bool,
     list_area: Rect,
-    tabs_area: Rect,
+    /// The pane the keys go to, whether `b` showed or hid the sidebar (`None`: as the width
+    /// says), where it was drawn and which list each of its lines opens.
+    pane: Pane,
+    sidebar: Option<bool>,
+    sidebar_area: Rect,
+    sidebar_hits: Vec<(u16, Tab)>,
+    /// The width the panes had when last drawn, which decides how the sidebar is shown.
+    screen: u16,
+    /// The sidebar's counts, from the queries that fill the lists, as of the last change.
+    counts: HashMap<Tab, usize>,
     last_click: Option<(usize, Instant)>,
     picker: Option<Picker>,
     photo_idx: usize,
@@ -892,7 +982,12 @@ impl App {
             status: String::new(),
             quit: false,
             list_area: Rect::default(),
-            tabs_area: Rect::default(),
+            pane: Pane::List,
+            sidebar: None,
+            sidebar_area: Rect::default(),
+            sidebar_hits: Vec::new(),
+            screen: 0,
+            counts: HashMap::new(),
             last_click: None,
             picker: None,
             photo_idx: 0,
@@ -961,6 +1056,7 @@ impl App {
         // The details wait for the node `ev ui` resumes at (see `run`): the first row's would
         // be thrown away at once, and the home's cost a whole-house regroup.
         app.rebuild_rows()?;
+        app.count_lists()?;
         Ok(app)
     }
 
@@ -1038,6 +1134,7 @@ impl App {
             "photo": self.photo_split,
             "details": self.detail_tab.key(),
             "tile": self.tile,
+            "sidebar": self.sidebar,
         })
     }
 
@@ -1054,6 +1151,7 @@ impl App {
         if let Some(w) = v["tile"].as_u64() {
             self.tile = Some((w as u16).max(settings::SERIES_TILE_MIN));
         }
+        self.sidebar = v["sidebar"].as_bool();
     }
 
     /// Which tree nodes are open and which list headings closed, for `ui-state.json`.
@@ -1119,6 +1217,7 @@ impl App {
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
+        self.count_lists()?;
         self.rebuild()?;
         self.apply_focus()
     }
@@ -1190,6 +1289,7 @@ impl App {
             .flatten()
             .map(|n| self.list_row(n, marker_spans(n, &self.snap)))
             .collect();
+        self.counts.insert(Tab::Search, self.search_rows.len());
         self.status = tf(
             "\"{}\": {} results",
             &[&self.query, &self.search_rows.len()],
@@ -1311,6 +1411,50 @@ impl App {
         self.rebuild()
     }
 
+    /// Opens the list `delta` places down the sidebar (up when negative), stopping at its ends.
+    fn step_list(&mut self, delta: isize) -> Result<()> {
+        let lists: Vec<Tab> = sidebar_lists().collect();
+        let at = lists.iter().position(|&l| l == self.tab).unwrap_or(0) as isize;
+        let to = at.saturating_add(delta).clamp(0, lists.len() as isize - 1) as usize;
+        if lists[to] == self.tab {
+            return Ok(());
+        }
+        self.switch(lists[to])
+    }
+
+    /// The keys go to the list; a sidebar opened over it as a drawer closes.
+    fn enter_list(&mut self) {
+        self.pane = Pane::List;
+        if self.side_mode(self.screen) == SideMode::Drawer {
+            self.sidebar = None;
+        }
+    }
+
+    /// `Tab` / `Shift+Tab`: the next pane, sidebar → list → details, past a hidden sidebar.
+    fn next_pane(&mut self, delta: isize) {
+        let panes = [Pane::Sidebar, Pane::List, Pane::Details];
+        let hidden = self.side_mode(self.screen) == SideMode::Hidden && self.screen >= NARROW;
+        let mut i = panes.iter().position(|&p| p == self.pane).unwrap_or(1) as isize;
+        loop {
+            i = (i + delta).rem_euclid(panes.len() as isize);
+            if !(hidden && panes[i as usize] == Pane::Sidebar) {
+                break;
+            }
+        }
+        self.pane = panes[i as usize];
+    }
+
+    /// `b`: hides a sidebar that is shown, shows one that is not; kept until changed.
+    fn toggle_sidebar(&mut self) {
+        let shown = self.side_mode(self.screen) != SideMode::Hidden;
+        self.sidebar = Some(!shown);
+        if shown && self.pane == Pane::Sidebar {
+            self.pane = Pane::List;
+        } else if !shown {
+            self.pane = Pane::Sidebar;
+        }
+    }
+
     /// Expands or collapses in the tree; in a list, jumps to the node in the tree.
     fn activate(&mut self) -> Result<()> {
         let Some(id) = self.selected_id() else {
@@ -1338,6 +1482,7 @@ impl App {
     fn clear_search(&mut self) -> Result<()> {
         self.query.clear();
         self.search_rows.clear();
+        self.counts.remove(&Tab::Search);
         self.status = t("search cleared").into();
         if self.tab == Tab::Search {
             self.rebuild()?;
@@ -1600,20 +1745,6 @@ impl App {
         }
         Ok(())
     }
-}
-
-/// Which tab title sits at `x`, given ratatui's default padding of one space each side
-/// and a one-cell divider between titles.
-fn tab_at(x: u16) -> Option<Tab> {
-    let mut start = 0u16;
-    for (i, t) in tab_titles().iter().enumerate() {
-        let width = format!("{} {t}", (i + 1) % 10).chars().count() as u16 + 2;
-        if x >= start && x < start + width {
-            return Some(Tab::from_index(i));
-        }
-        start += width + 1;
-    }
-    None
 }
 
 fn clock_now() -> String {

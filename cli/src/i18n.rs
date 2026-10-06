@@ -378,9 +378,18 @@ static TR: &[(&str, &str)] = &[
         "Ara: {}▏  (Enter ara · Esc sil/vazgeç · Ctrl+U sil)",
     ),
     (
-        "↑↓ move · Enter/→ next option · ← previous option · Tab/1-0 tabs · q quit    {}",
-        "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab/1-0 sekme · q çık    {}",
+        "↑↓ move · Enter/→ next option · ← previous option · Tab pane · q quit    {}",
+        "↑↓ gez · Enter/→ sonraki seçenek · ← önceki seçenek · Tab bölme · q çık    {}",
     ),
+    // The sidebar (spec/ui-sidebar.md): its title, its headings, its keys.
+    (" Lists ", " Listeler "),
+    ("HOME", "EVDE"),
+    ("HISTORY", "GEÇMİŞ"),
+    ("INSIGHT", "İÇGÖRÜ"),
+    ("↑↓ choose a list", "↑↓ liste seç"),
+    ("Enter go to the list", "Enter listeye geç"),
+    ("Tab next pane", "Tab sonraki bölme"),
+    ("b sidebar", "b kenar çubuğu"),
     // The key hints under the panes, one part each so the line fits the width.
     ("↑↓ move", "↑↓ gez"),
     (
@@ -394,7 +403,10 @@ static TR: &[(&str, &str)] = &[
     ("H/L details tabs", "H/L ayrıntı sekmesi"),
     ("J/K scroll", "J/K kaydır"),
     ("[ ] o photos", "[ ] o fotoğraf"),
-    ("Tab/1-0 tabs", "Tab/1-0 sekme"),
+    (
+        "Tab pane · 1-8 0 lists · b sidebar",
+        "Tab bölme · 1-8 0 liste · b kenar çubuğu",
+    ),
     ("< > { } or drag: resize", "< > { } ya da sürükle: boyut"),
     ("q quit", "q çık"),
     (

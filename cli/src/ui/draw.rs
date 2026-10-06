@@ -266,36 +266,192 @@ impl App {
             Paragraph::new(Span::styled(brand, pal().brand.bold())),
             brand_area,
         );
-        self.tabs_area = top;
-        let tabs = Tabs::new(
-            tab_titles()
-                .iter()
-                .enumerate()
-                // The tenth tab is on 0, as on the keyboard.
-                .map(|(i, t)| format!("{} {t}", (i + 1) % 10)),
-        )
-        .select(self.tab.index())
-        .highlight_style(Style::new().bold().reversed());
-        f.render_widget(tabs, top);
+        f.render_widget(Paragraph::new(self.path_line()), top);
 
-        let [left, right] = Layout::horizontal([
-            Constraint::Percentage(self.split),
-            Constraint::Percentage(100 - self.split),
-        ])
-        .areas(body);
-        self.list_area = left;
-        self.body_area = body;
-        self.right_area = right;
-        // The divider being dragged lights up on both of its borders.
-        let edge = |which: Drag| {
-            if self.drag == Some(which) {
-                Style::new().fg(pal().code).bold()
-            } else {
-                Style::new()
-            }
+        // The sidebar beside the list, as a rail, over it, or not at all; below `NARROW`
+        // columns one pane at a time, the focused one (spec/ui-sidebar.md).
+        self.screen = body.width;
+        let mode = self.side_mode(body.width);
+        let side_width = match mode {
+            SideMode::Full => SIDEBAR_WIDTH,
+            SideMode::Rail => RAIL_WIDTH,
+            SideMode::Drawer | SideMode::Hidden => 0,
         };
-        let columns_edge = edge(Drag::Columns);
-        let photo_edge = edge(Drag::Photo);
+        let [side, main] =
+            Layout::horizontal([Constraint::Length(side_width), Constraint::Min(0)]).areas(body);
+        let (left, right, side) = if body.width < NARROW {
+            let none = Rect::default();
+            match self.pane {
+                Pane::Sidebar => (none, none, body),
+                Pane::List => (body, none, none),
+                Pane::Details => (none, body, none),
+            }
+        } else {
+            let [left, right] = Layout::horizontal([
+                Constraint::Percentage(self.split),
+                Constraint::Percentage(100 - self.split),
+            ])
+            .areas(main);
+            let side = if mode == SideMode::Drawer {
+                Rect {
+                    width: SIDEBAR_WIDTH.min(main.width),
+                    ..main
+                }
+            } else {
+                side
+            };
+            (left, right, side)
+        };
+        self.list_area = left;
+        self.body_area = main;
+        self.right_area = right;
+        if left.width > 0 {
+            self.draw_list(f, left);
+        }
+        let scrolls = if right.width > 0 {
+            self.draw_details(f, right)
+        } else {
+            self.photo_area = Rect::default();
+            self.details_area = Rect::default();
+            self.detail_tab_hits = (u16::MAX, Vec::new());
+            self.detail_targets.clear();
+            self.grid_hit = None;
+            false
+        };
+        self.sidebar_area = side;
+        self.sidebar_hits.clear();
+        if side.width > 0 {
+            if mode == SideMode::Drawer {
+                f.render_widget(Clear, side);
+            }
+            let rail = mode == SideMode::Rail && body.width >= NARROW;
+            self.draw_sidebar(f, side, rail);
+        }
+
+        let help = if self.searching {
+            tf(
+                "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
+                &[&self.query],
+            )
+        } else if self.pane == Pane::Sidebar {
+            fit_hints(
+                vec![
+                    (0, t("↑↓ choose a list")),
+                    (0, t("Enter go to the list")),
+                    (1, t("Tab next pane")),
+                    (2, t("b sidebar")),
+                    (0, t("q quit")),
+                ],
+                bottom.width as usize,
+                &self.status,
+            )
+        } else if self.tab == Tab::Settings {
+            tf(
+                "↑↓ move · Enter/→ next option · ← previous option · Tab pane · q quit    {}",
+                &[&self.status],
+            )
+        } else {
+            self.help_line(bottom.width as usize, scrolls)
+        };
+        f.render_widget(Paragraph::new(help).fg(pal().muted), bottom);
+    }
+
+    /// Where the person is, on the top line: the section and the list, and its count.
+    fn path_line(&self) -> Line<'static> {
+        let muted = Style::new().fg(pal().muted);
+        let mut spans = Vec::new();
+        if let Some(s) = self.tab.section() {
+            spans.push(Span::styled(format!("{s} › "), muted));
+        }
+        spans.push(Span::styled(self.tab.title(), Style::new().bold()));
+        if let Some(n) = self.counts.get(&self.tab) {
+            spans.push(Span::styled(format!(" · {n}"), muted));
+        }
+        Line::from(spans)
+    }
+
+    /// How the sidebar is shown at a width: `b`'s choice, else the width's.
+    pub(super) fn side_mode(&self, width: u16) -> SideMode {
+        match self.sidebar {
+            Some(false) => SideMode::Hidden,
+            Some(true) if width < MEDIUM => SideMode::Drawer,
+            Some(true) => SideMode::Full,
+            None if width >= WIDE => SideMode::Full,
+            None if width >= MEDIUM => SideMode::Rail,
+            None => SideMode::Hidden,
+        }
+    }
+
+    /// The border of a pane: bold and coloured when the keys go to it, lit while its divider
+    /// is dragged.
+    fn edge(&self, pane: Pane, drag: Option<Drag>) -> Style {
+        let mut s = Style::new();
+        if self.pane == pane {
+            s = s.fg(pal().code).bold();
+        }
+        if drag.is_some() && self.drag == drag {
+            s = s.fg(pal().mark).bold();
+        }
+        s
+    }
+
+    /// The sidebar: its headings, and each list with its digit and count (spec/ui-sidebar.md).
+    /// As a rail, only the digits and counts.
+    fn draw_sidebar(&mut self, f: &mut Frame, area: Rect, rail: bool) {
+        let mut block = Block::bordered().border_style(self.edge(Pane::Sidebar, None));
+        if !rail {
+            block = block.title(t(" Lists "));
+        }
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let width = inner.width as usize;
+        let muted = Style::new().fg(pal().muted);
+        let mut lines: Vec<Line> = Vec::new();
+        for s in SIDEBAR {
+            let y = inner.y + lines.len() as u16;
+            match s {
+                Side::Heading(_) if rail => lines.push(Line::styled("─".repeat(width), muted)),
+                Side::Heading(h) => lines.push(Line::styled(t(h), muted.bold())),
+                Side::Gap => lines.push(Line::default()),
+                Side::List(tab) => {
+                    if y < inner.y + inner.height {
+                        self.sidebar_hits.push((y, tab));
+                    }
+                    let key = tab.digit().unwrap_or('/');
+                    let label = if rail {
+                        key.to_string()
+                    } else {
+                        format!(" {key} {}", tab.title())
+                    };
+                    let count = self.counts.get(&tab).copied();
+                    let count_text = count.map(|n| n.to_string()).unwrap_or_default();
+                    let room = width.saturating_sub(count_text.chars().count() + 1);
+                    let label = fit(vec![Span::raw(label)], room);
+                    let used: usize = label.iter().map(Span::width).sum();
+                    let style = match (tab == self.tab, self.pane == Pane::Sidebar) {
+                        (true, true) => Style::new().bold().reversed(),
+                        (true, false) => Style::new().bold().fg(pal().code),
+                        _ => Style::new(),
+                    };
+                    let mut spans = label;
+                    spans.push(Span::raw(
+                        " ".repeat(width.saturating_sub(used + count_text.chars().count())),
+                    ));
+                    let count_style = if count == Some(0) {
+                        muted.add_modifier(Modifier::DIM)
+                    } else {
+                        muted
+                    };
+                    spans.push(Span::styled(count_text, count_style));
+                    lines.push(Line::from(spans).style(style));
+                }
+            }
+        }
+        f.render_widget(Paragraph::new(lines), inner);
+    }
+
+    /// The list in the middle: its rows, titled with the list, the tree's keys on its edge.
+    fn draw_list(&mut self, f: &mut Frame, left: Rect) {
         // Inside the list's borders.
         let row_width = left.width.saturating_sub(2) as usize;
         let now = Instant::now();
@@ -328,9 +484,11 @@ impl App {
         } else if self.tab == Tab::Plan {
             self.plan_title.clone()
         } else {
-            format!(" {} ", tab_titles()[self.tab.index()])
+            format!(" {} ", self.tab.title())
         };
-        let mut block = Block::bordered().title(title).border_style(columns_edge);
+        let mut block = Block::bordered()
+            .title(title)
+            .border_style(self.edge(Pane::List, Some(Drag::Columns)));
         // The tree's keys on its own bottom edge, as the details' H/L are on theirs, at its
         // right end, so they stand apart from the details' keys beside them.
         if self.tab == Tab::Tree {
@@ -346,7 +504,13 @@ impl App {
             .block(block)
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, left, &mut self.state);
+    }
 
+    /// The right column: the photo, if any, over the details with their tabs. Says whether the
+    /// details scroll.
+    fn draw_details(&mut self, f: &mut Frame, right: Rect) -> bool {
+        let columns_edge = self.edge(Pane::Details, Some(Drag::Columns));
+        let photo_edge = self.edge(Pane::Details, Some(Drag::Photo));
         self.photo_area = Rect::default();
         let text_area = match (self.current_photo(), self.picker.is_some()) {
             (Some(path), true) => {
@@ -484,21 +648,7 @@ impl App {
             details = details.wrap(Wrap { trim: false });
         }
         f.render_widget(details, text_area);
-
-        let help = if self.searching {
-            tf(
-                "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
-                &[&self.query],
-            )
-        } else if self.tab == Tab::Settings {
-            tf(
-                "↑↓ move · Enter/→ next option · ← previous option · Tab/1-0 tabs · q quit    {}",
-                &[&self.status],
-            )
-        } else {
-            self.help_line(bottom.width as usize, scrolls)
-        };
-        f.render_widget(Paragraph::new(help).fg(pal().muted), bottom);
+        scrolls
     }
 
     /// The key hints for what is on screen, most useful first: the keys of this tab, the details
@@ -543,7 +693,7 @@ impl App {
         } else if self.picture_count() > 0 {
             parts.push((3, t("[ ] o photos")));
         }
-        parts.push((4, t("Tab/1-0 tabs")));
+        parts.push((4, t("Tab pane · 1-8 0 lists · b sidebar")));
         parts.push((5, t("< > { } or drag: resize")));
         parts.push((0, t("q quit")));
         fit_hints(parts, width, &self.status)

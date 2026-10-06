@@ -25,8 +25,17 @@ purchase data (`~/.ev/purchases/`) never enters any repository. Scan the diff be
 - **Commits through `hc`**, loaded with the `hc` skill each time: one unit (a change + its green
   test) per commit, the test in its own commit right after, one commit per new test, Conventional
   Commits (`feat(mcp): …`, `fix(edit): …`, `test: …`, `docs(reference): …`). Commit after each
-  finished unit, then `git push` (branch `main`). No Claude attribution anywhere.
-- **Quality gate** before every commit that touches code:
+  finished unit, locally. No Claude attribution anywhere.
+- **Push in batches, never to find out** (decided with the person, 2026-10-06): every push runs
+  CI on GitHub, and CI is not where a mistake is discovered. Push the commits of a finished
+  piece of work together (a phase, a fix with its tests, a docs pass), not one push per commit,
+  and only after the full gate below passed locally on that exact `HEAD` — run as one `&&`
+  chain whose exit status is checked, never through a pipe (`… | tail` hides a failure: a
+  commit with a clippy error went out that way). **CI red is a stop:** no further push until
+  the cause is understood and the fix is green locally. A test that passes here and fails
+  there is a real bug (timing, time zone, a faster machine), not noise: reproduce it. CI
+  cancels a run that a newer push to the same branch overtakes.
+- **Quality gate** before every commit that touches code, and before every push:
   `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo shear && cargo nextest run --workspace`.
   A test reads every backticked `ev …` command in README, REFERENCE, the skill and
   `release-notes/next.md` and fails on one the CLI lacks; `i18n` tests fail on a text without a

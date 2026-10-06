@@ -103,22 +103,49 @@ Found by three QA rounds on a copy of a real inventory before this release.
   record says to add `--correction`.
 - **Dates remembered:** a date still to come, or a coming after the leaving, is refused, and when
   and where a gone thing left can be said again (`ev edit <id> left=… left_in=…`). A past thing
-  takes no `--to`, `--temporary` or `--code`, and `--where` names a place, not a record.
+  takes no `--to`, `--temporary` or `--code`, and `--where` names a place by its name, not a
+  record or an id. A leaving is checked against the purchase that brought the thing too, not
+  only a `came` said by hand. A date said after the leaving (`ev sold --at`, `left=`) dates it
+  but leaves the thing in the list of those seen leaving, and a price said while waiting to
+  sell is dropped when the thing is given or thrown out instead. Values and purchases entered
+  by hand are not dated in the future either.
 - **Swaps:** a thing is never traded for itself or for a place, nothing is half written when a
-  swap is refused, and a swap drops a sale price said before.
+  swap is refused, and a swap drops a sale price said before. Only a thing given, sold or traded
+  can be a swap; what came must still have been ours when the swap was and not before it; a swap
+  said again with nothing new is refused; a gone thing is traded by its name too.
 - **Purchases:** one open count in `ev todo` and `ev stats`, which `ev buy list --open --bucket
   durable` lists (returned, digital and service lines wait for nothing; lines settled by a kit no
   longer count); a line linked to a thing, dismissed, or already a coverage's is not taken by a
   coverage, checked before the coverage is written, and a coverage's premium and its currency
   follow its line; a link on the person's word takes back an earlier decline; a line bought
-  after its thing left is refused; a purchase entered by hand without a currency is in the home
-  one; `--bucket` is checked.
+  after its thing left is refused, and no longer offered by `ev buy for`; a purchase entered by
+  hand without a currency is in the home one; `--bucket` is checked. A purchase is linked to a
+  thing only: never to a home, a room, a mistake, a joined portion or a digitized paper. A past
+  thing's lines can be declined; a line linked to the thing cannot. A link of no units, or of a
+  service, says why.
 - **Numbers:** the dearest things in `ev stats` show what they cost per currency; two lines in
-  different currencies were added as one.
+  different currencies were added as one. The last 30 days no longer count a past thing as
+  added, nor a leaving taken back as a correction, a mistake or a joined portion as gone. `ev
+  past --year` counts a thing here today as ours this year, and one gone in a year as ours
+  that year, whenever it came.
 - **A command that changes nothing says so:** a dropped task is not done without being reopened,
-  an open task is not reopened, and a decline is not cleared where there is none.
+  an open task is not reopened, a done or dropped task is not closed again, a decline is not
+  cleared where there is none, nor a coverage's line, and a recode to the same code says it
+  changed nothing.
 - **Tasks and places:** a closed task starts only once reopened, and a start says which task it
-  stopped; `ev progress` of a thing is refused and of a box reads its place.
+  stopped; `ev progress` of a thing is refused and of a box reads its place. A thing is never
+  reviewed as a place, a place never photographed has no photo to call current, and drawers
+  labelled after their cabinet began to be counted are not counting until work in them starts.
+- **Photos:** a file ev cannot open as an image is refused when it is added, not when it is
+  cut later.
+- **MCP:** a batch file named as standard input (`--batch /dev/stdin`) reads the call's `input`
+  instead of hanging the server, and a call with no command is an error.
 - **Text:** fields, dismissal reasons, coverage terms, need states, marks and history events read
   in words; moments read as local days; amounts in the reader's way; `ev fixed` needs something
-  broken, and `ev photo current` drops the out-of-date mark.
+  broken, and `ev photo current` drops the out-of-date mark. `ev broken` said again keeps the
+  note; `ev suggest` gives scores as the reader writes numbers and names where a word was found;
+  several sketched at once read as text; a note of several lines keeps its lines aligned; a
+  closed task shows its due date without days left; a coverage shows its premium and `ev cover
+  list` what each covers; a purchase marks a linked thing that left; history shows a sale's date
+  and an emptied list as a dash; a portion that joined another names it; a thing that left is
+  proposed no warranty.

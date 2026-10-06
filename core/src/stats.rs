@@ -471,7 +471,12 @@ fn activity_section(conn: &Connection) -> Result<Value> {
         .ok();
     Ok(json!({
         "since": since,
-        "added": since_count("SELECT COUNT(*) FROM events WHERE type = 'create' AND at >= ?1")?,
+        // A past thing recorded already gone did not come in these days.
+        "added": since_count(
+            "SELECT COUNT(*) FROM events c WHERE c.type = 'create' AND c.at >= ?1
+              AND NOT EXISTS (SELECT 1 FROM events g WHERE g.node_id = c.node_id
+                AND g.type = 'gone' AND json_extract(g.data, '$.past') = 1)"
+        )?,
         "moved": since_count(
             "SELECT COUNT(*) FROM events WHERE type IN ('move', 'done') AND at >= ?1"
         )?,

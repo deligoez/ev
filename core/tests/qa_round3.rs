@@ -335,3 +335,14 @@ fn broken_said_again_without_a_note_keeps_the_note() {
     let v = inv.broken("Telefon", None, false).unwrap();
     assert_eq!(v["marks"]["broken"]["note"], "ekran çatlak", "{v}");
 }
+
+#[test]
+fn a_need_for_none_is_refused() {
+    let (_d, mut inv) = setup();
+    assert_eq!(
+        inv.need_add("Vida", Some(0), false, None, None)
+            .unwrap_err()
+            .code(),
+        2
+    );
+}

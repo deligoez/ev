@@ -74,8 +74,21 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
     let state: String = conn.query_row("SELECT state FROM nodes WHERE id = ?1", [node], |r| {
         r.get(0)
     })?;
+    // Set aside, a sale may already be said (`ev sold` before it leaves); nothing else is.
     if state != "gone" {
-        return Ok(Value::Null);
+        let sold: Option<(Option<String>, Option<String>, Option<String>)> = conn
+            .query_row(
+                "SELECT price, currency, via FROM departures WHERE node_id = ?1 AND price IS NOT NULL",
+                [node],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+        return Ok(match sold {
+            Some((price, currency, via)) => {
+                json!({ "price": price, "currency": currency, "via": via, "pending": true })
+            }
+            None => Value::Null,
+        });
     }
     type Row = (
         Option<String>,
@@ -201,10 +214,22 @@ impl Inventory {
         if cents <= 0 {
             return Err(Error::Usage("a sale brought more than nothing".into()));
         }
+        // Not said again, the currency said before stands; never said, the home one.
+        let said_before: Option<String> = tx
+            .query_row(
+                "SELECT currency FROM departures WHERE node_id = ?1 AND price IS NOT NULL",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
         let currency = match currency.map(|c| c.trim().to_uppercase()) {
             Some(c) if c.len() == 3 && c.chars().all(|ch| ch.is_ascii_alphabetic()) => c,
             Some(c) => return Err(Error::Usage(format!("`{c}` is no currency code like EUR"))),
-            None => crate::money::home_currency(&tx)?,
+            None => match said_before {
+                Some(c) => c,
+                None => crate::money::home_currency(&tx)?,
+            },
         };
         let at = at.map(partial_date).transpose()?;
         let text = |t: Option<&str>| {

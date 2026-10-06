@@ -413,7 +413,12 @@ impl App {
             );
         }
         if let Some(left) = crate::render::departure_text(v) {
-            field(t("left"), left, Style::new().fg(pal().mark));
+            let label = if v["departure"]["pending"] == true {
+                t("sold")
+            } else {
+                t("left")
+            };
+            field(label, left, Style::new().fg(pal().mark));
             if let Some(note) = v["departure"]["note"].as_str() {
                 field(t("note"), note.to_string(), plain);
             }

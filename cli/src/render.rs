@@ -374,6 +374,18 @@ fn need_line(n: &Value) -> String {
 /// what a sale brought through what. None for a record that has not left.
 pub(crate) fn departure_text(v: &Value) -> Option<String> {
     let d = v["departure"].as_object()?;
+    // Sold while still here: only what it brought, it has not left yet.
+    if d.get("pending").is_some_and(|p| p == true) {
+        return d.get("price").and_then(Value::as_str).map(|p| {
+            tf(
+                "sold for {}",
+                &[&amount(
+                    p,
+                    d.get("currency").and_then(Value::as_str).unwrap_or("TRY"),
+                )],
+            )
+        });
+    }
     let mut parts = vec![
         d.get("at")
             .and_then(Value::as_str)
@@ -3333,7 +3345,12 @@ fn show(out: &mut String, v: &Value, node: &Value) {
         let _ = writeln!(out, "  {}: {}", t("came in a trade for"), line(f));
     }
     if let Some(left) = departure_text(v) {
-        let _ = writeln!(out, "  {}: {left}", t("left"));
+        let label = if v["departure"]["pending"] == true {
+            t("sold")
+        } else {
+            t("left")
+        };
+        let _ = writeln!(out, "  {label}: {left}");
         if let Some(n) = v["departure"]["note"].as_str() {
             let _ = writeln!(out, "    {n}");
         }

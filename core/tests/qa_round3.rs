@@ -385,3 +385,21 @@ fn closing_a_task_as_it_already_is_is_refused() {
     inv.task_set(t, "dropped", None).unwrap();
     assert_eq!(inv.task_set(t, "dropped", None).unwrap_err().code(), 5);
 }
+
+#[test]
+fn clearing_a_line_a_coverage_never_had_is_refused() {
+    let (_d, mut inv) = setup();
+    let c = inv
+        .cover_add(
+            &["Telefon".into()],
+            &ev_core::NewCoverage {
+                kind: "extended".into(),
+                term: Some("2y".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap()["coverage"]["id"]
+        .as_i64()
+        .unwrap();
+    assert_eq!(inv.cover_purchase(c, None).unwrap_err().code(), 5);
+}

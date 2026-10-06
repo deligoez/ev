@@ -146,7 +146,7 @@ line). `--help` and `--version` stay text, on stdout. An error with an `id` (spe
 names it in stable snake_case, its `values` by name, and `at`, where it happened, outermost
 first (`[{"line": 2}]` for a batch line; `{"of": "f3"}` for what else it is about); `message`
 stays the English sentence. Every error but an internal one (exit 1) carries an id, apart from
-four whose message is another's (a JSON line that does not parse in `ev sketch --stdin`, a
+three whose message is another's (a JSON line that does not parse in `ev sketch --stdin`, a
 picture or a file that cannot be read) and the composite "not toured yet" of `ev review`.
 The ids and their sentences are `ERRORS` in `core/src/errors.rs`; the ones met most:
 `no_record_matches` (`ref`), `no_record_with_id` (`id`), `ref_matches_several` (`ref`,

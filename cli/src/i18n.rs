@@ -1403,6 +1403,32 @@ mod tests {
     }
 
     #[test]
+    fn every_error_id_has_a_turkish_sentence_with_the_same_values() {
+        for (id, en) in ev_core::ERRORS {
+            let tr = super::ERRORS_TR
+                .iter()
+                .find(|(i, _)| i == id)
+                .map(|(_, t)| *t);
+            let Some(tr) = tr else {
+                panic!("no Turkish for the error `{id}`");
+            };
+            let mut a = ev_core::placeholders(en);
+            let mut b = ev_core::placeholders(tr);
+            a.sort_unstable();
+            b.sort_unstable();
+            a.dedup();
+            b.dedup();
+            assert_eq!(a, b, "{id}");
+        }
+        for (id, _) in super::ERRORS_TR {
+            assert!(
+                ev_core::template(id).is_some(),
+                "`{id}` is no error of core"
+            );
+        }
+    }
+
+    #[test]
     fn every_text_in_the_code_has_a_turkish_translation() {
         // Every file that shows words; the ui's own were missed for a while when it was split.
         let sources = [

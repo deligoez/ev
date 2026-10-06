@@ -507,3 +507,19 @@ fn furniture_outside_its_sized_room_is_refused() {
     assert_eq!(out.unwrap_err().code(), 5);
     sketch(&mut inv, "Masa", Some("180,5"), Some("120,60"), None, None).unwrap();
 }
+
+#[test]
+fn a_sketch_keeps_its_measures_to_the_millimetre() {
+    let (_d, mut inv) = setup();
+    sketch(&mut inv, "Kallax 2x2", Some("0.1,0"), Some("20.2,10.1"), None, None).unwrap();
+    let v = inv
+        .sketch_set(&SketchChange {
+            reference: "Kallax 2x1".into(),
+            size: Some([10.0, 10.0]),
+            right_of: Some("K22".into()),
+            offset: Some(0.2),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(v["sketch"]["x"].as_f64(), Some(20.3), "{v}");
+}

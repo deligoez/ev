@@ -60,11 +60,21 @@ impl Lang {
 /// locale variables.
 pub fn system_lang() -> Lang {
     static CACHE: OnceLock<Lang> = OnceLock::new();
+    // Tests choose their language; asking macOS costs seconds there (it reads the folder the
+    // program is in, and a test program's holds tens of thousands of files), in every test.
     *CACHE.get_or_init(|| {
-        sys_locale::get_locale()
-            .map(|tag| Lang::from_tag(&tag))
-            .unwrap_or(Lang::En)
+        if cfg!(test) {
+            Lang::En
+        } else {
+            asked_system_lang()
+        }
     })
+}
+
+fn asked_system_lang() -> Lang {
+    sys_locale::get_locale()
+        .map(|tag| Lang::from_tag(&tag))
+        .unwrap_or(Lang::En)
 }
 
 thread_local! {
@@ -1782,8 +1792,10 @@ mod tests {
 
     #[test]
     fn the_system_language_is_one_ev_speaks() {
-        // Whatever this machine prefers, it maps onto English or Turkish, never fails.
-        assert!(matches!(system_lang(), Lang::En | Lang::Tr));
+        // Whatever this machine prefers, it maps onto English or Turkish, never fails. The one
+        // test that asks the system itself.
+        assert!(matches!(super::asked_system_lang(), Lang::En | Lang::Tr));
+        assert_eq!(system_lang(), Lang::En);
     }
     #[test]
     fn only_the_language_part_of_a_tag_counts() {

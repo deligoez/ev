@@ -1858,7 +1858,7 @@ fn tab_moves_the_keys_between_the_panes_and_the_sidebar_opens_lists_as_it_moves(
 fn the_sidebar_narrows_to_a_rail_hides_opens_as_a_drawer_and_a_phone_sees_one_pane() {
     let (_dir, inv) = led_drawer();
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
-    let mut draw = |app: &mut App, w: u16| {
+    let draw = |app: &mut App, w: u16| {
         let mut term = Terminal::new(TestBackend::new(w, 24)).unwrap();
         term.draw(|f| app.draw(f)).unwrap();
         screen(&term)

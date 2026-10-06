@@ -157,9 +157,12 @@ pub(crate) fn parking_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {
 }
 
 /// Anything something can be put into: every node that is not a home and is either not an
-/// item or already holds something.
+/// item or already holds something, and that stays: not set aside to leave, nor lost.
 pub(crate) fn is_holder(n: &Node, has_children: &std::collections::HashSet<i64>) -> bool {
-    n.kind != Kind::Home && (n.kind != Kind::Item || has_children.contains(&n.id))
+    n.kind != Kind::Home
+        && (n.kind != Kind::Item || has_children.contains(&n.id))
+        && n.state == crate::model::State::Active
+        && !n.lost
 }
 
 pub(crate) fn holder_json(conn: &Connection, n: &Node, all: &[Node]) -> Result<Value> {

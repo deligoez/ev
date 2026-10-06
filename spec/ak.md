@@ -34,9 +34,9 @@ is made in both repositories.
 
 ## A purchase ev already has
 
-Most of what ak would send, ev has read already: ak found its 708 shop orders and 554 App Store
-receipts among ev's own adapters' lines, under the same order number, printed the same way in
-every case (compared on all of them, 2026-10-07). Sent again as `source: "ak"`, each would be a
+Most of what ak would send, ev has read already: in one household, ak found most of its shop
+orders and App Store receipts (over a thousand) among ev's own adapters' lines, under the same
+order number, printed the same way in every case (compared on all of them, 2026-10-07). Sent again as `source: "ak"`, each would be a
 second open line for the same thing. Decided with ak's development agent:
 
 - **ak's line stays its own row** (`source: "ak"`, its key), so the way back below works by key,

@@ -815,3 +815,10 @@ fn several_sketched_at_once_are_each_shown_as_one_is() {
     assert!(s.contains("Ev › Oda › D"), "{s}");
     assert_eq!(s.lines().count(), 2, "{s}");
 }
+
+#[test]
+fn suggest_names_a_word_found_on_a_thing_inside_by_the_thing() {
+    let h = Home::new();
+    let s = h.text(&["suggest", "aktif"]);
+    assert!(s.contains("(a thing's name: Aktif buzzer)"), "{s}");
+}

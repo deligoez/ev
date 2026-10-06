@@ -315,3 +315,21 @@ async fn the_skill_is_a_prompt_and_a_resource_and_the_reference_a_resource() {
     }
     client.cancel().await.unwrap();
 }
+
+#[tokio::test]
+async fn a_batch_file_named_as_standard_input_reads_the_calls_input() {
+    let (_d, client) = start().await;
+    let r = call(
+        &client,
+        "ev",
+        json!({
+            "args": ["add", "--batch", "/dev/stdin"],
+            "input": "{\"name\":\"Ev\",\"kind\":\"home\"}\n",
+            "format": "json",
+        }),
+    )
+    .await;
+    assert_ne!(r.is_error, Some(true), "{r:?}");
+    assert_eq!(r.structured_content.unwrap()["created"][0]["name"], "Ev");
+    client.cancel().await.unwrap();
+}

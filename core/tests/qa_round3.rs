@@ -360,3 +360,13 @@ fn a_value_dated_in_the_future_is_refused() {
     };
     assert_eq!(inv.value("Telefon", Some(&v)).unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_purchase_recorded_by_hand_in_the_future_is_refused() {
+    let (_d, mut inv) = setup();
+    let future = inv.buy_add(
+        &serde_json::json!({"name": "Telefon", "qty": 1, "ordered_at": "2099-01-01"}),
+        None,
+    );
+    assert_eq!(future.unwrap_err().code(), 2);
+}

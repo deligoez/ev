@@ -578,6 +578,7 @@ static TR: &[(&str, &str)] = &[
     ("insurance", "sigorta"),
     ("+{} days in repair", "+{} gün tamirde"),
     ("scope", "kapsam"),
+    ("premium", "prim"),
     ("(no coverage)", "(güvence yok)"),
     ("coverage #{} removed", "güvence #{} silindi"),
     ("(default)", "(varsayılan)"),

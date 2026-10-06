@@ -1281,6 +1281,10 @@ fn coverage(out: &mut String, cv: &Value) {
             let _ = writeln!(out, "  {label}: {x}");
         }
     }
+    if let Some(p) = cv["premium"].as_str() {
+        let cur = cv["currency"].as_str().unwrap_or("TRY");
+        let _ = writeln!(out, "  {}: {}", t("premium"), amount(p, cur));
+    }
     for n in cv["nodes"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  → #{} {}", n["id"], s(n, "path_text"));
     }

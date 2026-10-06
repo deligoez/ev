@@ -342,3 +342,25 @@ fn a_source_and_a_key_find_a_payments_line_and_its_items() {
     assert_eq!(keys(None, Some("42")), ["ak:42.1", "ak:42.2", "shop:42"]);
     assert!(keys(Some("a"), None).is_empty());
 }
+
+#[test]
+fn a_count_sent_as_text_is_read_and_one_that_is_no_count_is_refused() {
+    let (_d, mut inv) = setup();
+    let line = |qty: Value| {
+        json!({"type": "purchase", "source": "ak", "key": "7.1", "name": "Tencere", "qty": qty})
+            .to_string()
+    };
+    // A receipt's count as text (ak sends it so) is the count, not 1.
+    inv.buy_import(&line(json!("2"))).unwrap();
+    let qty = |inv: &Inventory| {
+        inv.buy_list(false, None, None, None).unwrap()["purchases"][0]["qty"].clone()
+    };
+    assert_eq!(qty(&inv), 2);
+    inv.buy_import(&line(json!(3))).unwrap();
+    assert_eq!(qty(&inv), 3);
+    // A weight or a word is no count: refused, never read as 1.
+    let e = inv.buy_import(&line(json!("1.5"))).unwrap_err();
+    assert_eq!(e.code(), 2);
+    assert_eq!(e.id(), Some("purchase_qty_not_a_count"));
+    assert_eq!(qty(&inv), 3);
+}

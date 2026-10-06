@@ -60,6 +60,26 @@ pub(crate) fn came_before_left(came: &str, left: &str) -> Result<()> {
     Ok(())
 }
 
+/// When a record came: as said, else the earliest order date of a purchase linked to it.
+pub(crate) fn came_of(conn: &Connection, node: i64) -> Result<Option<String>> {
+    Ok(conn.query_row(
+        &format!("SELECT {CAME} FROM nodes n WHERE n.id = ?1"),
+        [node],
+        |r| r.get(0),
+    )?)
+}
+
+/// When a gone record left: as said, else the day it was recorded gone.
+pub(crate) fn left_of(conn: &Connection, node: i64) -> Result<Option<String>> {
+    Ok(conn.query_row(
+        &format!(
+            "SELECT {LEFT} FROM nodes n LEFT JOIN departures d ON d.node_id = n.id WHERE n.id = ?1"
+        ),
+        [node],
+        |r| r.get(0),
+    )?)
+}
+
 /// Records when and where a gone record left, keeping what a sale already said.
 pub(super) fn set_departure(
     conn: &Connection,
@@ -71,14 +91,10 @@ pub(super) fn set_departure(
         return Ok(());
     }
     let at = at.map(partial_date).transpose()?;
-    if let Some(a) = &at {
-        let came: Option<String> =
-            conn.query_row("SELECT came_at FROM nodes WHERE id = ?1", [node], |r| {
-                r.get(0)
-            })?;
-        if let Some(c) = came {
-            came_before_left(&c, a)?;
-        }
+    if let Some(a) = &at
+        && let Some(c) = came_of(conn, node)?
+    {
+        came_before_left(&c, a)?;
     }
     if place.is_some_and(|p| p.trim().starts_with('#')) {
         return Err(Error::Usage(
@@ -262,14 +278,10 @@ impl Inventory {
             },
         };
         let at = at.map(partial_date).transpose()?;
-        if let Some(a) = &at {
-            let came: Option<String> =
-                tx.query_row("SELECT came_at FROM nodes WHERE id = ?1", [id], |r| {
-                    r.get(0)
-                })?;
-            if let Some(c) = came {
-                came_before_left(&c, a)?;
-            }
+        if let Some(a) = &at
+            && let Some(c) = came_of(&tx, id)?
+        {
+            came_before_left(&c, a)?;
         }
         let text = |t: Option<&str>| {
             t.map(str::trim)

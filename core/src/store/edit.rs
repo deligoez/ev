@@ -333,8 +333,10 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             let v = text(value);
             if field == "left" {
                 let at = v.map(|d| super::past::partial_date(&d)).transpose()?;
-                if let (Some(c), Some(a)) = (&n.came_at, &at) {
-                    super::past::came_before_left(c, a)?;
+                if let Some(a) = &at
+                    && let Some(c) = super::past::came_of(conn, n.id)?
+                {
+                    super::past::came_before_left(&c, a)?;
                 }
                 conn.execute(
                     "INSERT INTO departures (node_id, at) VALUES (?1, ?2)

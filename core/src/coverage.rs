@@ -495,9 +495,9 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
         .optional()?
         .unwrap_or_else(|| "TRY".into());
     let at = threshold(conn)?;
-    // What each uncovered thing cost: its dearest linked durable line, in today's money when
-    // the index (and the rate, for another currency) is cached, else as paid when it was paid
-    // in the home currency (spec §3.9).
+    // What each uncovered thing cost: its linked durable lines together, as `ev stats` counts
+    // it, in today's money when the index (and the rate, for another currency) is cached, else
+    // as paid when it was paid in the home currency (spec §3.9).
     let mut stmt = conn.prepare(
         "SELECT l.node_id, p.paid * l.qty / (p.qty * p.pack), p.currency,
                 COALESCE(p.delivered_at, p.ordered_at)
@@ -531,8 +531,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
             None => None,
         };
         if let Some(v) = v {
-            let e = worth.entry(node).or_insert(0.0);
-            *e = e.max(v as f64);
+            *worth.entry(node).or_insert(0.0) += v as f64;
         }
     }
     let exists = |sql: &str, node: i64| -> Result<bool> {

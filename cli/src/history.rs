@@ -347,7 +347,7 @@ pub(crate) fn event_words(
             let mut parts = Vec::new();
             if !a["x"].is_null() {
                 parts.push(tf(
-                    "at {},{} cm",
+                    "at x {} · y {} cm",
                     &[&crate::render::cm(&a["x"]), &crate::render::cm(&a["y"])],
                 ));
             }

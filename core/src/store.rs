@@ -1320,7 +1320,7 @@ impl Inventory {
 
 /// What a history's events name by id, so they are read by name: the records and places
 /// (`parent`, `to`, `from`, `into`, `with`, `for`) as `{"#12": "K4x4-07 Kutu"}`, and the
-/// purchase lines as `{"p486": "Nikon MH-24"}`.
+/// purchase lines as `{"p42": "Akkumatik matkap"}`.
 fn history_names(conn: &Connection, events: &[Value]) -> Result<Value> {
     let mut names = serde_json::Map::new();
     for e in events {

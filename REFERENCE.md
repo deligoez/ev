@@ -93,7 +93,7 @@ language`. See `spec/mcp.md` for the reasons.
 | `find` | `text?`, `tag?`, `kind?`, `include_gone?`, `empty?`, `format?` | `ev find` | read-only |
 | `show` | `ref`, `include_gone?`, `format?` | `ev show` | read-only |
 | `suggest` | `text?` or `for?`, `format?` | `ev suggest` | read-only |
-| `history` | `ref`, `contents?`, `format?` | `ev history` (with `names`: the records, places and purchase lines its events name by id, `{"#12": "K4x4-07 Kutu", "p486": "…"}`) | read-only |
+| `history` | `ref`, `contents?`, `format?` | `ev history` (with `names`: the records, places and purchase lines its events name by id, `{"#12": "K4x4-07 Kutu", "p42": "…"}`) | read-only |
 | `tree` | `ref?`, `depth?`, `format?` | `ev tree` | read-only |
 | `photo` | `ref`, `n?` | a node's n-th photo (the newest by default) as an image | read-only |
 

@@ -155,7 +155,7 @@ pub(crate) fn edit_text(d: &Value) -> String {
         .join("; ")
 }
 
-/// A purchase line an event names: `#486`, with its name when the history gave it
+/// A purchase line an event names: `#42`, with its name when the history gave it
 /// (`purchase_name`).
 fn purchase_ref(d: &Value) -> String {
     match d["purchase_name"].as_str() {

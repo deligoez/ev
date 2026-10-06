@@ -570,6 +570,54 @@ fn pictures_sent_before_series_existed_start_no_series_and_numbering_starts_at_o
     assert_eq!(v["focus"]["series"], 1);
 }
 
+#[test]
+fn a_series_is_about_its_first_place_and_a_picture_about_another_says_so() {
+    let (d, mut inv) = setup();
+    let pic = |name: &str| {
+        let p = d.path().join(name);
+        image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+            .save(&p)
+            .unwrap();
+        (p, None)
+    };
+    let id = |inv: &Inventory, r: &str| inv.resolve(r, false).unwrap();
+    // A picture about no place sets nothing; the first about one sets the series'.
+    inv.focus_noted_about(&[pic("receipt.png")], None, None)
+        .unwrap();
+    let drawer = id(&inv, "S5-01");
+    let v = inv
+        .focus_noted_about(&[pic("a.png")], None, Some(drawer))
+        .unwrap();
+    assert!(v["focus"]["series_about"].is_null());
+    // A thing stands for the place it is in: the same drawer.
+    let thing = id(&inv, "Silikon");
+    let v = inv
+        .focus_noted_about(&[pic("b.png")], None, Some(thing))
+        .unwrap();
+    assert!(v["focus"]["series_about"].is_null());
+    // Another place joins the series all the same, and the answer says so.
+    let room = id(&inv, "Oda");
+    let v = inv
+        .focus_noted_about(&[pic("c.png")], None, Some(room))
+        .unwrap();
+    assert_eq!(v["focus"]["series"], 4);
+    let crossed = &v["focus"]["series_about"];
+    assert_eq!(crossed["about"]["label"], "S5-01");
+    assert_eq!(crossed["now"]["id"], room);
+    assert_eq!(crossed["now"]["label"], "Oda");
+    let list = inv.focus_list().unwrap();
+    assert_eq!(list["series"]["about"]["id"], drawer);
+    assert!(list["series"]["pictures"][0]["about"].is_null());
+    assert_eq!(list["series"]["pictures"][3]["about"]["id"], room);
+    // A closed series forgets it: the next picture sets it anew.
+    inv.focus(None, None).unwrap();
+    let v = inv
+        .focus_noted_about(&[pic("d.png")], None, Some(room))
+        .unwrap();
+    assert!(v["focus"]["series_about"].is_null());
+    assert_eq!(inv.focus_list().unwrap()["series"]["about"]["id"], room);
+}
+
 /// A whole photo of `place` taken now, so a tour of it finds its photo current.
 fn photo_now(inv: &mut Inventory, place: &str) {
     let dir = tempfile::tempdir().unwrap();

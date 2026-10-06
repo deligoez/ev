@@ -446,6 +446,8 @@ impl Inventory {
     pub fn photo_current(&mut self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         set_mark(&self.conn, id, "photo_ok", None, None, None)?;
+        // Current again: the out-of-date mark it carried no longer says anything.
+        clear_mark(&self.conn, id, "photo_stale")?;
         show(&self.conn, id)
     }
 
@@ -592,6 +594,13 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
         if fixed {
+            // Nothing was broken: nothing to say it was fixed.
+            if mark(&tx, id, "broken")?.is_null() {
+                return Err(crate::error::refused(
+                    format!("node {id} is not marked broken"),
+                    Value::Null,
+                ));
+            }
             clear_mark(&tx, id, "broken")?;
         } else {
             set_mark(&tx, id, "broken", None, None, note)?;

@@ -1890,3 +1890,24 @@ fn the_sidebar_narrows_to_a_rail_hides_opens_as_a_drawer_and_a_phone_sees_one_pa
     assert_eq!(app.sidebar_area.width, 60);
     assert!(s.contains(" 2 To do"), "{s}");
 }
+
+#[test]
+fn b_hides_the_sidebar_and_ui_state_keeps_the_choice() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let mut term = Terminal::new(TestBackend::new(140, 24)).unwrap();
+    term.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.layout_json()["sidebar"], serde_json::Value::Null);
+    press(&mut app, KeyCode::Char('b'));
+    term.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.sidebar_area.width, 0);
+    assert_eq!(app.layout_json()["sidebar"], false);
+    // Tab passes a hidden sidebar by.
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Tab);
+    assert_eq!(app.pane, Pane::List);
+    // The next `ev ui` starts with it hidden.
+    app.sidebar = None;
+    app.apply_layout(&serde_json::json!({"sidebar": false}));
+    assert_eq!(app.sidebar, Some(false));
+}

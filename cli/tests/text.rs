@@ -972,3 +972,33 @@ fn a_count_of_one_is_not_written() {
     let s = h.text(&["find", "buzzer"]);
     assert!(!s.contains(" x1"), "{s}");
 }
+
+#[test]
+fn an_error_with_an_id_is_worded_in_turkish_and_named_in_json() {
+    let home = Home::new();
+    home.run(&["settings", "language", "tr"], None);
+    let run = |args: &[&str]| {
+        let mut cmd = Command::cargo_bin("ev").unwrap();
+        cmd.env_remove("EV_DB")
+            .env("EV_CONFIG", home.dir.path().join("settings.json"))
+            .arg("--db")
+            .arg(home.dir.path().join("ev.db"))
+            .args(args);
+        let out = cmd.output().unwrap();
+        (out.status.code(), String::from_utf8(out.stderr).unwrap())
+    };
+    let (code, err) = run(&["--text", "show", "Drone"]);
+    assert_eq!(code, Some(3));
+    assert!(err.contains("`Drone` ile eşleşen bir kayıt yok"), "{err}");
+    // JSON keeps the English sentence, and names the error and its values.
+    let (_, err) = run(&["--json", "show", "Drone"]);
+    let e: serde_json::Value = serde_json::from_str(err.trim()).unwrap();
+    assert_eq!(e["error"]["id"], "no_record_matches");
+    assert_eq!(e["error"]["values"]["ref"], "Drone");
+    assert!(
+        e["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("no node matches")
+    );
+}

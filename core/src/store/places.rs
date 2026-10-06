@@ -196,6 +196,15 @@ impl Inventory {
     pub fn lend_qty(&mut self, reference: &str, to: &str, qty: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        // Lent again to whom it is with: nothing to change. To someone else, it passed on.
+        if let Some(w) = &node.with
+            && crate::fold(w) == crate::fold(to.trim())
+        {
+            return Err(refused(
+                format!("{} is already lent to {w}", label(&node)),
+                Value::Null,
+            ));
+        }
         let node = crate::portions::take(&tx, node, qty)?;
         if node.owner.is_some() {
             return Err(refused(

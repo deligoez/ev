@@ -1689,12 +1689,15 @@ fn scored() -> &'static str {
 }
 
 /// `ev history`: newest first under a heading per day, each event in the words of `ev ui`'s
-/// History tab. A place the event names is its `#id` (the text has no tree to name it by), and a
-/// thing that came, went or was added here leads with its own.
-fn history(out: &mut String, events: &[Value]) {
+/// History tab. A place the event names is its `#id` with its code or name (`names`, as the
+/// history gave them), and a thing that came, went or was added here leads with its own.
+fn history(out: &mut String, events: &[Value], names: &Value) {
     let place = |v: &Value| -> String {
         match v {
-            Value::Number(n) => format!("#{n}"),
+            Value::Number(n) => match names[format!("#{n}")].as_str() {
+                Some(label) => format!("#{n} {label}"),
+                None => format!("#{n}"),
+            },
             Value::String(s) => s.clone(),
             _ => "—".into(),
         }
@@ -1708,7 +1711,14 @@ fn history(out: &mut String, events: &[Value]) {
             let _ = writeln!(out, "{}", crate::history::day_heading(this));
         }
         let time = at.map_or_else(String::new, |a| a.format("%H:%M").to_string());
-        let (verb, detail, _) = crate::history::event_words(e, &place);
+        // A purchase line by its name too.
+        let mut e = e.clone();
+        if let Some(p) = e["data"]["purchase"].as_i64()
+            && let Some(n) = names[format!("p{p}")].as_str()
+        {
+            e["data"]["purchase_name"] = Value::from(n);
+        }
+        let (verb, detail, _) = crate::history::event_words(&e, &place);
         let detail = match e["item"]["id"].as_i64() {
             Some(id) => format!("#{id} {detail}"),
             None => detail,
@@ -2713,7 +2723,7 @@ pub fn human(v: &Value) -> String {
     }
     if let Some(events) = v.get("events").and_then(Value::as_array) {
         let _ = writeln!(out, "{}", line(&v["node"]));
-        history(&mut out, events);
+        history(&mut out, events, &v["names"]);
         return out;
     }
     // `ev edit`: the record, then each field it changed.

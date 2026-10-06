@@ -155,6 +155,15 @@ pub(crate) fn edit_text(d: &Value) -> String {
         .join("; ")
 }
 
+/// A purchase line an event names: `#486`, with its name when the history gave it
+/// (`purchase_name`).
+fn purchase_ref(d: &Value) -> String {
+    match d["purchase_name"].as_str() {
+        Some(n) => format!("#{} {n}", d["purchase"]),
+        None => format!("#{}", d["purchase"]),
+    }
+}
+
 /// One event in words: its verb, what it was about, and its tone. `place` names a place the
 /// event points at (an id, or a name already given).
 pub(crate) fn event_words(
@@ -372,16 +381,16 @@ pub(crate) fn event_words(
         "fixed" => own("fixed", String::new()),
         "purchase_linked" => own(
             "linked to purchase",
-            tf("#{} ×{}", &[&d["purchase"], &d["qty"]]),
+            tf("{} ×{}", &[&purchase_ref(d), &d["qty"]]),
         ),
         "purchase_declined" => own(
             "not this purchase",
-            format!("#{}  {}", d["purchase"], str_of(d, "why"))
+            format!("{}  {}", purchase_ref(d), str_of(d, "why"))
                 .trim_end()
                 .to_string(),
         ),
-        "purchase_decline_cleared" => own("purchase offered again", format!("#{}", d["purchase"])),
-        "purchase_unlinked" => own("unlinked from purchase", format!("#{}", d["purchase"])),
+        "purchase_decline_cleared" => own("purchase offered again", purchase_ref(d)),
+        "purchase_unlinked" => own("unlinked from purchase", purchase_ref(d)),
         "doc_linked" => document("document added"),
         "doc_unlinked" => document("document removed"),
         "coverage_added" => coverage("coverage added"),

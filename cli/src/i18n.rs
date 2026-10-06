@@ -708,7 +708,7 @@ static TR: &[(&str, &str)] = &[
     ("coverage removed", "güvence silindi"),
     ("decided", "karar"),
     ("tracked again", "yeniden takipte"),
-    ("#{} ×{}", "#{} ×{}"),
+    ("{} ×{}", "{} ×{}"),
     ("(stale: fetch again)", "(eski: yeniden çek)"),
     (
         "{} index: {} periods, latest {}{}; {} rates, {} missing; home currency {}",

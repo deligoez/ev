@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::refused;
+use crate::error::{refuse, refused};
 use crate::model::{Kind, Node, State};
 use crate::store::{Inventory, brief, event, ids, live_nodes, now, resolve, rules_json, show};
 use crate::{Error, Result};
@@ -1267,8 +1267,9 @@ impl Inventory {
                     let changed = crate::marks::contents_changed_event(&tx, id)?
                         .is_some_and(|c| toured.is_none_or(|t| c > t));
                     if s != "toured" || !changed {
-                        return Err(refused(
-                            format!("#{id} is already {s}; nothing changed since"),
+                        return Err(refuse(
+                            "review_unchanged",
+                            json!({ "id": id, "status": s }),
                             json!({ "review": own }),
                         ));
                     }
@@ -1590,36 +1591,41 @@ impl Inventory {
         let before = task_json(&tx, id)?;
         // Done is a fact: dropping it would rewrite what happened.
         if status == "dropped" && before["status"] == "done" {
-            return Err(crate::error::refused(
-                format!("task {id} is done; `ev task reopen {id}` it first if it was not"),
+            return Err(refuse(
+                "task_done_reopen_first",
+                json!({ "id": id }),
                 json!({ "task": before }),
             ));
         }
         // Closed again as it already is: nothing to record.
         if matches!(status, "done" | "dropped") && before["status"] == status {
-            return Err(crate::error::refused(
-                format!("task {id} is already {status}; nothing to change"),
+            return Err(refuse(
+                "task_already",
+                json!({ "id": id, "status": status }),
                 json!({ "task": before }),
             ));
         }
         // Reopened, only a closed task; a dropped one is not done without being reopened.
         let was = before["status"].as_str().unwrap_or_default().to_string();
         if status == "open" && matches!(was.as_str(), "open" | "doing") {
-            return Err(crate::error::refused(
-                format!("task {id} is not closed; nothing to reopen"),
+            return Err(refuse(
+                "task_not_closed",
+                json!({ "id": id }),
                 json!({ "task": before }),
             ));
         }
         if status == "done" && was == "dropped" {
-            return Err(crate::error::refused(
-                format!("task {id} was dropped; `ev task reopen {id}` it first if it was done"),
+            return Err(refuse(
+                "task_dropped_reopen_first",
+                json!({ "id": id }),
                 json!({ "task": before }),
             ));
         }
         // Started again, a closed task is reopened on purpose, never by a start.
         if status == "doing" && matches!(before["status"].as_str(), Some("done" | "dropped")) {
-            return Err(crate::error::refused(
-                format!("task {id} is closed; `ev task reopen {id}` it first"),
+            return Err(refuse(
+                "task_closed_reopen_first",
+                json!({ "id": id }),
                 json!({ "task": before }),
             ));
         }
@@ -1702,8 +1708,9 @@ impl Inventory {
         }
         if at.is_some() {
             if current["position"].is_null() {
-                return Err(refused(
-                    format!("task {id} is closed; reopen it before moving it"),
+                return Err(refuse(
+                    "task_closed_no_move",
+                    json!({ "id": id }),
                     Value::Null,
                 ));
             }

@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
-use crate::error::refused;
+use crate::error::refuse;
 use crate::model::{Disposition, Kind, Node, State};
 use crate::store::{Inventory, brief, ids, live_nodes, now, place_errands, resolve, show};
 use crate::{Error, Result};
@@ -470,8 +470,9 @@ impl Inventory {
             |r| r.get(0),
         )?;
         if photos == 0 {
-            return Err(refused(
-                format!("node {id} has no photo to call current; `ev photo add {id} <file>`"),
+            return Err(refuse(
+                "no_photo_to_call_current",
+                json!({ "id": id }),
                 Value::Null,
             ));
         }
@@ -501,10 +502,7 @@ impl Inventory {
             let has_code: Option<String> =
                 tx.query_row("SELECT code FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
             if has_code.is_none() {
-                return Err(refused(
-                    format!("node {id} has no code, so there is no label to print"),
-                    Value::Null,
-                ));
+                return Err(refuse("no_code_no_label", json!({ "id": id }), Value::Null));
             }
             let value = if printed { "printed" } else { "needed" };
             set_mark(&tx, id, "label", Some(value), None, None)?;
@@ -528,8 +526,9 @@ impl Inventory {
             let kind: String =
                 tx.query_row("SELECT kind FROM nodes WHERE id = ?1", [id], |r| r.get(0))?;
             if kind != Kind::Container.to_string() {
-                return Err(refused(
-                    format!("{r} is a {kind}, not a box: only a container is said to be empty"),
+                return Err(refuse(
+                    "empty_not_a_box",
+                    json!({ "ref": r, "kind": kind.to_string() }),
                     Value::Null,
                 ));
             }
@@ -540,11 +539,9 @@ impl Inventory {
                 [id],
             )?;
             if !inside.is_empty() {
-                return Err(refused(
-                    format!(
-                        "{r} has {} record(s) in it; move them out first if it is empty",
-                        inside.len()
-                    ),
+                return Err(refuse(
+                    "empty_has_records",
+                    json!({ "ref": r, "count": inside.len() }),
                     json!({ "inside": inside }),
                 ));
             }
@@ -626,10 +623,7 @@ impl Inventory {
         if fixed {
             // Nothing was broken: nothing to say it was fixed.
             if mark(&tx, id, "broken")?.is_null() {
-                return Err(crate::error::refused(
-                    format!("node {id} is not marked broken"),
-                    Value::Null,
-                ));
+                return Err(refuse("not_broken", json!({ "id": id }), Value::Null));
             }
             clear_mark(&tx, id, "broken")?;
         } else {
@@ -693,10 +687,7 @@ impl Inventory {
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
         if state != "candidate" || disposition.as_deref() != Some(Disposition::Sell.as_str()) {
-            return Err(refused(
-                format!("node {id} is not set aside to sell; `ev dispose {id} --as sell` first"),
-                Value::Null,
-            ));
+            return Err(refuse("not_for_sale", json!({ "id": id }), Value::Null));
         }
         match status {
             None => {
@@ -767,7 +758,7 @@ impl Inventory {
     pub fn need_close(&mut self, id: i64, got: bool, note: Option<&str>) -> Result<Value> {
         let current = need_json(&self.conn, id)?;
         if current["status"] != "open" {
-            return Err(refused(format!("need {id} is already closed"), Value::Null));
+            return Err(refuse("need_closed", json!({ "id": id }), Value::Null));
         }
         self.conn.execute(
             "UPDATE needs SET status = ?1, closed_at = ?2, note = COALESCE(?3, note) WHERE id = ?4",

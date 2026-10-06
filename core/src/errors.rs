@@ -173,6 +173,105 @@ pub const ERRORS: &[(&str, &str)] = &[
         "cells_shared",
         "{a} ({a_cells}) and {b} ({b_cells}) would share cells",
     ),
+    // Refusals of things kept in several places.
+    (
+        "spread_items_only",
+        "{node}: only items are kept in several places",
+    ),
+    (
+        "spread_serial_one_unit",
+        "{node}: a record with a serial is one unit",
+    ),
+    ("spread_lost", "{node}: it is lost; find it first"),
+    ("spread_lent", "{node}: it is lent out; take it back first"),
+    (
+        "spread_pending",
+        "{node}: it already has a pending move; cancel it first",
+    ),
+    (
+        "spread_holds_things",
+        "{node}: it holds things; move what is inside first",
+    ),
+    (
+        "not_that_many",
+        "{node} has {have}; there are not {qty} to take",
+    ),
+    (
+        "portion_not_an_item",
+        "{node} is a {kind}, and only items are kept in several places; to make one record of several boxes into two, take some off with `ev split <box> <name>=<n> --take`",
+    ),
+    (
+        "portion_has_serial",
+        "{node} has a serial number: it is one unit, not kept in several places",
+    ),
+    (
+        "join_all_gone",
+        "every one of them is gone; join needs one that is still here",
+    ),
+    (
+        "join_differ",
+        "they differ in {field} ({seen}); set one {field} on all of them first if they are one thing",
+    ),
+    (
+        "not_in_several_places",
+        "{node} is not kept in several places",
+    ),
+    (
+        "portion_field_apart",
+        "{node} is one portion of a thing kept in several places; its {field} would set it apart: `ev unjoin` it first",
+    ),
+    // Refusals of the plan: counting and tasks.
+    (
+        "review_unchanged",
+        "#{id} is already {status}; nothing changed since",
+    ),
+    (
+        "task_done_reopen_first",
+        "task {id} is done; `ev task reopen {id}` it first if it was not",
+    ),
+    (
+        "task_already",
+        "task {id} is already {status}; nothing to change",
+    ),
+    (
+        "task_not_closed",
+        "task {id} is not closed; nothing to reopen",
+    ),
+    (
+        "task_dropped_reopen_first",
+        "task {id} was dropped; `ev task reopen {id}` it first if it was done",
+    ),
+    (
+        "task_closed_reopen_first",
+        "task {id} is closed; `ev task reopen {id}` it first",
+    ),
+    (
+        "task_closed_no_move",
+        "task {id} is closed; reopen it before moving it",
+    ),
+    // Refusals of the marks.
+    (
+        "no_photo_to_call_current",
+        "node {id} has no photo to call current; `ev photo add {id} <file>`",
+    ),
+    (
+        "no_code_no_label",
+        "node {id} has no code, so there is no label to print",
+    ),
+    (
+        "empty_not_a_box",
+        "{ref} is a {kind}, not a box: only a container is said to be empty",
+    ),
+    (
+        "empty_has_records",
+        "{ref} has {count} record(s) in it; move them out first if it is empty",
+    ),
+    ("not_broken", "node {id} is not marked broken"),
+    (
+        "not_for_sale",
+        "node {id} is not set aside to sell; `ev dispose {id} --as sell` first",
+    ),
+    ("need_closed", "need {id} is already closed"),
 ];
 
 /// The English template of an id.
@@ -240,10 +339,14 @@ mod tests {
         for (path, text) in sources() {
             for start in ["Error::said(", "refuse(\n", "refuse(\""] {
                 for part in text.split(start).skip(1) {
+                    // `refuse(\n    "id"`, or `refuse("id"`; an id passed as a variable is
+                    // checked where it is written.
                     let id = if start.ends_with('"') {
                         part.split('"').next()
-                    } else {
+                    } else if part.trim_start().starts_with('"') || start == "Error::said(" {
                         part.split('"').nth(1)
+                    } else {
+                        None
                     };
                     let Some(id) = id else { continue };
                     assert!(template(id).is_some(), "{path}: `{id}` has no sentence");
@@ -263,7 +366,7 @@ mod tests {
     /// (spec/error-ids.md); lower the number as they are given ids.
     #[test]
     fn errors_without_an_id_only_become_fewer() {
-        const LEFT: usize = 273;
+        const LEFT: usize = 251;
         let n: usize = sources()
             .iter()
             .map(|(_, t)| {

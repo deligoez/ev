@@ -7,7 +7,7 @@
 use rusqlite::{Connection, params};
 use serde_json::{Value, json};
 
-use crate::error::refused;
+use crate::error::refuse;
 use crate::model::{Kind, Node, State};
 use crate::store::{apply_edit, brief_json, event, ids, label, load, touch};
 use crate::{Error, Result};
@@ -25,15 +25,15 @@ pub(crate) fn units(n: &Node) -> i64 {
 /// missing, lent out or already on its way somewhere.
 fn check_spreadable(conn: &Connection, n: &Node) -> Result<()> {
     let why = if n.kind != Kind::Item {
-        Some("only items are kept in several places".to_string())
+        Some("spread_items_only")
     } else if n.serial.is_some() {
-        Some("a record with a serial is one unit".to_string())
+        Some("spread_serial_one_unit")
     } else if n.lost {
-        Some("it is lost; find it first".to_string())
+        Some("spread_lost")
     } else if n.with.is_some() {
-        Some("it is lent out; take it back first".to_string())
+        Some("spread_lent")
     } else if n.pending_to.is_some() {
-        Some("it already has a pending move; cancel it first".to_string())
+        Some("spread_pending")
     } else if !ids(
         conn,
         "SELECT id FROM nodes WHERE parent_id = ?1 AND state != 'gone' LIMIT 1",
@@ -41,13 +41,14 @@ fn check_spreadable(conn: &Connection, n: &Node) -> Result<()> {
     )?
     .is_empty()
     {
-        Some("it holds things; move what is inside first".to_string())
+        Some("spread_holds_things")
     } else {
         None
     };
     match why {
-        Some(w) => Err(refused(
-            format!("{}: {w}", label(n)),
+        Some(id) => Err(refuse(
+            id,
+            json!({ "node": label(n) }),
             json!({ "node": brief_json(conn, n.id)? }),
         )),
         None => Ok(()),
@@ -63,8 +64,9 @@ pub(crate) fn part_of(n: &Node, qty: Option<i64>) -> Result<Option<i64>> {
     }
     let have = units(n);
     if q > have {
-        return Err(refused(
-            format!("{} has {have}; there are not {q} to take", label(n)),
+        return Err(refuse(
+            "not_that_many",
+            json!({ "node": label(n), "have": have, "qty": q }),
             Value::Null,
         ));
     }
@@ -196,22 +198,16 @@ fn merge(conn: &Connection, from: &Node, into: i64) -> Result<()> {
 /// reason; `None` when it can. Only items are, and not one with a serial (it is one unit).
 pub(crate) fn not_a_portion(n: &Node) -> Option<crate::Error> {
     if n.kind != Kind::Item {
-        return Some(refused(
-            format!(
-                "{} is a {}, and only items are kept in several places; to make one record of \
-                 several boxes into two, take some off with `ev split <box> <name>=<n> --take`",
-                label(n),
-                n.kind
-            ),
+        return Some(refuse(
+            "portion_not_an_item",
+            json!({ "node": label(n), "kind": n.kind.to_string() }),
             Value::Null,
         ));
     }
     if n.serial.is_some() {
-        return Some(refused(
-            format!(
-                "{} has a serial number: it is one unit, not kept in several places",
-                label(n)
-            ),
+        return Some(refuse(
+            "portion_has_serial",
+            json!({ "node": label(n) }),
             Value::Null,
         ));
     }
@@ -232,10 +228,7 @@ pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
         }
     }
     if nodes.iter().all(|n| n.state == State::Gone) {
-        return Err(refused(
-            "every one of them is gone; join needs one that is still here",
-            Value::Null,
-        ));
+        return Err(refuse("join_all_gone", Value::Null, Value::Null));
     }
     let first = &nodes[0];
     for (field, values) in [
@@ -249,12 +242,9 @@ pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
         seen.sort();
         seen.dedup();
         if seen.len() > 1 {
-            return Err(refused(
-                format!(
-                    "they differ in {field} ({}); set one {field} on all of them first if they \
-                     are one thing",
-                    seen.join(" / ")
-                ),
+            return Err(refuse(
+                "join_differ",
+                json!({ "field": field, "seen": seen.join(" / ") }),
                 json!({ "field": field, "values": seen }),
             ));
         }
@@ -315,8 +305,9 @@ pub(crate) fn join(conn: &Connection, nodes: &[Node]) -> Result<i64> {
 /// thing; the others stay one thing, and what was linked to it (a purchase) stays with it.
 pub(crate) fn unjoin(conn: &Connection, n: &Node) -> Result<()> {
     let Some(thing) = n.thing else {
-        return Err(refused(
-            format!("{} is not kept in several places", label(n)),
+        return Err(refuse(
+            "not_in_several_places",
+            json!({ "node": label(n) }),
             Value::Null,
         ));
     };
@@ -419,12 +410,9 @@ pub(crate) fn share_identity(conn: &Connection, id: i64, assignments: &[String])
         };
         let field = field.trim();
         if matches!(field, "kind" | "serial") {
-            return Err(refused(
-                format!(
-                    "{} is one portion of a thing kept in several places; its {field} would set \
-                     it apart: `ev unjoin` it first",
-                    label(&n)
-                ),
+            return Err(refuse(
+                "portion_field_apart",
+                json!({ "node": label(&n), "field": field }),
                 Value::Null,
             ));
         }

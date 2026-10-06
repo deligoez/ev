@@ -95,7 +95,7 @@ trade`, linked to what came in exchange (`--traded-for`, or later `ev traded X -
 past` lists them in two lists, what was remembered first and then what left the inventory on a
 tour, each by year with the money paid for them and got for them; `ev past --year 2018` is what
 was ours that year, present things included, and what nothing dates is counted apart rather
-than guessed in. `ev stats` has a past section of its own, and `ev ui` a Past tab (`0`); the
+than guessed in. `ev stats` has a past section of its own, and `ev ui` a Past list (`7`); the
 tree, the to-do list and every count of today never see them. Nothing asks about the past on
 its own: the person decides what is worth a record.
 
@@ -217,8 +217,8 @@ wants a tidy-up at all — under `track` ev only keeps the records.
 **Numbers on one page.** `ev stats` says how much there is (records, units, rooms, boxes),
 what it cost by the linked purchases (and in today's money), per room, how far the counting
 has come, the purchases by year and shop, the last 30 days, the boxes known to be empty, the
-coverages, the tags most used and the things bought longest ago; `ev ui` shows it on its
-Statistics tab (`9`).
+coverages, the tags most used and the things bought longest ago; `ev ui` shows it as its
+Statistics list (`8`).
 
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
@@ -283,12 +283,19 @@ so "which one do you mean?" is answered on screen too. While labels go on a grid
 boxes, `ev photo mark <drawer> --codes` writes each box's code in the corner of its own cells,
 so the person reads which label goes on which box; a label keeps the letters as given.
 
-**Watching.** `ev ui` is a read-only browser with tabs for the layout (the tree), pending moves,
-things leaving, lost items, errands, search, everything waiting (one collapsible section per
-kind) and settings. It refreshes the moment another process writes, flashes what changed, shows
-photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first with their note,
-full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer with `O`. Mouse
-works for tabs, rows, the wheel and photos. A mark before each row says its kind (⌂ home, ◫ room,
+**Watching.** `ev ui` is a read-only browser in three panes: a sidebar of lists, the list chosen,
+and the selected record's details. The sidebar groups the lists under headings, each with the
+digit that opens it and how many it holds: HOME has the layout (the tree, `1`), everything
+waiting (one collapsible section per kind, `2`), pending moves (`3`), things leaving (`4`), lost
+items (`5`) and errands (`6`); HISTORY the past (`7`); INSIGHT the statistics (`8`); then search
+(`/`) and settings (`0`). `Tab` moves between the panes (the one the keys go to has a coloured
+border); in the sidebar the arrows open each list as they pass it and `Enter` goes into it. The
+sidebar narrows to a rail of digits and counts under 120 columns, hides under 90 (`b` opens it
+over the list), and under 70, as on a phone, one pane shows at a time; `b` hides or shows it at
+any width and is remembered. It refreshes the moment another process writes, flashes what
+changed, shows photos inline (Ghostty's graphics protocol, half-blocks elsewhere) newest first
+with their note, full screen with `o` (`r` / `R` rotate it on screen), and in the system viewer
+with `O`. Mouse works for the sidebar, rows, tabs, the wheel and photos. A mark before each row says its kind (⌂ home, ◫ room,
 ▥ furniture, □ box, · thing), and a row turns green once the node is settled: counted, with
 nothing in `ev todo` hanging on it or on anything in it. A counted place's name is green with no
 word beside it, since counted is where every place is headed; only the exceptions are written

@@ -160,3 +160,12 @@ fn a_leaving_taken_back_takes_back_its_reason_from_the_note() {
     let back = inv.correct_gone("4", "it was not a duplicate").unwrap();
     assert_eq!(back["node"]["note"], "şarjı zayıf", "{back}");
 }
+
+#[test]
+fn a_split_off_part_carries_its_origin_in_history_not_in_an_english_note() {
+    let (_d, mut inv) = setup();
+    inv.split("Telefon", &[("Şarj kablosu".into(), Some(1))], None, None)
+        .unwrap();
+    let part = inv.show("Şarj kablosu", false).unwrap();
+    assert!(part["node"]["note"].is_null(), "{part}");
+}

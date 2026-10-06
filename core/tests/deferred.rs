@@ -50,3 +50,23 @@ fn several_planned_moves_are_dropped_at_once() {
     assert_eq!(v["cancelled"].as_array().unwrap().len(), 2, "{v}");
     assert!(inv.pending().unwrap()["pending"].as_array().unwrap().is_empty());
 }
+
+fn line(inv: &mut Inventory, name: &str) -> i64 {
+    inv.buy_add(&serde_json::json!({"name": name, "qty": 1}), None)
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap()
+}
+
+#[test]
+fn a_lines_bucket_is_said_by_hand_but_not_for_a_linked_line() {
+    let (_d, mut inv) = setup();
+    let l = line(&mut inv, "Üyelik");
+    let v = inv.buy_bucket(l, "digital").unwrap();
+    assert_eq!(v["purchase"]["bucket"], "digital");
+    assert_eq!(inv.buy_bucket(l, "digital").unwrap_err().code(), 5);
+    assert_eq!(inv.buy_bucket(l, "consumable").unwrap_err().code(), 2);
+    let linked = line(&mut inv, "Telefon");
+    inv.buy_link(linked, "Telefon", None).unwrap();
+    assert_eq!(inv.buy_bucket(linked, "service").unwrap_err().code(), 5);
+}

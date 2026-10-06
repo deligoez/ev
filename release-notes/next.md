@@ -65,6 +65,14 @@ found" (exit 3) got one: 292 ids in all. Four errors keep an English sentence fo
 three of them because they pass a library's own error on; a test keeps that number from
 growing.
 
+## Purchase lines by source and key
+
+ak, the household's money tool, sends ev the lines that are things, keyed by its payment
+(`412`), or by the payment and the item's place in it (`412.2`) when only some lines of a
+receipt are things (spec/ak.md). To answer which thing a payment bought, `ev buy list` takes
+`--source ak` and `--key 412`, which finds the payment's own line or its items' lines;
+`--key 412.2` finds that item alone.
+
 ## Faster
 
 - `ev ui` started and refreshed most of a second slower once the sidebar counted the purchase

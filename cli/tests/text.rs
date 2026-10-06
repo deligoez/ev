@@ -838,3 +838,29 @@ fn a_note_of_several_lines_keeps_its_lines_under_the_first() {
     let s = h.text(&["show", "Aktif buzzer"]);
     assert!(s.contains("  note: bir\n        iki\n"), "{s}");
 }
+
+#[test]
+fn cover_list_names_what_each_coverage_covers_and_show_its_premium() {
+    let h = Home::new();
+    h.run(
+        &[
+            "cover",
+            "add",
+            "Aktif buzzer",
+            "--kind",
+            "extended",
+            "--term",
+            "2y",
+            "--premium",
+            "99",
+            "--currency",
+            "USD",
+        ],
+        None,
+    );
+    let s = h.text(&["cover", "list"]);
+    assert!(s.contains("  → #"), "{s}");
+    assert!(s.contains("Aktif buzzer"), "{s}");
+    let s = h.text(&["cover", "show", "1"]);
+    assert!(s.contains("  premium: 99.00 USD\n"), "{s}");
+}

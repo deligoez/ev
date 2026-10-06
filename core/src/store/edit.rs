@@ -344,9 +344,13 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                     params![n.id, at],
                 )?;
             } else {
-                if v.as_deref().is_some_and(|p| p.starts_with('#')) {
+                if v
+                    .as_deref()
+                    .is_some_and(|p| p.starts_with('#') || p.chars().all(|c| c.is_ascii_digit()))
+                {
                     return Err(Error::Usage(
-                        "left_in names a place (a former home), not a record".into(),
+                        "left_in names a place (a former home) by its name, not a record or an id"
+                            .into(),
                     ));
                 }
                 let place = v

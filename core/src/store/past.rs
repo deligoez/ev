@@ -96,9 +96,12 @@ pub(super) fn set_departure(
     {
         came_before_left(&c, a)?;
     }
-    if place.is_some_and(|p| p.trim().starts_with('#')) {
+    if place.is_some_and(|p| {
+        let p = p.trim();
+        p.starts_with('#') || (!p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    }) {
         return Err(Error::Usage(
-            "--where names a place (a former home), not a record".into(),
+            "--where names a place (a former home) by its name, not a record or an id".into(),
         ));
     }
     let place = place

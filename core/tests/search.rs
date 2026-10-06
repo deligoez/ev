@@ -223,7 +223,9 @@ fn a_lost_thing_last_seen_in_a_box_does_not_keep_it_from_being_empty() {
             .any(|r| r["name"] == "Kablo çantası"),
         "{found}"
     );
-    // Toured with no photo: there is nothing in it to show.
+    // Toured with no photo: there is nothing in it to show (set back first: marking it empty
+    // already toured it, and the same word again records nothing).
+    inv.review("Kablo çantası", "raw", None).unwrap();
     inv.review("Kablo çantası", "toured", None).unwrap();
 }
 

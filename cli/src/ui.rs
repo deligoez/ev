@@ -829,6 +829,12 @@ struct App {
     /// While the lists are rebuilt for a change made elsewhere: only then is a record that left
     /// its list news.
     refreshing: bool,
+    /// The list behind each figure of the Statistics list, by row; a purchase list's year and
+    /// shop when it was opened from a figure (`drilled`: Esc goes back to it at once).
+    stat_drills: HashMap<usize, crate::render::Drill>,
+    buy_year: Option<String>,
+    buy_shop: Option<String>,
+    drilled: bool,
     /// The sidebar's counts, from the queries that fill the lists, as of the last change.
     counts: HashMap<Tab, usize>,
     last_click: Option<(usize, Instant)>,
@@ -1044,6 +1050,10 @@ impl App {
             buy_words: String::new(),
             purchase_title: String::new(),
             refreshing: false,
+            stat_drills: HashMap::new(),
+            buy_year: None,
+            buy_shop: None,
+            drilled: false,
             counts: HashMap::new(),
             last_click: None,
             picker: None,
@@ -1467,9 +1477,33 @@ impl App {
         if self.tab == Tab::Tree {
             self.tree_selected = self.selected_id();
         }
+        // A figure's year and shop narrow the purchase lists only while they are open.
+        if tab.bucket().is_none() {
+            self.buy_year = None;
+            self.buy_shop = None;
+            self.drilled = false;
+        }
         self.tab = tab;
         self.state.select(None);
         self.rebuild()
+    }
+
+    /// `Enter` on a figure of the Statistics list: the list it counts, as `Esc` comes back.
+    fn drill(&mut self, d: crate::render::Drill) -> Result<()> {
+        use crate::render::Drill;
+        match d {
+            Drill::Purchases { year, shop } => {
+                self.go(Tab::Buys)?;
+                self.buy_year = year;
+                self.buy_shop = shop;
+                self.buy_state = buys::BuyState::All;
+                self.buy_words.clear();
+                self.drilled = true;
+                self.rebuild()
+            }
+            Drill::Todo => self.go(Tab::Plan),
+            Drill::Past => self.go(Tab::Past),
+        }
     }
 
     /// Opens the list `delta` places down the sidebar (up when negative), stopping at its ends.

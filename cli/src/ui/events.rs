@@ -138,6 +138,7 @@ impl App {
             // A purchase list's filters go first, one Esc for all of them.
             KeyCode::Esc
                 if self.tab.bucket().is_some()
+                    && !self.drilled
                     && (!self.buy_words.is_empty() || self.buy_state != buys::BuyState::All) =>
             {
                 self.buy_words.clear();
@@ -232,6 +233,11 @@ impl App {
                         match self.purchase_thing() {
                             Some(thing) => self.jump_to(thing)?,
                             None => self.status = t("this line is linked to no thing here").into(),
+                        }
+                    } else if id == 0 && self.tab == Tab::Stats {
+                        let at = self.state.selected().unwrap_or(0);
+                        if let Some(d) = self.stat_drills.get(&at).cloned() {
+                            self.drill(d)?;
                         }
                     } else if id == 0 || self.tab == Tab::Past {
                         // A line of the Statistics tab that names no record, or a past thing,

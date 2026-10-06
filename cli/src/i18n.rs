@@ -433,6 +433,10 @@ static TR: &[(&str, &str)] = &[
     ("Enter the thing in the tree", "Enter eşyayı ağaçta göster"),
     ("f open/linked/dismissed", "f açık/bağlı/kapatılmış"),
     ("/ filter", "/ süz"),
+    (
+        "Enter on › the list behind a figure",
+        "› olanda Enter: sayının ardındaki liste",
+    ),
     ("H/L details tabs", "H/L ayrıntı sekmesi"),
     ("J/K scroll", "J/K kaydır"),
     ("[ ] o photos", "[ ] o fotoğraf"),

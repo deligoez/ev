@@ -109,6 +109,7 @@ impl App {
     /// with its total, which opens and closes. The list's title counts them and adds them up.
     pub(super) fn purchase_rows(&mut self, bucket: Option<&str>) -> Result<Vec<Row>> {
         let state = self.buy_state;
+        let (year, shop) = (self.buy_year.clone(), self.buy_shop.clone());
         let words: Vec<String> = ev_core::fold(&self.buy_words)
             .split_whitespace()
             .map(str::to_string)
@@ -118,6 +119,11 @@ impl App {
             .iter()
             .filter(|p| bucket.is_none_or(|b| p["bucket"] == b))
             .filter(|p| state.keeps(p))
+            .filter(|p| {
+                year.as_ref()
+                    .is_none_or(|y| date_of(p).starts_with(y.as_str()))
+            })
+            .filter(|p| shop.as_ref().is_none_or(|s| p["shop"] == s.as_str()))
             .filter(|p| {
                 let text = ev_core::fold(
                     &["name", "shop", "brand", "order_no", "billed_to"]
@@ -139,6 +145,10 @@ impl App {
                 &state.title(),
             ],
         );
+        // What a figure of the statistics narrowed it to.
+        for narrowed in [&year, &shop].into_iter().flatten() {
+            title.push_str(&format!("· {narrowed} "));
+        }
         if !self.buy_words.is_empty() {
             title.push_str(&tf("· \"{}\" ", &[&self.buy_words]));
         }

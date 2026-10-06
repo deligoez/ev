@@ -498,6 +498,7 @@ impl App {
     pub(super) fn stats_rows(&mut self) -> Result<Vec<Row>> {
         let v = self.inv.stats()?;
         let mut out = Vec::new();
+        self.stat_drills.clear();
         for (i, (heading, lines)) in crate::render::stats_sections(&v).into_iter().enumerate() {
             let id = STATS_SECTION - i as i64;
             let open = !self.collapsed.contains(&id);
@@ -509,13 +510,21 @@ impl App {
                 expanded: open,
             });
             if open {
-                out.extend(lines.into_iter().map(|(node, text)| Row {
-                    id: node.unwrap_or(0),
-                    depth: 1,
-                    spans: vec![Span::raw(text.trim_start().to_string())],
-                    expandable: false,
-                    expanded: false,
-                }));
+                for (node, text, drill) in lines {
+                    let mut spans = vec![Span::raw(text.trim_start().to_string())];
+                    // A figure with a list behind it, which Enter opens.
+                    if let Some(d) = drill {
+                        spans.push(Span::styled("  ›", Style::new().fg(pal().code)));
+                        self.stat_drills.insert(out.len(), d);
+                    }
+                    out.push(Row {
+                        id: node.unwrap_or(0),
+                        depth: 1,
+                        spans,
+                        expandable: false,
+                        expanded: false,
+                    });
+                }
             }
         }
         Ok(out)

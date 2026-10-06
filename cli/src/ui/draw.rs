@@ -687,6 +687,7 @@ impl App {
                 parts.push((1, t("x clear")));
             }
             Tab::Plan => parts.push((1, t("Enter open/close section"))),
+            Tab::Stats => parts.push((1, t("Enter on › the list behind a figure"))),
             _ if self.tab.bucket().is_some() => {
                 parts.push((1, t("Enter the thing in the tree")));
                 parts.push((1, t("f open/linked/dismissed")));

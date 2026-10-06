@@ -3941,14 +3941,34 @@ fn amounts(per: &Value) -> String {
     }
 }
 
-/// `ev stats` as headed sections of lines, each line with the record it names, if any: the
-/// text output and the Statistics tab of `ev ui` both read it.
-pub(crate) type StatSection = (String, Vec<(Option<i64>, String)>);
+/// `ev stats` as headed sections of lines, each line with the record it names, if any, and the
+/// list behind its figure, if `ev ui` has one: the text output and the Statistics list of
+/// `ev ui` both read it.
+pub(crate) type StatSection = (String, Vec<(Option<i64>, String, Option<Drill>)>);
+
+/// The list a figure of `ev stats` counts, for `ev ui` to open on `Enter` (spec/ui-sidebar.md).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Drill {
+    /// Purchase lines, all of them or a year's or a shop's.
+    Purchases {
+        year: Option<String>,
+        shop: Option<String>,
+    },
+    /// What is left to count and do: the To do list.
+    Todo,
+    /// What was ours and left.
+    Past,
+}
 
 pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
     let mut out: Vec<StatSection> = Vec::new();
-    let line = |text: String| (None, text);
-    let node = |n: &Value, text: String| (n["id"].as_i64(), text);
+    let line = |text: String| (None, text, None);
+    let node = |n: &Value, text: String| (n["id"].as_i64(), text, None);
+    let drill = |d: Drill, text: String| (None, text, Some(d));
+    let purchases = |year: Option<&str>, shop: Option<&str>| Drill::Purchases {
+        year: year.map(str::to_string),
+        shop: shop.map(str::to_string),
+    };
 
     let o = &v["overview"];
     out.push((
@@ -4028,7 +4048,7 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
     let (some, none): (Vec<&Value>, Vec<&Value>) = all_rooms
         .iter()
         .partition(|r| r["records"].as_i64().unwrap_or(0) + r["holders"].as_i64().unwrap_or(0) > 0);
-    let mut rooms: Vec<(Option<i64>, String)> = some
+    let mut rooms: Vec<(Option<i64>, String, Option<Drill>)> = some
         .iter()
         .map(|r| {
             node(
@@ -4062,14 +4082,17 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
     out.push((
         t("COUNTING").to_string(),
         vec![
-            line(tf(
-                "{} of {} places counted · {} being counted · {} not counted",
-                &[&c["toured"], &c["places"], &c["counting"], &c["raw"]],
-            )),
-            line(tf(
-                "{} changed since they were counted",
-                &[&c["changed_since"]],
-            )),
+            drill(
+                Drill::Todo,
+                tf(
+                    "{} of {} places counted · {} being counted · {} not counted",
+                    &[&c["toured"], &c["places"], &c["counting"], &c["raw"]],
+                ),
+            ),
+            drill(
+                Drill::Todo,
+                tf("{} changed since they were counted", &[&c["changed_since"]]),
+            ),
             line(tf(
                 "{} of {} records are in counted places ({}%)",
                 &[
@@ -4082,24 +4105,31 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
     ));
 
     let p = &v["purchases"];
-    let mut buys = vec![line(tf(
-        "{} lines · {} linked · {} settled · {} durable still open",
-        &[
-            &p["lines"],
-            &p["linked"],
-            &p["dismissed"],
-            &p["open_durable"],
-        ],
-    ))];
+    let mut buys = vec![drill(
+        purchases(None, None),
+        tf(
+            "{} lines · {} linked · {} settled · {} durable still open",
+            &[
+                &p["lines"],
+                &p["linked"],
+                &p["dismissed"],
+                &p["open_durable"],
+            ],
+        ),
+    )];
     for y in p["years"].as_array().into_iter().flatten() {
-        buys.push(line(tf(
+        let text = tf(
             "  {}: {} lines · {}",
             &[
                 &y["year"].as_str().unwrap_or(t("no date")),
                 &y["lines"],
                 &amounts(&y["paid"]),
             ],
-        )));
+        );
+        buys.push(match y["year"].as_str() {
+            Some(year) => drill(purchases(Some(year), None), text),
+            None => line(text),
+        });
     }
     // What the money went to: things, clothes, and what is never a thing.
     let buckets: Vec<String> = p["buckets"]
@@ -4118,13 +4148,19 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
         })
         .collect();
     if !buckets.is_empty() {
-        buys.push(line(format!("  {}", buckets.join("; "))));
+        buys.push(drill(
+            purchases(None, None),
+            format!("  {}", buckets.join("; ")),
+        ));
     }
     for sh in p["shops"].as_array().into_iter().flatten() {
-        buys.push(line(tf(
-            "  {}: {} lines · {}",
-            &[&s(sh, "shop"), &sh["lines"], &amounts(&sh["paid"])],
-        )));
+        buys.push(drill(
+            purchases(None, sh["shop"].as_str()),
+            tf(
+                "  {}: {} lines · {}",
+                &[&s(sh, "shop"), &sh["lines"], &amounts(&sh["paid"])],
+            ),
+        ));
     }
     out.push((t("PURCHASES").to_string(), buys));
 
@@ -4140,7 +4176,10 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
         .map(|(how, n)| format!("{} {n}", crate::history::left_as(how)))
         .collect();
     if !gone.is_empty() {
-        recent.push(line(tf("left the home: {}", &[&gone.join(" · ")])));
+        recent.push(drill(
+            Drill::Past,
+            tf("left the home: {}", &[&gone.join(" · ")]),
+        ));
     }
     if let Some(d) = a["busiest_day"].as_object() {
         recent.push(line(tf(
@@ -4212,10 +4251,13 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             .flatten()
             .map(|(d, n)| format!("{n} {}", crate::history::left_as(d)))
             .collect();
-        past.push(line(tf(
-            "{} things that were ours: {}",
-            &[&p["records"], &how.join(", ")],
-        )));
+        past.push(drill(
+            Drill::Past,
+            tf(
+                "{} things that were ours: {}",
+                &[&p["records"], &how.join(", ")],
+            ),
+        ));
         for (key, label) in [("paid", "paid for them: {}"), ("got", "got for them: {}")] {
             if p[key].as_object().is_some_and(|m| !m.is_empty()) {
                 past.push(line(tf(label, &[&amounts(&p[key])])));
@@ -4233,7 +4275,7 @@ fn stats_text(out: &mut String, v: &Value) {
             let _ = writeln!(out);
         }
         let _ = writeln!(out, "{heading}");
-        for (_, l) in lines {
+        for (_, l, _) in lines {
             let _ = writeln!(out, "  {l}");
         }
     }

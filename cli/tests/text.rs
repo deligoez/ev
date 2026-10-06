@@ -1002,3 +1002,38 @@ fn an_error_with_an_id_is_worded_in_turkish_and_named_in_json() {
             .starts_with("no node matches")
     );
 }
+
+#[test]
+fn a_refusal_with_an_id_names_a_kind_in_turkish_and_keeps_its_details() {
+    let home = Home::new();
+    home.run(&["settings", "language", "tr"], None);
+    let run = |args: &[&str]| {
+        let mut cmd = Command::cargo_bin("ev").unwrap();
+        cmd.env_remove("EV_DB")
+            .env("EV_CONFIG", home.dir.path().join("settings.json"))
+            .arg("--db")
+            .arg(home.dir.path().join("ev.db"))
+            .args(args);
+        let out = cmd.output().unwrap();
+        (out.status.code(), String::from_utf8(out.stderr).unwrap())
+    };
+    let (code, err) = run(&["--text", "add", "Kutu", "--kind", "container"]);
+    assert_eq!(code, Some(5));
+    assert!(err.contains("bir kap için yer gerekir"), "{err}");
+    // A code taken: the record holding it comes along in the details.
+    let (_, err) = run(&[
+        "--json",
+        "add",
+        "Kutu",
+        "--kind",
+        "container",
+        "--in",
+        "Oda",
+        "--code",
+        "D",
+    ]);
+    let e: serde_json::Value = serde_json::from_str(err.trim()).unwrap();
+    assert_eq!(e["error"]["id"], "code_in_use");
+    assert_eq!(e["error"]["values"]["code"], "D");
+    assert_eq!(e["error"]["details"]["node"]["code"], "D");
+}

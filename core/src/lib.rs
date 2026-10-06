@@ -4,6 +4,7 @@ mod attachments;
 mod coverage;
 mod docs;
 mod error;
+mod errors;
 mod fold;
 mod grid;
 mod kits;
@@ -24,7 +25,8 @@ mod valuations;
 
 pub use coverage::{COVERAGE_KINDS, INVENTORY_SETTINGS, NewCoverage};
 pub use docs::{DOC_KINDS, NewDoc};
-pub use error::{Error, Result};
+pub use error::{Error, Fault, Result, Said, at_text, fill};
+pub use errors::{ERRORS, placeholders, template};
 pub use fold::fold;
 pub use grid::{Cells, GridCorners};
 pub use links::LINK_KINDS;

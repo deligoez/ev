@@ -572,6 +572,10 @@ enum Cmd {
         /// The title shown over --file.
         #[arg(long, requires = "file")]
         note: Option<String>,
+        /// The place the --file pictures are about: the first such picture sets what the
+        /// series is about, and one about another place says so (`series_about`).
+        #[arg(long = "for", value_name = "PLACE", requires = "file")]
+        about: Option<String>,
         /// The series of marked photos in `ev ui`: each picture, its note and its frames
         /// (number → where, or which record), and the next free number.
         #[arg(long, conflicts_with_all = ["reference", "clear", "file"])]
@@ -2010,7 +2014,9 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Todo { only } => todo_only(inv.todo()?, &only),
         Cmd::Stats => inv.stats(),
         Cmd::Focus { list: true, .. } => inv.focus_list(),
-        Cmd::Focus { file, note, .. } if !file.is_empty() => {
+        Cmd::Focus {
+            file, note, about, ..
+        } if !file.is_empty() => {
             // `a.jpg=<note>` gives that picture a note of its own; a name that is a file stays
             // one. `f12` is the series' picture, sent again.
             let mut each: Vec<(PathBuf, Option<String>)> = Vec::new();
@@ -2021,7 +2027,8 @@ fn run(cli: Cli) -> Result<Value> {
                 };
                 each.push((photo_arg(&inv, Path::new(p))?, n));
             }
-            inv.focus_noted(&each, note.as_deref())
+            let about = about.map(|r| inv.resolve(&r, false)).transpose()?;
+            inv.focus_noted_about(&each, note.as_deref(), about)
         }
         Cmd::Focus {
             reference,
@@ -2441,7 +2448,9 @@ fn run(cli: Cli) -> Result<Value> {
             } else {
                 // One picture is titled as the request too, as `shown.note` says it.
                 let one = (show.len() == 1).then(|| show[0].1.clone()).flatten();
-                inv.focus_noted(&show, one.as_deref())?["focus"].clone()
+                // About the first record the photos went to, or the place it is in.
+                let about = added.first().and_then(|a| a["node"]["id"].as_i64());
+                inv.focus_noted_about(&show, one.as_deref(), about)?["focus"].clone()
             };
             if single {
                 // Only the photo added, with its number; every photo is `ev photo list`.
@@ -2505,7 +2514,10 @@ fn run(cli: Cli) -> Result<Value> {
                 }
             }
             // Shown in the person's `ev ui` unless asked not to, as part of the series there:
-            // its numbers go on from the series' (spec/focus-stack.md).
+            // its numbers go on from the series' (spec/focus-stack.md), about the place marked.
+            let about = (!Path::new(&target).exists())
+                .then(|| inv.resolve(&target, false).ok())
+                .flatten();
             if no_show {
                 return inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref());
             }
@@ -2530,7 +2542,8 @@ fn run(cli: Cli) -> Result<Value> {
                 let frames = v["frames"].as_array().cloned().unwrap_or_default();
                 let source = PathBuf::from(v["source"].as_str().unwrap_or_default());
                 v["shown"] =
-                    inv.focus_drawn(&[path], Some(&note), &frames, &source)?["focus"].clone();
+                    inv.focus_drawn(&[path], Some(&note), &frames, &source, about)?["focus"]
+                        .clone();
             }
             if let Some(o) = v.as_object_mut() {
                 o.remove("frames");
@@ -2610,8 +2623,9 @@ fn run(cli: Cli) -> Result<Value> {
             if !files.is_empty() {
                 let note = title.or(note).unwrap_or_else(|| legend_note(&v["legend"]));
                 let frames = v["legend"].as_array().cloned().unwrap_or_default();
+                let about = place.as_deref().and_then(|p| inv.resolve(p, false).ok());
                 v["shown"] =
-                    inv.focus_drawn(&files, Some(&note), &frames, &file)?["focus"].clone();
+                    inv.focus_drawn(&files, Some(&note), &frames, &file, about)?["focus"].clone();
             }
             Ok(v)
         }

@@ -56,6 +56,8 @@ struct Marked {
     /// The photo it was drawn on, unmarked (a mark's or a cut's photo), else the picture
     /// itself: what `f12` names when a command takes a photo.
     source: String,
+    /// The place the picture is about (`{id, label}`), or null (spec/series-batches.md).
+    about: Value,
 }
 
 /// The series a focus request holds, without the pictures no longer on disk. A request written
@@ -90,6 +92,7 @@ fn series_of(req: &Value) -> Vec<Marked> {
                 note,
                 frames,
                 source,
+                about: req["abouts"].get(i).cloned().unwrap_or(Value::Null),
             })
         })
         .filter(|m| std::path::Path::new(&m.file).is_file())
@@ -882,21 +885,23 @@ impl Inventory {
     ) -> Result<Value> {
         let each: Vec<(std::path::PathBuf, Option<String>)> =
             files.iter().map(|f| (f.clone(), None)).collect();
-        self.focus_in(&each, note, frames, None)
+        self.focus_in(&each, note, frames, None, None)
     }
 
     /// `focus_marked` for pictures drawn on `source` (a mark's or a cut's photo): `f12` then
-    /// names that photo, unmarked, to a command that takes one.
+    /// names that photo, unmarked, to a command that takes one. `about` is the place they show
+    /// (see `focus_noted_about`).
     pub fn focus_drawn(
         &mut self,
         files: &[std::path::PathBuf],
         note: Option<&str>,
         frames: &[Value],
         source: &std::path::Path,
+        about: Option<i64>,
     ) -> Result<Value> {
         let each: Vec<(std::path::PathBuf, Option<String>)> =
             files.iter().map(|f| (f.clone(), None)).collect();
-        self.focus_in(&each, note, frames, Some(source))
+        self.focus_in(&each, note, frames, Some(source), about)
     }
 
     /// `focus_file` with a note of its own on each picture that has one (`ev focus --file
@@ -906,7 +911,31 @@ impl Inventory {
         files: &[(std::path::PathBuf, Option<String>)],
         note: Option<&str>,
     ) -> Result<Value> {
-        self.focus_in(files, note, &[], None)
+        self.focus_in(files, note, &[], None, None)
+    }
+
+    /// `focus_noted` for pictures about the place `about` (a thing stands for the place it is
+    /// in). The first picture about a place sets what the series is about; one about another
+    /// place joins it all the same, and the answer's `series_about` says so, for the agent to
+    /// ask the person whether to close the series first (spec/series-batches.md).
+    pub fn focus_noted_about(
+        &mut self,
+        files: &[(std::path::PathBuf, Option<String>)],
+        note: Option<&str>,
+        about: Option<i64>,
+    ) -> Result<Value> {
+        self.focus_in(files, note, &[], None, about)
+    }
+
+    /// What a series picture is about, as the focus request keeps it: the place `id` is, or
+    /// the place a thing is in.
+    fn about_of(&self, id: i64) -> Result<Value> {
+        let mut node = self.node(id)?;
+        if let (crate::model::Kind::Item, Some(p)) = (&node.kind, node.parent_id) {
+            node = self.node(p)?;
+        }
+        let label = node.code.clone().unwrap_or_else(|| node.name.clone());
+        Ok(json!({ "id": node.id, "label": label }))
     }
 
     /// The photo `f12` names: the series' twelfth picture, as the photo it was drawn on (see
@@ -950,6 +979,7 @@ impl Inventory {
         req["notes"] = json!(series.iter().map(|m| &m.note).collect::<Vec<_>>());
         req["sources"] = json!(series.iter().map(|m| &m.source).collect::<Vec<_>>());
         req["frames"] = json!(series.iter().map(|m| &m.frames).collect::<Vec<_>>());
+        req["abouts"] = json!(series.iter().map(|m| &m.about).collect::<Vec<_>>());
         req["show"] = json!(n - 1);
         req["at"] = json!(at);
         // A node asked for before leaves its id here; the picture is what is shown now.
@@ -970,6 +1000,7 @@ impl Inventory {
         note: Option<&str>,
         frames: &[Value],
         source: Option<&std::path::Path>,
+        about: Option<i64>,
     ) -> Result<Value> {
         if files.is_empty() {
             return Err(usage("plan_names_no_picture", Value::Null));
@@ -988,6 +1019,17 @@ impl Inventory {
         let req = self.focus_request()?;
         let at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         let mut series = series_of(&req);
+        // The series is about the place its first picture naming one is about, until it is
+        // closed; a picture about another place joins it and says so (spec/series-batches.md).
+        let about = about.map(|id| self.about_of(id)).transpose()?;
+        let kept = Some(&req["about"])
+            .filter(|a| a.is_object() && !series.is_empty())
+            .cloned();
+        let crossed = match (&kept, &about) {
+            (Some(k), Some(a)) if k["id"] != a["id"] => Some(json!({ "about": k, "now": a })),
+            _ => None,
+        };
+        let series_about = kept.or_else(|| about.clone());
         // Only a picture sent before is replaced, and once: a cut's preview and its numbered
         // copy are two pictures of the same photo.
         let mut taken = vec![false; series.len()];
@@ -1003,6 +1045,7 @@ impl Inventory {
                 note: json!(own),
                 frames: frames.to_vec(),
                 source: source.clone().unwrap_or_else(|| p.clone()),
+                about: json!(about),
             };
             // The same photo: a copy of it, or a picture drawn on it (a series picture marked
             // again is marked in place, though its marked copy lives in another folder).
@@ -1024,7 +1067,17 @@ impl Inventory {
                     } else {
                         entry.note
                     };
-                    series[i] = Marked { note, ..entry };
+                    // Sent again about no place, it stays about the one it was.
+                    let about = if entry.about.is_null() {
+                        series[i].about.clone()
+                    } else {
+                        entry.about.clone()
+                    };
+                    series[i] = Marked {
+                        note,
+                        about,
+                        ..entry
+                    };
                     i
                 }
                 None => {
@@ -1052,17 +1105,25 @@ impl Inventory {
             "files": series.iter().map(|m| m.file.clone()).collect::<Vec<_>>(),
             "notes": series.iter().map(|m| m.note.clone()).collect::<Vec<_>>(),
             "sources": series.iter().map(|m| m.source.clone()).collect::<Vec<_>>(),
+            "abouts": series.iter().map(|m| m.about.clone()).collect::<Vec<_>>(),
             "frames": series.into_iter().map(|m| m.frames).collect::<Vec<_>>(),
             "show": show, "note": note, "next": next, "since": since, "at": at,
         });
         if next.is_none() {
             sent.as_object_mut().map(|o| o.remove("next"));
         }
+        if let Some(a) = &series_about {
+            sent["about"] = a.clone();
+        }
         self.send_focus(&sent)?;
         let files: Vec<&String> = paths.iter().map(|(p, _)| p).collect();
-        Ok(json!({ "focus": {
+        let mut focus = json!({
             "files": files, "f": fs, "note": shown_note, "series": count, "next": next, "at": at,
-        } }))
+        });
+        if let Some(c) = crossed {
+            focus["series_about"] = c;
+        }
+        Ok(json!({ "focus": focus }))
     }
 
     /// The numbers `count` frames of a picture of `file` take in the series, so every number on
@@ -1158,12 +1219,19 @@ impl Inventory {
                 if m.source != m.file {
                     p["source"] = json!(m.source);
                 }
+                if !m.about.is_null() {
+                    p["about"] = m.about;
+                }
                 p
             })
             .collect();
-        Ok(json!({ "series": {
+        let mut series = json!({
             "since": req["since"], "next": req["next"].as_u64().unwrap_or(1), "pictures": pictures,
-        } }))
+        });
+        if req["about"].is_object() {
+            series["about"] = req["about"].clone();
+        }
+        Ok(json!({ "series": series }))
     }
 
     /// Writes a focus request beside the database (`ev.db-focus.json`), never into it: it is a

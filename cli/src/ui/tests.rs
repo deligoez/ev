@@ -2052,3 +2052,33 @@ fn nine_lists_every_purchase_line_with_an_order_under_its_heading_and_the_totals
     term.draw(|f| app.draw(f)).unwrap();
     assert!(screen(&term).contains("Purchase #"));
 }
+
+#[test]
+fn f_and_slash_filter_a_purchase_list_and_one_esc_clears_both() {
+    let (_dir, mut app) = with_purchases();
+    press(&mut app, KeyCode::Char('9'));
+    let lines = |app: &App| app.rows.iter().filter(|r| r.id > 0).count();
+    // `f`: the lines still open (a digital line has nothing to link), then those linked.
+    press(&mut app, KeyCode::Char('f'));
+    assert_eq!(lines(&app), 1);
+    assert!(app.purchase_title.contains("open"));
+    press(&mut app, KeyCode::Char('f'));
+    assert_eq!(lines(&app), 1);
+    assert!(app.purchase_title.contains("linked"));
+    press(&mut app, KeyCode::Char('f'));
+    press(&mut app, KeyCode::Char('f'));
+    // `/`: the list follows the words as they are typed, the global search is untouched.
+    press(&mut app, KeyCode::Char('/'));
+    type_in(&mut app, "buz");
+    assert_eq!(lines(&app), 1);
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Buys && app.query.is_empty());
+    press(&mut app, KeyCode::Char('f'));
+    assert_eq!(lines(&app), 1);
+    // One Esc clears both filters; the next goes back.
+    press(&mut app, KeyCode::Esc);
+    assert_eq!(lines(&app), 3);
+    assert!(app.tab == Tab::Buys);
+    press(&mut app, KeyCode::Esc);
+    assert!(app.tab == Tab::Tree && !app.quit);
+}

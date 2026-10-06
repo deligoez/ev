@@ -232,6 +232,79 @@ pub(crate) fn join_same(conn: &Connection) -> Result<i64> {
     Ok(joined)
 }
 
+/// Sources that relay purchases another source may have read already: ak, the household's money
+/// tool (spec/ak.md). Their lines are joined by order number too.
+const RELAYS: [&str; 1] = ["ak"];
+
+/// Joins a relayed line to the line another source already has of the same order: the order
+/// number exactly (six characters or more); of several lines of that order, the one paid the
+/// same when exactly one is, else the one whose name clearly shares most words. A relayed line
+/// linked to a thing or dismissed is left as it is. Returns how many were joined, and the lines
+/// whose order has other lines but none could be told: `{id, key, order, candidates}`.
+pub(crate) fn join_relayed(conn: &Connection) -> Result<(i64, Vec<serde_json::Value>)> {
+    let mut stmt = conn.prepare(
+        "SELECT id, source, source_key, order_no, paid FROM purchases p
+          WHERE source IN (SELECT value FROM json_each(?1)) AND same_as IS NULL
+            AND dismissed IS NULL AND length(order_no) >= 6
+            AND NOT EXISTS (SELECT 1 FROM purchase_links l WHERE l.purchase_id = p.id)
+            AND NOT EXISTS (SELECT 1 FROM purchases o WHERE o.same_as = p.id)
+          ORDER BY id",
+    )?;
+    let relays = serde_json::json!(RELAYS).to_string();
+    let lines = stmt
+        .query_map([&relays], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, Option<i64>>(4)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let (mut joined, mut unjoined) = (0, Vec::new());
+    for (id, source, key, order, paid) in lines {
+        let among = ids(
+            conn,
+            "SELECT id FROM purchases
+              WHERE source != ?1 AND same_as IS NULL AND order_no = ?2
+              ORDER BY id",
+            params![source, order],
+        )?;
+        let same_paid = match paid {
+            Some(p) => ids(
+                conn,
+                "SELECT id FROM purchases
+                  WHERE source != ?1 AND same_as IS NULL AND order_no = ?2 AND paid = ?3
+                  ORDER BY id",
+                params![source, order, p],
+            )?,
+            None => Vec::new(),
+        };
+        let target = match among.as_slice() {
+            [] => continue,
+            [one] => Some(*one),
+            _ => match same_paid.as_slice() {
+                [one] => Some(*one),
+                _ => by_name(conn, id, &among)?,
+            },
+        };
+        match target {
+            Some(t) => {
+                conn.execute(
+                    "UPDATE purchases SET same_as = ?1 WHERE id = ?2",
+                    params![t, id],
+                )?;
+                joined += 1;
+            }
+            None => unjoined.push(serde_json::json!({
+                "id": id, "key": key, "order": order, "candidates": among,
+            })),
+        }
+    }
+    Ok((joined, unjoined))
+}
+
 fn words(s: &str) -> std::collections::HashSet<String> {
     crate::fold(s)
         .split(|c: char| !c.is_alphanumeric())

@@ -694,7 +694,8 @@ impl Inventory {
                 }
             }
         }
-        let joined = crate::attachments::join_same(&tx)?;
+        let (relayed, unjoined) = crate::attachments::join_relayed(&tx)?;
+        let joined = crate::attachments::join_same(&tx)? + relayed;
         tx.commit()?;
         let mut v = json!({
             "imported": {
@@ -711,6 +712,10 @@ impl Inventory {
         });
         if !unknown.is_empty() {
             v["imported"]["unknown_fields"] = json!(unknown);
+        }
+        // Relayed lines of an order ev has several lines of, none of them told: for the person.
+        if !unjoined.is_empty() {
+            v["imported"]["unjoined"] = json!(unjoined);
         }
         Ok(v)
     }

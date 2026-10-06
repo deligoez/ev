@@ -399,3 +399,26 @@ fn a_typo_of_a_whole_word_ranks_above_the_start_of_another() {
     let v = inv.find("vdia", None, None, false).unwrap();
     assert_eq!(v["results"][0]["name"], "Vida", "{v}");
 }
+
+#[test]
+fn a_holder_set_aside_to_leave_is_suggested_as_no_place() {
+    use ev_core::Disposition;
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Kablo kutusu".into(),
+        kind: "container".into(),
+        parent: Some("Oda".into()),
+        theme: Some("kablo".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    inv.dispose("Kablo kutusu", Disposition::Give).unwrap();
+    let v = inv.suggest("kablo", None).unwrap();
+    let names: Vec<&str> = v["containers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|c| c["name"].as_str())
+        .collect();
+    assert!(!names.contains(&"Kablo kutusu"), "{names:?}");
+}

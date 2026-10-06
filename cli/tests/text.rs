@@ -179,7 +179,7 @@ fn history_says_each_event_in_words_newest_first_under_its_day() {
     );
     let changed = s.find("  changed  note: — → bir / iki\n").expect(&s);
     let added = s.find("  added here  #7 Aktif buzzer\n").expect(&s);
-    let created = s.find("  created  #3\n").expect(&s);
+    let created = s.find("  created  #3 D Çekmece\n").expect(&s);
     assert!(changed < added && added < created, "{s}");
     assert!(!s.contains('{'), "{s}");
 }

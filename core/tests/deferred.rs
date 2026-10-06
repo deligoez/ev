@@ -70,3 +70,19 @@ fn a_lines_bucket_is_said_by_hand_but_not_for_a_linked_line() {
     inv.buy_link(linked, "Telefon", None).unwrap();
     assert_eq!(inv.buy_bucket(linked, "service").unwrap_err().code(), 5);
 }
+
+#[test]
+fn an_import_that_does_not_say_a_lines_bucket_keeps_the_one_set_by_hand() {
+    let (_d, mut inv) = setup();
+    let line = r#"{"source":"mail","key":"r1","name":"Üyelik","qty":1}"#;
+    inv.buy_import(line).unwrap();
+    let id = inv.buy_list(false, None, None, None).unwrap()["purchases"][0]["id"]
+        .as_i64()
+        .unwrap();
+    inv.buy_bucket(id, "digital").unwrap();
+    inv.buy_import(line).unwrap();
+    assert_eq!(inv.buy_show(id).unwrap()["purchase"]["bucket"], "digital");
+    let said = r#"{"source":"mail","key":"r1","name":"Üyelik","qty":1,"bucket":"service"}"#;
+    inv.buy_import(said).unwrap();
+    assert_eq!(inv.buy_show(id).unwrap()["purchase"]["bucket"], "service");
+}

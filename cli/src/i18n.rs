@@ -537,6 +537,524 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "layout_too_few_units",
         "{ref} içinde kendi başına gezilen {count} yer var; bir yerleşim en az iki yeri karşılaştırır",
     ),
+    (
+        "batch_key_outside_batch",
+        "`@key` başvuruları yalnızca bir toplu girişte çalışır",
+    ),
+    (
+        "batch_key_unknown",
+        "bilinmeyen toplu giriş anahtarı `{key}`",
+    ),
+    (
+        "batch_key_duplicate",
+        "`{key}` toplu giriş anahtarı iki kez verilmiş",
+    ),
+    (
+        "search_text_empty",
+        "arama metni boş; bir metin ver ya da listelemek için --tag / --kind / --empty kullan",
+    ),
+    ("edit_no_lines", "düzenlenecek satır yok"),
+    ("edit_nothing_to_set", "değiştirilecek bir şey yok"),
+    ("split_no_parts", "ayırmak için en az bir <name>=<qty> ver"),
+    ("split_part_needs_name", "ayrılan parçanın bir adı olmalı"),
+    (
+        "split_take_with_qty",
+        "--take asıl kaydın sayısını kendisi belirler; --qty verme",
+    ),
+    (
+        "split_take_needs_counts",
+        "--take için hem asıl kayıtta hem her parçada bir sayı gerekir",
+    ),
+    ("codes_none_given", "en az bir <ref>=<code> ver"),
+    ("node_given_twice", "{node} iki kez verilmiş"),
+    ("code_given_twice", "`{code}` kodu iki kez verilmiş"),
+    ("join_needs_two", "birleştirmek için en az iki kayıt söyle"),
+    (
+        "nothing_to_use_up",
+        "tükenmeyi bekleyen bir şey yok; tükendiğinde `ev gone --as used` ile kaydet",
+    ),
+    (
+        "nothing_set_aside",
+        "{way} için ayrılmış bir şey yok; `ev gone --as {way}` ile kaydet",
+    ),
+    (
+        "mistake_not_set_aside",
+        "yanlış girilmiş bir kayıt kenara ayrılmaz; `ev gone --as mistake --why` ile kapat",
+    ),
+    (
+        "mistake_needs_why",
+        "kaydın neden yanlış olduğunu --why ile söyle",
+    ),
+    ("reference_empty", "başvuru boş"),
+    (
+        "code_series_malformed",
+        "`{code}`: bir seri, bir önek ve ardından tek bir `*` ile yazılır, GF1x1-* gibi",
+    ),
+    ("code_empty", "kod boş"),
+    ("qty_below_one", "adet en az 1 olmalı"),
+    ("fill_out_of_range", "doluluk 0 ile 100 arasında olmalı"),
+    ("tag_empty", "etiket boş"),
+    ("photo_path_empty", "fotoğraf yolu boş"),
+    ("photo_path_invalid", "fotoğraf yolu `{path}`: {error}"),
+    (
+        "past_with_of",
+        "geçmişteki bir şey tek başına eklenir: `gone` ile `of` birlikte olmaz",
+    ),
+    (
+        "leaving_details_without_gone",
+        "--at ve --where bir şeyin nasıl gittiğini söyler: onu --gone ile ekle",
+    ),
+    ("name_empty", "ad boş"),
+    (
+        "leaving_way_unknown",
+        "`{way}` bir gidiş biçimi değil; sell, give, trash, used, trade, return, left, stolen ya da unknown kullan",
+    ),
+    (
+        "past_way_not_allowed",
+        "geçmişteki bir şey {way} olarak eklenmez: nasıl gittiğini söyle (sell, give, trash, used, trade, return, left, stolen ya da unknown)",
+    ),
+    (
+        "past_in_a_place",
+        "geçmişteki bir şey tek başına eklenir: --in, --lost, ev ya da oda olmaz",
+    ),
+    (
+        "past_no_place_fields",
+        "geçmişteki bir şeyin --to, --temporary ya da --code değeri olmaz: artık burada değil",
+    ),
+    (
+        "past_where_is_a_place",
+        "--where bir kaydı değil, bir yeri (eski bir evi) adlandırır",
+    ),
+    (
+        "traded_for_without_trade",
+        "traded_for yalnızca bir takasla verilir: `--gone trade`",
+    ),
+    ("say_where_with_in", "nerede olduklarını --in ile söyle"),
+    (
+        "shred_not_for_way",
+        "--shred çöpe gidenler içindir (trash, digitize), `{way}` için değil",
+    ),
+    (
+        "merged_not_a_way",
+        "`merged` bir gidiş biçimi değil: bir parça başka birine katıldığında bunu ev kendisi koyar",
+    ),
+    (
+        "restore_needs_why",
+        "kaydın neden aslında gitmediğini söyle",
+    ),
+    (
+        "purchase_not_an_amount",
+        "`{amount}` 1234.56 gibi bir tutar değil",
+    ),
+    (
+        "not_a_date",
+        "`{date}` YYYY-MM-DD biçiminde bir tarih değil",
+    ),
+    ("no_purchase_with_id", "{id} numaralı alım yok"),
+    ("field_required", "`{field}` gerekli"),
+    (
+        "purchase_status_unknown",
+        "durum `{status}`; delivered, returned ya da cancelled kullan",
+    ),
+    (
+        "purchase_import_bucket_unknown",
+        "sınıf `{bucket}`; {buckets} kullan (bağdaştırıcının sarf satırları alınmaz)",
+    ),
+    ("line_not_json", "JSON değil: {error}"),
+    (
+        "purchase_line_type_unknown",
+        "bilinmeyen satır türü `{type}`",
+    ),
+    ("date_still_to_come", "`{date}` henüz gelmedi"),
+    (
+        "purchase_consumable_not_recorded",
+        "sarf malzemesi alım olarak kaydedilmez; {buckets} kullan",
+    ),
+    (
+        "purchase_manual_cancelled",
+        "elle girilen bir alım iptal edilemez",
+    ),
+    (
+        "purchase_bucket_unknown",
+        "sınıf `{bucket}`; {buckets} kullan",
+    ),
+    (
+        "purchase_reason_unknown",
+        "`{reason}` bir gerekçe değil; {reasons} kullan",
+    ),
+    ("purchase_pack_below_one", "paket en az 1 olmalı"),
+    (
+        "purchase_pack_too_small",
+        "{id} numaralı alımın {linked} birimi bağlı; {pack}'li paket {units} birim bırakır",
+    ),
+    (
+        "purchase_link_to_place",
+        "#{node} bir yer; alım bir eşyaya bağlanır",
+    ),
+    (
+        "money_currency_unknown",
+        "`{currency}` EUR, USD ya da TRY gibi bir para birimi kodu değil",
+    ),
+    ("money_not_positive", "`{field}` pozitif bir sayı olmalı"),
+    (
+        "money_period_malformed",
+        "dönem `{period}`: YYYY-MM ya da YYYY",
+    ),
+    ("money_day_malformed", "gün `{day}`: YYYY-MM-DD"),
+    (
+        "money_line_type_unknown",
+        "satır türü {type}; index ya da rate kullan",
+    ),
+    ("not_web_address", "`{url}` bir web adresi değil"),
+    (
+        "attachment_link_kind_unknown",
+        "`{kind}` bir bağlantı türü değil",
+    ),
+    (
+        "attachment_coverage_kind_unknown",
+        "`{kind}` bir güvence türü değil",
+    ),
+    ("attachment_unknown", "bilinmeyen ek `{attachment}`"),
+    (
+        "attachment_not_carried",
+        "{id} numaralı alımda {attachments} eki yok; ev buy show {id} hepsini listeler",
+    ),
+    (
+        "attachment_type_unknown",
+        "'{type}' ek türü şunlardan biri değil: {types}",
+    ),
+    ("valuation_not_positive", "değer sıfırdan büyük olmalı"),
+    ("valuation_no_such_id", "{id} numaralı değer yok"),
+    (
+        "link_kind_unknown",
+        "`{kind}` bir bağlantı türü değil; şunlardan birini kullan: {kinds}",
+    ),
+    (
+        "link_archive_neither",
+        "arşiv `{archive}`: ne web adresi ne dosya",
+    ),
+    ("link_archive_unreadable", "{archive}: {error}"),
+    ("link_no_such_id", "{id} numaralı bağlantı yok"),
+    (
+        "doc_kind_unknown",
+        "`{kind}` bir belge türü değil; şunlardan birini kullan: {kinds}",
+    ),
+    (
+        "doc_date_malformed",
+        "`{date}` bir tarih değil; YYYY-MM-DD, YYYY-MM ya da YYYY kullan",
+    ),
+    ("doc_no_such_id", "{id} numaralı belge yok"),
+    ("doc_no_such_file", "{file}: böyle bir dosya yok"),
+    ("doc_file_unreadable", "{file}: {error}"),
+    (
+        "coverage_bad_term",
+        "`{term}` bir süre değil; örneğin 2y, 18m, 6w, 90d ya da lifetime kullan",
+    ),
+    ("coverage_not_found", "{id} numaralı bir güvence yok"),
+    (
+        "coverage_setting_unknown",
+        "`{setting}` bir envanter ayarı değil; şunlardan birini kullan: {settings}",
+    ),
+    (
+        "coverage_setting_bad_value",
+        "`{value}`, {setting} için geçerli bir değer değil",
+    ),
+    (
+        "coverage_covers_nothing",
+        "kapsadığı en az bir eşyayı söyle",
+    ),
+    (
+        "coverage_kind_unknown",
+        "`{kind}` bir güvence türü değil; şunlardan birini kullan: {kinds}",
+    ),
+    (
+        "coverage_bad_after",
+        "`{after}`: after:<güvence id> biçiminde ver",
+    ),
+    (
+        "coverage_needs_term",
+        "bir --term (2y, 18m, lifetime) ya da bir --ends tarihi ver",
+    ),
+    (
+        "coverage_insurance_lifetime",
+        "bir sigortanın süresi biter: lifetime değil, bir --ends tarihi ya da yıl, ay, hafta veya gün olarak bir süre ver",
+    ),
+    (
+        "coverage_track_unknown",
+        "`{subject}` izlenmiyor; value ya da coverage kullan",
+    ),
+    (
+        "coverage_track_decision",
+        "`{decision}` anlaşılmadı; no, later ya da yes kullan",
+    ),
+    ("task_not_found", "{id} numaralı bir görev yok"),
+    (
+        "task_bad_due",
+        "bitiş tarihi YYYY-MM-DD biçiminde olmalı, gelen: `{due}`",
+    ),
+    ("plan_field_empty", "{field} boş"),
+    ("plan_goal_unknown", "hedef şunlardan biri olmalı: {goals}"),
+    ("node_has_no_photo", "#{id} kaydının {n}. fotoğrafı yok"),
+    (
+        "plan_series_has_no",
+        "işaretli fotoğraf dizisinde f{n} yok ({count} resim)",
+    ),
+    ("plan_names_no_picture", "en az bir resim söyle"),
+    ("no_such_file", "{file} diye bir dosya yok"),
+    ("plan_no_observation", "{id} numaralı bir gözlem yok"),
+    (
+        "review_thing_not_place",
+        "#{id} bir yer değil, bir eşya; içinde durduğu yeri gözden geçir",
+    ),
+    (
+        "review_status_unknown",
+        "gözden geçirme durumu counting, toured, kept ya da raw olmalı",
+    ),
+    (
+        "progress_thing_not_place",
+        "#{id} bir yer değil, bir eşya: içinde durduğu mobilyayı ya da odayı ver",
+    ),
+    (
+        "task_status_unknown",
+        "durum şunlardan biri olmalı: {states}",
+    ),
+    (
+        "mark_bad_use_by",
+        "`{date}` YYYY-MM-DD ya da YYYY-MM biçiminde değil",
+    ),
+    ("need_not_found", "{id} numaralı bir ihtiyaç yok"),
+    ("mark_empty_names_none", "boş olan kutuları söyle"),
+    (
+        "mark_condition_unknown",
+        "`{condition}` bir durum değil; şunlardan birini kullan: {conditions}",
+    ),
+    (
+        "mark_sale_state_unknown",
+        "`{state}` bir satış durumu değil; listed ya da reserved kullan",
+    ),
+    ("need_text_empty", "ihtiyacın metni boş"),
+    (
+        "kit_not_found",
+        "`{kit}` diye bir set yok; `ev kit list` setleri gösterir",
+    ),
+    ("kit_part_needs_name", "setin bir parçasının adı olmalı"),
+    (
+        "kit_part_qty_too_small",
+        "`{part}`: bir parça en az bir kez gelir",
+    ),
+    (
+        "kit_part_missing",
+        "{n}. parça yok; sette {count} parça var (`ev kit show` hepsini listeler)",
+    ),
+    (
+        "kit_part_missing_numbered",
+        "{n}. parça yok; sette {last} numarasına kadar numaralanmış {count} parça var (`ev kit show` hepsini listeler)",
+    ),
+    ("kit_needs_name", "bir setin adı olmalı"),
+    ("kit_copies_too_few", "bir set en az bir kez alınır"),
+    ("kit_needs_parts", "en az bir parça ver"),
+    ("kit_link_needs_records", "bu parça olan kayıtları ver"),
+    ("portion_qty_too_small", "--qty en az 1 olmalı"),
+    (
+        "sketch_points_bad",
+        "--points santimetre cinsinden üç ya da daha çok köşedir, örneğin `0,0 400,0 400,300`; gelen: `{points}`",
+    ),
+    (
+        "sketch_pair_bad",
+        "{what} santimetre cinsinden iki sayıdır, örneğin 120,40; gelen: `{value}`",
+    ),
+    (
+        "sketch_nothing_given",
+        "--size w,d, --at x,y, --points, --on <ref>, --right-of/--left-of/--above/--below <ref> ya da --clear ver",
+    ),
+    ("sketch_clear_alone", "--clear yanına başka bir şey almaz"),
+    (
+        "sketch_place_once",
+        "yer bir kez verilir: --at, --points ya da başka bir şeyin yanı",
+    ),
+    (
+        "sketch_outline_too_few",
+        "dış çizgi üç ya da daha çok köşedir",
+    ),
+    (
+        "sketch_outline_or_size",
+        "dış çizginin kendi boyutu var; ya --points ya --size ver",
+    ),
+    (
+        "sketch_size_bad",
+        "boyut santimetre cinsinden iki pozitif sayıdır",
+    ),
+    (
+        "sketch_size_has_outline",
+        "boyutunu dış çizgisi veriyor; bunun yerine yeni --points ver",
+    ),
+    ("sketch_at_bad", "yer santimetre cinsinden iki sayıdır"),
+    (
+        "sketch_offset_alone",
+        "--offset, --right-of, --left-of, --above ya da --below ile birlikte verilir",
+    ),
+    (
+        "map_no_home",
+        "henüz ev yok; `ev add <name> --kind home` ile bir tane ekle",
+    ),
+    ("map_place_gone", "#{id} artık burada değil"),
+    (
+        "past_date_bad",
+        "`{date}` bir tarih değil: bir yıl (2016), bir ay (2016-06) ya da bir gün (2016-06-14) ver",
+    ),
+    (
+        "past_came_after_left",
+        "{came} tarihinde gelmiş ama {left} tarihinde gitmiş; tarihlerden biri yanlış",
+    ),
+    (
+        "past_where_not_place",
+        "--where bir yeri (eski bir evi) adıyla söyler, bir kaydı ya da id'yi değil",
+    ),
+    (
+        "past_sale_price_zero",
+        "satış sıfırdan fazlasını getirmiş olmalı",
+    ),
+    ("trade_for_itself", "bir şey kendisiyle takas edilmez"),
+    (
+        "trade_for_place",
+        "#{other} bir yer; bir şey ancak bir şeyle takas edilir",
+    ),
+    (
+        "trade_other_left_before",
+        "#{other} takastan ({left}) önce, {other_left} tarihinde gitmiş; takasta gelmiş olamaz",
+    ),
+    (
+        "trade_other_came_before",
+        "#{other} takastan ({left}) önce, {came} tarihinde gelmiş; zaten bizimdi",
+    ),
+    (
+        "trade_other_came_years_after",
+        "#{other} takastan ({left}) yıllar sonra, {came} tarihinde gelmiş; tarihlerden biri yanlış",
+    ),
+    ("past_year_bad", "`{year}` geriye bakılacak bir yıl değil"),
+    (
+        "photo_not_an_image",
+        "{file} ev'in okuyabildiği bir resim değil (JPEG ya da PNG fotoğraf)",
+    ),
+    (
+        "photo_cut_nothing",
+        "en az bir <ref>=x,y,w,h ya da --place <ref> ver",
+    ),
+    (
+        "photo_grid_needs_place",
+        "--grid, --place ızgarasındaki kutuları okur; --place de ver",
+    ),
+    (
+        "photo_preview_nothing",
+        "önizlenecek bir şey yok: <ref>=x,y,w,h ya da --grid ile --place ver",
+    ),
+    (
+        "photo_mark_nothing",
+        "en az bir <label>=x,y,w,h ya da <label>=<cell> ver",
+    ),
+    (
+        "photo_mark_cell_on_file",
+        "`{spec}` bir hücre: bir dosyayı değil, ızgarası olan bir yeri (koduyla) işaretle",
+    ),
+    (
+        "photo_number_missing",
+        "{n}. fotoğraf yok; {count} fotoğrafı var",
+    ),
+    (
+        "photo_crop_not_numbers",
+        "kırpma `{crop}` dört sayı (x,y,w,h) değil",
+    ),
+    (
+        "photo_crop_not_four",
+        "kırpma `{crop}` tam dört sayı (x,y,w,h) ister",
+    ),
+    (
+        "photo_crop_outside",
+        "kırpma `{crop}` fotoğrafın içinde kalmalı: 0–1 arası kesirler, x+w ≤ 1 ve y+h ≤ 1",
+    ),
+    (
+        "photo_turn_bad",
+        "fotoğrafı saat yönünde 90, 180 ya da 270 derece döndür, {degrees} değil",
+    ),
+    (
+        "edit_size_bad",
+        "boyut WxDxH ya da WxD biçimindedir, örneğin 1x2x0.5; gelen: `{size}`",
+    ),
+    (
+        "edit_not_integer",
+        "{field} tam sayı olmalı, gelen: `{value}`",
+    ),
+    (
+        "edit_not_assignment",
+        "`{assignment}` alan=değer biçiminde değil",
+    ),
+    ("edit_name_empty", "ad boş olamaz"),
+    ("edit_note_add_empty", "note=+ eklenecek metni ister"),
+    (
+        "edit_not_boolean",
+        "{field} true ya da false alır, gelen: `{value}`",
+    ),
+    (
+        "edit_left_in_not_place",
+        "left_in bir yeri (eski bir evi) adıyla söyler, bir kaydı ya da id'yi değil",
+    ),
+    (
+        "edit_field_unknown",
+        "bilinmeyen ya da salt okunur alan `{field}`; değiştirilebilenler: name, code, kind, address, qty, note, theme, fill, size, tags, photos, to, owner, with, temporary, waits_for, make, model, serial, came, gitmiş bir kayıtta da left ve left_in (bir yerin ne kadar sayıldığı `ev review` ile değişir)",
+    ),
+    (
+        "edit_not_plus_minus",
+        "{field} +değer ya da -değer alır, gelen: `{value}`",
+    ),
+    ("cell_bad", "`{cell}` A3 gibi bir hücre değil"),
+    (
+        "grid_corners_bad",
+        "ızgara köşeleri `{corners}` 0–1 arası sekiz kesirdir: arka-sol x,y, arka-sağ x,y, ön-sağ x,y, ön-sol x,y",
+    ),
+    (
+        "grid_size_bad",
+        "ızgara 1–{max_cols} sütun ve 1–{max_rows} satırdır",
+    ),
+    (
+        "grid_face_bad",
+        "ızgaraya üstten (`above`) ya da önden (`front`) bakılır; gelen: `{face}`",
+    ),
+    ("cell_nothing_given", "en az bir <ref>=<cells> ver"),
+    ("cell_ref_twice", "`{ref}` iki kez verilmiş"),
+    (
+        "placement_no_live_node",
+        "{ref} diye evde duran bir kayıt yok",
+    ),
+    (
+        "placement_nothing_described",
+        "yerleştirilecek şeyi anlat (3+ harfli bir kelime ya da parça kodu) ya da --for ver",
+    ),
+    ("placement_no_holder_to_stay", "içinde kalacağı bir kap yok"),
+    (
+        "vocab_facet_name_bad",
+        "türün adında aranabilir bir kelime (3+ harf) olmalı",
+    ),
+    ("vocab_no_facet", "{name} diye bir tür yok"),
+    (
+        "vocab_synonyms_too_few",
+        "virgülle ayrılmış iki ya da daha çok kelime veya söz öbeği ver, her birinde aranabilir bir kelime olsun",
+    ),
+    (
+        "vocab_no_synonym_group",
+        "{id} numaralı bir eşanlamlı grubu yok",
+    ),
+    ("place_name_empty", "yer adı boş"),
+    (
+        "place_no_such",
+        "`{name}` adında bir yer yok; `ev place list` hepsini gösterir",
+    ),
+    ("audit_rule_empty", "kural metni boş"),
+    ("audit_no_rule", "{id} numaralı bir kural yok"),
+    ("label_required", "{what} gerekli"),
+    (
+        "label_unknown",
+        "bilinmeyen {what} `{value}`; şunlardan biri olmalı: {choices}",
+    ),
 ];
 
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.

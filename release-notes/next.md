@@ -17,6 +17,9 @@ details, whose tabs are now the only tab strip on screen (spec/ui-sidebar.md).
   and `/` to lines with the words typed, live. The details are the line as `ev buy show`
   writes it, and Enter opens the thing it is linked to in the tree. Until now the purchases
   were only reachable from the command line.
+- A figure on the Statistics list that counts a list is marked `›`, and `Enter` opens that
+  list: a year's or a shop's purchase lines (the list's title says which), the To do list from
+  the counting, the past from what left. `Esc` comes straight back to the figure.
 - `Tab` moves between the panes, and the one the keys go to has a coloured border. In the
   sidebar the arrows open each list as they pass it; in the details `j`/`k` scroll and `h`/`l`
   step the tabs.

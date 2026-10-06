@@ -822,10 +822,7 @@ fn a_gone_node_keeps_its_reason_and_takes_a_note_by_id_only() {
         code_of(&inv.edit("Flipper Zero", &["note=x".into()]).unwrap_err()),
         3
     );
-    assert_eq!(
-        code_of(&inv.edit(&id, &["tags=+other".into()]).unwrap_err()),
-        5
-    );
+    assert_eq!(code_of(&inv.edit(&id, &["fill=50".into()]).unwrap_err()), 5);
     let v = inv.edit(&id, &["note=probably thrown out".into()]).unwrap();
     assert_eq!(v["changed"]["note"]["after"], "probably thrown out");
     assert_eq!(v["node"]["state"], "gone");

@@ -383,10 +383,7 @@ fn a_past_thing_is_completed_as_remembered_but_never_placed() {
     assert_eq!(v["node"]["qty"], 10);
     assert_eq!(v["node"]["model"], "XPS 30");
     // Where it stands describes a thing no longer here.
-    assert_eq!(
-        inv.edit(&r, &["tags=+yalıtım".into()]).unwrap_err().code(),
-        5
-    );
+    assert_eq!(inv.edit(&r, &["fill=50".into()]).unwrap_err().code(), 5);
 }
 
 #[test]

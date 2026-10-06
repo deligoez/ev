@@ -364,3 +364,37 @@ fn a_count_sent_as_text_is_read_and_one_that_is_no_count_is_refused() {
     assert_eq!(e.id(), Some("purchase_qty_not_a_count"));
     assert_eq!(qty(&inv), 3);
 }
+
+/// Two lines as `ak export --for ev` writes them (spec/ak.md): an item of a receipt and a whole
+/// order, keys sorted, no field without a value.
+const AK_EXPORT: &str = r#"{"billed_to":"Kart","bucket":"durable","category":"home","currency":"TRY","key":"1.2","name":"Tencere","ordered_at":"2026-10-01","paid":"1190.00","qty":"2","raw":"ak:1.2","shop":"Örnek Market","source":"ak","status":"delivered"}
+{"billed_to":"Kart","bucket":"durable","currency":"TRY","key":"2","name":"Bulaşık makinesi","order":"A-100","ordered_at":"2026-09-20","paid":"19999.00","raw":"ak:2","shop":"Örnek Elektronik","source":"ak","status":"delivered"}"#;
+
+#[test]
+fn aks_export_imports_as_it_is_written_and_again_changes_nothing() {
+    let (_d, mut inv) = setup();
+    let v = inv.buy_import(AK_EXPORT).unwrap();
+    assert_eq!(v["imported"]["new"], 2, "{v}");
+    assert!(v["imported"]["unknown_fields"].is_null(), "{v}");
+    let line = |key: &str| {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            source: Some("ak"),
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]
+            .clone()
+    };
+    let pot = line("1.2");
+    assert_eq!(pot["name"], "Tencere");
+    assert_eq!(pot["qty"], 2);
+    assert_eq!(pot["shop"], "Örnek Market");
+    assert_eq!(pot["billed_to"], "Kart");
+    assert_eq!(pot["ordered_at"], "2026-10-01");
+    let washer = line("2");
+    assert_eq!(washer["order_no"], "A-100");
+    assert_eq!(washer["qty"], 1);
+    assert_eq!(washer["bucket"], "durable");
+    let again = inv.buy_import(AK_EXPORT).unwrap();
+    assert_eq!(again["imported"]["unchanged"], 2, "{again}");
+}

@@ -1974,3 +1974,23 @@ fn colon_finds_a_thing_by_name_or_id_and_opens_it_in_the_tree() {
     press(&mut app, KeyCode::Esc);
     assert!(app.palette.is_none() && app.tab == Tab::Pending);
 }
+
+#[test]
+fn a_record_that_leaves_the_list_hands_the_selection_to_its_neighbour_and_says_so() {
+    let (dir, mut inv) = led_drawer();
+    inv.move_to("Aktif buzzer", "D-A1", true).unwrap();
+    inv.move_to("Pasif buzzer", "D-A1", true).unwrap();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    press(&mut app, KeyCode::Char('3'));
+    press(&mut app, KeyCode::End);
+    let last = app.selected_id().unwrap();
+    // The agent makes that move from its own connection.
+    let mut agent = Inventory::open(&dir.path().join("ev.db")).unwrap();
+    agent.done(&format!("#{last}")).unwrap();
+    app.refresh_if_changed().unwrap();
+    assert!(app.tab == Tab::Pending);
+    assert_eq!(app.rows.len(), 1);
+    assert_eq!(app.state.selected(), Some(0));
+    assert_eq!(app.status, format!("#{last} left this list"));
+    assert_eq!(app.counts[&Tab::Pending], 1);
+}

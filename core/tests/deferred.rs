@@ -298,3 +298,14 @@ fn purchase_stats_count_only_the_households_own_spending() {
         .unwrap();
     assert_eq!(digital["lines"], 2, "{digital}");
 }
+
+#[test]
+fn a_lost_thing_found_elsewhere_is_recorded_as_found_there() {
+    let (_d, mut inv) = setup();
+    inv.mark_lost("Telefon").unwrap();
+    inv.found_in("Telefon", "Kutu").unwrap();
+    let h = inv.history("Telefon").unwrap();
+    let last = h["events"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["type"], "found", "{h}");
+    assert_eq!(h["names"][format!("#{}", last["data"]["to"])], "Kutu", "{h}");
+}

@@ -78,7 +78,7 @@ same order number. So an ak line is joined on import to the line ev already has 
 (`same_as`, as two sources' lines of one purchase always were): it counts as settled, the shop's
 line stays the one linked to the thing, and ak's key still finds it, the row naming the line it
 joins and what that is linked to (`joined_to`). An order of several lines is told by the price,
-then by the name; one that cannot be told is listed under `unjoined` in the import's result, and
+then by the name near that price, each shop line taking one ak line; one that cannot be told is listed under `unjoined` in the import's result, and
 `ev buy join <line> <other>` joins it on the person's word.
 
 ## Faster

@@ -886,7 +886,19 @@ impl Inventory {
     ) -> Result<Value> {
         let tx = self.conn.transaction()?;
         purchase_json(&tx, id)?;
-        let node = resolve(&tx, reference, false)?;
+        // A past thing's lines are declined as its others are (spec/past-belongings.md).
+        let node = resolve(&tx, reference, true)?;
+        let linked: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM purchase_links WHERE purchase_id = ?1 AND node_id = ?2)",
+            params![id, node],
+            |r| r.get(0),
+        )?;
+        if linked && !clear {
+            return Err(crate::error::refused(
+                format!("line {id} is linked to #{node}; `ev buy unlink {id} {node}` first"),
+                Value::Null,
+            ));
+        }
         if clear {
             if tx.execute(
                 "DELETE FROM purchase_declines WHERE purchase_id = ?1 AND node_id = ?2",

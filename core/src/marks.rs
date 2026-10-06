@@ -136,7 +136,7 @@ fn parse_date(s: &str) -> Result<NaiveDate> {
 }
 
 fn today() -> NaiveDate {
-    chrono::Utc::now().date_naive()
+    crate::store::today()
 }
 
 fn need_json(conn: &Connection, id: i64) -> Result<Value> {

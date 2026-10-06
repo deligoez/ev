@@ -275,7 +275,7 @@ impl Inventory {
             } else {
                 day(&format!("{p}-12-01"))
             };
-            first.is_none_or(|f| (chrono::Utc::now().date_naive() - f).num_days() > STALE_DAYS)
+            first.is_none_or(|f| (crate::store::today() - f).num_days() > STALE_DAYS)
         });
         Ok(json!({
             "money": {

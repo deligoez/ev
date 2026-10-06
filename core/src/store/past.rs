@@ -110,7 +110,7 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
         Some(a) => Some(a),
         None => conn.query_row(
             &format!(
-                "SELECT substr(MAX(at), 1, 10) FROM events
+                "SELECT date(MAX(at), 'localtime') FROM events
                   WHERE node_id = ?1 AND type = 'gone' AND {NOT_RECALLED}"
             ),
             [node],
@@ -291,7 +291,7 @@ const NOT_RECALLED: &str = "COALESCE(json_extract(data, '$.past'), 0) = 0";
 
 /// When a gone record left: as said, else the day it was recorded gone; NULL for a past thing
 /// recorded already gone with no date said.
-const LEFT: &str = "COALESCE(d.at, (SELECT substr(MAX(e.at), 1, 10) FROM events e
+const LEFT: &str = "COALESCE(d.at, (SELECT date(MAX(e.at), 'localtime') FROM events e
        WHERE e.node_id = n.id AND e.type = 'gone'
          AND COALESCE(json_extract(e.data, '$.past'), 0) = 0))";
 

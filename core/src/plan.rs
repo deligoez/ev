@@ -634,7 +634,7 @@ fn parse_due(due: Option<&str>) -> Result<Option<String>> {
 fn days_left(due: &str) -> Option<i64> {
     chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d")
         .ok()
-        .map(|d| (d - chrono::Utc::now().date_naive()).num_days())
+        .map(|d| (d - crate::store::today()).num_days())
 }
 
 /// The counts of `progress` without its list of places, as `next` and `todo` show them.

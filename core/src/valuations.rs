@@ -79,7 +79,7 @@ pub(crate) fn add_valuation(conn: &Connection, node: i64, new: &NewValuation) ->
     };
     let at = match text(&new.at) {
         Some(d) => crate::purchases::date(&Some(d))?.unwrap_or_default(),
-        None => chrono::Utc::now().date_naive().to_string(),
+        None => crate::store::today().to_string(),
     };
     conn.execute(
         "INSERT INTO valuations (node_id, amount, currency, at, approximate, source, note, added_at)

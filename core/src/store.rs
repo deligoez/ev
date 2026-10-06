@@ -2008,6 +2008,13 @@ pub(crate) fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
+/// Today where the person is: what "today" means to them. Moments are kept in UTC (`now`), but
+/// a day said or shown is the local one, or anything done between midnight and the UTC offset
+/// lands on the day before.
+pub(crate) fn today() -> chrono::NaiveDate {
+    chrono::Local::now().date_naive()
+}
+
 pub(crate) fn touch(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE nodes SET updated_at = ?1 WHERE id = ?2",

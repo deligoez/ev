@@ -461,7 +461,7 @@ fn activity_section(conn: &Connection) -> Result<Value> {
     }
     let busiest: Option<(String, i64)> = conn
         .query_row(
-            "SELECT substr(at, 1, 10), COUNT(*) FROM events WHERE at >= ?1
+            "SELECT date(at, 'localtime'), COUNT(*) FROM events WHERE at >= ?1
               GROUP BY 1 ORDER BY 2 DESC, 1 DESC LIMIT 1",
             [&since],
             |r| Ok((r.get(0)?, r.get(1)?)),

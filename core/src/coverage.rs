@@ -227,7 +227,7 @@ fn span(
 }
 
 pub(crate) fn coverage_json(conn: &Connection, id: i64, warning: i64) -> Result<Value> {
-    let today = chrono::Utc::now().date_naive();
+    let today = crate::store::today();
     let mut v = conn.query_row(
         "SELECT kind, issuer, number, starts, start_date, after_id, term_n, term_unit, usage,
                 ends_on, premium, deductible, currency, scope, note, created_at
@@ -406,7 +406,7 @@ fn statutory_proposal(conn: &Connection, node: i64) -> Result<Option<Value>> {
     let Some(s) = start else {
         return Ok(None);
     };
-    let today = chrono::Utc::now().date_naive();
+    let today = crate::store::today();
     let end = add_term(s, STATUTORY_YEARS.into(), "year");
     let repair = repair_days(conn, node, s, today)?;
     if end

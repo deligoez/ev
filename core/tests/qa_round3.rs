@@ -186,3 +186,14 @@ fn a_thing_that_left_is_offered_no_line_bought_after_it_left() {
     assert!(offered.contains(&earlier), "{offered:?}");
     assert!(!offered.contains(&later), "{offered:?}");
 }
+
+#[test]
+fn a_link_of_no_units_or_of_a_service_says_so() {
+    let (_d, mut inv) = setup();
+    let durable = line(&mut inv, "Telefon", "2024-05-01", "durable");
+    let zero = inv.buy_link(durable, "Telefon", Some(0)).unwrap_err();
+    assert!(zero.to_string().contains("at least 1"), "{zero}");
+    let service = line(&mut inv, "Kurulum", "2024-05-01", "service");
+    let never = inv.buy_link(service, "Telefon", None).unwrap_err();
+    assert!(never.to_string().contains("service"), "{never}");
+}

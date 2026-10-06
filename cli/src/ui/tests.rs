@@ -1911,3 +1911,35 @@ fn b_hides_the_sidebar_and_ui_state_keeps_the_choice() {
     app.apply_layout(&serde_json::json!({"sidebar": false}));
     assert_eq!(app.sidebar, Some(false));
 }
+
+fn type_in(app: &mut App, text: &str) {
+    for c in text.chars() {
+        press(app, KeyCode::Char(c));
+    }
+}
+
+#[test]
+fn colon_finds_a_list_without_turkish_letters_and_esc_comes_back() {
+    let (_dir, mut inv) = led_drawer();
+    inv.mark_lost("Aktif buzzer").unwrap();
+    let mut app = app_tr(inv);
+    let mut term = Terminal::new(TestBackend::new(140, 24)).unwrap();
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, "kayip");
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    assert!(s.contains(": kayip") && s.contains("EVDE › Kayıp"), "{s}");
+    press(&mut app, KeyCode::Enter);
+    assert!(app.tab == Tab::Lost && app.palette.is_none());
+    term.draw(|f| app.draw(f)).unwrap();
+    // The top line says where Esc goes.
+    assert!(
+        screen(&term)
+            .lines()
+            .next()
+            .unwrap()
+            .contains("Esc ‹ Yerleşim")
+    );
+    press(&mut app, KeyCode::Esc);
+    assert!(app.tab == Tab::Tree && !app.quit);
+}

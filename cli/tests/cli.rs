@@ -1099,3 +1099,19 @@ fn marking_a_picture_of_the_series_marks_it_in_place() {
     // The person's note stays: the mark's title does not replace it.
     assert_eq!(pictures[0]["note"], "parçalar");
 }
+
+#[test]
+fn todo_only_gives_the_sections_asked_for_with_every_count() {
+    let ev = seeded();
+    let v = ev.ok(&["todo", "--only", "tasks,needs"]);
+    let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
+    for k in &keys {
+        assert!(
+            matches!(*k, "tasks" | "needs" | "counts" | "goal" | "progress"),
+            "{keys:?}"
+        );
+    }
+    assert!(v["counts"]["uncounted"].is_number(), "{v}");
+    let (code, _, _) = ev.run(&["todo", "--only", "bogus"]);
+    assert_eq!(code, 2);
+}

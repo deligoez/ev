@@ -279,3 +279,17 @@ fn lines_are_found_by_words_of_their_name_shop_or_code() {
     assert_eq!(names("sku-b"), ["Kingston 128 GB microSD"]);
     assert!(names("matkap kingston").is_empty());
 }
+
+#[test]
+fn the_counts_by_bucket_are_the_lengths_of_the_unfiltered_lists() {
+    let (d, mut inv) = setup();
+    inv.buy_import(&export(&d, "1999.00")).unwrap();
+    let counts = inv.buy_counts().unwrap();
+    for bucket in ev_core::BUCKETS {
+        let listed = inv.buy_list(false, Some(bucket), None, None).unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .len() as u64;
+        assert_eq!(counts[bucket].as_u64().unwrap_or(0), listed, "{bucket}");
+    }
+}

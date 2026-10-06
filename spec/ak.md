@@ -5,7 +5,7 @@
 **ak** (a sibling tool, its own repository and data folder) keeps the household's money: every
 receipt, bill, statement and subscription. **ev** keeps what is a thing. Neither reads the
 other's database; each asks the other only through its commands. Agreed with ak's development
-agent on 2026-10-06, written into ak's spec §5 the same day (its commit 17c41a7); a change to it
+agent on 2026-10-06, written into ak's spec §5 the same day; a change to it
 is made in both repositories.
 
 - **ak → ev:** `ak export --for ev | ev buy import --stdin`. ak sends the lines that are things

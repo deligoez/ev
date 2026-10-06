@@ -717,6 +717,9 @@ impl Inventory {
         if text.is_empty() {
             return Err(Error::Usage("need text is empty".into()));
         }
+        if qty.is_some_and(|q| q < 1) {
+            return Err(Error::Usage("qty must be at least 1".into()));
+        }
         let tx = self.conn.transaction()?;
         let for_node = for_ref.map(|r| resolve(&tx, r, false)).transpose()?;
         tx.execute(

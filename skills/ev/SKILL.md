@@ -47,8 +47,8 @@ a portion, an ordinary record with its own count, and the portions share what th
 ## The conversation loop
 
 1. **Record what the person reports.** Enter a box and its contents in one call with
-   `ev add --stdin` (NDJSON; a line with `"key":"b"` can be referenced by later lines as
-   `"in":"@b"`). Batches are all or nothing.
+   `ev add --stdin` (NDJSON; every line names its `kind`; a line with `"key":"b"` can be
+   referenced by later lines as `"in":"@b"`). Batches are all or nothing.
 2. **Propose, don't assume a move happened.** Plan it with `ev move <x> --to <y> --plan`,
    tell the person where it goes, and only after they say they did it run `ev done <x>`.
    `ev pending` is the checklist; a move the person turns down is dropped with `ev cancel <x>`.
@@ -454,7 +454,9 @@ On a yes, record the thing as remembered, in no place, and link its line:
 - **Never guess how it left.** `--as unknown` when the person is unsure whether it was sold or
   thrown out; `left` for left behind at a move, `stolen`, `used` for used up, `trade` for a
   swap (`--traded-for <what came>`, or `ev traded <x> --for <y>` once what came is recorded;
-  `ev traded` also corrects a swap first recorded as given).
+  `ev traded` also corrects a swap first recorded as given or sold). What came must fit the
+  dates: ev refuses a thing that had already left, or that was ours before the swap; ask the
+  person which date is wrong rather than forcing it.
 - **A partial date is a date:** `--at 2016`, `--at 2016-06`. Never invent a day or a month;
   when the person does not know when it left, give no `--at` (it is listed as not known). A
   past thing is completed later with `ev edit <id> qty=10 came=2023-10 model=…`; `--qty` on
@@ -646,7 +648,8 @@ all in one step.
 **A tour is not finished on an old photo.** `ev review <place> --as toured` is refused while
 the place or any placed box in its grid has no photo or one older than its last change
 (`details.stale`); attach a current photo, or say an old one still holds with
-`ev photo current <ref>`. **When a photo is old for a reason the records never saw** (the
+`ev photo current <ref>` (a place never photographed has none to hold: photograph it).
+A place is reviewed, never a thing: a thing is counted with the place it is in. **When a photo is old for a reason the records never saw** (the
 place was emptied or rearranged before it was recorded, the person says "that photo is old"),
 say so with `ev photo stale <ref> --why "<what changed>"`, never only in an observation or a
 photo note: prose is read by no list, and the place keeps its old photo as current until a

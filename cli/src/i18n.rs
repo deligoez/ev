@@ -870,7 +870,10 @@ static TR: &[(&str, &str)] = &[
     ("code {}", "kod {}"),
     ("brand {}", "marka {}"),
     ("words {}", "kelimeler {}"),
-    ("words beside what it is {}", "ne olduğunun dışındaki kelimeler {}"),
+    (
+        "words beside what it is {}",
+        "ne olduğunun dışındaki kelimeler {}",
+    ),
     ("{} differs", "{} farklı"),
     ("charge", "kapasite"),
     ("current", "akım"),

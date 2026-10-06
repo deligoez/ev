@@ -2515,7 +2515,9 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     }
     if let Some(t) = traded_for {
         let other = resolve_for_history(conn, &t)?;
-        let left = non_empty(&new.at).map(|a| past::partial_date(&a)).transpose()?;
+        let left = non_empty(&new.at)
+            .map(|a| past::partial_date(&a))
+            .transpose()?;
         past::trade_check(conn, left.as_deref(), other)?;
         conn.execute(
             "UPDATE departures SET traded_for = ?1 WHERE node_id = ?2",

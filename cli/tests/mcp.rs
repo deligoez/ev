@@ -333,3 +333,11 @@ async fn a_batch_file_named_as_standard_input_reads_the_calls_input() {
     assert_eq!(r.structured_content.unwrap()["created"][0]["name"], "Ev");
     client.cancel().await.unwrap();
 }
+
+#[tokio::test]
+async fn a_call_with_no_command_is_an_error() {
+    let (_d, client) = start().await;
+    let r = call(&client, "ev", json!({ "args": [] })).await;
+    assert_eq!(r.is_error, Some(true), "{r:?}");
+    client.cancel().await.unwrap();
+}

@@ -396,7 +396,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         }
         other => {
             return Err(Error::Usage(format!(
-                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, tags, photos, to, owner, with, temporary, waits_for, make, model, serial, came (how far a place is counted is `ev review`)"
+                "unknown or read-only field `{other}`; editable: name, code, kind, address, qty, note, theme, fill, size, tags, photos, to, owner, with, temporary, waits_for, make, model, serial, came, and on a gone record left and left_in (how far a place is counted is `ev review`)"
             )));
         }
     }

@@ -614,7 +614,12 @@ impl Inventory {
             }
             clear_mark(&tx, id, "broken")?;
         } else {
-            set_mark(&tx, id, "broken", None, None, note)?;
+            // Said again without a note, what was said of the damage stands.
+            let before = mark(&tx, id, "broken")?;
+            let note = note
+                .map(str::to_string)
+                .or_else(|| before["note"].as_str().map(str::to_string));
+            set_mark(&tx, id, "broken", None, None, note.as_deref())?;
         }
         crate::store::event(
             &tx,

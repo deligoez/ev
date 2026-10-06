@@ -539,3 +539,112 @@ fn a_line_the_import_could_not_tell_is_joined_by_hand_and_taken_back() {
     assert!(back["purchase"]["same_as"].is_null());
     assert_eq!(back["purchase"]["open_qty"], 1);
 }
+
+#[test]
+fn a_price_told_join_wins_a_guess_and_no_line_is_joined_twice() {
+    let (_d, mut inv) = setup();
+    let line = |source: &str, key: &str, order: &str, name: &str, paid: &str| {
+        json!({"type": "purchase", "source": source, "key": key, "order": order,
+               "name": name, "paid": paid, "currency": "TRY"})
+        .to_string()
+    };
+    inv.buy_import(
+        &[
+            line("shop", "s1", "ORD-500005", "Marka cam spreyi 750 ml", "150"),
+            line("shop", "s2", "ORD-500005", "Dijital tartı", "200"),
+            line("shop", "k1", "ORD-600006", "Bir kitap", "250"),
+            line("shop", "m1", "ORD-700007", "Hafıza kartı 128GB", "500"),
+            line("shop", "m2", "ORD-700007", "Hafıza kartı 128GB", "500"),
+            line("shop", "w1", "ORD-800008", "Araç kamerası", "12000"),
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    let v = inv
+        .buy_import(
+            &[
+                // Its name is close to the spray's, its price is not: no guess takes the spray,
+                // which the line after it is told by price.
+                line("ak", "5.1", "ORD-500005", "Marka IPA spreyi 750 ml", "300"),
+                line("ak", "5.2", "ORD-500005", "Marka cam spreyi 750 ml", "150"),
+                // The book is the order's only line ev has; the cake is not it.
+                line("ak", "6.1", "ORD-600006", "Bir kitap", "250"),
+                line("ak", "6.2", "ORD-600006", "Kek", "260"),
+                // Two alike: one each.
+                line("ak", "7.1", "ORD-700007", "Hafıza kartı 128GB", "500"),
+                line("ak", "7.2", "ORD-700007", "Hafıza kartı 128GB", "500"),
+                // A whole payment of a one-line order, shipping included.
+                line("ak", "8", "ORD-800008", "Amazon", "12090"),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+    let same_as = |key: &str| {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            source: Some("ak"),
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["same_as"]
+            .as_i64()
+    };
+    // The shop's line by its key: the ak lines carry the same names.
+    let shop = |key: &str| {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            source: Some("shop"),
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["id"]
+            .as_i64()
+    };
+    assert_eq!(same_as("5.2"), shop("s1"));
+    assert_eq!(same_as("5.1"), None);
+    assert_eq!(same_as("6.1"), shop("k1"));
+    assert_eq!(same_as("6.2"), None);
+    let (a, b) = (same_as("7.1").unwrap(), same_as("7.2").unwrap());
+    assert_ne!(a, b);
+    assert_eq!(same_as("8"), shop("w1"));
+    let keys: Vec<&str> = v["imported"]["unjoined"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|u| u["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys, ["5.1", "6.2"], "{v}");
+}
+
+#[test]
+fn a_shops_lines_never_join_an_ak_line_that_waits_unjoined() {
+    let (_d, mut inv) = setup();
+    // A shop's two lines whose order page names the order number: the way a second source's
+    // line was always joined to them.
+    let shop = |key: &str, name: &str, paid: &str| {
+        json!({"type": "purchase", "source": "shop", "key": key, "order": "ORD-900009",
+               "order_url": "https://shop.example/orders?id=ORD-900009", "name": name,
+               "paid": paid, "currency": "TRY"})
+        .to_string()
+    };
+    inv.buy_import(
+        &[
+            shop("p1", "Kapı stoperi", "100"),
+            shop("p2", "Yapboz", "150"),
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    // ak's whole payment of that order, told by neither line: it waits unjoined.
+    let ak = r#"{"source":"ak","key":"9","name":"Kapı stoperi, Yapboz","order":"ORD-900009","paid":"260","currency":"TRY"}"#;
+    let first = inv.buy_import(ak).unwrap();
+    let again = inv.buy_import(ak).unwrap();
+    for v in [&first, &again] {
+        assert_eq!(v["imported"]["unjoined"][0]["key"], "9", "{v}");
+    }
+    // The shop's lines are not turned into joins of ak's line: they stay the ones to link.
+    let rows = inv
+        .buy_list_matching(false, None, None, None, None)
+        .unwrap();
+    for p in rows["purchases"].as_array().unwrap() {
+        assert!(p["same_as"].is_null(), "{p}");
+    }
+}

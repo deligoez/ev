@@ -197,3 +197,20 @@ fn a_link_of_no_units_or_of_a_service_says_so() {
     let never = inv.buy_link(service, "Telefon", None).unwrap_err();
     assert!(never.to_string().contains("service"), "{never}");
 }
+
+#[test]
+fn a_past_things_line_can_be_declined_and_a_linked_one_cannot() {
+    let (_d, mut inv) = setup();
+    let first = line(&mut inv, "Telefon", "2017-05-01", "durable");
+    let second = line(&mut inv, "Telefon kılıfı", "2017-05-01", "durable");
+    inv.buy_link(first, "Telefon", None).unwrap();
+    assert_eq!(
+        inv.buy_decline(first, "Telefon", None, false)
+            .unwrap_err()
+            .code(),
+        5
+    );
+    gone(&mut inv, "Telefon", Disposition::Give, None);
+    let phone = id(&inv, "Telefon");
+    inv.buy_decline(second, &phone, None, false).unwrap();
+}

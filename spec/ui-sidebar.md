@@ -26,7 +26,7 @@ record's details on the right (decided with the person, 2026-10-06).
   | PURCHASES (phase 3) | 9 All · Durable · Clothing · Digital · Service |
   | UPKEEP (with spec/repairs.md) | Repairs · Maintenance |
   | PEOPLE (with the people feature) | one list per person billed or bought for |
-  | PAST | 7 Gone |
+  | HISTORY | 7 Gone |
   | INSIGHT | 8 Statistics |
   | (bottom) | Search · 0 Settings |
 

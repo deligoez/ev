@@ -536,6 +536,10 @@ static TR: &[(&str, &str)] = &[
         "{} new, {} updated, {} unchanged, {} skipped; {} document links, {} documents skipped; {} attachments; {} joined to another source's line",
         "{} yeni, {} güncellendi, {} aynı, {} atlandı; {} belge bağı, {} belge atlandı; {} ek; {} satır başka kaynağın satırına bağlandı",
     ),
+    (
+        "Fields ev does not read, left out: {}",
+        "ev'nin okumadığı alanlar, alınmadı: {}",
+    ),
     ("(no purchases)", "(alım yok)"),
     ("bought", "alım"),
     (

@@ -2150,6 +2150,15 @@ pub fn human(v: &Value) -> String {
                 ]
             )
         );
+        // What the adapter sent that ev does not read: likely a misspelt field.
+        if let Some(u) = i["unknown_fields"].as_object().filter(|u| !u.is_empty()) {
+            let fields: Vec<String> = u.iter().map(|(k, n)| format!("{k} ×{n}")).collect();
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("Fields ev does not read, left out: {}", &[&fields.join(", ")])
+            );
+        }
         return out;
     }
     if v.get("purchase").is_some_and(Value::is_object) {

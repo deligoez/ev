@@ -396,6 +396,6 @@ fn a_typo_of_a_whole_word_ranks_above_the_start_of_another() {
         })
         .unwrap();
     }
-    let v = inv.find("vdia").unwrap();
+    let v = inv.find("vdia", None, None, false).unwrap();
     assert_eq!(v["results"][0]["name"], "Vida", "{v}");
 }

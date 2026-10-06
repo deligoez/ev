@@ -995,7 +995,7 @@ fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
         let n = l.len().min(b.len());
         if b[..n] > l[..n] {
             return Err(crate::error::refused(
-                format!("line {id} was bought {b}, after #{node} left ({l})"),
+                format!("the purchase was bought {b}, after #{node} left ({l})"),
                 Value::Null,
             ));
         }

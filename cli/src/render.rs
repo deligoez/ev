@@ -247,6 +247,9 @@ fn past_list(out: &mut String, l: &Value) {
         let left = n["left"].as_str().unwrap_or(t("when not known"));
         parts.push(tf("left {}", &[&left]));
         parts.push(crate::history::left_as(&s(n, "how")).to_string());
+        if let Some(id) = n["traded_for"]["id"].as_i64() {
+            parts.push(tf("for #{} {}", &[&id, &s(&n["traded_for"], "name")]));
+        }
         if let Some(w) = n["where"].as_str() {
             parts.push(tf("was in {}", &[&w]));
         }
@@ -261,9 +264,14 @@ fn past_list(out: &mut String, l: &Value) {
             );
             parts.push(tf("got {}", &[&price]));
         }
+        let qty = n["qty"]
+            .as_i64()
+            .filter(|q| *q > 1)
+            .map(|q| format!(" ×{q}"))
+            .unwrap_or_default();
         let _ = writeln!(
             out,
-            "  #{} {}\n      {}",
+            "  #{} {}{qty}\n      {}",
             n["id"],
             s(n, "name"),
             parts.join(" · ")

@@ -1149,6 +1149,7 @@ static TR: &[(&str, &str)] = &[
     ("services", "hizmet"),
     ("traded", "takas edildi"),
     ("for {}", "{} karşılığında"),
+    ("for #{} {}", "#{} {} karşılığında"),
     ("for #{}", "#{} karşılığında"),
     ("came in a trade for", "takasla geldi, karşılığında giden"),
     ("via {}", "{} üzerinden"),

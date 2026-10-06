@@ -94,3 +94,21 @@ fn a_sale_said_while_waiting_is_dropped_when_the_thing_is_given_instead() {
     assert!(v["departure"].is_object(), "{v}");
     assert!(v["departure"]["price"].is_null(), "{v}");
 }
+
+#[test]
+fn a_sale_dated_before_the_thing_left_keeps_it_in_the_left_inventory_list() {
+    let (_d, mut inv) = setup();
+    inv.dispose("Telefon", Disposition::Sell).unwrap();
+    let phone = id(&inv, "Telefon");
+    inv.sold(&phone, "700", None, Some("2026-01"), None, None)
+        .unwrap();
+    gone(&mut inv, &phone, Disposition::Sell, None);
+    let past = inv.past(None, None).unwrap();
+    assert_eq!(past["left_inventory"]["past"].as_array().unwrap().len(), 1);
+    assert!(
+        past["remembered"]["past"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

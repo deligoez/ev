@@ -225,14 +225,7 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
 fn list_row(conn: &Connection, id: i64) -> Result<Value> {
     let mut p = purchase_row(conn, id)?;
     if let Value::Object(m) = &mut p {
-        for k in [
-            "merchant",
-            "order_url",
-            "product_url",
-            "billed_to",
-            "raw",
-            "imported_at",
-        ] {
+        for k in ["merchant", "order_url", "product_url", "raw", "imported_at"] {
             m.remove(k);
         }
     }
@@ -750,6 +743,21 @@ impl Inventory {
         since: Option<&str>,
         query: Option<&str>,
     ) -> Result<Value> {
+        self.buy_list_billed(open, bucket, shop, since, query, None)
+    }
+
+    /// `buy_list_matching`, with `billed_to`: only the lines billed to an account holding it
+    /// (an Apple ID of a family member), compared folded.
+    pub fn buy_list_billed(
+        &self,
+        open: bool,
+        bucket: Option<&str>,
+        shop: Option<&str>,
+        since: Option<&str>,
+        query: Option<&str>,
+        billed_to: Option<&str>,
+    ) -> Result<Value> {
+        let billed = billed_to.map(crate::fold);
         if let Some(b) = bucket
             && !BUCKETS.contains(&b)
         {
@@ -781,6 +789,11 @@ impl Inventory {
                         .as_str()
                         .is_some_and(|x| crate::fold(x).contains(s.as_str()))
                 })
+                || billed.as_ref().is_some_and(|b| {
+                    !p["billed_to"]
+                        .as_str()
+                        .is_some_and(|x| crate::fold(x).contains(b.as_str()))
+                })
                 || since.is_some_and(|d| {
                     p["ordered_at"]
                         .as_str()
@@ -789,7 +802,7 @@ impl Inventory {
                 })
                 || !words.is_empty() && {
                     let text = crate::fold(
-                        &["name", "shop", "brand", "shop_sku", "order_no"]
+                        &["name", "shop", "brand", "shop_sku", "order_no", "billed_to"]
                             .iter()
                             .filter_map(|k| p[*k].as_str())
                             .collect::<Vec<_>>()

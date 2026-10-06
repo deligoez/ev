@@ -1365,7 +1365,8 @@ pub fn cm(v: &Value) -> String {
             if r.fract() == 0.0 {
                 format!("{}", r as i64)
             } else {
-                format!("{r:.1}")
+                // A tenth as the reader writes it: `12,5` in Turkish.
+                decimal(&serde_json::json!(r))
             }
         }
         None => v.to_string(),
@@ -3116,7 +3117,7 @@ fn sketch(out: &mut String, v: &Value) {
     } else {
         let mut parts = Vec::new();
         if !p["x"].is_null() {
-            parts.push(tf("at {},{} cm", &[&cm(&p["x"]), &cm(&p["y"])]));
+            parts.push(tf("at x {} · y {} cm", &[&cm(&p["x"]), &cm(&p["y"])]));
         }
         if !p["w"].is_null() {
             parts.push(tf("{}×{} cm", &[&cm(&p["w"]), &cm(&p["d"])]));

@@ -321,7 +321,7 @@ static TR: &[(&str, &str)] = &[
         "(yeri belirsiz olanlar en sonda)",
     ),
     ("(no sketch)", "(kroki yok)"),
-    ("at {},{} cm", "{},{} cm'de"),
+    ("at x {} · y {} cm", "x {} · y {} cm'de"),
     ("{}×{} cm", "{}×{} cm"),
     ("on #{}", "#{} üstünde"),
     ("  [temporary place]", "  [geçici yer]"),

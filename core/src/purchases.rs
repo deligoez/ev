@@ -402,7 +402,15 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
             json!({ "bucket": bucket, "buckets": BUCKETS.join(", ") }),
         ));
     }
-    let qty = v.get("qty").and_then(Value::as_i64).unwrap_or(1);
+    // A count as a number or as the text a receipt printed (`"2"`, as ak sends it); anything
+    // else is refused rather than read as 1.
+    let qty = match v.get("qty") {
+        None | Some(Value::Null) => 1,
+        Some(q) => q
+            .as_i64()
+            .or_else(|| q.as_str().and_then(|s| s.trim().parse::<i64>().ok()))
+            .ok_or_else(|| usage("purchase_qty_not_a_count", json!({ "qty": q.to_string() })))?,
+    };
     if qty < 1 {
         return Err(usage("qty_below_one", Value::Null));
     }

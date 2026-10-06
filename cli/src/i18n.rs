@@ -592,6 +592,10 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ),
     ("code_empty", "kod boş"),
     ("qty_below_one", "adet en az 1 olmalı"),
+    (
+        "purchase_qty_not_a_count",
+        "adet {qty} tam bir sayı değil; 2 gibi bir sayı gönderin",
+    ),
     ("fill_out_of_range", "doluluk 0 ile 100 arasında olmalı"),
     ("tag_empty", "etiket boş"),
     ("photo_path_empty", "fotoğraf yolu boş"),

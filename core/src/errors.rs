@@ -458,6 +458,10 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("code_empty", "code is empty"),
     ("qty_below_one", "qty must be at least 1"),
+    (
+        "purchase_qty_not_a_count",
+        "qty {qty} is not a whole count; send a number such as 2",
+    ),
     ("fill_out_of_range", "fill must be between 0 and 100"),
     ("tag_empty", "tag is empty"),
     ("photo_path_empty", "photo path is empty"),

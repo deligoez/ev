@@ -18,7 +18,7 @@ mistake loses what was on screen; but nothing told the agent that a new batch ha
   and ev's answer carries `series_about: {about, now}` (each a brief record) with a hint: the
   series is about A, this picture about B; ask the person whether to close it before the next
   batch (`ev focus --clear`). ev closes nothing by itself. `ev ui` shows the same in the
-  series' title (`f17 · about K4x4-06-A, the series K4x4-07-Ü`).
+  series' title (`f17 · about S5-02, the series S5-01`).
 - **Numbers stay unique while a series lives.** A new batch in the same series keeps counting
   frames, so a number on screen still means one frame; numbering from 1 comes with the next
   series, the one opened after the person closes this. The hint above is what makes that

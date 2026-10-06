@@ -552,7 +552,11 @@ never your own count. A number means one frame until the series is closed: a pho
 keeps each label's number (give a frame you fix the label it had), a frame added to it takes the
 next free one, and a frame you leave out takes its number with it; a cut of a photo you marked
 draws the numbers it was marked with, so give its crops in the order of the marks.
-`ev focus --list` reads the series (each picture, its frames, the next number).
+`ev focus --list` reads the series (each picture, its frames, the next number, what it is about).
+**When an answer carries `series_about`, a batch for another place began in an open series:**
+before going on, ask the person in one line whether to close it (`X` in `ev ui`, or `ev focus
+--clear` on their word), so the new batch numbers from 1; never close it unasked. Pictures you
+send with `ev focus --file` name their place with `--for <place>`.
 
 **Three kinds of reference, never mixed:** a bare number is a frame in the open series (`3`), `f`
 and a number is a picture of the series (`f12`, as its title in `ev ui` reads), `#` and a number

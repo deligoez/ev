@@ -344,8 +344,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                     params![n.id, at],
                 )?;
             } else {
-                if v
-                    .as_deref()
+                if v.as_deref()
                     .is_some_and(|p| p.starts_with('#') || p.chars().all(|c| c.is_ascii_digit()))
                 {
                     return Err(Error::Usage(

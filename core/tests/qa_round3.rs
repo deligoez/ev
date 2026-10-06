@@ -61,9 +61,7 @@ fn a_leaving_before_the_purchase_that_brought_it_is_refused() {
     gone(&mut inv, "Telefon", Disposition::Trash, None);
     let phone = id(&inv, "Telefon");
     assert_eq!(
-        inv.edit(&phone, &["left=2014".into()])
-            .unwrap_err()
-            .code(),
+        inv.edit(&phone, &["left=2014".into()]).unwrap_err().code(),
         2
     );
 }
@@ -105,12 +103,7 @@ fn a_sale_dated_before_the_thing_left_keeps_it_in_the_left_inventory_list() {
     gone(&mut inv, &phone, Disposition::Sell, None);
     let past = inv.past(None, None).unwrap();
     assert_eq!(past["left_inventory"]["past"].as_array().unwrap().len(), 1);
-    assert!(
-        past["remembered"]["past"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
+    assert!(past["remembered"]["past"].as_array().unwrap().is_empty());
 }
 
 #[test]
@@ -256,9 +249,8 @@ fn drawers_labelled_after_their_cabinet_began_to_be_counted_are_not_counting() {
         .unwrap();
     inv.task_set(t, "doing", None).unwrap();
     inv.move_to("Tablet", "Q9", false).unwrap();
-    let count = |inv: &Inventory, r: &str| {
-        inv.tree(Some(r), Some(0)).unwrap()["tree"][0]["count"].clone()
-    };
+    let count =
+        |inv: &Inventory, r: &str| inv.tree(Some(r), Some(0)).unwrap()["tree"][0]["count"].clone();
     assert_eq!(count(&inv, "Q9"), "counting");
     place(&mut inv, "Üst çekmece", "container", "Q9", "Q9-A");
     place(&mut inv, "Alt çekmece", "container", "Q9", "Q9-B");
@@ -268,10 +260,7 @@ fn drawers_labelled_after_their_cabinet_began_to_be_counted_are_not_counting() {
 #[test]
 fn a_thing_is_never_reviewed_as_a_place() {
     let (_d, mut inv) = setup();
-    assert_eq!(
-        inv.review("Telefon", "toured", None).unwrap_err().code(),
-        2
-    );
+    assert_eq!(inv.review("Telefon", "toured", None).unwrap_err().code(), 2);
     assert_eq!(inv.review("Telefon", "kept", None).unwrap_err().code(), 2);
 }
 

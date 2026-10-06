@@ -1786,7 +1786,9 @@ fn photo_now(inv: &mut Inventory, place: &str) {
     let dir = tempfile::tempdir().unwrap();
     let png = dir.path().join("now.png");
     // A picture of its own for each place, as a camera gives.
-    let shade = place.bytes().fold(0u8, |a, b| a.wrapping_mul(31).wrapping_add(b));
+    let shade = place
+        .bytes()
+        .fold(0u8, |a, b| a.wrapping_mul(31).wrapping_add(b));
     image::RgbImage::from_pixel(8, 8, image::Rgb([shade, 2, 3]))
         .save(&png)
         .unwrap();

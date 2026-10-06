@@ -870,7 +870,15 @@ fn a_closed_task_gives_the_date_it_was_due_with_no_days_left() {
     let h = Home::new();
     h.run(
         &[
-            "task", "add", "Etiketle", "--why", "yok", "--on", "D", "--due", "2026-01-05",
+            "task",
+            "add",
+            "Etiketle",
+            "--why",
+            "yok",
+            "--on",
+            "D",
+            "--due",
+            "2026-01-05",
         ],
         None,
     );

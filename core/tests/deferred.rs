@@ -435,3 +435,24 @@ fn a_batch_line_with_both_gone_and_of_says_why() {
         .unwrap_err();
     assert!(e.to_string().contains("do not go together"), "{e}");
 }
+
+#[test]
+fn a_move_in_the_same_second_as_a_tour_lets_the_place_be_toured_again() {
+    let (d, mut inv) = setup();
+    // A whole photo taken now, which a tour asks for.
+    let photo = |inv: &mut Inventory, shade: u8| {
+        let png = d.path().join(format!("{shade}.png"));
+        image::RgbImage::from_pixel(8, 8, image::Rgb([shade, 2, 3]))
+            .save(&png)
+            .unwrap();
+        inv.photo_add_with("Kutu", &png, None, None, true).unwrap();
+    };
+    photo(&mut inv, 1);
+    inv.review("Kutu", "toured", None).unwrap();
+    // All within one second: times alone cannot order them, the log's order does.
+    inv.move_to("Telefon", "Kutu", false).unwrap();
+    photo(&mut inv, 2);
+    inv.review("Kutu", "toured", None).unwrap();
+    let again = inv.review("Kutu", "toured", None);
+    assert_eq!(again.unwrap_err().code(), 5);
+}

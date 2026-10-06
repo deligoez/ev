@@ -472,7 +472,7 @@ named (a thing stands for the place it is in), or `ev focus --file … --for <pl
 about another place joins the series all the same, and the answer's `shown` (`focus` for
 `--file`) carries `series_about: {about, now}` (each `{id, label}`): ask the person whether to
 close the series before that batch goes on; ev closes nothing by itself. Its title in `ev ui`
-says so too (`f17/20 · <note> · about K4x4-06-A, the series K4x4-07-B`). `ev focus --list` reads
+says so too (`f17/20 · <note> · about S5-02, the series S5-01`). `ev focus --list` reads
 the series:
 `{series: {since, next, about, pictures: [{f, file, source, note, about, frames: [{n, at, given} | {n, ref, crop}]}]}}`
 (`f` names the picture; `source`, the photo it was drawn on, only when that is not `file`;

@@ -661,6 +661,10 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let mut v = line.clone();
         v["source"] = json!("manual");
+        // Paid by hand with no currency said: the home one, as everywhere else.
+        if v["paid"].is_string() && v["currency"].as_str().is_none_or(|c| c.trim().is_empty()) {
+            v["currency"] = json!(crate::money::home_currency(&tx)?);
+        }
         let next: i64 =
             tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM purchases", [], |r| {
                 r.get(0)

@@ -1533,6 +1533,24 @@ impl Inventory {
                 json!({ "task": before }),
             ));
         }
+        // Started again, a closed task is reopened on purpose, never by a start.
+        if status == "doing" && matches!(before["status"].as_str(), Some("done" | "dropped")) {
+            return Err(crate::error::refused(
+                format!("task {id} is closed; `ev task reopen {id}` it first"),
+                json!({ "task": before }),
+            ));
+        }
+        // The task in progress before this one, which a start puts back to open.
+        let stopped: Option<i64> = if status == "doing" {
+            tx.query_row(
+                "SELECT id FROM tasks WHERE status = 'doing' AND id != ?1",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()?
+        } else {
+            None
+        };
         let closed = matches!(status, "done" | "dropped");
         let t = now();
         tx.execute(
@@ -1552,7 +1570,12 @@ impl Inventory {
         }
         rerank(&tx, None, None)?;
         tx.commit()?;
-        task_json(&self.conn, id)
+        let mut v = task_json(&self.conn, id)?;
+        // Said, so a task left half way is not forgotten.
+        if let Some(s) = stopped {
+            v["stopped"] = task_json(&self.conn, s)?;
+        }
+        Ok(v)
     }
 
     /// Changes a task's title, reason, position or the places it is about.

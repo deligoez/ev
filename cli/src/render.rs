@@ -2345,6 +2345,13 @@ pub fn human(v: &Value) -> String {
     }
     if v.get("why").is_some() && v.get("title").is_some() {
         task_line(&mut out, v);
+        if v["stopped"].is_object() {
+            let _ = writeln!(
+                out,
+                "{}",
+                tf("#{} is back to open, not finished", &[&v["stopped"]["id"]])
+            );
+        }
         return out;
     }
     if v.get("goal").is_some() && v.as_object().is_some_and(|o| o.len() == 1) {

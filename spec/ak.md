@@ -32,27 +32,59 @@ is made in both repositories.
   (ak's payee), `merchant`, `order` (ak's number, as the shop prints it), `ordered_at`,
   `billed_to` (the account's name), `category`, `raw`. REFERENCE has the NDJSON format.
 
+## A purchase ev already has
+
+Most of what ak would send, ev has read already: ak found its 708 shop orders and 554 App Store
+receipts among ev's own adapters' lines, under the same order number, printed the same way in
+every case (compared on all of them, 2026-10-07). Sent again as `source: "ak"`, each would be a
+second open line for the same thing. Decided with ak's development agent:
+
+- **ak's line stays its own row** (`source: "ak"`, its key), so the way back below works by key,
+  never by matching text.
+- **ev joins it to the line it already has**, with `same_as`, as it joins any purchase seen by
+  two sources (REFERENCE, "One purchase seen by two sources"): the joined line counts as
+  settled and is never offered for linking; the line it joins is the one linked to a thing.
+- **By the order number, exactly:** ak's `order` equal to another source's `order_no`, six
+  characters or more, whatever the shop is called on either side (ak's App Store is one source
+  over two of ev's shops). One such line: joined. Several (an order of several lines): the one
+  whose `paid` is the same, when exactly one is; else the one whose name clearly shares most
+  words (ev's existing rule). An ak line already linked to a thing, or dismissed, is left as it
+  is.
+- **Anything less certain is not joined, and said:** the import's result lists it under
+  `unjoined` (`{id, key, order, candidates}`: the lines of that order), for the agent to show
+  the person, who joins it by hand (`ev buy join <line> <other>`), or dismisses it as
+  `duplicate`, or leaves it as a purchase of its own. ak sends a multi-line order as items
+  (`412.1`, `412.2`) where it knows them, so a whole `412` meets a multi-line order rarely.
+- Only ak's lines are joined by order number: ak relays purchases another source may have read.
+  Two of ev's own adapters seeing one order are left as today, so this changes nothing about
+  lines already in the inventory.
+
 ## The way back
 
 ak answers "when did the dishwasher's instalments end" by asking ev which of its payments a
 thing was bought with, and the other way round:
 
 - **thing → lines:** `ev show <ref> --json` → `purchases[]`, each with `source` and
-  `source_key` (`--include-gone` for a thing that left).
+  `source_key` (`--include-gone` for a thing that left). A thing linked to a shop's line that an
+  ak line joined lists that line; `ev buy show <id>` → `joined` has the ak line's id.
 - **line → thing:** `ev buy list --source ak --key <id> --json` → the payment's line, or its
   items' lines (`--key 412` finds `412.1` and `412.2` too; `412.2` that item alone), each with
-  `linked: [{node: {id, name, path_text, state}, qty}]`.
+  `linked: [{node: {id, name, path_text, state}, qty}]`; a joined line carries `joined_to`
+  `{id, source, source_key, linked}`, the line it joins and what that is linked to.
 
 ## Phases
 
 1. **The filters** (shipped): `ev buy list --source <s>` (exact) and `--key <k>` (that key and
    its items), in REFERENCE.
-2. **The import** is in place already (`ev buy import --stdin`). When ak's export exists (its
-   Phase 3, after bank accounts and income), a test imports a sample of it here, and the
-   mail and shop sources that ak then covers are retired from ev's side with ak's agent.
+2. **The import** (shipped): `ev buy import --stdin` reads ak's export as written, a count sent
+   as text included; a test imports ak's sample lines.
+3. **The join:** ak's lines joined by order number on import, `unjoined` in the result,
+   `ev buy join <line> <other>` (and `--clear`), `joined_to` on a joined line's row.
+4. Later, with ak's agent: whether ev's mail and shop adapters that ak covers are retired.
 
 ## Not now
 
 - ev sending anything to ak: the money is ak's, the thing is ev's, and a link between them is
   read, never copied.
 - Splitting a purchase's price over its things beyond what `ev buy link --qty` already does.
+- Joining two of ev's own sources by order number.

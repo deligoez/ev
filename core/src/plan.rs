@@ -1571,7 +1571,14 @@ impl Inventory {
         // Done is a fact: dropping it would rewrite what happened.
         if status == "dropped" && before["status"] == "done" {
             return Err(crate::error::refused(
-                "it is done; `ev task reopen` it first if it was not",
+                format!("task {id} is done; `ev task reopen {id}` it first if it was not"),
+                json!({ "task": before }),
+            ));
+        }
+        // Closed again as it already is: nothing to record.
+        if matches!(status, "done" | "dropped") && before["status"] == status {
+            return Err(crate::error::refused(
+                format!("task {id} is already {status}; nothing to change"),
                 json!({ "task": before }),
             ));
         }

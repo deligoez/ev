@@ -5,7 +5,7 @@ use std::time::Duration;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 
-use crate::error::refused;
+use crate::error::{refuse, refused};
 use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 use crate::{Error, Fault, Result, fold};
 
@@ -539,12 +539,9 @@ impl Inventory {
         // units empty; what is inside stays in the original. Without it, the parts would be what
         // each unit is made of, which a holder with things in it is not split into.
         if inside > 0 && !take {
-            return Err(refused(
-                format!(
-                    "{} holds {inside} thing(s); split what is inside, move it out first, or \
-                     take empty units off it with --take",
-                    label(&n)
-                ),
+            return Err(refuse(
+                "split_holds_things",
+                json!({ "node": label(&n), "inside": inside }),
                 json!({ "node": brief_json(&tx, n.id)? }),
             ));
         }
@@ -584,12 +581,9 @@ impl Inventory {
                 }
                 (None, Some(had), Some(t)) if t < had => Some(had - t),
                 (None, Some(had), Some(t)) => {
-                    return Err(refused(
-                        format!(
-                            "the parts take {t} of the {had} of {}; nothing would be left on it: \
-                             keep one part as the original with --rename and --qty instead",
-                            label(&n)
-                        ),
+                    return Err(refuse(
+                        "split_takes_all",
+                        json!({ "node": label(&n), "take": t, "had": had }),
                         json!({ "node": brief_json(&tx, n.id)? }),
                     ));
                 }
@@ -885,11 +879,9 @@ impl Inventory {
             ));
         }
         if node.state != State::Active {
-            return Err(refused(
-                format!(
-                    "{} is already a candidate; use `ev gone` or `ev restore`",
-                    label(&node)
-                ),
+            return Err(refuse(
+                "already_candidate",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -924,8 +916,9 @@ impl Inventory {
         let id = match resolve(&tx, reference, false) {
             Err(e) if e.is_not_found() && resolve_for_history(&tx, reference).is_ok() => {
                 let id = resolve_for_history(&tx, reference)?;
-                return Err(refused(
-                    format!("node {id} is gone; `ev restore {id} --correction \"why\"` undoes it"),
+                return Err(refuse(
+                    "restore_gone_by_correction",
+                    json!({ "id": id }),
                     Value::Null,
                 ));
             }
@@ -933,8 +926,9 @@ impl Inventory {
         };
         let node = load(&tx, id)?;
         if node.state != State::Candidate {
-            return Err(refused(
-                format!("{} is not a candidate", label(&node)),
+            return Err(refuse(
+                "not_a_candidate",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -1025,11 +1019,9 @@ impl Inventory {
         let listed_on = node.id;
         let node = crate::portions::take(&tx, node, qty)?;
         if node.state == State::Active && disposition.is_none() {
-            return Err(refused(
-                format!(
-                    "{} is active; say how it left with --as trash|give|sell|trade|used|digitize|left|stolen|unknown",
-                    label(&node)
-                ),
+            return Err(refuse(
+                "gone_needs_how",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -1172,14 +1164,15 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if node.lost {
-            return Err(refused(
-                format!("{} is already lost", label(&node)),
+            return Err(refuse(
+                "already_lost",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
         let node = crate::portions::take(&tx, node, qty)?;
         if node.kind == Kind::Home {
-            return Err(refused("a home cannot be lost", Value::Null));
+            return Err(refuse("home_cannot_be_lost", Value::Null, Value::Null));
         }
         tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
         touch(&tx, node.id)?;
@@ -1192,17 +1185,16 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if !node.lost {
-            return Err(refused(
-                format!("{} is not lost", label(&node)),
+            return Err(refuse(
+                "not_lost",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
         if node.parent_id.is_none() {
-            return Err(refused(
-                format!(
-                    "{} was never seen anywhere; say where it turned up with `ev found <ref> --in <place>`",
-                    label(&node)
-                ),
+            return Err(refuse(
+                "never_seen",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -1224,8 +1216,9 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         if !node.lost {
-            return Err(refused(
-                format!("{} is not lost", label(&node)),
+            return Err(refuse(
+                "not_lost",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -1510,12 +1503,18 @@ pub(crate) fn label(n: &Node) -> String {
     }
 }
 
+fn no_pending_move(node: &Node) -> Error {
+    refuse(
+        "no_pending_move",
+        json!({ "node": label(node) }),
+        Value::Null,
+    )
+}
+
 /// Makes a node's planned move; the holder it is in afterwards (it may join a portion there).
 fn done_in(conn: &Connection, reference: &str) -> Result<i64> {
     let node = load(conn, resolve(conn, reference, false)?)?;
-    let target = node
-        .pending_to
-        .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+    let target = node.pending_to.ok_or_else(|| no_pending_move(&node))?;
     apply_move(conn, &node, target, "done")?;
     crate::portions::join_here(conn, node.id)
 }
@@ -1523,9 +1522,7 @@ fn done_in(conn: &Connection, reference: &str) -> Result<i64> {
 /// Drops a node's planned move.
 fn cancel_in(conn: &Connection, reference: &str) -> Result<i64> {
     let node = load(conn, resolve(conn, reference, false)?)?;
-    let target = node
-        .pending_to
-        .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+    let target = node.pending_to.ok_or_else(|| no_pending_move(&node))?;
     conn.execute(
         "UPDATE nodes SET pending_to = NULL WHERE id = ?1",
         [node.id],
@@ -1550,13 +1547,9 @@ fn move_in(
     // A move to where it already is says nothing, and as a plan it waits forever. A lost
     // thing moved to where it was last seen is found there, so that one goes on.
     if !node.lost && node.parent_id == Some(target) {
-        return Err(refused(
-            format!(
-                "{} is already in {}; a place inside it (a compartment) is a grid cell \
-                 (`ev grid`, `ev cell`) or a holder of its own",
-                label(&node),
-                label(&load(tx, target)?)
-            ),
+        return Err(refuse(
+            "already_there",
+            json!({ "node": label(&node), "place": label(&load(tx, target)?) }),
             Value::Null,
         ));
     }
@@ -1566,11 +1559,9 @@ fn move_in(
     }
     if plan {
         if let Some(p) = node.pending_to {
-            return Err(refused(
-                format!(
-                    "{} already has a pending move; cancel it first",
-                    label(&node)
-                ),
+            return Err(refuse(
+                "move_already_pending",
+                json!({ "node": label(&node) }),
                 json!({ "pending": brief(tx, p)? }),
             ));
         }
@@ -2248,8 +2239,9 @@ fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<Stri
         return Err(Error::Usage("code is empty".into()));
     }
     if c.chars().all(|ch| ch.is_ascii_digit()) {
-        return Err(refused(
-            format!("code `{c}` is only digits and would read as an id"),
+        return Err(refuse(
+            "code_only_digits",
+            json!({ "code": c }),
             json!({ "code": c }),
         ));
     }
@@ -2262,8 +2254,9 @@ fn check_code(conn: &Connection, code: &str, except: Option<i64>) -> Result<Stri
         )
         .optional()?;
     if let Some(other) = clash {
-        return Err(refused(
-            format!("code `{c}` is already in use"),
+        return Err(refuse(
+            "code_in_use",
+            json!({ "code": c }),
             json!({ "node": brief_json(conn, other)? }),
         ));
     }
@@ -2303,11 +2296,8 @@ fn check_placement(
 ) -> Result<()> {
     if kind == Kind::Home {
         return match parent {
-            Some(_) => Err(refused(
-                "a home cannot be placed inside another node",
-                Value::Null,
-            )),
-            None if lost => Err(refused("a home cannot be lost", Value::Null)),
+            Some(_) => Err(refuse("home_inside_another", Value::Null, Value::Null)),
+            None if lost => Err(refuse("home_cannot_be_lost", Value::Null, Value::Null)),
             None => Ok(()),
         };
     }
@@ -2315,33 +2305,34 @@ fn check_placement(
         return if lost {
             Ok(())
         } else {
-            Err(refused(
-                format!("a {kind} needs a place: give --in, or --lost if its place is unknown"),
+            Err(refuse(
+                "needs_a_place",
+                json!({ "kind": kind.to_string() }),
                 Value::Null,
             ))
         };
     };
     let p = load(conn, pid)?;
     if p.state == State::Gone {
-        return Err(refused(
-            format!("{} is gone and cannot hold anything", label(&p)),
+        return Err(refuse(
+            "holder_gone",
+            json!({ "node": label(&p) }),
             Value::Null,
         ));
     }
     if kind == Kind::Room && !matches!(p.kind, Kind::Home | Kind::Room) {
-        return Err(refused(
-            format!(
-                "a room can only be inside a home or another room, not a {}",
-                p.kind
-            ),
+        return Err(refuse(
+            "room_inside_wrong_kind",
+            json!({ "kind": p.kind.to_string() }),
             json!({ "parent": brief_json(conn, pid)? }),
         ));
     }
     if let Some(m) = moving
         && (pid == m || is_descendant(conn, pid, m)?)
     {
-        return Err(refused(
-            "a node cannot be moved into itself or into something it contains",
+        return Err(refuse(
+            "into_itself",
+            Value::Null,
             json!({ "target": brief_json(conn, pid)? }),
         ));
     }
@@ -2412,7 +2403,7 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
     check_ranges(new.qty, new.fill)?;
     let address = non_empty(&new.address);
     if address.is_some() && kind != Kind::Home {
-        return Err(refused("only a home has an address", Value::Null));
+        return Err(refuse("address_only_home", Value::Null, Value::Null));
     }
     // A past thing is recorded already gone, in no holder (spec/past-belongings.md).
     const PAST_WAYS: &str = "sell, give, trash, used, trade, return, left, stolen or unknown";
@@ -2715,12 +2706,9 @@ fn require_no_active_inside(conn: &Connection, node: &Node) -> Result<Vec<Node>>
         .iter()
         .map(|k| brief_json(conn, *k))
         .collect::<Result<Vec<_>>>()?;
-    Err(refused(
-        format!(
-            "{} still holds {} active node(s); move or dispose of them first",
-            label(node),
-            active.len()
-        ),
+    Err(refuse(
+        "still_holds",
+        json!({ "node": label(node), "count": active.len() }),
         json!({ "children": children }),
     ))
 }
@@ -2815,12 +2803,9 @@ fn require_copy(conn: &Connection, node: &Node) -> Result<Option<String>> {
             .collect::<rusqlite::Result<_>>()?
     };
     if files.is_empty() {
-        return Err(refused(
-            format!(
-                "{} has no copy yet; attach one with `ev photo add` or `ev doc add --for` before \
-                 it leaves as digitized",
-                label(node)
-            ),
+        return Err(refuse(
+            "digitize_needs_copy",
+            json!({ "node": label(node) }),
             Value::Null,
         ));
     }
@@ -2861,20 +2846,18 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, true)?)?;
         if node.state != State::Gone {
-            return Err(refused(
-                format!("{} is not gone", label(&node)),
+            return Err(refuse(
+                "not_gone",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
         if let Some(p) = node.parent_id {
             let parent = load(&tx, p)?;
             if parent.state == State::Gone {
-                return Err(refused(
-                    format!(
-                        "{} left with {}; restore that first",
-                        label(&node),
-                        label(&parent)
-                    ),
+                return Err(refuse(
+                    "left_with",
+                    json!({ "node": label(&node), "holder": label(&parent) }),
                     Value::Null,
                 ));
             }

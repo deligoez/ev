@@ -229,6 +229,15 @@ impl Error {
     }
 }
 
+/// A refusal by its id (exit 5), with what it carries for the agent to act on, if anything.
+pub(crate) fn refuse(id: &'static str, values: Value, details: Value) -> Error {
+    let mut e = Error::said(Fault::Refused, id, values);
+    if let Error::Said(s) = &mut e {
+        s.details = details;
+    }
+    e
+}
+
 pub(crate) fn refused(message: impl Into<String>, details: Value) -> Error {
     Error::Refused {
         message: message.into(),

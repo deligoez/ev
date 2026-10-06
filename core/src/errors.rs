@@ -23,6 +23,77 @@ pub const ERRORS: &[(&str, &str)] = &[
         "record_joined",
         "node {id} joined #{into}; it is counted there now",
     ),
+    // Refusals of the records and their places (phase 2).
+    (
+        "split_holds_things",
+        "{node} holds {inside} thing(s); split what is inside, move it out first, or take empty units off it with --take",
+    ),
+    (
+        "split_takes_all",
+        "the parts take {take} of the {had} of {node}; nothing would be left on it: keep one part as the original with --rename and --qty instead",
+    ),
+    (
+        "already_candidate",
+        "{node} is already a candidate; use `ev gone` or `ev restore`",
+    ),
+    (
+        "restore_gone_by_correction",
+        "node {id} is gone; `ev restore {id} --correction \"why\"` undoes it",
+    ),
+    ("not_a_candidate", "{node} is not a candidate"),
+    (
+        "gone_needs_how",
+        "{node} is active; say how it left with --as trash|give|sell|trade|used|digitize|left|stolen|unknown",
+    ),
+    ("already_lost", "{node} is already lost"),
+    ("home_cannot_be_lost", "a home cannot be lost"),
+    ("not_lost", "{node} is not lost"),
+    (
+        "never_seen",
+        "{node} was never seen anywhere; say where it turned up with `ev found <ref> --in <place>`",
+    ),
+    ("no_pending_move", "{node} has no pending move"),
+    (
+        "already_there",
+        "{node} is already in {place}; a place inside it (a compartment) is a grid cell (`ev grid`, `ev cell`) or a holder of its own",
+    ),
+    (
+        "move_already_pending",
+        "{node} already has a pending move; cancel it first",
+    ),
+    (
+        "code_only_digits",
+        "code `{code}` is only digits and would read as an id",
+    ),
+    ("code_in_use", "code `{code}` is already in use"),
+    (
+        "home_inside_another",
+        "a home cannot be placed inside another node",
+    ),
+    (
+        "needs_a_place",
+        "a {kind} needs a place: give --in, or --lost if its place is unknown",
+    ),
+    ("holder_gone", "{node} is gone and cannot hold anything"),
+    (
+        "room_inside_wrong_kind",
+        "a room can only be inside a home or another room, not a {kind}",
+    ),
+    (
+        "into_itself",
+        "a node cannot be moved into itself or into something it contains",
+    ),
+    ("address_only_home", "only a home has an address"),
+    (
+        "still_holds",
+        "{node} still holds {count} active node(s); move or dispose of them first",
+    ),
+    (
+        "digitize_needs_copy",
+        "{node} has no copy yet; attach one with `ev photo add` or `ev doc add --for` before it leaves as digitized",
+    ),
+    ("not_gone", "{node} is not gone"),
+    ("left_with", "{node} left with {holder}; restore that first"),
 ];
 
 /// The English template of an id.
@@ -88,11 +159,16 @@ mod tests {
     #[test]
     fn every_id_raised_has_a_sentence() {
         for (path, text) in sources() {
-            for part in text.split("Error::said(").skip(1) {
-                let Some(id) = part.split('"').nth(1) else {
-                    continue;
-                };
-                assert!(template(id).is_some(), "{path}: `{id}` has no sentence");
+            for start in ["Error::said(", "refuse(\n", "refuse(\""] {
+                for part in text.split(start).skip(1) {
+                    let id = if start.ends_with('"') {
+                        part.split('"').next()
+                    } else {
+                        part.split('"').nth(1)
+                    };
+                    let Some(id) = id else { continue };
+                    assert!(template(id).is_some(), "{path}: `{id}` has no sentence");
+                }
             }
         }
     }
@@ -108,7 +184,7 @@ mod tests {
     /// (spec/error-ids.md); lower the number as they are given ids.
     #[test]
     fn errors_without_an_id_only_become_fewer() {
-        const LEFT: usize = 321;
+        const LEFT: usize = 293;
         let n: usize = sources()
             .iter()
             .map(|(_, t)| {

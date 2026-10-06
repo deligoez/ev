@@ -1217,15 +1217,21 @@ impl Inventory {
     /// A lost node turned up somewhere else than where it was last seen: it moves there, which
     /// clears the lost mark.
     pub fn found_in(&mut self, reference: &str, place: &str) -> Result<Value> {
-        let node = load(&self.conn, resolve(&self.conn, reference, false)?)?;
+        let tx = self.conn.transaction()?;
+        let node = load(&tx, resolve(&tx, reference, false)?)?;
         if !node.lost {
             return Err(refused(
                 format!("{} is not lost", label(&node)),
                 Value::Null,
             ));
         }
-        let v = self.move_to(&format!("#{}", node.id), place, false)?;
-        let v = offer_purchases(&self.conn, node.id, v)?;
+        let target = resolve(&tx, place, false)?;
+        // Found, not moved: history says where it turned up (`found`, from where it was last
+        // seen to where it was).
+        apply_move(&tx, &node, target, "found")?;
+        let holder = crate::portions::join_here(&tx, node.id)?;
+        tx.commit()?;
+        let v = offer_purchases(&self.conn, holder, show(&self.conn, holder)?)?;
         with_waiting(&self.conn, node.id, v)
     }
 
@@ -1271,7 +1277,7 @@ impl Inventory {
         let mut stmt = self.conn.prepare(
             "SELECT node_id, at, type, data FROM events
              WHERE node_id = ?1
-                OR (type IN ('move', 'done', 'plan')
+                OR (type IN ('move', 'done', 'plan', 'found')
                     AND (json_extract(data, '$.to') = ?1 OR json_extract(data, '$.from') = ?1))
                 OR (type = 'create' AND json_extract(data, '$.parent') = ?1)
              ORDER BY id",

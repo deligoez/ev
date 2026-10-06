@@ -1036,6 +1036,12 @@ impl Inventory {
         past::set_departure(&tx, node.id, at, place)?;
         if final_disposition == Disposition::Sell {
             past::carry_sale(&tx, node.id, listed_on)?;
+        } else {
+            // Not sold after all: a price said while it waited (`ev sold`) no longer stands.
+            tx.execute(
+                "UPDATE departures SET price = NULL, currency = NULL WHERE node_id = ?1",
+                [node.id],
+            )?;
         }
         // Gone, it is on sale no more; a part that left leaves the rest still listed.
         if listed_on == node.id {

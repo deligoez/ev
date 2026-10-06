@@ -803,3 +803,15 @@ fn a_line_added_to_a_note_shows_only_that_line() {
     let s = h.text(&["edit", "D-B1", "theme=Dremel ve parçaları"]);
     assert!(s.contains("Dremel → Dremel ve parçaları"), "{s}");
 }
+
+#[test]
+fn several_sketched_at_once_are_each_shown_as_one_is() {
+    let h = Home::new();
+    let s = h.run(
+        &["--text", "sketch", "--stdin"],
+        Some("{\"ref\":\"Oda\",\"at\":[10,20]}\n{\"ref\":\"D\",\"at\":[30,40]}\n"),
+    );
+    assert!(!s.starts_with('{'), "{s}");
+    assert!(s.contains("Ev › Oda › D"), "{s}");
+    assert_eq!(s.lines().count(), 2, "{s}");
+}

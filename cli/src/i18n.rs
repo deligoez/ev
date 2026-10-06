@@ -121,13 +121,17 @@ pub fn error_sentence(s: &ev_core::Said) -> String {
     }
     .or_else(|| ev_core::template(s.id))
     .unwrap_or(s.id);
-    // A value that is a word of ev's own (a kind) is said in the reader's language too.
+    // A value that is a word of ev's own (a kind, a bucket, why a line was dismissed) is said
+    // in the reader's language too.
     let mut values = s.values.clone();
-    if lang() == Lang::Tr
-        && let Some(serde_json::Value::String(kind)) = values.get("kind")
-        && let Some(tr) = turkish().get(kind.as_str())
-    {
-        values.insert("kind".into(), serde_json::json!(tr));
+    if lang() == Lang::Tr {
+        for key in ["kind", "bucket", "as"] {
+            if let Some(serde_json::Value::String(word)) = values.get(key)
+                && let Some(tr) = turkish().get(word.as_str())
+            {
+                values.insert(key.into(), serde_json::json!(tr));
+            }
+        }
     }
     let mut out = ev_core::fill(template, &values);
     for a in &s.at {
@@ -229,6 +233,83 @@ static ERRORS_TR: &[(&str, &str)] = &[
     (
         "left_with",
         "{node}, {holder} ile birlikte gitti; önce onu geri getir",
+    ),
+    (
+        "purchase_dismissed",
+        "{id} numaralı alım {as} olarak kapatılmış; önce bunu kaldır",
+    ),
+    (
+        "purchase_not_enough_open",
+        "{id} numaralı alımda bağlanacak {open} birim kaldı, {qty} değil",
+    ),
+    (
+        "purchase_never_a_thing",
+        "{id} numaralı alım bir {bucket} alımı; evde hiçbir zaman bir eşya olmaz",
+    ),
+    (
+        "purchase_nothing_open",
+        "{id} numaralı alımda bağlanacak bir şey kalmadı",
+    ),
+    (
+        "purchase_already_bucket",
+        "{id} numaralı alım zaten {bucket}",
+    ),
+    (
+        "purchase_linked_unlink_first",
+        "{id} numaralı alım bir eşyaya bağlı; önce `ev buy unlink` ile ayır",
+    ),
+    (
+        "purchase_not_linked_to",
+        "{id} numaralı alım #{node} kaydına bağlı değil",
+    ),
+    (
+        "line_linked_unlink_first",
+        "{id} numaralı satır #{node} kaydına bağlı; önce `ev buy unlink {id} {node}`",
+    ),
+    (
+        "line_not_declined",
+        "{id} numaralı satır #{node} için reddedilmemişti",
+    ),
+    (
+        "left_holds_no_purchase",
+        "#{node} {how} olarak gitti; bir alımı olmaz",
+    ),
+    (
+        "bought_after_left",
+        "alım {bought} tarihinde yapılmış, #{node} gittikten sonra ({left})",
+    ),
+    (
+        "grid_none",
+        "buranın ızgarası yok; `ev grid <ref> --cols N --rows M` ile kur",
+    ),
+    (
+        "cells_outside_grid",
+        "{cells}, {cols}×{rows} ızgaranın dışında",
+    ),
+    (
+        "grid_too_small",
+        "yerleştirilmiş {count} kutu {cols}×{rows} ızgaranın dışında kalır",
+    ),
+    (
+        "face_needs_grid",
+        "ızgarası yok; --cols ve --rows ile bir ızgara ver",
+    ),
+    (
+        "grid_has_boxes",
+        "bu ızgarada {count} kutu yerleştirilmiş; önce hücrelerini boşalt",
+    ),
+    ("not_inside_anything", "{node} hiçbir şeyin içinde değil"),
+    (
+        "holder_has_no_grid",
+        "{holder} kaydının ızgarası yok; `ev grid <holder> --cols N --rows M` ile kur",
+    ),
+    (
+        "cells_do_not_fit",
+        "{cells}, {cols}×{rows} ızgaraya sığmıyor (sütunlar A–{last_col}, satırlar 1–{rows})",
+    ),
+    (
+        "cells_shared",
+        "{a} ({a_cells}) ile {b} ({b_cells}) aynı hücreleri paylaşır",
     ),
 ];
 

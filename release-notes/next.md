@@ -10,7 +10,13 @@ details, whose tabs are now the only tab strip on screen (spec/ui-sidebar.md).
 - Every list in the sidebar has the digit that opens it and, where one number says it, how many
   it holds, counted by building the list itself so the two never disagree. The digits follow the
   sidebar: 1 layout, 2 to do, 3 pending, 4 leaving, 5 lost, 6 errands, 7 past, 8 statistics,
-  0 settings; 9 is kept for the purchases.
+  9 purchases, 0 settings.
+- The purchases have lists of their own: every line on `9`, and one list per bucket (durable,
+  clothing, digital, service). An order's lines sit under one heading with the order's total,
+  the title adds up what is shown per currency, `f` narrows to open, linked or dismissed lines
+  and `/` to lines with the words typed, live. The details are the line as `ev buy show`
+  writes it, and Enter opens the thing it is linked to in the tree. Until now the purchases
+  were only reachable from the command line.
 - `Tab` moves between the panes, and the one the keys go to has a coloured border. In the
   sidebar the arrows open each list as they pass it; in the details `j`/`k` scroll and `h`/`l`
   step the tabs.

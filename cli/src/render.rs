@@ -2042,6 +2042,15 @@ pub fn human(v: &Value) -> String {
         sketch(&mut out, v);
         return out;
     }
+    // Several sketched at once (`ev sketch --stdin`): each as one is shown.
+    if let Some(list) = v.get("sketched").and_then(Value::as_array)
+        && v.as_object().is_some_and(|o| o.len() == 1)
+    {
+        for one in list {
+            sketch(&mut out, one);
+        }
+        return out;
+    }
     if v.get("placed").is_none()
         && let Some(list) = v.get("grids").and_then(Value::as_array)
     {

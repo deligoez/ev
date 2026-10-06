@@ -140,9 +140,15 @@ from the home down, the ancestors' ids to step up with.
 | history | `node`, `events`: `[{at, type, data}]`; with `--contents` also the events of things that came in, went out (`move`, `done`, `plan` to or from it) or were added there (`create`), each with `item` (NodeRef) and `relation`: `in` \| `out` \| `added` |
 
 Errors print nothing on stdout; stderr carries
-`{"error": {"code", "kind", "message", "candidates"?, "details"?}}` in JSON mode, a mistyped
-argument too (`kind: usage`, exit 2, the message with the command's usage line). `--help` and
-`--version` stay text, on stdout.
+`{"error": {"code", "kind", "message", "id"?, "values"?, "at"?, "candidates"?, "details"?}}` in
+JSON mode, a mistyped argument too (`kind: usage`, exit 2, the message with the command's usage
+line). `--help` and `--version` stay text, on stdout. An error with an `id` (spec/error-ids.md)
+names it in stable snake_case, its `values` by name, and `at`, where it happened, outermost
+first (`[{"line": 2}]` for a batch line; `{"of": "f3"}` for what else it is about); `message`
+stays the English sentence. The ids so far: `no_record_matches` (`ref`), `no_record_with_id`
+(`id`), `ref_matches_several` (`ref`, `count`, with `candidates`), `record_gone` (`id`),
+`record_joined` (`id`, `into`). The text output words an error with an id in the reader's
+language; the rest are still English sentences, moving to ids phase by phase.
 
 ## Event types
 

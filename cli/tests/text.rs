@@ -961,3 +961,14 @@ fn progress_lists_places_under_their_holder_and_each_task_once() {
     );
     assert!(s.contains("\nTasks\n  #1 Çekmeceyi say\n"), "{s}");
 }
+
+#[test]
+fn a_count_of_one_is_not_written() {
+    let h = Home::new();
+    h.run(&["edit", "Aktif buzzer", "qty=1"], None);
+    h.run(&["edit", "Kırmızı LED 10 mm", "qty=3"], None);
+    let s = h.text(&["find", "led"]);
+    assert!(s.contains("Kırmızı LED 10 mm  x3"), "{s}");
+    let s = h.text(&["find", "buzzer"]);
+    assert!(!s.contains(" x1"), "{s}");
+}

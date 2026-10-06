@@ -111,8 +111,14 @@ impl App {
         // The width shared evenly, so the grid fills the pane; a cell is about twice as tall
         // as it is wide, so a 4:3 picture takes 3/8 of its width in rows, under a title line.
         let tile_w = inner.width / cols;
-        let tile_h = (tile_w * 3 / 8).max(2) + 1;
-        let rows_fit = usize::from((inner.height / tile_h).max(1));
+        let least_h = (tile_w * 3 / 8).max(2) + 1;
+        // As many rows as fit at that height, or as the series needs; the height left under
+        // them is shared out among them, so no band stays empty below the last row and a
+        // portrait photo (most of them) is drawn taller.
+        let needed = n.div_ceil(usize::from(cols)).max(1) as u16;
+        let rows = (inner.height / least_h).clamp(1, needed);
+        let tile_h = (inner.height / rows).max(least_h);
+        let rows_fit = usize::from(rows);
         let cols = usize::from(cols);
         self.grid_cols = cols;
         let row = s.at / cols;

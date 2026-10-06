@@ -120,6 +120,13 @@ impl Inventory {
         cut_or_whole: bool,
     ) -> Result<(i64, PathBuf)> {
         let id = super::resolve_for_history(&self.conn, reference)?;
+        // Only a picture ev can open is a photo: anything else fails later, when it is cut.
+        if file.exists() && crate::photo::short_side(file).is_none() {
+            return Err(Error::Usage(format!(
+                "{} is no image ev can read (a JPEG or PNG photo)",
+                file.display()
+            )));
+        }
         let original = crate::photo::store_file(&self.photo_dir, file)?;
         if !cut_or_whole {
             let others = ids(

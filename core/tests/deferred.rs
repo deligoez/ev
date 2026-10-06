@@ -94,3 +94,12 @@ fn an_import_that_does_not_say_a_lines_bucket_keeps_the_one_set_by_hand() {
     inv.buy_import(said).unwrap();
     assert_eq!(inv.buy_show(id).unwrap()["purchase"]["bucket"], "service");
 }
+
+#[test]
+fn an_import_names_the_fields_it_does_not_read() {
+    let (_d, mut inv) = setup();
+    let v = inv
+        .buy_import(r#"{"source":"mail","key":"r2","name":"Kablo","orderd_at":"2024-01-02"}"#)
+        .unwrap();
+    assert_eq!(v["imported"]["unknown_fields"]["orderd_at"], 1, "{v}");
+}

@@ -330,6 +330,81 @@ pub const ERRORS: &[(&str, &str)] = &[
         "outside_holder",
         "at {x},{y} and {w}×{d} cm it would lie outside its holder, {pw}×{pd} cm",
     ),
+    // Refusals of coverages, the past, kits, photos, documents and placement.
+    (
+        "coverage_no_line_to_clear",
+        "coverage {id} has no purchase line to clear",
+    ),
+    (
+        "coverage_line_dismissed",
+        "line {line} is dismissed ({as}); `ev buy dismiss {line} --clear` it first",
+    ),
+    (
+        "coverage_line_linked",
+        "line {line} is linked to a thing; `ev buy unlink` it first if it is the coverage's",
+    ),
+    (
+        "coverage_line_taken",
+        "line {line} is already coverage {coverage}'s",
+    ),
+    (
+        "not_sold",
+        "node {id} did not leave as sold; `ev gone {id} --as sell` first (or `ev dispose {id} --as sell` while it is still here)",
+    ),
+    (
+        "trade_not_left",
+        "node {id} has not left; `ev gone {id} --as trade` first",
+    ),
+    (
+        "trade_wrong_leaving",
+        "node {id} left as {how}; only a thing given, sold or traded can be a trade",
+    ),
+    (
+        "already_traded_for",
+        "node {id} is already recorded as traded for #{for}; nothing to change",
+    ),
+    (
+        "already_traded",
+        "node {id} is already recorded as traded; nothing to change",
+    ),
+    ("kit_name_taken", "there is already a kit named `{name}`"),
+    (
+        "kit_part_linked",
+        "part {part} ({text}) has {count} record(s) linked; `ev kit unlink` them first",
+    ),
+    (
+        "kit_part_not_linked",
+        "#{node} is not linked to part {part} of {kit}",
+    ),
+    (
+        "photo_whole_elsewhere",
+        "this photo is already attached whole to {count} other node(s); attach a --crop of the part that shows node {id}, or pass --whole if the whole view is meant",
+    ),
+    (
+        "photo_whole_elsewhere_batch",
+        "this photo is already attached whole to {count} other node(s)",
+    ),
+    (
+        "mark_needs_grid_photo",
+        "no photo of it kept its grid corners; give --grid, or cut the next one with --grid",
+    ),
+    ("mark_needs_whole_photo", "it has no whole photo to mark"),
+    (
+        "document_not_linked",
+        "document {id} is not linked to node {node}",
+    ),
+    (
+        "no_decline_to_clear",
+        "node {id} has no move declined to take back",
+    ),
+    (
+        "bring_not_linked",
+        "purchase {id} is not linked to {ref}; ev buy link it first",
+    ),
+    (
+        "layout_too_few_units",
+        "{ref} has {count} place(s) gone through on its own; a layout compares two or more",
+    ),
 ];
 
 /// The English template of an id.
@@ -424,7 +499,7 @@ mod tests {
     /// (spec/error-ids.md); lower the number as they are given ids.
     #[test]
     fn errors_without_an_id_only_become_fewer() {
-        const LEFT: usize = 233;
+        const LEFT: usize = 215;
         let n: usize = sources()
             .iter()
             .map(|(_, t)| {

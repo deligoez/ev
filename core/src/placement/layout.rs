@@ -166,11 +166,9 @@ impl Inventory {
             .filter(|u| *u != root && scope.contains(u))
             .collect();
         if units.len() < 2 {
-            return Err(crate::error::refused(
-                format!(
-                    "{reference} has {} place(s) gone through on its own; a layout compares two or more",
-                    units.len()
-                ),
+            return Err(crate::error::refuse(
+                "layout_too_few_units",
+                serde_json::json!({ "ref": reference, "count": units.len() }),
                 serde_json::Value::Null,
             ));
         }

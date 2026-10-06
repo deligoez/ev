@@ -7,7 +7,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
 use super::{Inventory, event, resolve, show};
-use crate::error::{Error, Result, refused};
+use crate::error::{Error, Result, refuse};
 
 /// A date as a person remembers it: a year (`2016`), a month (`2016-06`) or a day
 /// (`2016-06-14`). Never widened to a day nobody said.
@@ -252,12 +252,7 @@ impl Inventory {
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
         if how.as_deref() != Some("sell") || state == "active" {
-            return Err(refused(
-                format!(
-                    "node {id} did not leave as sold; `ev gone {id} --as sell` first (or `ev dispose {id} --as sell` while it is still here)"
-                ),
-                Value::Null,
-            ));
+            return Err(refuse("not_sold", json!({ "id": id }), Value::Null));
         }
         let cents = crate::purchases::parse_money(price)?;
         if cents <= 0 {
@@ -325,18 +320,14 @@ impl Inventory {
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
         if state != "gone" {
-            return Err(refused(
-                format!("node {id} has not left; `ev gone {id} --as trade` first"),
-                Value::Null,
-            ));
+            return Err(refuse("trade_not_left", json!({ "id": id }), Value::Null));
         }
         // Only a leaving that handed the thing to someone may have been a swap.
         let how_text = how.as_deref().unwrap_or("unknown");
         if !matches!(how_text, "give" | "sell" | "trade") {
-            return Err(refused(
-                format!(
-                    "node {id} left as {how_text}; only a thing given, sold or traded can be a trade"
-                ),
+            return Err(refuse(
+                "trade_wrong_leaving",
+                json!({ "id": id, "how": how_text }),
                 Value::Null,
             ));
         }
@@ -355,13 +346,14 @@ impl Inventory {
             .optional()?
             .flatten();
         if how_text == "trade" && (other.is_none() || other == before) {
-            return Err(refused(
-                format!(
-                    "node {id} is already recorded as traded{}; nothing to change",
-                    before.map(|b| format!(" for #{b}")).unwrap_or_default()
+            return Err(match before {
+                Some(b) => refuse(
+                    "already_traded_for",
+                    json!({ "id": id, "for": b }),
+                    Value::Null,
                 ),
-                Value::Null,
-            ));
+                None => refuse("already_traded", json!({ "id": id }), Value::Null),
+            });
         }
         if let Some(o) = other {
             trade_check(&tx, left_of(&tx, id)?.as_deref(), o)?;

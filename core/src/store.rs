@@ -5,7 +5,7 @@ use std::time::Duration;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 
-use crate::error::{refuse, refused};
+use crate::error::refuse;
 use crate::model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 use crate::{Error, Fault, Result, fold};
 

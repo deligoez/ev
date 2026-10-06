@@ -141,12 +141,9 @@ impl Inventory {
                     .iter()
                     .map(|o| brief_json(&self.conn, *o))
                     .collect::<Result<Vec<_>>>()?;
-                return Err(refused(
-                    format!(
-                        "this photo is already attached whole to {} other node(s); attach a --crop \
-                         of the part that shows node {id}, or pass --whole if the whole view is meant",
-                        others.len()
-                    ),
+                return Err(refuse(
+                    "photo_whole_elsewhere",
+                    json!({ "count": others.len(), "id": id }),
                     json!({ "attached_to": nodes }),
                 ));
             }
@@ -281,11 +278,9 @@ impl Inventory {
                     .iter()
                     .map(|o| brief_json(&self.conn, *o))
                     .collect::<Result<Vec<_>>>()?;
-                return Err(refused(
-                    format!(
-                        "this photo is already attached whole to {} other node(s)",
-                        others.len()
-                    ),
+                return Err(refuse(
+                    "photo_whole_elsewhere_batch",
+                    json!({ "count": others.len() }),
                     json!({ "attached_to": nodes }),
                 ));
             }
@@ -526,11 +521,15 @@ impl Inventory {
                 .optional()?;
             let Some((path, grid)) = row else {
                 let why = if want_grid {
-                    "no photo of it kept its grid corners; give --grid, or cut the next one with --grid"
+                    "mark_needs_grid_photo"
                 } else {
-                    "it has no whole photo to mark"
+                    "mark_needs_whole_photo"
                 };
-                return Err(refused(why, json!({ "node": brief_json(&self.conn, id)? })));
+                return Err(refuse(
+                    why,
+                    Value::Null,
+                    json!({ "node": brief_json(&self.conn, id)? }),
+                ));
             };
             (PathBuf::from(path), Some(id), grid)
         };

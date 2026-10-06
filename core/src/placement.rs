@@ -736,8 +736,9 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let id = resolve(&tx, reference, false)?;
         if tx.execute("DELETE FROM declines WHERE node_id = ?1", [id])? == 0 {
-            return Err(crate::error::refused(
-                format!("node {id} has no move declined to take back"),
+            return Err(crate::error::refuse(
+                "no_decline_to_clear",
+                json!({ "id": id }),
                 Value::Null,
             ));
         }

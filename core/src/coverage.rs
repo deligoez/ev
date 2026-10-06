@@ -732,8 +732,9 @@ impl Inventory {
             .map(|l| line_for_coverage(&tx, l, Some(coverage)))
             .transpose()?;
         if old_line.is_none() && line.is_none() {
-            return Err(crate::error::refused(
-                format!("coverage {coverage} has no purchase line to clear"),
+            return Err(crate::error::refuse(
+                "coverage_no_line_to_clear",
+                json!({ "id": coverage }),
                 Value::Null,
             ));
         }
@@ -805,8 +806,9 @@ fn line_for_coverage(
         .optional()?
         .ok_or_else(|| Error::NotFound(format!("no purchase with id {line}")))?;
     if let Some(d) = dismissed {
-        return Err(crate::error::refused(
-            format!("line {line} is dismissed ({d}); `ev buy dismiss {line} --clear` it first"),
+        return Err(crate::error::refuse(
+            "coverage_line_dismissed",
+            json!({ "line": line, "as": d }),
             Value::Null,
         ));
     }
@@ -816,10 +818,9 @@ fn line_for_coverage(
         |r| r.get(0),
     )?;
     if linked > 0 {
-        return Err(crate::error::refused(
-            format!(
-                "line {line} is linked to a thing; `ev buy unlink` it first if it is the coverage's"
-            ),
+        return Err(crate::error::refuse(
+            "coverage_line_linked",
+            json!({ "line": line }),
             Value::Null,
         ));
     }
@@ -831,8 +832,9 @@ fn line_for_coverage(
         )
         .optional()?;
     if let Some(o) = other {
-        return Err(crate::error::refused(
-            format!("line {line} is already coverage {o}'s"),
+        return Err(crate::error::refuse(
+            "coverage_line_taken",
+            json!({ "line": line, "coverage": o }),
             Value::Null,
         ));
     }

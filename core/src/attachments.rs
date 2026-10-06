@@ -281,8 +281,9 @@ impl Inventory {
             )
             .optional()?;
         if linked.is_none() {
-            return Err(crate::error::refused(
-                format!("purchase {id} is not linked to {reference}; ev buy link it first"),
+            return Err(crate::error::refuse(
+                "bring_not_linked",
+                serde_json::json!({ "id": id, "ref": reference }),
                 serde_json::Value::Null,
             ));
         }

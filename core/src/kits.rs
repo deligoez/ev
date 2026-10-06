@@ -169,8 +169,9 @@ impl Inventory {
             rusqlite::Error::SqliteFailure(f, _)
                 if f.code == rusqlite::ErrorCode::ConstraintViolation =>
             {
-                crate::error::refused(
-                    format!("there is already a kit named `{name}`"),
+                crate::error::refuse(
+                    "kit_name_taken",
+                    json!({ "name": name }),
                     serde_json::Value::Null,
                 )
             }
@@ -226,11 +227,9 @@ impl Inventory {
                 .iter()
                 .map(|l| brief_json(&tx, *l))
                 .collect::<Result<Vec<_>>>()?;
-            return Err(crate::error::refused(
-                format!(
-                    "part {n} ({text}) has {} record(s) linked; `ev kit unlink` them first",
-                    linked.len()
-                ),
+            return Err(crate::error::refuse(
+                "kit_part_linked",
+                json!({ "part": n, "text": text, "count": linked.len() }),
                 json!({ "linked": nodes }),
             ));
         }
@@ -337,8 +336,9 @@ impl Inventory {
             params![id, n, node],
         )? == 0
         {
-            return Err(crate::error::refused(
-                format!("#{node} is not linked to part {n} of {name}"),
+            return Err(crate::error::refuse(
+                "kit_part_not_linked",
+                json!({ "node": node, "part": n, "kit": name }),
                 serde_json::Value::Null,
             ));
         }

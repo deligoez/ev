@@ -148,3 +148,39 @@ fn a_line_linked_to_a_thing_or_another_coverage_is_not_a_coverage_s() {
     let v = inv.cover_purchase(a, None).unwrap();
     assert!(v["coverage"]["premium"].is_null(), "{v}");
 }
+
+#[test]
+fn a_start_says_which_task_it_stopped_and_progress_reads_the_place_around_a_thing() {
+    let (_d, mut inv) = setup();
+    let task = |inv: &mut Inventory, title: &str| {
+        inv.task_add(title, "neden", &["Oda".into()], None).unwrap()["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (a, b) = (task(&mut inv, "Birinci"), task(&mut inv, "İkinci"));
+    inv.task_set(a, "doing", None).unwrap();
+    let v = inv.task_set(b, "doing", None).unwrap();
+    assert_eq!(v["stopped"]["id"], a, "{v}");
+    // A thing is no place to read progress of.
+    assert_eq!(inv.progress_in(Some("Telefon")).unwrap_err().code(), 2);
+}
+
+#[test]
+fn fixed_needs_something_broken_and_a_link_takes_back_a_decline() {
+    let (_d, mut inv) = setup();
+    assert_eq!(inv.broken("Telefon", None, true).unwrap_err().code(), 5);
+    let line = inv
+        .buy_add(&serde_json::json!({"name": "Telefon", "qty": 1}), None)
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    inv.buy_decline(line, "Telefon", None, false).unwrap();
+    inv.buy_link(line, "Telefon", None).unwrap();
+    let v = inv.buy_show(line).unwrap();
+    assert!(
+        v["purchase"]["declined"]
+            .as_array()
+            .is_none_or(Vec::is_empty),
+        "{v}"
+    );
+}

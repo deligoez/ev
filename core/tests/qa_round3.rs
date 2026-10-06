@@ -112,3 +112,11 @@ fn a_sale_dated_before_the_thing_left_keeps_it_in_the_left_inventory_list() {
             .is_empty()
     );
 }
+
+#[test]
+fn a_swap_is_said_of_a_giving_or_a_sale_only_and_once() {
+    let (_d, mut inv) = setup();
+    gone(&mut inv, "Telefon", Disposition::Trash, None);
+    let phone = id(&inv, "Telefon");
+    assert_eq!(inv.traded(&phone, None).unwrap_err().code(), 5);
+}

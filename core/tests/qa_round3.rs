@@ -160,3 +160,29 @@ fn a_gone_thing_is_traded_by_its_name() {
     gone(&mut inv, "Telefon", Disposition::Give, None);
     inv.traded("Telefon", Some("Tablet")).unwrap();
 }
+
+fn line(inv: &mut Inventory, name: &str, ordered: &str, bucket: &str) -> i64 {
+    inv.buy_add(
+        &serde_json::json!({"name": name, "qty": 1, "ordered_at": ordered, "bucket": bucket}),
+        None,
+    )
+    .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap()
+}
+
+#[test]
+fn a_thing_that_left_is_offered_no_line_bought_after_it_left() {
+    let (_d, mut inv) = setup();
+    gone(&mut inv, "Telefon", Disposition::Give, Some("2018"));
+    let later = line(&mut inv, "Telefon", "2024-05-01", "durable");
+    let earlier = line(&mut inv, "Telefon", "2017-05-01", "durable");
+    let offered: Vec<i64> = inv.buy_for(&id(&inv, "Telefon")).unwrap()["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|c| c["purchase"]["id"].as_i64())
+        .collect();
+    assert!(offered.contains(&earlier), "{offered:?}");
+    assert!(!offered.contains(&later), "{offered:?}");
+}

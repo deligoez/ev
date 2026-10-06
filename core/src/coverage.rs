@@ -726,6 +726,12 @@ impl Inventory {
         let new = line
             .map(|l| line_for_coverage(&tx, l, Some(coverage)))
             .transpose()?;
+        if old_line.is_none() && line.is_none() {
+            return Err(crate::error::refused(
+                format!("coverage {coverage} has no purchase line to clear"),
+                Value::Null,
+            ));
+        }
         // Said again as it is: nothing to change, nothing to record.
         if old_line == line {
             tx.commit()?;

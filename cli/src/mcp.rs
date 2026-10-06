@@ -483,11 +483,14 @@ pub(crate) fn run_args(
     let mut cli = match Cli::try_parse_from(argv) {
         Ok(cli) => cli,
         Err(e) => {
+            // Help asked for is the answer; help shown because no command was given is an
+            // error, as the CLI's exit code says.
+            let page = crate::is_page(&e) && !args.is_empty();
             let text = match format {
                 Format::Json if !crate::is_page(&e) => crate::usage_error(&e).to_json().to_string(),
                 _ => e.render().to_string(),
             };
-            return if crate::is_page(&e) {
+            return if page {
                 CallToolResult::success(vec![ContentBlock::text(text)])
             } else {
                 CallToolResult::error(vec![ContentBlock::text(text)])

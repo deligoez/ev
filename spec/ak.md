@@ -78,7 +78,7 @@ thing was bought with, and the other way round:
    its items), in REFERENCE.
 2. **The import** (shipped): `ev buy import --stdin` reads ak's export as written, a count sent
    as text included; a test imports ak's sample lines.
-3. **The join:** ak's lines joined by order number on import, `unjoined` in the result,
+3. **The join** (shipped): ak's lines joined by order number on import, `unjoined` in the result,
    `ev buy join <line> <other>` (and `--clear`), `joined_to` on a joined line's row.
 4. Later, with ak's agent: whether ev's mail and shop adapters that ak covers are retired.
 
@@ -88,3 +88,6 @@ thing was bought with, and the other way round:
   read, never copied.
 - Splitting a purchase's price over its things beyond what `ev buy link --qty` already does.
 - Joining two of ev's own sources by order number.
+- Taking back an import's join for good: `ev buy join <line> --clear` on a line an import
+  joined is joined again by the next import, since ev keeps no "not the same" between two lines.
+  The order number exactly and a single line of it are strong; asked for when it happens.

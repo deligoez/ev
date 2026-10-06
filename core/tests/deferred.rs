@@ -365,3 +365,12 @@ fn a_thing_already_lost_is_refused_as_lost_again() {
     inv.mark_lost("Telefon").unwrap();
     assert_eq!(inv.mark_lost("Telefon").unwrap_err().code(), 5);
 }
+
+#[test]
+fn lending_to_whom_it_is_with_is_refused_but_passing_it_on_is_not() {
+    let (_d, mut inv) = setup();
+    inv.lend("Tablet", "Ayşe").unwrap();
+    assert_eq!(inv.lend("Tablet", "ayşe").unwrap_err().code(), 5);
+    let v = inv.lend("Tablet", "Mehmet").unwrap();
+    assert_eq!(v["node"]["with"], "Mehmet", "{v}");
+}

@@ -442,6 +442,7 @@ static TR: &[(&str, &str)] = &[
     ("Yesterday", "Dün"),
     ("created", "oluşturuldu"),
     ("moved", "taşındı"),
+    ("plan dropped", "plan bırakıldı"),
     ("moved as planned", "planıyla taşındı"),
     ("move planned", "taşıma planlandı"),
     ("plan cancelled", "plan iptal edildi"),

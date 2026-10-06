@@ -2668,6 +2668,17 @@ pub fn human(v: &Value) -> String {
         }
         return out;
     }
+    // `ev done` and `ev cancel` of several: each record where it is now.
+    for (key, word) in [("done", "moved"), ("cancelled", "plan dropped")] {
+        if let Some(list) = v.get(key).and_then(Value::as_array)
+            && v.as_object().is_some_and(|o| o.len() == 1)
+        {
+            for n in list {
+                let _ = writeln!(out, "#{} {}  ({})", n["id"], s(n, "path_text"), t(word));
+            }
+            return out;
+        }
+    }
     // `ev move` of several: each record and where it went, or is planned to go.
     for (key, arrow) in [("moved", "→"), ("planned", "⇢")] {
         if let Some(list) = v.get(key).and_then(Value::as_array) {

@@ -934,6 +934,12 @@ fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
 
 fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     check_open(conn, id, node, qty)?;
+    // Linked on the person's word, the line is this thing after all: an earlier "not this
+    // one" no longer stands.
+    conn.execute(
+        "DELETE FROM purchase_declines WHERE purchase_id = ?1 AND node_id = ?2",
+        params![id, node],
+    )?;
     conn.execute(
         "INSERT INTO purchase_links (purchase_id, node_id, qty, at) VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT (purchase_id, node_id) DO UPDATE SET qty = excluded.qty, at = excluded.at",

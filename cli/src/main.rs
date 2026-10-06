@@ -2704,14 +2704,8 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         ),
     };
     warn_missing_photos(a.photos.iter().map(String::as_str));
-    traded_check(
-        inv,
-        None,
-        a.gone.as_deref(),
-        a.traded_for.as_deref(),
-        (a.at.as_deref(), false),
-    )?;
-    let added = inv.add(NewNode {
+    // A swap's other side is checked and written with the record, all or none.
+    inv.add(NewNode {
         key: None,
         name,
         kind,
@@ -2737,12 +2731,8 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         at: a.at,
         came: a.came,
         place: a.place,
-    })?;
-    // A swap: what came in exchange (spec/past-belongings.md).
-    match a.traded_for {
-        Some(t) => inv.traded(&format!("#{}", added["node"]["id"]), Some(&t)),
-        None => Ok(added),
-    }
+        traded_for: a.traded_for,
+    })
 }
 
 /// `--traded-for` goes with a trade only (said, or the thing set aside to trade), names a thing

@@ -2387,6 +2387,13 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             "--at and --where say how a thing left: add it with --gone".into(),
         ));
     }
+    // What came in exchange is said of a swap only.
+    let traded_for = non_empty(&new.traded_for);
+    if traded_for.is_some() && gone != Some(Disposition::Trade) {
+        return Err(Error::Usage(
+            "traded_for goes with a trade: `--gone trade`".into(),
+        ));
+    }
     let came = non_empty(&new.came)
         .map(|c| past::partial_date(&c))
         .transpose()?;
@@ -2505,6 +2512,21 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
             non_empty(&new.at).as_deref(),
             non_empty(&new.place).as_deref(),
         )?;
+    }
+    if let Some(t) = traded_for {
+        let other = resolve_for_history(conn, &t)?;
+        let left = non_empty(&new.at).map(|a| past::partial_date(&a)).transpose()?;
+        past::trade_check(conn, left.as_deref(), other)?;
+        conn.execute(
+            "UPDATE departures SET traded_for = ?1 WHERE node_id = ?2",
+            params![other, id],
+        )?;
+        // set_departure writes a row only when a date or a place is said.
+        conn.execute(
+            "INSERT OR IGNORE INTO departures (node_id, traded_for) VALUES (?1, ?2)",
+            params![id, other],
+        )?;
+        event(conn, id, "traded", json!({ "was": "trade", "for": other }))?;
     }
     Ok(id)
 }

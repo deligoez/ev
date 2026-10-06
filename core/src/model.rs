@@ -218,4 +218,7 @@ pub struct NewNode {
     /// Where it was when it left: a place, made when new.
     #[serde(default, rename = "where")]
     pub place: Option<String>,
+    /// With `gone: trade`: what came in exchange, a record already there.
+    #[serde(default)]
+    pub traded_for: Option<String>,
 }

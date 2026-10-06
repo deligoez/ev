@@ -289,3 +289,29 @@ fn a_box_brought_into_a_counted_place_after_its_tour_is_not_known_empty() {
     let v = inv.show("Taşıma çantası", false).unwrap();
     assert!(v["empty"].is_null(), "nobody opened it: {}", v["empty"]);
 }
+
+#[test]
+fn a_code_is_found_whatever_its_separator_and_padding() {
+    let (_d, mut inv) = setup();
+    for (name, code) in [
+        ("Kutu A", "X5_12"),
+        ("Kutu B", "X5-13"),
+        ("Kutu C", "X5-014"),
+    ] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "container".into(),
+            parent: Some("Oda".into()),
+            code: Some(code.into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    assert_eq!(names(&inv, "X5-12"), ["Kutu A"]);
+    assert_eq!(names(&inv, "x5_13"), ["Kutu B"]);
+    assert_eq!(names(&inv, "X5-14"), ["Kutu C"]);
+    // A series, however each label was printed.
+    let mut series = names(&inv, "X5-");
+    series.sort();
+    assert_eq!(series, ["Kutu A", "Kutu B", "Kutu C"]);
+}

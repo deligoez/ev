@@ -1171,15 +1171,19 @@ impl Inventory {
     pub fn mark_lost_qty(&mut self, reference: &str, qty: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        if node.lost {
+            return Err(refused(
+                format!("{} is already lost", label(&node)),
+                Value::Null,
+            ));
+        }
         let node = crate::portions::take(&tx, node, qty)?;
         if node.kind == Kind::Home {
             return Err(refused("a home cannot be lost", Value::Null));
         }
-        if !node.lost {
-            tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
-            touch(&tx, node.id)?;
-            event(&tx, node.id, "lost", json!({ "last_seen": node.parent_id }))?;
-        }
+        tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
+        touch(&tx, node.id)?;
+        event(&tx, node.id, "lost", json!({ "last_seen": node.parent_id }))?;
         tx.commit()?;
         show(&self.conn, node.id)
     }

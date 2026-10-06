@@ -983,7 +983,7 @@ fn candidate_line(c: &Value) -> String {
     format!(
         "{}{linked}  ({}: {why})",
         purchase_line(&c["purchase"]),
-        c["score"]
+        decimal(&c["score"])
     )
 }
 

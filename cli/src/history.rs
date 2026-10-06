@@ -303,15 +303,18 @@ pub(crate) fn event_words(
                 .map(|i| tf("for #{}", &[&i]))
                 .unwrap_or_default(),
         ),
+        // What it brought, when (a date said moves the leaving) and through what.
         "sold" => own(
             "sold",
-            format!(
-                "{}  {}",
+            [
                 crate::render::amount(&str_of(d, "price"), &str_of(d, "currency")),
-                str_of(d, "via")
-            )
-            .trim_end()
-            .to_string(),
+                str_of(d, "at"),
+                str_of(d, "via"),
+            ]
+            .into_iter()
+            .filter(|p| !p.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · "),
         ),
         "restore" => own("restored", str_of(d, "correction")),
         "cell" => own(

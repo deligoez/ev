@@ -1253,6 +1253,19 @@ impl Inventory {
                 tx.execute("DELETE FROM reviews WHERE node_id = ?1", [id])?;
             }
             s if REVIEWS.contains(&s) => {
+                // Said again as it is: a toured place is toured again only once what it holds
+                // changed since; the same word otherwise records nothing.
+                let own = review_of(&tx, id)?;
+                if own["status"] == s {
+                    let changed = crate::marks::contents_changed_at(&tx, id)?
+                        .is_some_and(|c| own["at"].as_str().is_some_and(|at| c.as_str() > at));
+                    if s != "toured" || !changed {
+                        return Err(refused(
+                            format!("#{id} is already {s}; nothing changed since"),
+                            json!({ "review": own }),
+                        ));
+                    }
+                }
                 // A place is toured with photos that show it as it is now: its own and those of
                 // every box in its grid, whenever their contents changed after their newest
                 // photo. Fix it with a photo (`ev photo cut … --grid`) or `ev photo current`.

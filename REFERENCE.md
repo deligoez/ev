@@ -168,7 +168,9 @@ collapsible heading per year with how many left and the money paid and got, each
 its details say when it came and how it left); INSIGHT — statistics `8` (`ev stats`, a
 collapsible section per heading; a line that names a record opens it); then search `/` and
 settings `0`. A list's count is its own length: pending, leaving, lost, errands, past and a
-search's results show one, the others none. The top line names the section and list.
+search's results show one, the others none. The top line names the section and list. A
+record that leaves the list it is selected in (made, found, gone, from another process) hands
+the selection to its neighbour, and the status line names it (`#12 left this list`).
 
 | Key | Action |
 |---|---|
@@ -204,7 +206,9 @@ search's results show one, the others none. The top line names the section and l
 | X | close the marked photo series: it leaves the screen, and what the agent sends next starts a new one numbered from 1 |
 | M | the map (see **Maps**) full screen, from the home: its rooms first, the room on the way to the selected node chosen, and on every level Enter leads further down that way. ← ↑ ↓ → move to the nearest tile that way (Tab steps in reading order), Enter goes into the tile, Backspace / u goes up a level with the place left chosen, t closes the map on the chosen tile in the tree; a click chooses a tile and a second click goes in; Esc / q / M close. A tile shows its label, its theme (or name), how many things it holds, its fill, and what is in it as far as it has room; a place on a grid (a drawer, a Kallax) is drawn as its plate, column letters above and row numbers beside, a dot on every free cell; it follows the data as it changes |
 | Settings tab: Enter / → / Space, ← | next / previous option of the selected setting; saved at once and applied to the whole screen |
-| q / Esc | quit (Esc clears a search first) |
+| : | go to: a palette that finds a list, or a record by code, name or `#id` (Turkish letters or not: `kayip` finds Kayıp); ↑ ↓ choose, Enter opens (a record in the tree), Esc closes |
+| Esc | back to the list and record before the last jump (a digit, a click in the sidebar, `:`, Enter on a list's line, a click on a details line or the grid, `t` on the map); the top line names it. With nothing behind, Esc quits (it clears a search first) |
+| q | quit |
 
 **Appearance.** With the appearance on Automatic, `ev ui` follows the terminal's light or dark
 background while it runs. At start it turns on DEC private mode 2031 (`CSI ? 2031 h`) and asks

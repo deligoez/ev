@@ -878,3 +878,18 @@ fn a_closed_task_gives_the_date_it_was_due_with_no_days_left() {
     let s = h.text(&["task", "list", "--all"]);
     assert!(s.contains("     due 2026-01-05\n"), "{s}");
 }
+
+#[test]
+fn history_shows_an_emptied_list_as_a_dash_and_a_sale_with_its_date() {
+    let h = Home::new();
+    h.run(&["edit", "Aktif buzzer", "tags=+eski"], None);
+    h.run(&["edit", "Aktif buzzer", "tags=-eski"], None);
+    h.run(&["dispose", "Aktif buzzer", "--as", "sell"], None);
+    h.run(
+        &["sold", "Aktif buzzer", "--price", "50", "--at", "2026-01"],
+        None,
+    );
+    let s = h.text(&["history", "Aktif buzzer"]);
+    assert!(s.contains("tags: eski → —"), "{s}");
+    assert!(s.contains("50.00 TRY · 2026-01"), "{s}");
+}

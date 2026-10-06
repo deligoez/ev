@@ -272,6 +272,64 @@ pub const ERRORS: &[(&str, &str)] = &[
         "node {id} is not set aside to sell; `ev dispose {id} --as sell` first",
     ),
     ("need_closed", "need {id} is already closed"),
+    // Refusals of edits.
+    (
+        "gone_fields_only",
+        "node {id} is gone; only {fields} can change, not `{given}`",
+    ),
+    (
+        "address_clear_first",
+        "only a home has an address; clear it first",
+    ),
+    (
+        "holds_rooms",
+        "{node} holds rooms, so it must stay a home or a room",
+    ),
+    (
+        "has_not_left",
+        "node {id} has not left; `ev gone` says when",
+    ),
+    (
+        "waits_for_itself",
+        "{node} cannot wait for itself or something inside it",
+    ),
+    (
+        "not_ours_to_lend",
+        "{node} is not ours; it cannot be lent out",
+    ),
+    // Refusals of the places outside the home.
+    ("place_name_taken", "`{name}` already names a place"),
+    (
+        "places_already_one",
+        "both names already point to the same place",
+    ),
+    ("already_lent_to", "{node} is already lent to {to}"),
+    ("not_lent_out", "{node} is not lent out"),
+    (
+        "alias_names_another",
+        "`{alias}` already names another place; use `ev place merge`",
+    ),
+    // Refusals of the map.
+    (
+        "beside_needs_size",
+        "give its --size first, to place it beside another",
+    ),
+    (
+        "beside_other_place",
+        "it can only be placed beside something in the same place",
+    ),
+    (
+        "beside_unplaced",
+        "the other has no place yet; sketch it first",
+    ),
+    (
+        "stands_on_itself",
+        "a thing cannot stand on itself or on what stands on it",
+    ),
+    (
+        "outside_holder",
+        "at {x},{y} and {w}×{d} cm it would lie outside its holder, {pw}×{pd} cm",
+    ),
 ];
 
 /// The English template of an id.
@@ -366,7 +424,7 @@ mod tests {
     /// (spec/error-ids.md); lower the number as they are given ids.
     #[test]
     fn errors_without_an_id_only_become_fewer() {
-        const LEFT: usize = 251;
+        const LEFT: usize = 233;
         let n: usize = sources()
             .iter()
             .map(|(_, t)| {

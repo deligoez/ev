@@ -14,7 +14,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::error::{Error, Result, refused};
+use crate::error::{Error, Result, refuse};
 use crate::model::{Kind, Node, State};
 use crate::store::{
     Inventory, brief_json, event, item_total, load, path, path_text, resolve, touch,
@@ -631,20 +631,23 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
     if let Some((side, other)) = c.beside() {
         let o = resolve(conn, other, false)?;
         let (Some(w), Some(d)) = (p.w, p.d) else {
-            return Err(crate::error::refused(
-                "give its --size first, to place it beside another",
+            return Err(crate::error::refuse(
+                "beside_needs_size",
+                serde_json::Value::Null,
                 serde_json::Value::Null,
             ));
         };
         if load(conn, o)?.parent_id != load(conn, id)?.parent_id || o == id {
-            return Err(refused(
-                "it can only be placed beside something in the same place",
+            return Err(refuse(
+                "beside_other_place",
+                serde_json::Value::Null,
                 json!({ "node": brief_json(conn, id)?, "beside": brief_json(conn, o)? }),
             ));
         }
         let Some([ox, oy, ow, od]) = sketch_of(conn, o)?.rect() else {
-            return Err(refused(
-                "the other has no place yet; sketch it first",
+            return Err(refuse(
+                "beside_unplaced",
+                serde_json::Value::Null,
                 json!({ "beside": brief_json(conn, o)? }),
             ));
         };
@@ -664,8 +667,9 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
     if let Some(on) = &c.on {
         let base = resolve(conn, on, false)?;
         if base == id || stack_base(conn, base)? == id {
-            return Err(refused(
-                "a thing cannot stand on itself or on what stands on it",
+            return Err(refuse(
+                "stands_on_itself",
+                serde_json::Value::Null,
                 json!({ "node": brief_json(conn, id)?, "on": brief_json(conn, base)? }),
             ));
         }
@@ -685,8 +689,12 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
         })
         && (x < -1.0 || y < -1.0 || x + w > pw + 1.0 || y + d > pd + 1.0)
     {
-        return Err(refused(
-            format!("at {x},{y} and {w}×{d} cm it would lie outside its holder, {pw}×{pd} cm"),
+        return Err(refuse(
+            "outside_holder",
+            json!({
+                "x": x.to_string(), "y": y.to_string(), "w": w.to_string(), "d": d.to_string(),
+                "pw": pw.to_string(), "pd": pd.to_string(),
+            }),
             json!({ "node": brief_json(conn, id)?, "holder": brief_json(conn, parent)? }),
         ));
     }

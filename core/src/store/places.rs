@@ -93,8 +93,9 @@ impl Inventory {
     pub fn place_add(&mut self, name: &str, aliases: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;
         if let Some(existing) = find_place(&tx, name)? {
-            return Err(refused(
-                format!("`{}` already names a place", name.trim()),
+            return Err(refuse(
+                "place_name_taken",
+                json!({ "name": name.trim() }),
                 json!({ "place": place_json(&tx, existing)? }),
             ));
         }
@@ -120,10 +121,7 @@ impl Inventory {
         let a = resolve_place(&tx, from)?;
         let b = resolve_place(&tx, into)?;
         if a == b {
-            return Err(refused(
-                "both names already point to the same place",
-                Value::Null,
-            ));
+            return Err(refuse("places_already_one", Value::Null, Value::Null));
         }
         for column in ["owner_place", "with_place", "to_place"] {
             tx.execute(
@@ -200,15 +198,17 @@ impl Inventory {
         if let Some(w) = &node.with
             && crate::fold(w) == crate::fold(to.trim())
         {
-            return Err(refused(
-                format!("{} is already lent to {w}", label(&node)),
+            return Err(refuse(
+                "already_lent_to",
+                json!({ "node": label(&node), "to": w }),
                 Value::Null,
             ));
         }
         let node = crate::portions::take(&tx, node, qty)?;
         if node.owner.is_some() {
-            return Err(refused(
-                format!("{} is not ours; it cannot be lent out", label(&node)),
+            return Err(refuse(
+                "not_ours_to_lend",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         }
@@ -232,8 +232,9 @@ impl Inventory {
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
         let Some(with) = node.with.clone() else {
-            return Err(refused(
-                format!("{} is not lent out", label(&node)),
+            return Err(refuse(
+                "not_lent_out",
+                json!({ "node": label(&node) }),
                 Value::Null,
             ));
         };
@@ -256,8 +257,9 @@ fn add_alias(conn: &Connection, place: i64, alias: &str) -> Result<()> {
         if other == place {
             return Ok(());
         }
-        return Err(refused(
-            format!("`{a}` already names another place; use `ev place merge`"),
+        return Err(refuse(
+            "alias_names_another",
+            json!({ "alias": a }),
             json!({ "place": place_json(conn, other)? }),
         ));
     }

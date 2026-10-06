@@ -120,11 +120,9 @@ pub(super) fn edit_in(
                 a.split_once('=')
                     .is_none_or(|(f, _)| !GONE_FIELDS.contains(&f.trim()))
             }) {
-                return Err(refused(
-                    format!(
-                        "node {id} is gone; only {} can change, not `{a}`",
-                        GONE_FIELDS.join(", ")
-                    ),
+                return Err(refuse(
+                    "gone_fields_only",
+                    json!({ "id": id, "fields": GONE_FIELDS.join(", "), "given": a }),
                     Value::Null,
                 ));
             }
@@ -194,10 +192,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             let k: Kind = value.parse()?;
             check_placement(conn, k, n.parent_id, n.lost, None)?;
             if n.address.is_some() && k != Kind::Home {
-                return Err(refused(
-                    "only a home has an address; clear it first",
-                    Value::Null,
-                ));
+                return Err(refuse("address_clear_first", Value::Null, Value::Null));
             }
             if !matches!(k, Kind::Home | Kind::Room) {
                 let rooms: Vec<i64> = ids(
@@ -206,8 +201,9 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
                     [n.id],
                 )?;
                 if !rooms.is_empty() {
-                    return Err(refused(
-                        format!("{} holds rooms, so it must stay a home or a room", label(n)),
+                    return Err(refuse(
+                        "holds_rooms",
+                        json!({ "node": label(n) }),
                         Value::Null,
                     ));
                 }
@@ -220,7 +216,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
         "address" => {
             let v = text(value);
             if v.is_some() && n.kind != Kind::Home {
-                return Err(refused("only a home has an address", Value::Null));
+                return Err(refuse("address_only_home", Value::Null, Value::Null));
             }
             conn.execute(
                 "UPDATE nodes SET address = ?1 WHERE id = ?2",
@@ -326,10 +322,7 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             // When a gone record left, and where it was then, said again as remembered;
             // empty clears it.
             if n.state != State::Gone {
-                return Err(refused(
-                    format!("node {} has not left; `ev gone` says when", n.id),
-                    Value::Null,
-                ));
+                return Err(refuse("has_not_left", json!({ "id": n.id }), Value::Null));
             }
             let v = text(value);
             if field == "left" {
@@ -370,8 +363,9 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             if let Some(o) = other
                 && (o == n.id || is_descendant(conn, o, n.id)?)
             {
-                return Err(refused(
-                    format!("{} cannot wait for itself or something inside it", label(n)),
+                return Err(refuse(
+                    "waits_for_itself",
+                    json!({ "node": label(n) }),
                     Value::Null,
                 ));
             }
@@ -384,8 +378,9 @@ pub(crate) fn apply_edit(conn: &Connection, n: &Node, field: &str, value: &str) 
             let column = format!("{field}_place");
             let place = text(value).map(|t| place_or_create(conn, &t)).transpose()?;
             if field == "with" && place.is_some() && n.owner.is_some() {
-                return Err(refused(
-                    format!("{} is not ours; it cannot be lent out", label(n)),
+                return Err(refuse(
+                    "not_ours_to_lend",
+                    json!({ "node": label(n) }),
                     Value::Null,
                 ));
             }

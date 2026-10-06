@@ -32,6 +32,7 @@ use crate::mapview::{MapView, Outcome};
 use crate::settings::{self, LangPref, Settings, ThemePref, UiState};
 use crate::theme::{self, Mode, pal};
 
+mod buys;
 mod details;
 mod draw;
 mod events;
@@ -122,6 +123,12 @@ enum Tab {
     /// `ev past`: what was ours and left, by year, apart from the inventory
     /// (spec/past-belongings.md).
     Past,
+    /// The purchase lines (`ev buy list`), all of them or one bucket's.
+    Buys,
+    BuysDurable,
+    BuysClothing,
+    BuysDigital,
+    BuysService,
 }
 
 impl Tab {
@@ -138,10 +145,27 @@ impl Tab {
             Tab::Settings => t("Settings"),
             Tab::Stats => t("Statistics"),
             Tab::Past => t("Past"),
+            Tab::Buys => t("All"),
+            Tab::BuysDurable => t("Durable"),
+            Tab::BuysClothing => t("Clothing"),
+            Tab::BuysDigital => t("Digital"),
+            Tab::BuysService => t("Service"),
         }
     }
 
-    /// The digit that opens the list, in the sidebar's order; 9 is kept for the purchases.
+    /// A purchase list's bucket: `Some(None)` for all of them, `None` for a list of records.
+    fn bucket(self) -> Option<Option<&'static str>> {
+        match self {
+            Tab::Buys => Some(None),
+            Tab::BuysDurable => Some(Some("durable")),
+            Tab::BuysClothing => Some(Some("clothing")),
+            Tab::BuysDigital => Some(Some("digital")),
+            Tab::BuysService => Some(Some("service")),
+            _ => None,
+        }
+    }
+
+    /// The digit that opens the list, in the sidebar's order.
     fn digit(self) -> Option<char> {
         match self {
             Tab::Tree => Some('1'),
@@ -152,8 +176,13 @@ impl Tab {
             Tab::Places => Some('6'),
             Tab::Past => Some('7'),
             Tab::Stats => Some('8'),
+            Tab::Buys => Some('9'),
             Tab::Settings => Some('0'),
-            Tab::Search => None,
+            Tab::Search
+            | Tab::BuysDurable
+            | Tab::BuysClothing
+            | Tab::BuysDigital
+            | Tab::BuysService => None,
         }
     }
 
@@ -189,7 +218,7 @@ enum Side {
 }
 
 /// The sidebar, top to bottom: two levels, headings and the lists under them.
-const SIDEBAR: [Side; 14] = [
+const SIDEBAR: [Side; 20] = [
     Side::Heading("HOME"),
     Side::List(Tab::Tree),
     Side::List(Tab::Plan),
@@ -197,6 +226,12 @@ const SIDEBAR: [Side; 14] = [
     Side::List(Tab::Disposals),
     Side::List(Tab::Lost),
     Side::List(Tab::Places),
+    Side::Heading("PURCHASES"),
+    Side::List(Tab::Buys),
+    Side::List(Tab::BuysDurable),
+    Side::List(Tab::BuysClothing),
+    Side::List(Tab::BuysDigital),
+    Side::List(Tab::BuysService),
     Side::Heading("HISTORY"),
     Side::List(Tab::Past),
     Side::Heading("INSIGHT"),
@@ -784,6 +819,16 @@ struct App {
     /// `:` while open, and the lists and records opened before, newest last, for `Esc`.
     palette: Option<palette::Palette>,
     back: Vec<(Tab, Option<i64>)>,
+    /// Every purchase line as of the last change, the selected line's details, the purchase
+    /// lists' filters (`f`, `/`) and their title with what they add up to.
+    purchases: Option<Vec<Value>>,
+    purchase: Option<Value>,
+    buy_state: buys::BuyState,
+    buy_words: String,
+    purchase_title: String,
+    /// While the lists are rebuilt for a change made elsewhere: only then is a record that left
+    /// its list news.
+    refreshing: bool,
     /// The sidebar's counts, from the queries that fill the lists, as of the last change.
     counts: HashMap<Tab, usize>,
     last_click: Option<(usize, Instant)>,
@@ -993,6 +1038,12 @@ impl App {
             screen: 0,
             palette: None,
             back: Vec::new(),
+            purchases: None,
+            purchase: None,
+            buy_state: buys::BuyState::All,
+            buy_words: String::new(),
+            purchase_title: String::new(),
+            refreshing: false,
             counts: HashMap::new(),
             last_click: None,
             picker: None,
@@ -1223,8 +1274,12 @@ impl App {
         if self.tab == Tab::Search && !self.query.is_empty() {
             self.run_search()?;
         }
+        self.purchases = None;
         self.count_lists()?;
-        self.rebuild()?;
+        self.refreshing = true;
+        let rebuilt = self.rebuild();
+        self.refreshing = false;
+        rebuilt?;
         self.apply_focus()
     }
 
@@ -1474,6 +1529,12 @@ impl App {
         }
         if id == 0 {
             return Ok(());
+        }
+        if self.tab.bucket().is_some() {
+            return match self.purchase_thing() {
+                Some(thing) => self.jump_to(thing),
+                None => Ok(()),
+            };
         }
         if self.tab != Tab::Tree {
             return self.jump_to(id);

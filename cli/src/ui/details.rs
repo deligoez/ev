@@ -45,6 +45,23 @@ fn proof_documents(v: &Value) -> Vec<(usize, Value)> {
 
 impl App {
     pub(super) fn load_details(&mut self) -> Result<()> {
+        // A purchase list's line is no record: its details are the line's (`ev buy show`).
+        if self.tab.bucket().is_some() {
+            let before = self.purchase.as_ref().map(|p| p["purchase"]["id"].clone());
+            self.purchase = match self.selected_id() {
+                Some(id) if id > 0 => Some(self.inv.buy_show(id)?),
+                _ => None,
+            };
+            if before != self.purchase.as_ref().map(|p| p["purchase"]["id"].clone()) {
+                self.detail_scroll = 0;
+            }
+            self.details = None;
+            self.history = None;
+            self.hints.clear();
+            self.photos.clear();
+            return Ok(());
+        }
+        self.purchase = None;
         let before = self.details.as_ref().map(|d| d["node"]["id"].clone());
         let now = self.selected_id().map(|i| serde_json::json!(i));
         if before != now {

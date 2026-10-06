@@ -21,6 +21,7 @@ impl App {
         // is selected, and the status line says why the selection moved.
         if let (None, Some(id), Some(at)) = (found, keep, was)
             && id > 0
+            && self.refreshing
             && self.tab != Tab::Tree
             && !self.rows.is_empty()
         {
@@ -55,7 +56,7 @@ impl App {
             .map(|k| v[k]["past"].as_array().map_or(0, Vec::len))
             .sum();
         self.counts.insert(Tab::Past, n);
-        Ok(())
+        self.count_purchases()
     }
 
     /// The rows of a list.
@@ -180,6 +181,11 @@ impl App {
             Tab::Settings => self.settings_rows(),
             Tab::Stats => self.stats_rows()?,
             Tab::Past => self.past_rows()?,
+            Tab::Buys
+            | Tab::BuysDurable
+            | Tab::BuysClothing
+            | Tab::BuysDigital
+            | Tab::BuysService => self.purchase_rows(tab.bucket().flatten())?,
         })
     }
 

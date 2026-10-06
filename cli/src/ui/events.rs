@@ -46,6 +46,26 @@ impl App {
         if self.palette.is_some() {
             return self.palette_key(k);
         }
+        // In a purchase list `/` filters the list itself, live, as the words are typed.
+        if self.searching && self.tab.bucket().is_some() {
+            match k.code {
+                KeyCode::Esc if !self.buy_words.is_empty() => {
+                    self.buy_words.clear();
+                    self.rebuild()?;
+                }
+                KeyCode::Esc | KeyCode::Enter => self.searching = false,
+                KeyCode::Backspace => {
+                    self.buy_words.pop();
+                    self.rebuild()?;
+                }
+                KeyCode::Char(c) => {
+                    self.buy_words.push(c);
+                    self.rebuild()?;
+                }
+                _ => {}
+            }
+            return Ok(());
+        }
         if self.searching {
             match k.code {
                 // Esc empties a half-typed query first, and closes the box on an empty one.
@@ -114,6 +134,19 @@ impl App {
             // On the Ara tab, Esc and `x` clear the search instead of quitting.
             KeyCode::Esc | KeyCode::Char('x') if self.tab == Tab::Search && self.has_search() => {
                 self.clear_search()?
+            }
+            // A purchase list's filters go first, one Esc for all of them.
+            KeyCode::Esc
+                if self.tab.bucket().is_some()
+                    && (!self.buy_words.is_empty() || self.buy_state != buys::BuyState::All) =>
+            {
+                self.buy_words.clear();
+                self.buy_state = buys::BuyState::All;
+                self.rebuild()?;
+            }
+            KeyCode::Char('f') if self.tab.bucket().is_some() => {
+                self.buy_state = self.buy_state.next();
+                self.rebuild()?;
             }
             // Esc steps back through what was opened; with nothing behind, it quits.
             KeyCode::Esc => {
@@ -194,6 +227,12 @@ impl App {
                         if self.collapsed.contains(&id) || k.code == KeyCode::Enter {
                             self.toggle_section(id)?;
                         }
+                    } else if self.tab.bucket().is_some() {
+                        // A purchase line: the thing it is linked to, if one is still here.
+                        match self.purchase_thing() {
+                            Some(thing) => self.jump_to(thing)?,
+                            None => self.status = t("this line is linked to no thing here").into(),
+                        }
                     } else if id == 0 || self.tab == Tab::Past {
                         // A line of the Statistics tab that names no record, or a past thing,
                         // which is in no tree to show it in.
@@ -206,7 +245,8 @@ impl App {
                 }
             }
             KeyCode::Left | KeyCode::Char('h')
-                if matches!(self.tab, Tab::Plan | Tab::Stats | Tab::Past) =>
+                if matches!(self.tab, Tab::Plan | Tab::Stats | Tab::Past)
+                    || self.tab.bucket().is_some() =>
             {
                 // On an item, go up to its section; on an open section, close it.
                 let Some(i) = self.state.selected() else {

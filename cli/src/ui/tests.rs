@@ -45,7 +45,8 @@ fn home() -> (tempfile::TempDir, Inventory) {
 fn english_is_shown_when_english_is_chosen() {
     let (_dir, inv) = home();
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
-    let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
+    // Tall enough for the whole sidebar.
+    let mut term = Terminal::new(TestBackend::new(140, 26)).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
     assert!(s.contains("1 Layout") && s.contains("0 Settings"), "{s}");
@@ -61,7 +62,7 @@ fn the_settings_tab_switches_language_and_appearance_and_saves_them() {
     let path = dir.path().join("settings.json");
     let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
     app.settings_path = Some(path.clone());
-    let mut term = Terminal::new(TestBackend::new(140, 20)).unwrap();
+    let mut term = Terminal::new(TestBackend::new(140, 26)).unwrap();
 
     press(&mut app, KeyCode::Char('0'));
     term.draw(|f| app.draw(f)).unwrap();

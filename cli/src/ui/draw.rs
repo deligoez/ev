@@ -308,7 +308,13 @@ impl App {
         if left.width > 0 {
             self.draw_list(f, left);
         }
-        let scrolls = if right.width > 0 {
+        let scrolls = if right.width > 0 && self.tab.bucket().is_some() {
+            self.photo_area = Rect::default();
+            self.detail_tab_hits = (u16::MAX, Vec::new());
+            self.detail_targets.clear();
+            self.grid_hit = None;
+            self.draw_purchase(f, right)
+        } else if right.width > 0 {
             self.draw_details(f, right)
         } else {
             self.photo_area = Rect::default();
@@ -328,7 +334,12 @@ impl App {
             self.draw_sidebar(f, side, rail);
         }
 
-        let help = if self.searching {
+        let help = if self.searching && self.tab.bucket().is_some() {
+            tf(
+                "Filter: {}▏  (the list follows as you type · Enter keep · Esc clear)",
+                &[&self.buy_words],
+            )
+        } else if self.searching {
             tf(
                 "Search: {}▏  (Enter search · Esc clear/cancel · Ctrl+U clear)",
                 &[&self.query],
@@ -389,7 +400,7 @@ impl App {
 
     /// The border of a pane: bold and coloured when the keys go to it, lit while its divider
     /// is dragged.
-    fn edge(&self, pane: Pane, drag: Option<Drag>) -> Style {
+    pub(super) fn edge(&self, pane: Pane, drag: Option<Drag>) -> Style {
         let mut s = Style::new();
         if self.pane == pane {
             s = s.fg(pal().code).bold();
@@ -422,7 +433,11 @@ impl App {
                     if y < inner.y + inner.height {
                         self.sidebar_hits.push((y, tab));
                     }
-                    let key = tab.digit().unwrap_or('/');
+                    let key = match (tab.digit(), tab) {
+                        (Some(d), _) => d,
+                        (None, Tab::Search) => '/',
+                        (None, _) => ' ',
+                    };
                     let label = if rail {
                         key.to_string()
                     } else {
@@ -488,6 +503,8 @@ impl App {
             tf(" Search: \"{}\" · ✕ clear (x) ", &[&self.query])
         } else if self.tab == Tab::Plan {
             self.plan_title.clone()
+        } else if self.tab.bucket().is_some() {
+            self.purchase_title.clone()
         } else {
             format!(" {} ", self.tab.title())
         };
@@ -670,6 +687,11 @@ impl App {
                 parts.push((1, t("x clear")));
             }
             Tab::Plan => parts.push((1, t("Enter open/close section"))),
+            _ if self.tab.bucket().is_some() => {
+                parts.push((1, t("Enter the thing in the tree")));
+                parts.push((1, t("f open/linked/dismissed")));
+                parts.push((1, t("/ filter")));
+            }
             _ => parts.push((1, t("Enter show in tree"))),
         }
         // The hidden series is one key away; said early, so a narrow screen keeps it.

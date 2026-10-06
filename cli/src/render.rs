@@ -702,7 +702,7 @@ pub(crate) fn purchase_line(p: &Value) -> String {
 }
 
 /// Where a line stands: dismissed, returned, or how much of it is still to link.
-fn purchase_state(p: &Value) -> String {
+pub(crate) fn purchase_state(p: &Value) -> String {
     if let Some(d) = p["dismissed"].as_str() {
         let why = match d {
             "consumed" => t("consumed"),

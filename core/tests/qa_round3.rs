@@ -82,3 +82,15 @@ fn a_former_place_given_as_a_bare_id_is_refused() {
     );
     assert_eq!(bare.unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_sale_said_while_waiting_is_dropped_when_the_thing_is_given_instead() {
+    let (_d, mut inv) = setup();
+    inv.dispose("Telefon", Disposition::Sell).unwrap();
+    let phone = id(&inv, "Telefon");
+    inv.sold(&phone, "700", None, None, None, None).unwrap();
+    gone(&mut inv, &phone, Disposition::Give, None);
+    let v = inv.show(&phone, true).unwrap();
+    assert!(v["departure"].is_object(), "{v}");
+    assert!(v["departure"]["price"].is_null(), "{v}");
+}

@@ -300,3 +300,17 @@ fn a_leaving_taken_back_or_a_mistake_is_not_counted_as_gone() {
     let gone = &inv.stats().unwrap()["activity"]["gone"];
     assert!(gone.as_object().unwrap().is_empty(), "{gone}");
 }
+
+#[test]
+fn a_past_thing_is_not_counted_as_added() {
+    let (_d, mut inv) = setup();
+    let before = inv.stats().unwrap()["activity"]["added"].as_i64().unwrap();
+    inv.add(NewNode {
+        name: "Eski saat".into(),
+        gone: Some("give".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let after = inv.stats().unwrap()["activity"]["added"].as_i64().unwrap();
+    assert_eq!(after, before);
+}

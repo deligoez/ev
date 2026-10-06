@@ -3911,7 +3911,12 @@ fn settings(out: &mut String, v: &Value) {
 }
 
 pub fn error(e: &Error) -> String {
-    let mut out = format!("error: {e}\n");
+    // An error with an id is worded in the reader's language (spec/error-ids.md).
+    let text = match e.said_parts() {
+        Some(s) => crate::i18n::error_sentence(s),
+        None => e.to_string(),
+    };
+    let mut out = format!("error: {text}\n");
     let v = e.to_json();
     for c in v["error"]["candidates"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}", line(c));

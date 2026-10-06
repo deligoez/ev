@@ -109,6 +109,51 @@ pub fn tf(en: &'static str, args: &[&dyn Display]) -> String {
     out
 }
 
+/// An error with an id in the current language (spec/error-ids.md): its Turkish sentence by
+/// the id, else the English one, filled with its values, with where it happened in front.
+pub fn error_sentence(s: &ev_core::Said) -> String {
+    let template = match lang() {
+        Lang::Tr => ERRORS_TR
+            .iter()
+            .find(|(id, _)| *id == s.id)
+            .map(|(_, t)| *t),
+        Lang::En => None,
+    }
+    .or_else(|| ev_core::template(s.id))
+    .unwrap_or(s.id);
+    let mut out = ev_core::fill(template, &s.values);
+    for a in &s.at {
+        let at = match &a["line"] {
+            serde_json::Value::Number(n) => tf("line {}", &[n]),
+            _ => ev_core::at_text(a),
+        };
+        out = format!("{at}: {out}");
+    }
+    out
+}
+
+/// The Turkish sentence of every error with an id, by the id; the placeholders are the English
+/// template's, by name.
+static ERRORS_TR: &[(&str, &str)] = &[
+    (
+        "no_record_matches",
+        "`{ref}` ile eşleşen bir kayıt yok; `ev find` ile ara, sonra id ile yeniden dene",
+    ),
+    ("no_record_with_id", "{id} numaralı bir kayıt yok"),
+    (
+        "ref_matches_several",
+        "`{ref}` {count} kayıtla eşleşiyor; id ile yeniden dene",
+    ),
+    (
+        "record_gone",
+        "#{id} artık burada değil; `ev show {id} --include-gone` ya da `ev history {id}` onu yine bulur",
+    ),
+    (
+        "record_joined",
+        "#{id}, #{into} kaydına katıldı; artık orada sayılıyor",
+    ),
+];
+
 /// English → Turkish. Keys are exactly the strings passed to `t` and `tf`.
 static TR: &[(&str, &str)] = &[
     // Tabs
@@ -433,6 +478,8 @@ static TR: &[(&str, &str)] = &[
     ("Enter the thing in the tree", "Enter eşyayı ağaçta göster"),
     ("f open/linked/dismissed", "f açık/bağlı/kapatılmış"),
     ("/ filter", "/ süz"),
+    // Where an error happened (spec/error-ids.md).
+    ("line {}", "satır {}"),
     (
         "Enter on › the list behind a figure",
         "› olanda Enter: sayının ardındaki liste",

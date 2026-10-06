@@ -287,6 +287,44 @@ fn a_taller_box_gets_a_crop_reaching_out_where_its_rim_leans() {
 }
 
 #[test]
+fn a_taller_boxs_frame_reaches_out_to_its_rim_as_its_crop_does() {
+    let (d, mut inv, photo) = photographed();
+    // The grid in the photo's middle 40%; D-A4 sits on A1, back-left: 0.3–0.433 across and
+    // 0.3–0.5 down.
+    let corners: ev_core::GridCorners = "0.3,0.3,0.7,0.3,0.7,0.7,0.3,0.7".parse().unwrap();
+    inv.photo_cut(&photo, Some("D"), &[], None, Some(&corners))
+        .unwrap();
+    let out = d.path().join("marked.jpg");
+    // A frame's line is drawn just inside its edge.
+    let red = |x: f64, y: f64| {
+        let img = image::open(&out).unwrap().to_rgb8();
+        let p = img.get_pixel((x * 600.0) as u32 - 1, (y * 700.0) as u32 - 1);
+        p[0] > 200 && p[1] < 80 && p[2] < 80
+    };
+    let mark = |inv: &mut Inventory, cells: &str| {
+        inv.photo_mark(
+            "D",
+            &[("1".into(), cells.into())],
+            Some(&corners),
+            Some(&out),
+        )
+        .unwrap();
+    };
+    // One unit high: the frame runs along its cells.
+    mark(&mut inv, "A1");
+    assert!(red(0.3, 0.4) && red(0.35, 0.3));
+    // Two units high: its rim leans 0.3 of a cell out to the left and the back, and its frame
+    // reaches there (0.26 across, 0.24 down), as the crop does.
+    inv.edit("D-A4", &["size=1x1x2".into()]).unwrap();
+    mark(&mut inv, "A1");
+    assert!(red(0.26, 0.4) && red(0.35, 0.24));
+    assert!(!red(0.3, 0.4));
+    // Cells that are not exactly one box's are framed as they are.
+    mark(&mut inv, "A1-A2");
+    assert!(red(0.3, 0.4));
+}
+
+#[test]
 fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
     let (d, mut inv, photo) = photographed();
     let corners: ev_core::GridCorners = "0.1,0.1,0.9,0.1,0.9,0.9,0.1,0.9".parse().unwrap();

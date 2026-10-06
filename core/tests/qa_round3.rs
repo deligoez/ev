@@ -274,3 +274,9 @@ fn a_thing_is_never_reviewed_as_a_place() {
     );
     assert_eq!(inv.review("Telefon", "kept", None).unwrap_err().code(), 2);
 }
+
+#[test]
+fn a_place_with_no_photo_has_none_to_call_current() {
+    let (_d, mut inv) = setup();
+    assert_eq!(inv.photo_current("Oda").unwrap_err().code(), 5);
+}

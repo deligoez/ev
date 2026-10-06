@@ -346,3 +346,17 @@ fn a_need_for_none_is_refused() {
         2
     );
 }
+
+#[test]
+fn a_value_dated_in_the_future_is_refused() {
+    let (_d, mut inv) = setup();
+    let v = ev_core::NewValuation {
+        amount: "100".into(),
+        currency: None,
+        at: Some("2099-01-01".into()),
+        approximate: false,
+        source: None,
+        note: None,
+    };
+    assert_eq!(inv.value("Telefon", Some(&v)).unwrap_err().code(), 2);
+}

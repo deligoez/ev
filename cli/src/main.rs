@@ -142,10 +142,11 @@ enum Cmd {
     Done { reference: String },
     /// Drop a node's pending move.
     Cancel { reference: String },
-    /// Mark a node as a candidate to leave: trash, give, sell, or digitize (photograph it,
-    /// then throw the paper out; `gone` needs a photo or document on it first).
+    /// Mark a node as a candidate to leave: trash, give, sell, trade, return, or digitize
+    /// (photograph it, then throw the paper out; `gone` needs a photo or document on it first).
     Dispose {
         reference: String,
+        /// How it is to leave: trash, give, sell, trade, return or digitize.
         #[arg(long = "as")]
         disposition: String,
         /// Shred it rather than throw it out whole (a name, a number, a barcode on it); trash
@@ -200,6 +201,8 @@ enum Cmd {
     /// exchange. Also corrects one first recorded as given or sold, and links what came later.
     Traded {
         reference: String,
+        /// What came in exchange: a thing (not a place) not yet ours when the swap was, and
+        /// still ours then.
         #[arg(long = "for")]
         for_: Option<String>,
     },
@@ -1298,12 +1301,16 @@ enum PlaceCmd {
 #[derive(Args)]
 struct AddArgs {
     name: Option<String>,
+    /// home, room, furniture, container or item (required, except with --gone or --of).
     #[arg(long)]
     kind: Option<String>,
+    /// The place it is in: a code, a name or an id.
     #[arg(long = "in")]
     parent: Option<String>,
+    /// Recorded, but where it is is not known.
     #[arg(long)]
     lost: bool,
+    /// The label on it (S3-11, K4x4-12).
     #[arg(long)]
     code: Option<String>,
     #[arg(long)]
@@ -1346,8 +1353,8 @@ struct AddArgs {
     /// the --in place).
     #[arg(long, conflicts_with_all = ["name", "kind", "make", "model", "serial"])]
     of: Option<String>,
-    /// A past thing, recorded already gone: how it left (sell, give, trash, used, trade, left,
-    /// stolen, unknown). It is in no holder; --kind defaults to item.
+    /// A past thing, recorded already gone: how it left (sell, give, trash, used, trade,
+    /// return, left, stolen, unknown). It is in no holder; --kind defaults to item.
     #[arg(long, conflicts_with_all = ["parent", "lost", "of"])]
     gone: Option<String>,
     /// With --gone: when it left, as remembered (2016, 2016-06, 2016-06-14).
@@ -1362,10 +1369,12 @@ struct AddArgs {
     /// When it came, as remembered (2014, 2014-03).
     #[arg(long)]
     came: Option<String>,
-    /// NDJSON file, one node per line.
+    /// NDJSON file, one node per line: `{"name": "Kutu", "kind": "container", "in": "S3"}`;
+    /// `kind` is required on each line, `key` names a line and `"in": "@key"` puts a node in
+    /// one added above it.
     #[arg(long, conflicts_with = "stdin")]
     batch: Option<PathBuf>,
-    /// Read NDJSON lines from stdin.
+    /// Read the NDJSON lines (as --batch) from stdin.
     #[arg(long)]
     stdin: bool,
 }

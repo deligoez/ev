@@ -373,6 +373,9 @@ pub struct BuyFilter<'a> {
     /// Only the line keyed so and the lines keyed as its parts: `412` keeps `412` and `412.2`
     /// (one of ak's payments and its items, spec/ak.md), `412.2` that item alone.
     pub key: Option<&'a str>,
+    /// Only dismissed lines: `Some(None)` any of them, `Some(Some(reason))` those dismissed so
+    /// (`elsewhere`: what belongs in ak, spec/ak.md).
+    pub dismissed: Option<Option<&'a str>>,
 }
 
 /// The fields of a purchase line ev reads besides `LINE_FIELDS`.
@@ -824,7 +827,16 @@ impl Inventory {
             billed_to,
             source,
             key,
+            dismissed,
         } = *filter;
+        if let Some(Some(r)) = dismissed
+            && !DISMISSALS.contains(&r)
+        {
+            return Err(usage(
+                "purchase_reason_unknown",
+                json!({ "reason": r, "reasons": DISMISSALS.join(", ") }),
+            ));
+        }
         let billed = billed_to.map(crate::fold);
         if let Some(b) = bucket
             && !BUCKETS.contains(&b)
@@ -853,6 +865,10 @@ impl Inventory {
             if open && !is_open
                 || bucket.is_some_and(|b| p["bucket"] != b)
                 || source.is_some_and(|s| p["source"] != s)
+                || dismissed.is_some_and(|d| match d {
+                    None => p["dismissed"].is_null(),
+                    Some(r) => p["dismissed"] != r,
+                })
                 || key.is_some_and(|k| {
                     !p["source_key"].as_str().is_some_and(|x| {
                         x == k || x.strip_prefix(k).is_some_and(|r| r.starts_with('.'))

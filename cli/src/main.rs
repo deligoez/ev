@@ -908,6 +908,9 @@ enum BuyCmd {
         /// `412.2` (an ak payment and its items), `412.2` that item alone.
         #[arg(long)]
         key: Option<String>,
+        /// Only dismissed lines, of any reason or of the one given (`--dismissed elsewhere`).
+        #[arg(long, num_args = 0..=1, value_name = "REASON")]
+        dismissed: Option<Option<String>>,
     },
     /// One line with what it is linked to and its documents.
     Show {
@@ -2180,6 +2183,7 @@ fn run(cli: Cli) -> Result<Value> {
             billed_to,
             source,
             key,
+            dismissed,
         }) => inv.buy_list_where(&ev_core::BuyFilter {
             open,
             bucket: bucket.as_deref(),
@@ -2189,6 +2193,7 @@ fn run(cli: Cli) -> Result<Value> {
             billed_to: billed_to.as_deref(),
             source: source.as_deref(),
             key: key.as_deref(),
+            dismissed: dismissed.as_ref().map(Option::as_deref),
         }),
         Cmd::Cover(CoverCmd::Add(a)) => {
             let a = *a;

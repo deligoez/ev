@@ -928,3 +928,11 @@ fn a_place_on_a_sketch_reads_as_x_and_y() {
     let s = h.text(&["sketch", "Oda", "--at", "10.5,20"]);
     assert!(s.contains("at x 10.5 · y 20 cm"), "{s}");
 }
+
+#[test]
+fn todo_of_some_sections_lists_only_those() {
+    let h = Home::new();
+    let s = h.text(&["todo", "--only", "tasks"]);
+    assert!(s.contains("\nTasks (1)\n"), "{s}");
+    assert!(!s.contains("Not counted yet"), "{s}");
+}

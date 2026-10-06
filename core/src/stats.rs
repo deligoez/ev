@@ -426,13 +426,8 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
         "lines": count("SELECT COUNT(*) FROM purchases WHERE same_as IS NULL")?,
         "linked": count("SELECT COUNT(DISTINCT purchase_id) FROM purchase_links")?,
         "dismissed": count("SELECT COUNT(*) FROM purchases WHERE dismissed IS NOT NULL")?,
-        "open_durable": count(
-            "SELECT COUNT(*) FROM purchases WHERE same_as IS NULL AND dismissed IS NULL
-               AND bucket = 'durable' AND status = 'delivered'
-               AND id NOT IN (SELECT purchase_id FROM purchase_links)
-               AND NOT EXISTS (SELECT 1 FROM kits k WHERE k.purchase_id = purchases.id)
-               AND NOT EXISTS (SELECT 1 FROM coverages c WHERE c.purchase_id = purchases.id)",
-        )?,
+        // The same count as `ev todo`'s.
+        "open_durable": crate::coverage::open_purchases(conn)?,
         "years": years,
         "shops": shops,
         "buckets": buckets,

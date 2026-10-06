@@ -585,7 +585,7 @@ pub(crate) fn todo_parts(conn: &Connection) -> Result<TodoParts> {
 
 /// Open durable purchase lines: something left to link, not dismissed, not the second sight of
 /// another line (spec §4.3).
-fn open_purchases(conn: &Connection) -> Result<i64> {
+pub(crate) fn open_purchases(conn: &Connection) -> Result<i64> {
     Ok(conn.query_row(
         "SELECT COUNT(*) FROM purchases p
           WHERE p.bucket = 'durable' AND p.status = 'delivered' AND p.dismissed IS NULL

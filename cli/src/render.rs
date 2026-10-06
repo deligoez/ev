@@ -665,7 +665,16 @@ pub(crate) fn purchase_line(p: &Value) -> String {
 /// Where a line stands: dismissed, returned, or how much of it is still to link.
 fn purchase_state(p: &Value) -> String {
     if let Some(d) = p["dismissed"].as_str() {
-        return tf("[dismissed: {}]", &[&d]);
+        let why = match d {
+            "consumed" => t("consumed"),
+            "given" => t("given"),
+            "returned" => t("returned to the shop"),
+            "elsewhere" => t("elsewhere"),
+            "not-mine" => t("not mine"),
+            "duplicate" => t("a duplicate"),
+            other => other,
+        };
+        return tf("[dismissed: {}]", &[&why]);
     }
     let open = p["open_qty"].as_i64().unwrap_or(0);
     let kits: Vec<&str> = p["kits"]
@@ -674,8 +683,20 @@ fn purchase_state(p: &Value) -> String {
         .flatten()
         .filter_map(Value::as_str)
         .collect();
+    let covers: Vec<String> = p["coverages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|c| format!("#{c}"))
+        .collect();
     let mut st = if !kits.is_empty() {
         tf("[bought as kit {}]", &[&kits.join(", ")])
+    } else if !covers.is_empty() {
+        tf("[bought as coverage {}]", &[&covers.join(", ")])
+    } else if p["bucket"] == "digital" {
+        format!("[{}]", t("digital"))
+    } else if p["bucket"] == "service" {
+        format!("[{}]", t("services"))
     } else if open > 0 {
         tf("[{} open]", &[&open])
     } else {
@@ -1143,7 +1164,9 @@ fn todo(out: &mut String, v: &Value) {
         let _ = writeln!(
             out,
             "  {}",
-            t("durable purchase lines not linked to a thing yet: ev buy list --open")
+            t(
+                "durable purchase lines not linked to a thing yet: ev buy list --open --bucket durable"
+            )
         );
     }
 }

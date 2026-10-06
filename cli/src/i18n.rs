@@ -642,8 +642,8 @@ static TR: &[(&str, &str)] = &[
     ),
     ("driver", "sürücü"),
     (
-        "durable purchase lines not linked to a thing yet: ev buy list --open",
-        "henüz bir eşyaya bağlanmamış kalıcı alım satırları: ev buy list --open",
+        "durable purchase lines not linked to a thing yet: ev buy list --open --bucket durable",
+        "henüz bir eşyaya bağlanmamış kalıcı alım satırları: ev buy list --open --bucket durable",
     ),
     ("info page", "ürün sayfası"),
     ("link", "bağlantı"),
@@ -1066,6 +1066,11 @@ static TR: &[(&str, &str)] = &[
     ("how not known", "nasıl bilinmiyor"),
     ("trade", "takas"),
     ("things", "eşya"),
+    ("consumed", "tüketildi"),
+    ("given", "verildi"),
+    ("not mine", "benim değil"),
+    ("a duplicate", "mükerrer"),
+    ("[bought as coverage {}]", "[güvence {} olarak alındı]"),
     ("bought as", "satın alındığı satır"),
     (
         "Not shown on the final photo yet ({} of {}): say which is which",

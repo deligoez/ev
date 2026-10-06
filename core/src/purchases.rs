@@ -184,7 +184,10 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
     if !coverages.is_empty() {
         p["coverages"] = json!(coverages);
     }
-    p["open_qty"] = if p["same_as"].is_null() && kits.is_empty() && coverages.is_empty() {
+    // What is never a thing (digital, service), or went back to the shop, waits for nothing.
+    let waits =
+        !matches!(p["bucket"].as_str(), Some("digital" | "service")) && p["status"] == "delivered";
+    p["open_qty"] = if waits && p["same_as"].is_null() && kits.is_empty() && coverages.is_empty() {
         json!((p["units"].as_i64().unwrap_or(0) - linked).max(0))
     } else {
         json!(0)
@@ -368,7 +371,7 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
     }
     if !BUCKETS.contains(&bucket.as_str()) {
         return Err(Error::Usage(format!(
-            "bucket `{bucket}`; use {} or consumable",
+            "bucket `{bucket}`; use {} (an adapter's consumable lines are left out)",
             BUCKETS.join(", ")
         )));
     }
@@ -663,6 +666,12 @@ impl Inventory {
                 r.get(0)
             })?;
         v["key"] = json!(format!("manual-{next}"));
+        if v["bucket"] == "consumable" {
+            return Err(Error::Usage(format!(
+                "consumables are not recorded as purchases; use {}",
+                BUCKETS.join(", ")
+            )));
+        }
         let (l, name) = line_from(&v)?
             .ok_or_else(|| Error::Usage("a manual purchase cannot be cancelled".into()))?;
         let (id, _) = upsert(&tx, &l, &name)?;
@@ -700,6 +709,14 @@ impl Inventory {
         since: Option<&str>,
         query: Option<&str>,
     ) -> Result<Value> {
+        if let Some(b) = bucket
+            && !BUCKETS.contains(&b)
+        {
+            return Err(Error::Usage(format!(
+                "bucket `{b}`; use {}",
+                BUCKETS.join(", ")
+            )));
+        }
         let words: Vec<String> = query
             .map(crate::fold)
             .unwrap_or_default()
@@ -715,10 +732,7 @@ impl Inventory {
         let mut out = Vec::new();
         for id in all {
             let p = list_row(&self.conn, id)?;
-            // What is never a thing (digital, service) never waits to be linked.
-            let is_open = p["dismissed"].is_null()
-                && p["open_qty"].as_i64().unwrap_or(0) > 0
-                && !matches!(p["bucket"].as_str(), Some("digital" | "service"));
+            let is_open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
             if open && !is_open
                 || bucket.is_some_and(|b| p["bucket"] != b)
                 || shop.as_ref().is_some_and(|s| {

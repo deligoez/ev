@@ -49,7 +49,10 @@ reader's language and an agent can match on it rather than on an English sentenc
 and `at` (where it happened, such as a batch line, kept apart from the sentence); `code`,
 `kind` and the English `message` are as before. The errors every command meets first come
 first: a reference that matches nothing, several things, or a thing gone or joined to
-another. The other errors follow phase by phase; a test keeps their number from growing.
+another. Then every refusal (exit 5), every request written wrong (exit 2) and every "not
+found" (exit 3) got one: some 290 errors, 270 ids. Four keep an English sentence for now,
+three of them because they pass a library's own error on; a test keeps that number from
+growing.
 
 ## Faster
 

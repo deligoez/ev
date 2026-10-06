@@ -287,8 +287,12 @@ so the person reads which label goes on which box; a label keeps the letters as 
 and the selected record's details. The sidebar groups the lists under headings, each with the
 digit that opens it and how many it holds: HOME has the layout (the tree, `1`), everything
 waiting (one collapsible section per kind, `2`), pending moves (`3`), things leaving (`4`), lost
-items (`5`) and errands (`6`); HISTORY the past (`7`); INSIGHT the statistics (`8`); then search
-(`/`) and settings (`0`). `Tab` moves between the panes (the one the keys go to has a coloured
+items (`5`) and errands (`6`); PURCHASES every purchase line (`9`) and one list per bucket
+(durable, clothing, digital, service); HISTORY the past (`7`); INSIGHT the statistics (`8`); then
+search (`/`) and settings (`0`). A purchase list keeps an order's lines under one heading with its
+total, adds up what it shows per currency, and is narrowed with `f` (open, linked, dismissed) and
+`/` (words, as they are typed); its details are the line's, and `Enter` opens the thing it is
+linked to. `Tab` moves between the panes (the one the keys go to has a coloured
 border); in the sidebar the arrows open each list as they pass it and `Enter` goes into it. `:` finds any list
 or record by code, name or `#id`, typed with Turkish letters or without, and `Esc` steps back
 through what was opened. The

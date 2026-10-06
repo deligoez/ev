@@ -73,6 +73,14 @@ receipt are things (spec/ak.md). To answer which thing a payment bought, `ev buy
 `--source ak` and `--key 412`, which finds the payment's own line or its items' lines;
 `--key 412.2` finds that item alone.
 
+Most of what ak would send, ev has read already from the shops and the App Store, under the
+same order number. So an ak line is joined on import to the line ev already has of its order
+(`same_as`, as two sources' lines of one purchase always were): it counts as settled, the shop's
+line stays the one linked to the thing, and ak's key still finds it, the row naming the line it
+joins and what that is linked to (`joined_to`). An order of several lines is told by the price,
+then by the name; one that cannot be told is listed under `unjoined` in the import's result, and
+`ev buy join <line> <other>` joins it on the person's word.
+
 ## Faster
 
 - `ev ui` started and refreshed most of a second slower once the sidebar counted the purchase

@@ -1360,6 +1360,20 @@ impl Inventory {
     /// (spec/counting.md).
     pub fn progress_in(&self, scope: Option<&str>) -> Result<Value> {
         let scope = scope.map(|r| resolve(&self.conn, r, false)).transpose()?;
+        if let Some(s) = scope {
+            let n = crate::store::load(&self.conn, s)?;
+            if n.kind == Kind::Item {
+                return Err(Error::Usage(format!(
+                    "#{s} is a thing, not a place: give the furniture or room it is in"
+                )));
+            }
+            // A box inside a place is counted with that place: read the place.
+            if let Some((unit, _)) = unit_state(&self.conn, s)?
+                && unit != s
+            {
+                return self.progress_in(Some(&unit.to_string()));
+            }
+        }
         let all = live_nodes(&self.conn)?;
         let parent: HashMap<i64, Option<i64>> = all.iter().map(|n| (n.id, n.parent_id)).collect();
         let mut kids: HashMap<i64, Vec<&Node>> = HashMap::new();

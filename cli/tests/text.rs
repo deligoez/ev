@@ -893,3 +893,23 @@ fn history_shows_an_emptied_list_as_a_dash_and_a_sale_with_its_date() {
     assert!(s.contains("tags: eski → —"), "{s}");
     assert!(s.contains("50.00 TRY · 2026-01"), "{s}");
 }
+
+#[test]
+fn a_purchase_marks_a_linked_thing_that_left_as_gone() {
+    let h = Home::new();
+    h.run(
+        &[
+            "buy",
+            "add",
+            "Aktif buzzer",
+            "--date",
+            "2025-01-05",
+            "--for",
+            "Aktif buzzer",
+        ],
+        None,
+    );
+    h.run(&["gone", "Aktif buzzer", "--as", "trash"], None);
+    let s = h.text(&["buy", "show", "1"]);
+    assert!(s.contains("Aktif buzzer ×1  [gone]"), "{s}");
+}

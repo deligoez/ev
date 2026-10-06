@@ -1106,7 +1106,15 @@ fn todo(out: &mut String, v: &Value) {
                         },
                         n["sale"]["amount"]
                             .as_i64()
-                            .map(|a| format!(" {a}"))
+                            .map(|a| {
+                                format!(
+                                    " {}",
+                                    amount(
+                                        &format!("{a}.00"),
+                                        n["sale"]["currency"].as_str().unwrap_or_default()
+                                    )
+                                )
+                            })
                             .unwrap_or_default(),
                         n["sale"]["note"]
                             .as_str()
@@ -3464,7 +3472,10 @@ fn show(out: &mut String, v: &Value, node: &Value) {
                 }
                 .to_string()
             }),
-            m["amount"].as_i64().map(|a| a.to_string()),
+            m["amount"].as_i64().map(|a| match m["currency"].as_str() {
+                Some(c) => amount(&format!("{a}.00"), c),
+                None => a.to_string(),
+            }),
             m["note"].as_str().map(str::to_string),
         ]
         .into_iter()

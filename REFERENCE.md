@@ -627,10 +627,12 @@ thing) is joined on import: a line whose `order_url` contains another source's o
 the product key (`sku`) in the line's addresses picks one; with no order address, a product key
 named by exactly one other line is enough. A line from ak (the household's money tool, which
 relays purchases ev may have read from a shop already; spec/ak.md) is joined by its `order`
-exactly equal to another source's order number (six characters or more): the only line of that
-order, else the one paid the same, else the one whose name clearly shares most words; one
-linked to a thing or dismissed is left as it is, and one that cannot be told is listed as
-`unjoined`. Anything less certain is left unjoined. The line
+exactly equal to another source's order number (six characters or more), each of the other
+source's lines taking one ak line at most: first every line paid the same as exactly one free
+line of its order (or as several alike in name and price: one each), then a whole payment of a
+one-line order, or the line whose name clearly shares most words and whose price is within a
+fifth. An ak line is never the line kept; one linked to a thing or dismissed is left as it is,
+and one that cannot be told is listed as `unjoined`. Anything less certain is left unjoined. The line
 pointed at is the one linked; the joined line counts as settled, and its attachments and
 documents come with the line it joins.
 

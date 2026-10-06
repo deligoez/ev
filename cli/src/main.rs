@@ -1515,6 +1515,19 @@ fn read_input() -> Result<String> {
     }
 }
 
+/// A file of lines a command reads. A path naming standard input (`-`, `/dev/stdin`) is read as
+/// `read_input` reads it: under `ev mcp` the standard input is the protocol, never the lines.
+fn read_file(path: &std::path::Path) -> Result<String> {
+    if matches!(
+        path.to_str(),
+        Some("-" | "/dev/stdin" | "/dev/fd/0" | "/proc/self/fd/0")
+    ) {
+        return read_input();
+    }
+    std::fs::read_to_string(path)
+        .map_err(|e| Error::Usage(format!("cannot read {}: {e}", path.display())))
+}
+
 fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(p) = flag {
         return Ok(p);
@@ -2073,8 +2086,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Doc(DocCmd::List { reference }) => inv.doc_list(reference.as_deref()),
         Cmd::Buy(BuyCmd::Import { file, stdin }) => {
             let text = match (file, stdin) {
-                (Some(f), false) => std::fs::read_to_string(&f)
-                    .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
+                (Some(f), false) => read_file(&f)?,
                 (None, true) => read_input()?,
                 _ => return Err(Error::Usage("give a file or --stdin".into())),
             };
@@ -2148,8 +2160,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Money(MoneyCmd::Status) => inv.money_status(),
         Cmd::Money(MoneyCmd::Import { file, stdin }) => {
             let text = match (file, stdin) {
-                (Some(f), false) => std::fs::read_to_string(&f)
-                    .map_err(|e| Error::Usage(format!("{}: {e}", f.display())))?,
+                (Some(f), false) => read_file(&f)?,
                 (None, true) => read_input()?,
                 _ => return Err(Error::Usage("give a file or --stdin".into())),
             };
@@ -2628,8 +2639,7 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
             ));
         }
         let text = match &a.batch {
-            Some(path) => std::fs::read_to_string(path)
-                .map_err(|e| Error::Usage(format!("cannot read {}: {e}", path.display())))?,
+            Some(path) => read_file(path)?,
             None => read_input()?,
         };
         let mut lines = Vec::new();

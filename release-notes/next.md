@@ -34,6 +34,13 @@ details, whose tabs are now the only tab strip on screen (spec/ui-sidebar.md).
   neighbour is selected and the status line says which record left, instead of the selection
   jumping to the top.
 
+## The series grid fills the screen
+
+The marked photo series' grid made every row as tall as a 4:3 picture of the tile's width, and
+what was left under the last row that fit stayed empty: about a fifth of a tall screen. The
+rows that fit now share that height (a short series takes the whole height in the rows it
+needs), so the usual portrait photo is drawn taller, and a picture sits centred in its tile.
+
 ## Fixes
 
 - `ev find` compared a code as written: a box coded `X5_13` was not found by `ev find X5-13`,

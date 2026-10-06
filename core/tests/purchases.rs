@@ -500,3 +500,42 @@ fn a_joined_line_names_the_line_it_joins_and_what_that_is_linked_to() {
         .clone();
     assert!(own.get("joined_to").is_none());
 }
+
+#[test]
+fn a_line_the_import_could_not_tell_is_joined_by_hand_and_taken_back() {
+    let (_d, mut inv) = setup();
+    let v = shop_then_ak(&mut inv);
+    let line = v["imported"]["unjoined"][0]["id"].as_i64().unwrap();
+    let into = v["imported"]["unjoined"][0]["candidates"][0]
+        .as_i64()
+        .unwrap();
+    // The person says which line it is: settled through it.
+    let j = inv.buy_join(line, Some(into)).unwrap();
+    assert_eq!(j["purchase"]["same_as"], into);
+    assert_eq!(j["purchase"]["open_qty"], 0);
+    // An import again leaves it so, and lists it no more.
+    let again = inv.buy_import(r#"{"source":"ak","key":"3","name":"Kablo","order":"ORD-300003","paid":"100","currency":"TRY"}"#).unwrap();
+    assert!(again["imported"]["unjoined"].is_null(), "{again}");
+    // Refused: to itself, to a line that joins another, a line linked to a thing.
+    let id = |e: ev_core::Error| e.id().map(str::to_string);
+    assert_eq!(
+        id(inv.buy_join(into, Some(into)).unwrap_err()).as_deref(),
+        Some("purchase_join_itself")
+    );
+    let other = v["imported"]["unjoined"][0]["candidates"][1]
+        .as_i64()
+        .unwrap();
+    assert_eq!(
+        id(inv.buy_join(other, Some(line)).unwrap_err()).as_deref(),
+        Some("purchase_join_to_joined")
+    );
+    inv.buy_link(other, "Kart", None).unwrap();
+    assert_eq!(
+        id(inv.buy_join(other, Some(into)).unwrap_err()).as_deref(),
+        Some("purchase_join_linked")
+    );
+    // Taken back: open again.
+    let back = inv.buy_join(line, None).unwrap();
+    assert!(back["purchase"]["same_as"].is_null());
+    assert_eq!(back["purchase"]["open_qty"], 1);
+}

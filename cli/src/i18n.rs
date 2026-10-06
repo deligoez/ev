@@ -955,6 +955,7 @@ static TR: &[(&str, &str)] = &[
     ),
     ("(none)", "(yok)"),
     ("(nothing changed)", "(değişen bir şey yok)"),
+    ("(unchanged)", "(değişmedi)"),
     // Statistics
     ("OVERVIEW", "GENEL"),
     ("{} records of things, {} units", "{} eşya kaydı, {} adet"),

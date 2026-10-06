@@ -2806,14 +2806,12 @@ pub fn human(v: &Value) -> String {
     if let Some(list) = v.get("recoded").and_then(Value::as_array) {
         for r in list {
             let code = |k: &str| r[k].as_str().unwrap_or("—").to_string();
-            let _ = writeln!(
-                out,
-                "#{} {}  {} → {}",
-                r["id"],
-                s(r, "name"),
-                code("before"),
-                code("after")
-            );
+            let change = if r["before"] == r["after"] {
+                format!("{}  {}", code("after"), t("(unchanged)"))
+            } else {
+                format!("{} → {}", code("before"), code("after"))
+            };
+            let _ = writeln!(out, "#{} {}  {change}", r["id"], s(r, "name"));
         }
         return out;
     }

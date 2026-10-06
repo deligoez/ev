@@ -936,3 +936,17 @@ fn todo_of_some_sections_lists_only_those() {
     assert!(s.contains("\nTasks (1)\n"), "{s}");
     assert!(!s.contains("Not counted yet"), "{s}");
 }
+
+#[test]
+fn history_names_a_purchase_line_by_its_name() {
+    let h = Home::new();
+    h.run(
+        &["buy", "add", "Buzzer 5V aktif", "--for", "Aktif buzzer"],
+        None,
+    );
+    let s = h.text(&["history", "Aktif buzzer"]);
+    assert!(
+        s.contains("linked to purchase  #1 Buzzer 5V aktif ×1"),
+        "{s}"
+    );
+}

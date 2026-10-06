@@ -341,3 +341,20 @@ fn an_asking_price_comes_with_its_currency() {
         .unwrap();
     assert_eq!(v["marks"]["sale"]["currency"], "TRY", "{v}");
 }
+
+#[test]
+fn a_past_thing_gives_how_many_and_what_came_for_a_swap() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Eski fincan".into(),
+        gone: Some("trade".into()),
+        qty: Some(6),
+        traded_for: Some("Tablet".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let v = inv.past(None, None).unwrap();
+    let cup = &v["remembered"]["past"][0];
+    assert_eq!(cup["qty"], 6, "{v}");
+    assert_eq!(cup["traded_for"]["name"], "Tablet", "{v}");
+}

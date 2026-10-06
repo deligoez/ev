@@ -921,3 +921,10 @@ fn a_purchase_marks_a_linked_thing_that_left_as_gone() {
     let s = h.text(&["buy", "show", "1"]);
     assert!(s.contains("Aktif buzzer ×1  [gone]"), "{s}");
 }
+
+#[test]
+fn a_place_on_a_sketch_reads_as_x_and_y() {
+    let h = Home::new();
+    let s = h.text(&["sketch", "Oda", "--at", "10.5,20"]);
+    assert!(s.contains("at x 10.5 · y 20 cm"), "{s}");
+}

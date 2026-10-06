@@ -2469,24 +2469,42 @@ pub fn human(v: &Value) -> String {
             let _ = writeln!(out, "{}", s(&v["scope"], "path_text"));
         }
         let _ = writeln!(out, "{}", progress_line(v));
+        // Under the place each is in, by its last name, with its tasks by number: a task's title
+        // is written once, at the end, however many places it covers.
+        let mut holder: Option<String> = None;
+        let mut titles: Vec<(i64, String)> = Vec::new();
         for p in v["places"].as_array().into_iter().flatten() {
-            let tasks: Vec<String> = p["tasks"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|t_| format!("#{} {}", t_["id"], s(t_, "title")))
-                .collect();
-            let tasks = if tasks.is_empty() {
+            let path = s(p, "path_text");
+            let (above, own) = match path.rsplit_once(" › ") {
+                Some((a, o)) => (Some(a.to_string()), o.to_string()),
+                None => (None, path.clone()),
+            };
+            if above != holder {
+                if let Some(a) = &above {
+                    let _ = writeln!(out, "{a}");
+                }
+                holder = above;
+            }
+            let mut ids = Vec::new();
+            for t_ in p["tasks"].as_array().into_iter().flatten() {
+                let id = t_["id"].as_i64().unwrap_or_default();
+                ids.push(format!("#{id}"));
+                if !titles.iter().any(|(i, _)| *i == id) {
+                    titles.push((id, s(t_, "title")));
+                }
+            }
+            let tasks = if ids.is_empty() {
                 String::new()
             } else {
-                format!("  [{}]", tasks.join(", "))
+                format!("  {}", ids.join(" "))
             };
-            let _ = writeln!(
-                out,
-                "  {} {}{tasks}",
-                review_mark(&p["review"]),
-                s(p, "path_text")
-            );
+            let _ = writeln!(out, "  {} {own}{tasks}", review_mark(&p["review"]));
+        }
+        if !titles.is_empty() {
+            let _ = writeln!(out, "\n{}", t("Tasks"));
+            for (id, title) in titles {
+                let _ = writeln!(out, "  #{id} {title}");
+            }
         }
         return out;
     }

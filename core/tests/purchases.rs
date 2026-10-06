@@ -398,3 +398,105 @@ fn aks_export_imports_as_it_is_written_and_again_changes_nothing() {
     let again = inv.buy_import(AK_EXPORT).unwrap();
     assert_eq!(again["imported"]["unchanged"], 2, "{again}");
 }
+
+/// A shop's lines: a one-line order and an order of two lines; then ak's lines of them.
+fn shop_then_ak(inv: &mut Inventory) -> Value {
+    let line = |source: &str, key: &str, order: &str, name: &str, paid: &str| {
+        json!({"type": "purchase", "source": source, "key": key, "shop": "Shop", "order": order,
+               "name": name, "paid": paid, "currency": "TRY"})
+        .to_string()
+    };
+    inv.buy_import(
+        &[
+            line("shop", "a", "ORD-100001", "Bulaşık makinesi", "19999"),
+            line("shop", "b", "ORD-200002", "Bosch matkap", "1999"),
+            line("shop", "c", "ORD-200002", "Uç seti", "500"),
+            line("shop", "d", "ORD-300003", "Kablo", "100"),
+            line("shop", "e", "ORD-300003", "Kablo", "100"),
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    inv.buy_import(
+        &[
+            // The whole one-line order; an item of the two-line one, told by its price.
+            line("ak", "1", "ORD-100001", "Makine", "19999"),
+            line("ak", "2.2", "ORD-200002", "Set", "500"),
+            // Two lines alike: none can be told.
+            line("ak", "3", "ORD-300003", "Kablo", "100"),
+            // No line of this order in ev: a purchase of its own.
+            line("ak", "4", "ORD-400004", "Tencere", "1190"),
+        ]
+        .join("\n"),
+    )
+    .unwrap()
+}
+
+#[test]
+fn aks_lines_join_the_lines_of_their_order_and_the_untold_ones_are_listed() {
+    let (_d, mut inv) = setup();
+    let v = shop_then_ak(&mut inv);
+    assert_eq!(v["imported"]["joined"], 2, "{v}");
+    let unjoined = v["imported"]["unjoined"].as_array().unwrap();
+    assert_eq!(unjoined.len(), 1, "{v}");
+    assert_eq!(unjoined[0]["key"], "3");
+    assert_eq!(unjoined[0]["order"], "ORD-300003");
+    assert_eq!(unjoined[0]["candidates"].as_array().unwrap().len(), 2);
+    let ak = |key: &str| {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            source: Some("ak"),
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]
+            .clone()
+    };
+    assert_eq!(ak("1")["same_as"], id_of(&inv, "Bulaşık"));
+    assert_eq!(ak("2.2")["same_as"], id_of(&inv, "Uç seti"));
+    assert_eq!(ak("1")["open_qty"], 0);
+    assert!(ak("3")["same_as"].is_null());
+    assert!(ak("4")["same_as"].is_null());
+    assert_eq!(ak("4")["open_qty"], 1);
+    // The shop's own lines are not joined to each other, though they share an order.
+    let cables = inv
+        .buy_list_matching(false, None, None, None, Some("Kablo"))
+        .unwrap();
+    assert!(
+        cables["purchases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|p| p["same_as"].is_null())
+    );
+}
+
+#[test]
+fn a_joined_line_names_the_line_it_joins_and_what_that_is_linked_to() {
+    let (_d, mut inv) = setup();
+    shop_then_ak(&mut inv);
+    let drill = id_of(&inv, "Uç seti");
+    inv.buy_link(drill, "Matkap", None).unwrap();
+    let row = inv
+        .buy_list_where(&ev_core::BuyFilter {
+            source: Some("ak"),
+            key: Some("2"),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]
+        .clone();
+    // ak's key leads to the thing in one call.
+    let to = &row["joined_to"];
+    assert_eq!(to["id"], drill);
+    assert_eq!(to["source"], "shop");
+    assert_eq!(to["source_key"], "c");
+    assert_eq!(to["linked"][0]["node"]["name"], "Matkap");
+    // A line joined to nothing has no such field.
+    let own = inv
+        .buy_list_where(&ev_core::BuyFilter {
+            key: Some("4"),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]
+        .clone();
+    assert!(own.get("joined_to").is_none());
+}

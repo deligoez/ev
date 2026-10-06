@@ -829,3 +829,12 @@ fn a_recode_that_changes_nothing_says_so() {
     let s = h.text(&["recode", "D-A1=D-A1"]);
     assert!(s.contains("D-A1  (unchanged)"), "{s}");
 }
+
+#[test]
+fn a_note_of_several_lines_keeps_its_lines_under_the_first() {
+    let h = Home::new();
+    h.run(&["edit", "Aktif buzzer", "note=bir"], None);
+    h.run(&["edit", "Aktif buzzer", "note=+iki"], None);
+    let s = h.text(&["show", "Aktif buzzer"]);
+    assert!(s.contains("  note: bir\n        iki\n"), "{s}");
+}

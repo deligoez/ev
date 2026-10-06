@@ -345,14 +345,19 @@ impl Inventory {
     }
 }
 
+/// The lines that are the household's own spending: not dismissed, or dismissed as used up or
+/// given away (bought, paid, then gone). A line that was not ours, a duplicate, one returned or
+/// one kept elsewhere (another tool's) is no money spent here.
+const SPENT: &str = "same_as IS NULL AND (dismissed IS NULL OR dismissed IN ('consumed', 'given'))";
+
 /// Lines, linked, dismissed and still open; lines and amount per year; the shops with most lines.
 fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
     let count = |sql: &str| -> Result<i64> { Ok(conn.query_row(sql, [], |r| r.get(0))?) };
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT COALESCE(substr(ordered_at, 1, 4), '?'), COUNT(*),
                 COALESCE(currency, ''), COALESCE(SUM(paid), 0)
-           FROM purchases WHERE same_as IS NULL GROUP BY 1, 3",
-    )?;
+           FROM purchases WHERE {SPENT} GROUP BY 1, 3"
+    ))?;
     let rows = stmt.query_map([], |r| {
         Ok((
             r.get::<_, String>(0)?,
@@ -376,11 +381,11 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
             json!({ "year": year, "lines": n, "paid": per_currency(&paid, home) })
         })
         .collect();
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT shop, COUNT(*), COALESCE(currency, ''), COALESCE(SUM(paid), 0)
-           FROM purchases WHERE same_as IS NULL AND shop IS NOT NULL
-          GROUP BY shop, 3 ORDER BY 2 DESC, shop LIMIT ?1",
-    )?;
+           FROM purchases WHERE {SPENT} AND shop IS NOT NULL
+          GROUP BY shop, 3 ORDER BY 2 DESC, shop LIMIT ?1"
+    ))?;
     let rows = stmt.query_map([TOP as i64], |r| {
         Ok((
             r.get::<_, String>(0)?,
@@ -397,10 +402,10 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
     }
     // By bucket: what was paid for things, clothes, and what is never a thing (digital,
     // service), each apart.
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT bucket, COUNT(*), COALESCE(currency, ''), COALESCE(SUM(paid), 0)
-           FROM purchases WHERE same_as IS NULL AND status = 'delivered' GROUP BY 1, 3",
-    )?;
+           FROM purchases WHERE {SPENT} AND status = 'delivered' GROUP BY 1, 3"
+    ))?;
     let rows = stmt.query_map([], |r| {
         Ok((
             r.get::<_, String>(0)?,

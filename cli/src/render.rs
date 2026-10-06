@@ -442,6 +442,33 @@ pub(crate) fn amount(a: &str, currency: &str) -> String {
         .to_string()
 }
 
+/// A number with a fraction as the reader writes it: `4,35` in Turkish, `4.35` in English.
+pub(crate) fn decimal(v: &Value) -> String {
+    let text = v.to_string();
+    if crate::i18n::lang() == crate::i18n::Lang::En {
+        text
+    } else {
+        text.replace('.', ",")
+    }
+}
+
+/// Where a word was found in a holder, as `ev suggest` says it: the holder's own theme, name
+/// or note, or a thing's (`item: <name>`), in the reader's language.
+fn match_source(from: &str) -> String {
+    let (field, thing) = from.split_once(": ").unwrap_or((from, ""));
+    let field = match field {
+        "item" => t("a thing's name").to_string(),
+        "item note" => t("a thing's note").to_string(),
+        "item tag" => t("a thing's tag").to_string(),
+        f => crate::history::field_word(f),
+    };
+    if thing.is_empty() {
+        field
+    } else {
+        format!("{field}: {thing}")
+    }
+}
+
 /// A sale's condition in the reader's language.
 pub(crate) fn condition(c: &str) -> &str {
     match c {
@@ -1518,7 +1545,7 @@ fn suggestion(out: &mut String, v: &Value) {
             tf(
                 "score {} · covers {} · {}",
                 &[
-                    &x["score"],
+                    &decimal(&x["score"]),
                     &percent(&x["coverage"]),
                     &room_text(&c["room"])
                 ]
@@ -1530,7 +1557,12 @@ fn suggestion(out: &mut String, v: &Value) {
             .flatten()
             .map(|m| {
                 let mark = if m["specific"] == true { "*" } else { "" };
-                format!("{}{mark} {} ({})", s(m, "term"), m["points"], s(m, "from"))
+                format!(
+                    "{}{mark} {} ({})",
+                    s(m, "term"),
+                    decimal(&m["points"]),
+                    match_source(&s(m, "from"))
+                )
             })
             .collect();
         let _ = writeln!(out, "     {}", tf("matched: {}", &[&matched.join("; ")]));
@@ -1544,7 +1576,7 @@ fn suggestion(out: &mut String, v: &Value) {
                 "  {}  [{}]  {}",
                 head(&x["container"]),
                 list_str(&x["container"]["facet"]),
-                tf("score {}", &[&x["score"]])
+                tf("score {}", &[&decimal(&x["score"])])
             );
         }
     }
@@ -1560,7 +1592,7 @@ fn suggestion(out: &mut String, v: &Value) {
                 out,
                 "  {}  {}",
                 head(&x["container"]),
-                tf("score {}", &[&x["score"]])
+                tf("score {}", &[&decimal(&x["score"])])
             );
         }
     }

@@ -81,6 +81,10 @@ pub(crate) fn add_valuation(conn: &Connection, node: i64, new: &NewValuation) ->
         Some(d) => crate::purchases::date(&Some(d))?.unwrap_or_default(),
         None => crate::store::today().to_string(),
     };
+    // What a thing is worth is seen, never foreseen.
+    if at > crate::store::today().to_string() {
+        return Err(Error::Usage(format!("`{at}` is still to come")));
+    }
     conn.execute(
         "INSERT INTO valuations (node_id, amount, currency, at, approximate, source, note, added_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",

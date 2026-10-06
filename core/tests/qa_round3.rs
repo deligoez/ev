@@ -214,3 +214,22 @@ fn a_past_things_line_can_be_declined_and_a_linked_one_cannot() {
     let phone = id(&inv, "Telefon");
     inv.buy_decline(second, &phone, None, false).unwrap();
 }
+
+#[test]
+fn a_purchase_is_never_linked_to_a_place_or_a_mistake() {
+    let (_d, mut inv) = setup();
+    let l = line(&mut inv, "Masa", "2017-05-01", "durable");
+    assert_eq!(inv.buy_link(l, "Oda", None).unwrap_err().code(), 2);
+    inv.gone_left(
+        "Tablet",
+        Some(Disposition::Mistake),
+        Some("typed twice"),
+        false,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let tablet = id(&inv, "Tablet");
+    assert_eq!(inv.buy_link(l, &tablet, None).unwrap_err().code(), 5);
+}

@@ -438,3 +438,21 @@ fn a_portion_that_joined_another_says_which_one() {
     let e = inv.show(&format!("#{portion}"), false).unwrap_err();
     assert!(e.to_string().contains(&format!("joined {vida}")), "{e}");
 }
+
+#[test]
+fn a_thing_here_this_year_with_no_coming_date_was_ours_this_year() {
+    use chrono::Datelike;
+    let (_d, inv) = setup();
+    let year = chrono::Local::now().year();
+    let v = inv.past_year(year).unwrap();
+    let names: Vec<&str> = v["owned"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|n| n["name"].as_str())
+        .collect();
+    assert!(names.contains(&"Telefon"), "{v}");
+    assert_eq!(v["unknown"], 0, "{v}");
+    let last = inv.past_year(year - 1).unwrap();
+    assert_eq!(last["unknown"], 2, "{last}");
+}

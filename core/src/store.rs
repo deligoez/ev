@@ -2802,6 +2802,29 @@ impl Inventory {
         // It never left: how, when and for what it left were never so.
         tx.execute("DELETE FROM departures WHERE node_id = ?1", [node.id])?;
         crate::marks::clear_shred(&tx, node.id)?;
+        // Nor why: the reason `ev gone --why` added to the note goes with the leaving.
+        let said: Option<String> = tx
+            .query_row(
+                "SELECT json_extract(data, '$.why') FROM events
+                  WHERE node_id = ?1 AND type = 'gone' ORDER BY id DESC LIMIT 1",
+                [node.id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
+        if let (Some(w), Some(note)) = (said, node.note.as_deref()) {
+            let kept = match note.strip_suffix(w.as_str()) {
+                Some("") => Some(None),
+                Some(rest) => rest.strip_suffix('\n').map(|r| Some(r.to_string())),
+                None => None,
+            };
+            if let Some(kept) = kept {
+                tx.execute(
+                    "UPDATE nodes SET note = ?1 WHERE id = ?2",
+                    params![kept, node.id],
+                )?;
+            }
+        }
         touch(&tx, node.id)?;
         event(
             &tx,

@@ -367,7 +367,9 @@ pub(crate) fn event_words(
             }
         }
         "lost" => own("lost", String::new()),
-        "found" => own("found", place(&d["at"])),
+        // Found where it was last seen (`at`), or somewhere else (`to`).
+        "found" if d["to"].is_null() => own("found", place(&d["at"])),
+        "found" => own("found", place(&d["to"])),
         "back" => own("returned", place(&d["from"])),
         "lend" => own("lent", place(&d["to"])),
         "sketch_import" => own(

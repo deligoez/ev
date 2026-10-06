@@ -262,6 +262,15 @@ impl Inventory {
             },
         };
         let at = at.map(partial_date).transpose()?;
+        if let Some(a) = &at {
+            let came: Option<String> =
+                tx.query_row("SELECT came_at FROM nodes WHERE id = ?1", [id], |r| {
+                    r.get(0)
+                })?;
+            if let Some(c) = came {
+                came_before_left(&c, a)?;
+            }
+        }
         let text = |t: Option<&str>| {
             t.map(str::trim)
                 .filter(|t| !t.is_empty())

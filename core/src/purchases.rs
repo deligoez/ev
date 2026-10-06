@@ -934,6 +934,24 @@ fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
 
 fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {
     check_open(conn, id, node, qty)?;
+    // A thing that left was not bought after it left.
+    let left = crate::store::past::departure_json(conn, node)?;
+    let bought: Option<String> = conn.query_row(
+        "SELECT COALESCE(ordered_at, delivered_at) FROM purchases WHERE id = ?1",
+        [id],
+        |r| r.get(0),
+    )?;
+    if left["pending"] != true
+        && let (Some(l), Some(b)) = (left["at"].as_str(), bought.as_deref())
+    {
+        let n = l.len().min(b.len());
+        if b[..n] > l[..n] {
+            return Err(crate::error::refused(
+                format!("line {id} was bought {b}, after #{node} left ({l})"),
+                Value::Null,
+            ));
+        }
+    }
     // Linked on the person's word, the line is this thing after all: an earlier "not this
     // one" no longer stands.
     conn.execute(

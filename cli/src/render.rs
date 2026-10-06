@@ -966,13 +966,44 @@ fn candidate_lines(out: &mut String, list: &Value) {
     }
 }
 
+/// One reason a purchase line could be a thing, in the reader's language.
+fn reason_words(w: &Value) -> String {
+    let value = s(w, "value");
+    match w["kind"].as_str() {
+        Some("bought_before") => tf("bought before for {}", &[&value]),
+        Some("model") => tf("model {}", &[&value]),
+        Some("serial") => tf("serial {}", &[&value]),
+        Some("model_part") => tf("part of the model {}", &[&value]),
+        Some("code") => tf("code {}", &[&value]),
+        Some("brand") => tf("brand {}", &[&value]),
+        Some("words") => tf("words {}", &[&value]),
+        Some("words_aside") => tf("words beside what it is {}", &[&value]),
+        Some("differs") => {
+            let measure = match value.as_str() {
+                "charge" => t("charge"),
+                "current" => t("current"),
+                "frequency" => t("frequency"),
+                "length" => t("length"),
+                "mass" => t("mass"),
+                "power" => t("power"),
+                "storage" => t("storage"),
+                "voltage" => t("voltage"),
+                "volume" => t("volume"),
+                other => other,
+            };
+            tf("{} differs", &[&measure])
+        }
+        _ => s(w, "why"),
+    }
+}
+
 /// One candidate line without its number: the purchase, then its score and reasons.
 fn candidate_line(c: &Value) -> String {
     let why = c["why"]
         .as_array()
         .into_iter()
         .flatten()
-        .map(|w| format!("{} {}", s(w, "why"), w["points"]))
+        .map(|w| format!("{} {}", reason_words(w), decimal(&w["points"])))
         .collect::<Vec<_>>()
         .join(", ");
     let linked = if c["linked"] == true {

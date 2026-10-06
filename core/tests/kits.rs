@@ -44,12 +44,12 @@ fn part(v: &Value, n: usize) -> &Value {
 }
 
 #[test]
-fn unlinking_a_record_that_is_not_linked_is_a_usage_error_as_elsewhere() {
+fn unlinking_a_record_that_is_not_linked_is_refused_as_elsewhere() {
     let (_d, mut inv) = setup();
     inv.kit_add("Set", None, None, &[("RC522 okuyucu".into(), 1)], None)
         .unwrap();
     let e = inv.kit_unlink("Set", 1, "RC522 okuyucu").unwrap_err();
-    assert_eq!(e.code(), 2, "{e}");
+    assert_eq!(e.code(), 5, "{e}");
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn kits_refuse_what_they_cannot_mean() {
         inv.kit_add("SET", None, None, &[], None)
             .unwrap_err()
             .code(),
-        2
+        5
     );
     assert_eq!(inv.kit_show("Yok").unwrap_err().code(), 3);
     assert_eq!(

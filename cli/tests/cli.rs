@@ -497,11 +497,11 @@ fn a_grid_cut_previews_then_cuts_every_box_and_keeps_its_corners() {
     ]);
     assert_eq!(v["marks"][1]["label"], "2 → B1");
     assert!(std::path::Path::new(v["marked"].as_str().unwrap()).is_file());
-    // A cell on a plain file, or a cell outside the grid, is a usage error.
+    // A cell on a plain file is a usage error; a cell outside the grid is refused.
     let (code, _, _) = ev.run(&["photo", "mark", p, "1=A1"]);
     assert_eq!(code, 2);
     let (code, _, _) = ev.run(&["photo", "mark", "D", "1=D9"]);
-    assert_eq!(code, 2);
+    assert_eq!(code, 5);
 }
 
 #[test]

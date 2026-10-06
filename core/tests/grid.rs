@@ -349,7 +349,7 @@ fn a_marked_copy_frames_a_rectangle_and_a_grids_cells_and_stores_nothing() {
     let e = inv
         .photo_mark("D", &[("1".into(), "D1".into())], None, Some(&out))
         .unwrap_err();
-    assert_eq!(e.code(), 2);
+    assert_eq!(e.code(), 5);
     let photos_after = inv.photo_list("D").unwrap()["photos"]
         .as_array()
         .unwrap()

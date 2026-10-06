@@ -360,7 +360,7 @@ fn a_room_is_not_placed_beside_what_cannot_say_where() {
         right_of: Some("Çalışma odası".into()),
         ..Default::default()
     };
-    assert_eq!(inv.sketch_set(&no_size).unwrap_err().code(), 2);
+    assert_eq!(inv.sketch_set(&no_size).unwrap_err().code(), 5);
     // Beside something with no place yet, or in another holder: refused.
     let e = inv
         .sketch_set(&beside("right", "Çalışma odası", None))

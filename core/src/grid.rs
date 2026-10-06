@@ -162,17 +162,53 @@ pub(crate) fn cells_quad(
             Value::Null,
         ));
     }
-    let map = projection(corners);
-    let (cols, rows) = (cols as f64, rows as f64);
-    let (u0, u1) = (
-        cells.col as f64 / cols,
-        (cells.col + cells.width) as f64 / cols,
-    );
-    let (v0, v1) = (
-        cells.row as f64 / rows,
-        (cells.row + cells.depth) as f64 / rows,
-    );
-    Ok([map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)])
+    // The box placed on exactly these cells, when one is: a tall box's rim stands above the
+    // floor the corners are read at, and its frame reaches out to it as its crop does.
+    let mut height = 1.0;
+    for (id, c) in placed(conn, holder)? {
+        if (c.col, c.row, c.width, c.depth) == (cells.col, cells.row, cells.width, cells.depth) {
+            height = box_height(conn, id)?;
+        }
+    }
+    Ok(reach(
+        &projection(corners),
+        (cols as f64, rows as f64),
+        cells,
+        0.0,
+        height,
+    ))
+}
+
+/// Where `cells` are in the photo through `map`: their rectangle grown by `margin` (a share of a
+/// cell) all round and, for a box `height` high above 1, by its lean on the sides away from the
+/// photo's centre. Back-left, back-right, front-right, front-left.
+fn reach(
+    map: &impl Fn(f64, f64) -> (f64, f64),
+    (cols, rows): (f64, f64),
+    c: &Cells,
+    margin: f64,
+    height: f64,
+) -> [(f64, f64); 4] {
+    let lean = LEAN_PER_HEIGHT * (height - 1.0).max(0.0);
+    let (mu, mv) = (margin / cols, margin / rows);
+    let (lu, lv) = (lean / cols, lean / rows);
+    let mut u0 = c.col as f64 / cols - mu;
+    let mut u1 = (c.col + c.width) as f64 / cols + mu;
+    let mut v0 = c.row as f64 / rows - mv;
+    let mut v1 = (c.row + c.depth) as f64 / rows + mv;
+    // Which way is out: from the photo's centre to the box's centre.
+    let (cx, cy) = map((u0 + u1) / 2.0, (v0 + v1) / 2.0);
+    if cx < 0.5 {
+        u0 -= lu;
+    } else {
+        u1 += lu;
+    }
+    if cy < 0.5 {
+        v0 -= lv;
+    } else {
+        v1 += lv;
+    }
+    [map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)]
 }
 
 /// The projective map from the grid's unit square (u across from the left, v from the back) to
@@ -235,26 +271,7 @@ pub(crate) fn grid_crops(
     placed(conn, holder)?
         .into_iter()
         .map(|(id, c)| {
-            let lean = LEAN_PER_HEIGHT * (box_height(conn, id)? - 1.0).max(0.0);
-            let (mu, mv) = (CROP_MARGIN / cols, CROP_MARGIN / rows);
-            let (lu, lv) = (lean / cols, lean / rows);
-            let mut u0 = c.col as f64 / cols - mu;
-            let mut u1 = (c.col + c.width) as f64 / cols + mu;
-            let mut v0 = c.row as f64 / rows - mv;
-            let mut v1 = (c.row + c.depth) as f64 / rows + mv;
-            // Which way is out: from the photo's centre to the box's centre.
-            let (cx, cy) = map((u0 + u1) / 2.0, (v0 + v1) / 2.0);
-            if cx < 0.5 {
-                u0 -= lu;
-            } else {
-                u1 += lu;
-            }
-            if cy < 0.5 {
-                v0 -= lv;
-            } else {
-                v1 += lv;
-            }
-            let pts = [map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)];
+            let pts = reach(&map, (cols, rows), &c, CROP_MARGIN, box_height(conn, id)?);
             let x0 = pts
                 .iter()
                 .map(|p| p.0)

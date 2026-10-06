@@ -411,8 +411,8 @@ fn shop_then_ak(inv: &mut Inventory) -> Value {
             line("shop", "a", "ORD-100001", "Bulaşık makinesi", "19999"),
             line("shop", "b", "ORD-200002", "Bosch matkap", "1999"),
             line("shop", "c", "ORD-200002", "Uç seti", "500"),
-            line("shop", "d", "ORD-300003", "Kablo", "100"),
-            line("shop", "e", "ORD-300003", "Kablo", "100"),
+            line("shop", "d", "ORD-300003", "HDMI kablo", "100"),
+            line("shop", "e", "ORD-300003", "USB kablo", "120"),
         ]
         .join("\n"),
     )
@@ -422,8 +422,8 @@ fn shop_then_ak(inv: &mut Inventory) -> Value {
             // The whole one-line order; an item of the two-line one, told by its price.
             line("ak", "1", "ORD-100001", "Makine", "19999"),
             line("ak", "2.2", "ORD-200002", "Set", "500"),
-            // Two lines alike: none can be told.
-            line("ak", "3", "ORD-300003", "Kablo", "100"),
+            // The whole order against its two lines, priced as neither: none can be told.
+            line("ak", "3", "ORD-300003", "Kablo", "90"),
             // No line of this order in ev: a purchase of its own.
             line("ak", "4", "ORD-400004", "Tencere", "1190"),
         ]
@@ -514,7 +514,7 @@ fn a_line_the_import_could_not_tell_is_joined_by_hand_and_taken_back() {
     assert_eq!(j["purchase"]["same_as"], into);
     assert_eq!(j["purchase"]["open_qty"], 0);
     // An import again leaves it so, and lists it no more.
-    let again = inv.buy_import(r#"{"source":"ak","key":"3","name":"Kablo","order":"ORD-300003","paid":"100","currency":"TRY"}"#).unwrap();
+    let again = inv.buy_import(r#"{"source":"ak","key":"3","name":"Kablo","order":"ORD-300003","paid":"90","currency":"TRY"}"#).unwrap();
     assert!(again["imported"]["unjoined"].is_null(), "{again}");
     // Refused: to itself, to a line that joins another, a line linked to a thing.
     let id = |e: ev_core::Error| e.id().map(str::to_string);

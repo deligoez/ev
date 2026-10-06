@@ -163,11 +163,11 @@ pub(crate) fn traded_from(conn: &Connection, node: i64) -> Result<Value> {
 /// Where a sale in progress was listed, carried into the departure of a thing gone `--as sell`
 /// as what it went through. The price it asked is not carried: an asking price is not what the
 /// sale brought, and the sale mark keeps it in sight until `ev sold` says.
-pub(super) fn carry_sale(conn: &Connection, node: i64) -> Result<()> {
+pub(super) fn carry_sale(conn: &Connection, node: i64, listed_on: i64) -> Result<()> {
     let listed: Option<Option<String>> = conn
         .query_row(
             "SELECT note FROM marks WHERE node_id = ?1 AND kind = 'sale'",
-            [node],
+            [listed_on],
             |r| r.get(0),
         )
         .optional()?;

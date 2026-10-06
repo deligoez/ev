@@ -890,7 +890,17 @@ impl Inventory {
 
     pub fn restore(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let id = match resolve(&tx, reference, false) {
+            Err(Error::NotFound(_)) if resolve_for_history(&tx, reference).is_ok() => {
+                let id = resolve_for_history(&tx, reference)?;
+                return Err(refused(
+                    format!("node {id} is gone; `ev restore {id} --correction \"why\"` undoes it"),
+                    Value::Null,
+                ));
+            }
+            other => other?,
+        };
+        let node = load(&tx, id)?;
         if node.state != State::Candidate {
             return Err(refused(
                 format!("{} is not a candidate", label(&node)),
@@ -976,11 +986,13 @@ impl Inventory {
         }
         let tx = self.conn.transaction()?;
         let node = load(&tx, resolve(&tx, reference, false)?)?;
+        // A part leaving is split off first; a sale listed on the whole is still its listing.
+        let listed_on = node.id;
         let node = crate::portions::take(&tx, node, qty)?;
         if node.state == State::Active && disposition.is_none() {
             return Err(refused(
                 format!(
-                    "{} is active; say how it left with --as trash|give|sell|used|digitize",
+                    "{} is active; say how it left with --as trash|give|sell|trade|used|digitize|left|stolen|unknown",
                     label(&node)
                 ),
                 Value::Null,
@@ -1021,7 +1033,12 @@ impl Inventory {
         )?;
         past::set_departure(&tx, node.id, at, place)?;
         if final_disposition == Disposition::Sell {
-            past::carry_sale(&tx, node.id)?;
+            past::carry_sale(&tx, node.id, listed_on)?;
+        }
+        // Gone, it is on sale no more; a part that left leaves the rest still listed.
+        if listed_on == node.id {
+            crate::marks::clear_mark(&tx, node.id, "sale")?;
+            crate::marks::clear_mark(&tx, node.id, "condition")?;
         }
         if let Some(w) = why {
             let note = match node.note.as_deref() {

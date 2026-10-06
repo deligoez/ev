@@ -92,7 +92,7 @@ fn set_mark(
     Ok(())
 }
 
-fn clear_mark(conn: &Connection, id: i64, kind: &str) -> Result<()> {
+pub(crate) fn clear_mark(conn: &Connection, id: i64, kind: &str) -> Result<()> {
     conn.execute(
         "DELETE FROM marks WHERE node_id = ?1 AND kind = ?2",
         params![id, kind],

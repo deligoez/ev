@@ -558,7 +558,7 @@ impl Inventory {
                 .map_err(|e| Error::Usage(format!("not JSON: {e}")))
                 .map_err(at)?;
             match v.get("type").and_then(Value::as_str).unwrap_or("purchase") {
-                "purchase" => match {
+                "purchase" => {
                     for k in v.as_object().into_iter().flat_map(|o| o.keys()) {
                         if !PURCHASE_KEYS.contains(&k.as_str())
                             && !LINE_FIELDS.iter().any(|(_, f)| f == k)
@@ -566,14 +566,15 @@ impl Inventory {
                             *unknown.entry(k.clone()).or_default() += 1;
                         }
                     }
-                    line_from(&v).map_err(at)?
-                } {
-                    None => *counts.entry("skipped").or_default() += 1,
-                    Some((l, name)) => {
-                        let (_, how) = upsert(&tx, &l, &name).map_err(at)?;
-                        *counts.entry(how).or_default() += 1;
+                    let line = line_from(&v).map_err(at)?;
+                    match line {
+                        None => *counts.entry("skipped").or_default() += 1,
+                        Some((l, name)) => {
+                            let (_, how) = upsert(&tx, &l, &name).map_err(at)?;
+                            *counts.entry(how).or_default() += 1;
+                        }
                     }
-                },
+                }
                 "document" => {
                     let source = text(&v, "source")
                         .ok_or_else(|| Error::Usage("`source` is required".into()))

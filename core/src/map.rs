@@ -41,7 +41,7 @@ impl Sketch {
 
     /// Every measure to the millimetre, as a person measures: sums of tenths stay tenths
     /// (`20.2 + 10.1` is `30.3`, not `30.299999999999997`).
-    fn to_mm(&mut self) {
+    fn round_to_mm(&mut self) {
         let mm = |v: &mut Option<f64>| *v = v.map(|x| (x * 10.0).round() / 10.0);
         for v in [&mut self.x, &mut self.y, &mut self.w, &mut self.d] {
             mm(v);
@@ -671,7 +671,7 @@ fn apply(conn: &Connection, c: &SketchChange) -> Result<(i64, Sketch)> {
         }
         p.on = Some(base);
     }
-    p.to_mm();
+    p.round_to_mm();
     // Furniture and boxes lie inside their holder, when its size is known (a centimetre of
     // slack for a tape measure's reading). A room may reach out of the one it hangs on (a
     // balcony off the kitchen).

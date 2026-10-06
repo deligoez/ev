@@ -255,7 +255,10 @@ return a contact sheet: every crop small, labelled with its cell, so a whole dra
 checked at a glance. The photo keeps its corners, so its
 cells can be found by name later. Photos stay current by construction: `ev review <drawer> --as
 toured` is refused while the drawer or any box in it shows an older state than it has, and
-`ev todo` lists a drawer again when a box is added after its photo.
+`ev todo` lists a drawer again when a box is added after its photo. Closing a tour also checks
+the newest photo against the records: which things in the place have a crop cut from it and
+which do not yet, so the agent says which record is which thing before the person calls the
+place done.
 
 **Showing what goes where.** When the agent proposes where the parts on the table go,
 `ev photo mark parts.jpg "1 → A6"=0.10,0.20,0.15,0.12 "2 → C1"=… --show "batch 3"` draws numbered

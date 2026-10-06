@@ -17,6 +17,13 @@ details, whose tabs are now the only tab strip on screen (spec/ui-sidebar.md).
 - The layout follows the width, since the person often works from a phone: the full sidebar
   from 120 columns, a rail of digits and counts from 90, hidden below that (`b` lays it over the
   list), and one pane at a time below 70. `b` hides or shows it at any width and is remembered.
+- `:` opens a palette that finds any list, or any record by code, name or `#id`, typed with or
+  without Turkish letters (`kayip` finds Kayıp). `Esc` steps back through what was opened, a
+  list or a record jumped to, and the top line says where it goes; with nothing behind it quits
+  as before.
+- When the record selected in a list leaves it (made, found, gone by another process), its
+  neighbour is selected and the status line says which record left, instead of the selection
+  jumping to the top.
 
 ## Fixes
 

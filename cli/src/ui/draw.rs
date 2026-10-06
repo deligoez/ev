@@ -229,7 +229,13 @@ impl App {
                 let size = proto.size();
                 let w = size.width.min(area.width);
                 let h = size.height.min(area.height);
-                let at = Rect::new(area.x + (area.width - w) / 2, area.y, w, h);
+                // Centred both ways: a wide picture in a tall tile sits in its middle.
+                let at = Rect::new(
+                    area.x + (area.width - w) / 2,
+                    area.y + (area.height - h) / 2,
+                    w,
+                    h,
+                );
                 f.render_widget(Image::new(proto), at);
             }
             _ => f.render_widget(Paragraph::new("✕").fg(pal().muted), area),

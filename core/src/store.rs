@@ -222,9 +222,24 @@ impl Inventory {
         if version < 35 {
             conn.execute_batch(SCHEMA_V35)?;
         }
+        // Indexes no schema version depends on: an older build opens the file as before, and
+        // this one adds what is missing once. A purchase's joined lines are found by
+        // `same_as`, three times for every line of `ev buy list`: a scan of the whole table
+        // each time without it (0.47 s against 0.11 s for one household's ~1,840 lines).
+        let indexed: bool = conn.query_row(
+            "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'purchases_same_as')",
+            [],
+            |r| r.get(0),
+        )?;
+        if !indexed {
+            // Another process may open the file at the same moment and add it first.
+            conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS purchases_same_as ON purchases(same_as);",
+            )?;
+        }
         // A migration changes the schema but no row, so `Drop` would leave it in the log: fold
         // it into the file now, so a commit of `ev.db` is on the new schema too.
-        if version < SCHEMA_VERSION {
+        if version < SCHEMA_VERSION || !indexed {
             let _ = conn.execute_batch("PRAGMA wal_checkpoint(FULL);");
         }
         Ok(Self {

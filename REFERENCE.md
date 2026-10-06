@@ -163,12 +163,19 @@ Three panes (spec/ui-sidebar.md): the sidebar of lists, the list, the details. T
 shown in full from 120 columns, as a rail of digits and counts from 90, hidden below that, and
 below 70 only the focused pane is shown. Its lists, under their headings, with their digits:
 HOME — layout `1` (the tree of places and things), To do `2` (everything waiting), pending moves
-`3`, leaving `4`, lost `5`, errands `6` (take / return); HISTORY — the past `7` (`ev past`: a
+`3`, leaving `4`, lost `5`, errands `6` (take / return); PURCHASES — all `9`, then durable,
+clothing, digital and service (`ev buy list`, newest first; the lines of one order under a heading
+with its total, which opens and closes; the title counts the lines shown and adds them up per
+currency; `f` steps through all, open, linked and dismissed, `/` narrows to the lines with every
+word typed in their name, shop, make, order number or account, as they are typed, and Esc clears
+both; the details are `ev buy show` of the line; Enter opens the thing it is linked to, still
+here, in the tree); HISTORY — the past `7` (`ev past`: a
 collapsible heading per year with how many left and the money paid and got, each thing under it;
 its details say when it came and how it left); INSIGHT — statistics `8` (`ev stats`, a
 collapsible section per heading; a line that names a record opens it); then search `/` and
-settings `0`. A list's count is its own length: pending, leaving, lost, errands, past and a
-search's results show one, the others none. The top line names the section and list. A
+settings `0`. A list's count is its own length: pending, leaving, lost, errands, past, the
+purchase lists (every line of the bucket, whatever the filter) and a search's results show one,
+the others none. The top line names the section and list. A
 record that leaves the list it is selected in (made, found, gone, from another process) hands
 the selection to its neighbour, and the status line names it (`#12 left this list`).
 
@@ -180,7 +187,7 @@ the selection to its neighbour, and the status line names it (`#12 left this lis
 | d | in the tree: open the selected node two levels down, the nodes in it opened and nothing further (a Kallax shows its compartments and the drawers in each); the selection stays |
 | e / c | in the tree: open the selected node and everything below it, or close them all; the selection stays |
 | C | in the tree: close everything but the home, so its rooms show closed; the selection moves up to what still shows |
-| 1–8, 0 | open that list (see above) |
+| 1–9, 0 | open that list (see above) |
 | Tab, Shift-Tab | the next / previous pane: sidebar, list, details; a hidden sidebar is passed by. The focused pane's border is coloured |
 | in the sidebar: ↑ ↓ / j k, g G, Enter / → / l, Esc | open the previous / next list (the first / last) as the selection moves; go into the list |
 | in the details: j k, h l, Esc | scroll; the previous / next details tab; back to the list |

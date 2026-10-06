@@ -31,7 +31,7 @@ fn brief_value(conn: &Connection, id: i64) -> Result<Value> {
 }
 
 pub(crate) fn mark(conn: &Connection, id: i64, kind: &str) -> Result<Value> {
-    Ok(conn
+    let mut m = conn
         .query_row(
             "SELECT value, amount, note, at FROM marks WHERE node_id = ?1 AND kind = ?2",
             params![id, kind],
@@ -45,7 +45,12 @@ pub(crate) fn mark(conn: &Connection, id: i64, kind: &str) -> Result<Value> {
             },
         )
         .optional()?
-        .unwrap_or(Value::Null))
+        .unwrap_or(Value::Null);
+    // An asking price is said in the home currency (`ev sale --price`).
+    if kind == "sale" && m["amount"].is_i64() {
+        m["currency"] = json!(crate::money::home_currency(conn)?);
+    }
+    Ok(m)
 }
 
 pub(crate) fn marks_of(conn: &Connection, id: i64) -> Result<Value> {

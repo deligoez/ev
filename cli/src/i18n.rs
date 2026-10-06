@@ -1191,6 +1191,7 @@ static TR: &[(&str, &str)] = &[
     // Status line, titles, help
     ("updated {}", "güncellendi {}"),
     ("showing: {}", "gösteriliyor: {}"),
+    ("about {}, the series {}", "konu {}, seri {}"),
     ("\"{}\": {} results", "\"{}\": {} sonuç"),
     ("search cleared", "arama temizlendi"),
     (

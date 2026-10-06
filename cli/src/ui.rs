@@ -942,6 +942,9 @@ struct Series {
     files: Vec<String>,
     notes: Vec<Option<String>>,
     frames: Vec<usize>,
+    /// For a picture about another place than the series: that place's label and the series'
+    /// (spec/series-batches.md).
+    crossed: Vec<Option<(String, String)>>,
     at: usize,
 }
 
@@ -955,6 +958,8 @@ impl Series {
         }
         let show = req["show"].as_u64().unwrap_or(0) as usize;
         let (mut files, mut notes, mut frames, mut at) = (Vec::new(), Vec::new(), Vec::new(), 0);
+        let mut crossed = Vec::new();
+        let about = &req["about"];
         for (i, f) in req["files"].as_array().into_iter().flatten().enumerate() {
             let Some(f) = f.as_str().filter(|f| std::path::Path::new(f).is_file()) else {
                 continue;
@@ -966,11 +971,19 @@ impl Series {
             let note = req["notes"].get(i).unwrap_or(&req["note"]);
             notes.push(note.as_str().map(str::to_string));
             frames.push(req["frames"][i].as_array().map_or(0, Vec::len));
+            let own = &req["abouts"][i];
+            crossed.push(
+                (own.is_object() && about.is_object() && own["id"] != about["id"]).then(|| {
+                    let label = |a: &Value| a["label"].as_str().unwrap_or_default().to_string();
+                    (label(own), label(about))
+                }),
+            );
         }
         (!files.is_empty()).then_some(Self {
             files,
             notes,
             frames,
+            crossed,
             at,
         })
     }

@@ -250,7 +250,15 @@ impl App {
                 }
                 let i = s.at.min(s.files.len().saturating_sub(1));
                 if let Some(path) = s.files.get(i) {
-                    let note = s.notes.get(i).cloned().flatten();
+                    let mut note = s.notes.get(i).cloned().flatten();
+                    // A picture about another place than the series says so in its title.
+                    if let Some(Some((own, series))) = s.crossed.get(i) {
+                        let aside = tf("about {}, the series {}", &[own, series]);
+                        note = Some(match note {
+                            Some(n) => format!("{n} · {aside}"),
+                            None => aside,
+                        });
+                    }
                     return self.draw_overlay(f, path, note, (i, s.files.len()));
                 }
             }

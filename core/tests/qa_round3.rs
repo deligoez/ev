@@ -416,3 +416,25 @@ fn a_thing_that_left_is_proposed_no_statutory_warranty() {
     let v = inv.show(&id(&inv, "Telefon"), true).unwrap();
     assert!(v["coverage_proposal"].is_null(), "{v}");
 }
+
+#[test]
+fn a_portion_that_joined_another_says_which_one() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Vida".into(),
+        kind: "item".into(),
+        parent: Some("Oda".into()),
+        qty: Some(4),
+        ..Default::default()
+    })
+    .unwrap();
+    place(&mut inv, "Kutu", "container", "Oda", "Q1");
+    let vida = id(&inv, "Vida");
+    let portion = inv.move_qty(&vida, "Q1", false, Some(1)).unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
+    inv.move_qty(&format!("#{portion}"), "Oda", false, None)
+        .unwrap();
+    let e = inv.show(&format!("#{portion}"), false).unwrap_err();
+    assert!(e.to_string().contains(&format!("joined {vida}")), "{e}");
+}

@@ -318,7 +318,8 @@ impl Inventory {
     /// and links what came later, once it is recorded.
     pub fn traded(&mut self, reference: &str, for_ref: Option<&str>) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let id = super::resolve_for_history(&tx, reference)?;
+        // A trade is said of a thing that left, so a gone one is found by name too.
+        let id = resolve(&tx, reference, true)?;
         let (state, how): (String, Option<String>) = tx.query_row(
             "SELECT state, disposition FROM nodes WHERE id = ?1",
             [id],
@@ -330,9 +331,13 @@ impl Inventory {
                 Value::Null,
             ));
         }
-        if matches!(how.as_deref(), Some("mistake" | "merged" | "digitize")) {
+        // Only a leaving that handed the thing to someone may have been a swap.
+        let how_text = how.as_deref().unwrap_or("unknown");
+        if !matches!(how_text, "give" | "sell" | "trade") {
             return Err(refused(
-                format!("node {id} is no past belonging; it was not traded"),
+                format!(
+                    "node {id} left as {how_text}; only a thing given, sold or traded can be a trade"
+                ),
                 Value::Null,
             ));
         }
@@ -342,15 +347,25 @@ impl Inventory {
         if other == Some(id) {
             return Err(Error::Usage("a thing is not traded for itself".into()));
         }
-        // What came is a thing, not a place.
+        let before: Option<i64> = tx
+            .query_row(
+                "SELECT traded_for FROM departures WHERE node_id = ?1",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
+        if how_text == "trade" && (other.is_none() || other == before) {
+            return Err(refused(
+                format!(
+                    "node {id} is already recorded as traded{}; nothing to change",
+                    before.map(|b| format!(" for #{b}")).unwrap_or_default()
+                ),
+                Value::Null,
+            ));
+        }
         if let Some(o) = other {
-            let kind: String =
-                tx.query_row("SELECT kind FROM nodes WHERE id = ?1", [o], |r| r.get(0))?;
-            if matches!(kind.as_str(), "home" | "room") {
-                return Err(Error::Usage(format!(
-                    "#{o} is a {kind}; a thing is traded for a thing"
-                )));
-            }
+            trade_check(&tx, left_of(&tx, id)?.as_deref(), o)?;
         }
         tx.execute("UPDATE nodes SET disposition = 'trade' WHERE id = ?1", [id])?;
         // A swap brought no money: a sale price said before no longer stands.
@@ -363,6 +378,65 @@ impl Inventory {
         event(&tx, id, "traded", json!({ "was": how, "for": other }))?;
         tx.commit()?;
         show(&self.conn, id)
+    }
+}
+
+/// Whether `other` can be what came in exchange for a thing that left on `left`: a thing, not
+/// a place, still ours when the swap happened, and not ours before it. Nothing saying when the
+/// swap was, only the first is checked.
+pub(crate) fn trade_check(conn: &Connection, left: Option<&str>, other: i64) -> Result<()> {
+    let kind: String = conn.query_row("SELECT kind FROM nodes WHERE id = ?1", [other], |r| {
+        r.get(0)
+    })?;
+    if matches!(kind.as_str(), "home" | "room") {
+        return Err(Error::Usage(format!(
+            "#{other} is a place; a thing is traded for a thing"
+        )));
+    }
+    let Some(left) = left else { return Ok(()) };
+    let before = |a: &str, b: &str| {
+        let n = a.len().min(b.len());
+        a[..n] < b[..n]
+    };
+    let gone: bool = conn.query_row(
+        "SELECT state = 'gone' FROM nodes WHERE id = ?1",
+        [other],
+        |r| r.get(0),
+    )?;
+    if gone
+        && let Some(o) = left_of(conn, other)?
+        && before(&o, left)
+    {
+        return Err(Error::Usage(format!(
+            "#{other} left {o}, before the swap ({left}); it cannot have come in exchange"
+        )));
+    }
+    if let Some(c) = came_of(conn, other)? {
+        if before(&c, left) {
+            return Err(Error::Usage(format!(
+                "#{other} came {c}, before the swap ({left}); it was ours already"
+            )));
+        }
+        if c.get(..4) > left.get(..4) {
+            return Err(Error::Usage(format!(
+                "#{other} came {c}, years after the swap ({left}); one of the dates is not right"
+            )));
+        }
+    }
+    Ok(())
+}
+
+impl Inventory {
+    /// `trade_check` for a swap still to be written (`ev gone --traded-for`, `ev add --gone
+    /// trade --traded-for`), so a refused one leaves nothing half recorded.
+    /// `left` not said, the swap is today when it is leaving `now`, else not known.
+    pub fn check_trade(&self, left: Option<&str>, now: bool, other: i64) -> Result<()> {
+        let left = match left {
+            Some(l) => Some(partial_date(l)?),
+            None if now => Some(crate::store::today().format("%Y-%m-%d").to_string()),
+            None => None,
+        };
+        trade_check(&self.conn, left.as_deref(), other)
     }
 }
 

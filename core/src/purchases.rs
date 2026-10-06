@@ -799,11 +799,18 @@ impl Inventory {
         } else {
             left
         };
+        if qty.is_some_and(|q| q < 1) {
+            return Err(Error::Usage("qty must be at least 1".into()));
+        }
         let qty = qty.unwrap_or(default);
         if qty < 1 {
-            return Err(Error::Usage(format!(
-                "purchase {id} has nothing left to link"
-            )));
+            // A service or a download is never a thing to link.
+            return Err(Error::Usage(match p["bucket"].as_str() {
+                Some(b @ ("digital" | "service")) => {
+                    format!("purchase {id} is a {b} purchase; it is never a thing in the home")
+                }
+                _ => format!("purchase {id} has nothing left to link"),
+            }));
         }
         link_in(&tx, id, node, qty)?;
         tx.commit()?;

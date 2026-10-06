@@ -690,7 +690,21 @@ impl Inventory {
     }
 
     pub fn cover_show(&self, id: i64) -> Result<Value> {
+        let found: Option<i64> = self
+            .conn
+            .query_row("SELECT id FROM coverages WHERE id = ?1", [id], |r| r.get(0))
+            .optional()?;
+        if found.is_none() {
+            return Err(Error::NotFound(format!("no coverage with id {id}")));
+        }
         Ok(json!({ "coverage": coverage_json(&self.conn, id, warning_days(&self.conn)?)? }))
+    }
+
+    /// Whether a purchase line can be a coverage's: it exists, is not dismissed, not linked to a
+    /// thing, and not another coverage's (`coverage` is the one asking, when it exists). Checked
+    /// before a coverage is written, so a refused line leaves nothing behind.
+    pub fn cover_line_check(&self, line: i64, coverage: Option<i64>) -> Result<()> {
+        line_for_coverage(&self.conn, line, coverage).map(|_| ())
     }
 
     /// The purchase line a coverage was bought as (an extended warranty sold as a line of its
@@ -699,72 +713,50 @@ impl Inventory {
     /// covers.
     pub fn cover_purchase(&mut self, coverage: i64, line: Option<i64>) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let found: Option<i64> = tx
-            .query_row("SELECT id FROM coverages WHERE id = ?1", [coverage], |r| {
-                r.get(0)
-            })
+        let found: Option<(Option<i64>, Option<i64>, Option<String>)> = tx
+            .query_row(
+                "SELECT purchase_id, premium, currency FROM coverages WHERE id = ?1",
+                [coverage],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
             .optional()?;
-        if found.is_none() {
+        let Some((old_line, premium, currency)) = found else {
             return Err(Error::NotFound(format!("no coverage with id {coverage}")));
+        };
+        let new = line
+            .map(|l| line_for_coverage(&tx, l, Some(coverage)))
+            .transpose()?;
+        // Said again as it is: nothing to change, nothing to record.
+        if old_line == line {
+            tx.commit()?;
+            return self.cover_show(coverage);
         }
         // A premium taken from the line it was bought as follows that line: changed or taken
-        // back, the old price goes with it. One the person said stays.
-        let (old_line, premium): (Option<i64>, Option<i64>) = tx.query_row(
-            "SELECT purchase_id, premium FROM coverages WHERE id = ?1",
-            [coverage],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
+        // back, the old price and its currency go with it. One the person said stays.
         if let Some(o) = old_line {
-            let old_paid: Option<i64> =
-                tx.query_row("SELECT paid FROM purchases WHERE id = ?1", [o], |r| {
-                    r.get(0)
-                })?;
+            let (old_paid, old_currency): (Option<i64>, Option<String>) = tx.query_row(
+                "SELECT paid, currency FROM purchases WHERE id = ?1",
+                [o],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?;
             if premium.is_some() && premium == old_paid {
                 tx.execute(
                     "UPDATE coverages SET premium = NULL WHERE id = ?1",
                     [coverage],
                 )?;
+                if currency == old_currency || old_currency.is_none() {
+                    tx.execute(
+                        "UPDATE coverages SET currency = NULL WHERE id = ?1",
+                        [coverage],
+                    )?;
+                }
             }
         }
-        if let Some(l) = line {
-            let (paid, currency): (Option<i64>, Option<String>) = tx
-                .query_row(
-                    "SELECT paid, currency FROM purchases WHERE id = ?1",
-                    [l],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
-                )
-                .optional()?
-                .ok_or_else(|| Error::NotFound(format!("no purchase with id {l}")))?;
-            // The line is the coverage's alone: not a thing's, not another coverage's.
-            let linked: i64 = tx.query_row(
-                "SELECT COUNT(*) FROM purchase_links WHERE purchase_id = ?1",
-                [l],
-                |r| r.get(0),
-            )?;
-            if linked > 0 {
-                return Err(crate::error::refused(
-                    format!(
-                        "line {l} is linked to a thing; `ev buy unlink` it first if it is the coverage's"
-                    ),
-                    Value::Null,
-                ));
-            }
-            let other: Option<i64> = tx
-                .query_row(
-                    "SELECT id FROM coverages WHERE purchase_id = ?1 AND id != ?2",
-                    params![l, coverage],
-                    |r| r.get(0),
-                )
-                .optional()?;
-            if let Some(o) = other {
-                return Err(crate::error::refused(
-                    format!("line {l} is already coverage {o}'s"),
-                    Value::Null,
-                ));
-            }
+        if let Some((paid, currency)) = new {
             tx.execute(
                 "UPDATE coverages SET premium = COALESCE(premium, ?1),
-                   currency = COALESCE(currency, ?2) WHERE id = ?3",
+                   currency = CASE WHEN premium IS NULL THEN ?2 ELSE COALESCE(currency, ?2) END
+                 WHERE id = ?3",
                 params![paid, currency, coverage],
             )?;
         }
@@ -783,6 +775,61 @@ impl Inventory {
         tx.commit()?;
         self.cover_show(coverage)
     }
+}
+
+/// A purchase line a coverage may be bought as, with its price and currency (the home currency
+/// when the line says none): it exists, is not dismissed, is linked to no thing, and is no other
+/// coverage's.
+fn line_for_coverage(
+    conn: &Connection,
+    line: i64,
+    coverage: Option<i64>,
+) -> Result<(Option<i64>, Option<String>)> {
+    let (paid, currency, dismissed): (Option<i64>, Option<String>, Option<String>) = conn
+        .query_row(
+            "SELECT paid, currency, dismissed FROM purchases WHERE id = ?1",
+            [line],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?
+        .ok_or_else(|| Error::NotFound(format!("no purchase with id {line}")))?;
+    if let Some(d) = dismissed {
+        return Err(crate::error::refused(
+            format!("line {line} is dismissed ({d}); `ev buy dismiss {line} --clear` it first"),
+            Value::Null,
+        ));
+    }
+    let linked: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM purchase_links WHERE purchase_id = ?1",
+        [line],
+        |r| r.get(0),
+    )?;
+    if linked > 0 {
+        return Err(crate::error::refused(
+            format!(
+                "line {line} is linked to a thing; `ev buy unlink` it first if it is the coverage's"
+            ),
+            Value::Null,
+        ));
+    }
+    let other: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM coverages WHERE purchase_id = ?1 AND id IS NOT ?2",
+            params![line, coverage],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(o) = other {
+        return Err(crate::error::refused(
+            format!("line {line} is already coverage {o}'s"),
+            Value::Null,
+        ));
+    }
+    let currency = match currency {
+        Some(c) => Some(c),
+        None => Some(crate::money::home_currency(conn)?),
+    };
+    Ok((paid, currency))
 }
 
 /// Records a coverage over `nodes` and returns its id; clears their "do not track" decision.

@@ -2109,7 +2109,7 @@ fn run(cli: Cli) -> Result<Value> {
             let a = *a;
             // The line is checked before the coverage is written, so a wrong id leaves nothing.
             if let Some(l) = a.purchase {
-                inv.buy_show(l)?;
+                inv.cover_line_check(l, None)?;
             }
             let v = inv.cover_add(
                 &a.references,
@@ -2129,10 +2129,7 @@ fn run(cli: Cli) -> Result<Value> {
                 },
             )?;
             match (a.purchase, v["coverage"]["id"].as_i64()) {
-                // A line that is not the coverage's to take leaves no coverage behind either.
-                (Some(l), Some(c)) => inv.cover_purchase(c, Some(l)).inspect_err(|_| {
-                    let _ = inv.cover_remove(c);
-                }),
+                (Some(l), Some(c)) => inv.cover_purchase(c, Some(l)),
                 _ => Ok(v),
             }
         }

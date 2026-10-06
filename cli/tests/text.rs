@@ -950,3 +950,14 @@ fn history_names_a_purchase_line_by_its_name() {
         "{s}"
     );
 }
+
+#[test]
+fn progress_lists_places_under_their_holder_and_each_task_once() {
+    let h = Home::new();
+    let s = h.text(&["progress"]);
+    assert!(
+        s.contains("\nEv › Oda › D\n  [not counted] D-A1  #1\n  [not counted] D-B1  #1\n"),
+        "{s}"
+    );
+    assert!(s.contains("\nTasks\n  #1 Çekmeceyi say\n"), "{s}");
+}

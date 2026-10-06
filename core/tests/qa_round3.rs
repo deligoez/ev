@@ -370,3 +370,18 @@ fn a_purchase_recorded_by_hand_in_the_future_is_refused() {
     );
     assert_eq!(future.unwrap_err().code(), 2);
 }
+
+#[test]
+fn closing_a_task_as_it_already_is_is_refused() {
+    let (_d, mut inv) = setup();
+    let t = inv
+        .task_add("Odayı say", "hiç sayılmadı", &["Oda".into()], None)
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    inv.task_set(t, "done", None).unwrap();
+    assert_eq!(inv.task_set(t, "done", None).unwrap_err().code(), 5);
+    inv.task_set(t, "open", None).unwrap();
+    inv.task_set(t, "dropped", None).unwrap();
+    assert_eq!(inv.task_set(t, "dropped", None).unwrap_err().code(), 5);
+}

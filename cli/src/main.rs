@@ -138,10 +138,16 @@ enum Cmd {
     Unjoin { reference: String },
     /// List pending moves.
     Pending,
-    /// Apply a node's pending move.
-    Done { reference: String },
-    /// Drop a node's pending move.
-    Cancel { reference: String },
+    /// Apply the pending move of one node, or of several at once (all or none).
+    Done {
+        #[arg(required = true)]
+        references: Vec<String>,
+    },
+    /// Drop the pending move of one node, or of several at once (all or none).
+    Cancel {
+        #[arg(required = true)]
+        references: Vec<String>,
+    },
     /// Mark a node as a candidate to leave: trash, give, sell, trade, return, or digitize
     /// (photograph it, then throw the paper out; `gone` needs a photo or document on it first).
     Dispose {
@@ -1805,8 +1811,8 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Join { references } => inv.join(&references),
         Cmd::Unjoin { reference } => inv.unjoin(&reference),
         Cmd::Pending => inv.pending(),
-        Cmd::Done { reference } => inv.done(&reference),
-        Cmd::Cancel { reference } => inv.cancel(&reference),
+        Cmd::Done { references } => inv.done_many(&references),
+        Cmd::Cancel { references } => inv.cancel_many(&references),
         Cmd::Dispose {
             reference,
             disposition: d,

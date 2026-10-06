@@ -776,30 +776,60 @@ impl Inventory {
 
     pub fn done(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let node = load(&tx, resolve(&tx, reference, false)?)?;
-        let target = node
-            .pending_to
-            .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
-        apply_move(&tx, &node, target, "done")?;
-        let holder = crate::portions::join_here(&tx, node.id)?;
+        let holder = done_in(&tx, reference)?;
         tx.commit()?;
         show(&self.conn, holder)
     }
 
     pub fn cancel(&mut self, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
-        let node = load(&tx, resolve(&tx, reference, false)?)?;
-        let target = node
-            .pending_to
-            .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
-        tx.execute(
-            "UPDATE nodes SET pending_to = NULL WHERE id = ?1",
-            [node.id],
-        )?;
-        touch(&tx, node.id)?;
-        event(&tx, node.id, "cancel", json!({ "to": target }))?;
+        let id = cancel_in(&tx, reference)?;
         tx.commit()?;
-        show(&self.conn, node.id)
+        show(&self.conn, id)
+    }
+
+    /// Several planned moves made at once, all or none (a box unpacked into its places): one
+    /// answers as `done`, several with where each is now (`done`: NodeRefs).
+    pub fn done_many(&mut self, references: &[String]) -> Result<Value> {
+        if let [one] = references {
+            return self.done(one);
+        }
+        let tx = self.conn.transaction()?;
+        let mut ids = Vec::with_capacity(references.len());
+        for r in references {
+            let id = done_in(&tx, r)?;
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+        tx.commit()?;
+        let rows = ids
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "done": rows }))
+    }
+
+    /// Several planned moves dropped at once, all or none: one answers as `cancel`, several
+    /// with the records (`cancelled`: NodeRefs).
+    pub fn cancel_many(&mut self, references: &[String]) -> Result<Value> {
+        if let [one] = references {
+            return self.cancel(one);
+        }
+        let tx = self.conn.transaction()?;
+        let mut ids = Vec::with_capacity(references.len());
+        for r in references {
+            let id = cancel_in(&tx, r)?;
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+        tx.commit()?;
+        let rows = ids
+            .iter()
+            .map(|id| brief(&self.conn, *id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "cancelled": rows }))
     }
 
     pub fn dispose(&mut self, reference: &str, disposition: Disposition) -> Result<Value> {
@@ -1427,6 +1457,31 @@ pub(crate) fn label(n: &Node) -> String {
         Some(c) => format!("{c} ({})", n.name),
         None => format!("#{} {}", n.id, n.name),
     }
+}
+
+/// Makes a node's planned move; the holder it is in afterwards (it may join a portion there).
+fn done_in(conn: &Connection, reference: &str) -> Result<i64> {
+    let node = load(conn, resolve(conn, reference, false)?)?;
+    let target = node
+        .pending_to
+        .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+    apply_move(conn, &node, target, "done")?;
+    crate::portions::join_here(conn, node.id)
+}
+
+/// Drops a node's planned move.
+fn cancel_in(conn: &Connection, reference: &str) -> Result<i64> {
+    let node = load(conn, resolve(conn, reference, false)?)?;
+    let target = node
+        .pending_to
+        .ok_or_else(|| refused(format!("{} has no pending move", label(&node)), Value::Null))?;
+    conn.execute(
+        "UPDATE nodes SET pending_to = NULL WHERE id = ?1",
+        [node.id],
+    )?;
+    touch(conn, node.id)?;
+    event(conn, node.id, "cancel", json!({ "to": target }))?;
+    Ok(node.id)
 }
 
 /// One move inside the caller's transaction: `qty` of the record's units (all by default) to

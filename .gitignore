@@ -1,3 +1,5 @@
 /target
 *.db
 .zig-cache/
+# Worktrees of subagents (Claude Code), cleaned up when they finish.
+/.claude/worktrees/

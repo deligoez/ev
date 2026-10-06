@@ -67,3 +67,18 @@ fn a_leaving_before_the_purchase_that_brought_it_is_refused() {
         2
     );
 }
+
+#[test]
+fn a_former_place_given_as_a_bare_id_is_refused() {
+    let (_d, mut inv) = setup();
+    let bare = inv.gone_left(
+        "Telefon",
+        Some(Disposition::Give),
+        None,
+        false,
+        None,
+        None,
+        Some("612"),
+    );
+    assert_eq!(bare.unwrap_err().code(), 2);
+}

@@ -38,3 +38,15 @@ fn several_planned_moves_are_made_at_once_or_none_is() {
     assert_eq!(v["done"].as_array().unwrap().len(), 2, "{v}");
     assert!(inv.pending().unwrap()["pending"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn several_planned_moves_are_dropped_at_once() {
+    let (_d, mut inv) = setup();
+    inv.move_to("Telefon", "Kutu", true).unwrap();
+    inv.move_to("Tablet", "Kutu", true).unwrap();
+    let v = inv
+        .cancel_many(&["Telefon".into(), "Tablet".into()])
+        .unwrap();
+    assert_eq!(v["cancelled"].as_array().unwrap().len(), 2, "{v}");
+    assert!(inv.pending().unwrap()["pending"].as_array().unwrap().is_empty());
+}

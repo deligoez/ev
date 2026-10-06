@@ -78,6 +78,11 @@ growing.
 
 ## Fixes
 
+- A frame `ev photo mark` drew on a grid's cells ran along the cells on the floor of the drawer,
+  so on a tall box (`size` higher than 1) its top edge sat inside the box's rim, which a photo
+  from above sees leaning out. Cells that are exactly one placed box's are now framed out to its
+  rim, the way `ev photo cut --grid` already cropped it.
+
 - `ev find` compared a code as written: a box coded `X5_13` was not found by `ev find X5-13`,
   and listing a series with `ev find "X5-"` left out its `X5_` labels, so an agent proposed a
   code already in use as the next free one. A code is now matched as references match it, `-`

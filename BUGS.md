@@ -13,6 +13,3 @@ that fixes them.
   `cıvata`) and those an ending cannot follow (`varta`, `sabun`, `güneş`, `türkiye`) were fixed
   in v0.18.0. Expected: a root stays whole. The rest needs a dictionary and waits for
   Çözgü's embeddable core. Measure with `tools/measure/stems.py` (1,736/1,919 after the fix).
-- **Cell frames drift on tall boxes.** On a drawer photo with its grid corners kept, the frames
-  drawn for 1x2 boxes sat a little low on the top edge (perspective). Minor. (Reported by the
-  inventory agent.)

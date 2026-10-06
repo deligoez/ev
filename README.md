@@ -69,7 +69,8 @@ ev history 07-A --contents       # and to a place: what came in, went out, was a
 ```
 
 **Moves are planned, then confirmed.** `ev move X --to Y --plan` records the intention;
-`ev pending` is the checklist; `ev done X` / `ev cancel X` once it happened or did not.
+`ev pending` is the checklist; `ev done X` / `ev cancel X` once it happened or did not (`ev done X
+Y Z` for a box unpacked at once).
 
 **Leaving the home.** `ev dispose X --as trash|give|sell` sets a thing aside; `ev disposals` shows
 each pile; `ev gone X` (or `ev gone X --as trash --why "…"` in one step) records that it left. A
@@ -223,7 +224,8 @@ Statistics tab (`9`).
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,
 uninventoried places, and places whose photo of the current state is missing or older than their
 last change (listed where the place is counted; elsewhere the photo is taken on its tour, so
-only their number is shown). What is already state on a record is read where it lives and leaves the
+only their number is shown); a long list is read a part at a time (`ev todo --only tasks,needs`).
+What is already state on a record is read where it lives and leaves the
 list by its own verb, so nothing is kept twice. The kinds that had no state get small marks:
 `ev label` (a new or changed code needs its label printed), `ev need add|list|got|drop`,
 `ev broken` / `ev fixed`, `ev expires <x> 2026-07`, `ev sale <x> --listed --price n`
@@ -333,7 +335,8 @@ person's word (`ev buy link`);
 records a "not this one" so the line is not offered to that thing again. What was paid for but
 is never a thing in the home goes in by its bucket, never waiting to be linked: `digital` (an
 app, a download) and `service` (a repair, an installation), beside `durable` and `clothing`
-(`ev buy add "Kurulum" --paid 500 --bucket service`).
+(`ev buy add "Kurulum" --paid 500 --bucket service`, or later `ev buy bucket 412 digital`); the
+account a line was billed to is listed and filters the list (`ev buy list --billed-to ayse`).
 `ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
 (`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line

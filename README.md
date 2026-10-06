@@ -218,7 +218,8 @@ wants a tidy-up at all — under `track` ev only keeps the records.
 what it cost by the linked purchases (and in today's money), per room, how far the counting
 has come, the purchases by year and shop, the last 30 days, the boxes known to be empty, the
 coverages, the tags most used and the things bought longest ago; `ev ui` shows it as its
-Statistics list (`8`).
+Statistics list (`8`), where a figure marked `›` opens the list behind it with `Enter` (a year's
+or a shop's purchase lines, the counting's To do list, the past) and `Esc` comes back.
 
 **Everything waiting, in one list.** `ev todo` gathers tasks, planned moves, errands, things
 leaving, labels to print, things to buy or make, broken things, use-by dates, lost things,

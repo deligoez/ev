@@ -707,6 +707,25 @@ impl Inventory {
         if found.is_none() {
             return Err(Error::NotFound(format!("no coverage with id {coverage}")));
         }
+        // A premium taken from the line it was bought as follows that line: changed or taken
+        // back, the old price goes with it. One the person said stays.
+        let (old_line, premium): (Option<i64>, Option<i64>) = tx.query_row(
+            "SELECT purchase_id, premium FROM coverages WHERE id = ?1",
+            [coverage],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if let Some(o) = old_line {
+            let old_paid: Option<i64> =
+                tx.query_row("SELECT paid FROM purchases WHERE id = ?1", [o], |r| {
+                    r.get(0)
+                })?;
+            if premium.is_some() && premium == old_paid {
+                tx.execute(
+                    "UPDATE coverages SET premium = NULL WHERE id = ?1",
+                    [coverage],
+                )?;
+            }
+        }
         if let Some(l) = line {
             let (paid, currency): (Option<i64>, Option<String>) = tx
                 .query_row(
@@ -716,6 +735,33 @@ impl Inventory {
                 )
                 .optional()?
                 .ok_or_else(|| Error::NotFound(format!("no purchase with id {l}")))?;
+            // The line is the coverage's alone: not a thing's, not another coverage's.
+            let linked: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM purchase_links WHERE purchase_id = ?1",
+                [l],
+                |r| r.get(0),
+            )?;
+            if linked > 0 {
+                return Err(crate::error::refused(
+                    format!(
+                        "line {l} is linked to a thing; `ev buy unlink` it first if it is the coverage's"
+                    ),
+                    Value::Null,
+                ));
+            }
+            let other: Option<i64> = tx
+                .query_row(
+                    "SELECT id FROM coverages WHERE purchase_id = ?1 AND id != ?2",
+                    params![l, coverage],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if let Some(o) = other {
+                return Err(crate::error::refused(
+                    format!("line {l} is already coverage {o}'s"),
+                    Value::Null,
+                ));
+            }
             tx.execute(
                 "UPDATE coverages SET premium = COALESCE(premium, ?1),
                    currency = COALESCE(currency, ?2) WHERE id = ?3",

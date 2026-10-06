@@ -2114,7 +2114,10 @@ fn run(cli: Cli) -> Result<Value> {
                 },
             )?;
             match (a.purchase, v["coverage"]["id"].as_i64()) {
-                (Some(l), Some(c)) => inv.cover_purchase(c, Some(l)),
+                // A line that is not the coverage's to take leaves no coverage behind either.
+                (Some(l), Some(c)) => inv.cover_purchase(c, Some(l)).inspect_err(|_| {
+                    let _ = inv.cover_remove(c);
+                }),
                 _ => Ok(v),
             }
         }

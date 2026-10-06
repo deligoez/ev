@@ -355,7 +355,8 @@ so do the source and the key a line came with: `ev buy list --source ak --key 41
 of ak's payments (the household's money, spec/ak.md) bought, the payment's own line or its items.
 `ev add`, `ev split`, `ev found` and an edit that sets the make or model offer the purchases a
 record could be, with the reasons, while the thing is in hand; a purchase names its dates
-(`ordered … · delivered …`); one purchase seen by two sources is joined; what came with a line
+(`ordered … · delivered …`); one purchase seen by two sources is joined (ak's lines by their order number, and
+`ev buy join` for one ev cannot tell); what came with a line
 (a link, a value, a warranty, the shop's product pictures) comes along with `ev buy bring`
 (`--type image` for the pictures, `--all` for every linked line at once), the pictures as
 documents shown with the photos in `ev ui`, never as the thing's own photos, and ev says what

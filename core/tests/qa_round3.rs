@@ -327,3 +327,11 @@ fn a_file_that_is_no_image_is_refused_as_a_photo() {
         2
     );
 }
+
+#[test]
+fn broken_said_again_without_a_note_keeps_the_note() {
+    let (_d, mut inv) = setup();
+    inv.broken("Telefon", Some("ekran çatlak"), false).unwrap();
+    let v = inv.broken("Telefon", None, false).unwrap();
+    assert_eq!(v["marks"]["broken"]["note"], "ekran çatlak", "{v}");
+}

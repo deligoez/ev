@@ -112,6 +112,15 @@ skill; the inventory agent picks the new behaviour up through the skill. Process
 keeping the inventory belong in `skills/ev/SKILL.md` (so every agent gets them) or in
 `~/.ev/CLAUDE.md` (household specifics), not here.
 
+## The sibling: ak
+
+**ak** (`~/Developer/deligoez/projects/ak`, data in `~/.ak`) keeps the household's money; ev keeps
+what is a thing (decided 2026-10-06; ak's `spec/0.1.0.md`). Every receipt, bill and subscription
+is ak's; ev gets only the lines that are things (durable, clothing, one-time digital, and services
+linked to a thing) through `ak export --for ev | ev buy import --stdin`, keyed `source: "ak"`.
+Neither reads the other's database. ev's side of that contract goes into `spec/ak.md` when it is
+agreed; a change to it is made in both repositories, with ak's development agent.
+
 ## Design principles (decided with the person)
 
 - **ev never owns the model.** The person brings the agent and its subscription; ev gives it

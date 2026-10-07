@@ -1206,3 +1206,21 @@ fn split_parts_take_a_place_inline_or_a_way_out_from_stdin() {
             .contains("S5-01")
     );
 }
+
+#[test]
+fn add_with_guess_records_what_the_person_said_as_a_guess() {
+    let ev = seeded();
+    let v = ev.ok(&[
+        "add",
+        "Mini bilgisayar",
+        "--kind",
+        "item",
+        "--in",
+        "Salon",
+        "--guess",
+        "Ayşe söyledi",
+    ]);
+    assert_eq!(v["guess"]["note"], "Ayşe söyledi", "{v}");
+    let v = ev.ok(&["guess", "Mini bilgisayar", "--clear"]);
+    assert!(v["nodes"][0]["guess"].is_null(), "{v}");
+}

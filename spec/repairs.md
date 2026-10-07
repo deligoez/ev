@@ -36,7 +36,7 @@ cost.** `ev broken` / `ev fixed` say that a thing does not work; upkeep says wha
   `next_km` minus that is how far is left. Nothing guesses how far a car is driven a month.
 - **Where it shows:** `ev show` (`upkeep`, newest first, up to 10); `ev todo` (`upkeep_due`: due
   within 60 days or past, by date, or within 1,000 km by odometer); `ev ui` (the thing's
-  summary, a section "Upkeep"; the sidebar's UPKEEP section: "Due" and "All"); `ev history`
+  summary, a section "Upkeep"); `ev history`
   (`upkeep_added`, `upkeep_edited`, `upkeep_removed` events on the thing).
 - **The cost is ak's.** ak tags a payment with the thing's `#id` (spec/vehicles-homes.md); a
   money panel reads both (spec of step "cost of ownership"). ev stores no amount here.
@@ -54,3 +54,5 @@ ak keeps one owner per fact: the thing and its work here, the money there.
 - Parts used in a repair as records of their own (a new battery as a thing): `ev add` it if it
   matters.
 - Consumables (oil, filters) as stock.
+- The sidebar's UPKEEP section in `ev ui` ("Due", "All"; spec/ui-sidebar.md phase 5): the
+  thing's summary and `ev todo` carry upkeep until a list of it is asked for.

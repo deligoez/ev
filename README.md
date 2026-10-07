@@ -1,7 +1,8 @@
 # ev
 
 Agent-first home inventory. An AI agent records what a person reports at the shelves and
-answers "where is it?". Homes, rooms, furniture, boxes and items live in one tree, with planned
+answers "where is it?". Homes, rooms, furniture, boxes and items live in one tree, beside the
+household's cars (a car holds its glovebox and boot, and is bought, insured and sold like a thing), with planned
 moves, a give/sell/trash pipeline, lost items, errands for other households, placement
 suggestions, photos with crops, and a full history. A read-only terminal UI follows every
 change live, and shows the agent's marked-up photos of what goes where the moment it sends

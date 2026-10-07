@@ -721,13 +721,9 @@ impl App {
             parts.push((1, t("X close series")));
         }
         parts.push((2, t("/ search")));
-        parts.push((2, t(": go to")));
+        parts.push((2, t(": go to or do")));
         parts.push((2, t("M map")));
-        if self.details.as_ref().is_some_and(|d| {
-            d["thing"]["elsewhere"]
-                .as_array()
-                .is_some_and(|e| !e.is_empty())
-        }) {
+        if self.elsewhere_shown() {
             parts.push((1, t("p next place of this thing")));
         }
         if self.details.is_some() {

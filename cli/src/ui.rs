@@ -33,6 +33,7 @@ use crate::settings::{self, LangPref, Settings, ThemePref, UiState};
 use crate::theme::{self, Mode, pal};
 
 mod buys;
+mod commands;
 mod details;
 mod draw;
 mod events;

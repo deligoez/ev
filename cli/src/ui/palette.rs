@@ -1,6 +1,7 @@
 //! `:` — a palette that finds any list, place or thing by what is typed, and the way back
 //! through what was opened (spec/ui-sidebar.md).
 
+use super::commands::{COMMANDS, key_label};
 use super::*;
 
 /// What a line of the palette opens.
@@ -8,6 +9,8 @@ use super::*;
 pub(super) enum Goal {
     List(Tab),
     Node(i64),
+    /// A command of `COMMANDS`, by its place in the table.
+    Command(usize),
 }
 
 /// The palette while open: what is typed, what it found, which line is chosen.
@@ -52,52 +55,77 @@ impl App {
         self.find_in_palette();
     }
 
-    /// The lists first, then records: an `#id` (or a bare number) exactly, then codes and
-    /// names by how well they match, Turkish letters or not (`kayip` finds `Kayıp`).
+    /// The lists first, then the screen's commands, then records: an `#id` (or a bare number)
+    /// exactly, then codes and names by how well they match, Turkish letters or not (`kayip`
+    /// finds `Kayıp`). A query starting with `>` finds commands only.
     pub(super) fn find_in_palette(&mut self) {
         let Some(query) = self.palette.as_ref().map(|p| p.query.clone()) else {
             return;
         };
+        let (commands_only, query) = match query.strip_prefix('>') {
+            Some(rest) => (true, rest.trim_start().to_string()),
+            None => (false, query),
+        };
         let q = ev_core::fold(&query);
         let mut hits: Vec<(Goal, String)> = Vec::new();
-        for tab in sidebar_lists() {
-            if q.is_empty() || rank(tab.title(), &q).is_some() {
-                let label = match tab.section() {
-                    Some(s) => format!("{} › {}", s, tab.title()),
-                    None => tab.title().to_string(),
-                };
-                hits.push((Goal::List(tab), label));
+        if !commands_only {
+            for tab in sidebar_lists() {
+                if q.is_empty() || rank(tab.title(), &q).is_some() {
+                    let label = match tab.section() {
+                        Some(s) => format!("{} › {}", s, tab.title()),
+                        None => tab.title().to_string(),
+                    };
+                    hits.push((Goal::List(tab), label));
+                }
             }
         }
-        let node_line = |id: i64, label: &str| {
-            let place = self
-                .snap
-                .parent
-                .get(&id)
-                .and_then(|p| self.snap.label.get(p))
-                .map(|p| format!("  · {p}"))
-                .unwrap_or_default();
-            (Goal::Node(id), format!("#{id}  {label}{place}"))
-        };
-        if let Ok(id) = q.trim_start_matches('#').parse::<i64>()
-            && let Some(label) = self.snap.label.get(&id)
-        {
-            hits.push(node_line(id, label));
-        }
-        if !q.is_empty() && !q.starts_with('#') {
-            let mut found: Vec<(u8, usize, i64)> = self
-                .snap
-                .label
+        // Commands only once something is typed: an empty `:` lists the lists, as before.
+        if commands_only || !q.is_empty() {
+            let mut found: Vec<(u8, usize)> = COMMANDS
                 .iter()
-                .filter_map(|(id, l)| rank(l, &q).map(|r| (r, l.chars().count(), *id)))
+                .enumerate()
+                .filter(|(_, c)| (c.applies)(self))
+                .filter_map(|(i, c)| match q.is_empty() {
+                    true => Some((0, i)),
+                    false => rank((c.name)(), &q).map(|r| (r, i)),
+                })
                 .collect();
             found.sort_unstable();
-            for (_, _, id) in found {
-                if hits.len() >= PALETTE_HITS {
-                    break;
-                }
-                if !hits.iter().any(|h| h.0 == Goal::Node(id)) {
-                    hits.push(node_line(id, &self.snap.label[&id]));
+            for (_, i) in found {
+                hits.push((Goal::Command(i), (COMMANDS[i].name)().to_string()));
+            }
+        }
+        if !commands_only {
+            let node_line = |id: i64, label: &str| {
+                let place = self
+                    .snap
+                    .parent
+                    .get(&id)
+                    .and_then(|p| self.snap.label.get(p))
+                    .map(|p| format!("  · {p}"))
+                    .unwrap_or_default();
+                (Goal::Node(id), format!("#{id}  {label}{place}"))
+            };
+            if let Ok(id) = q.trim_start_matches('#').parse::<i64>()
+                && let Some(label) = self.snap.label.get(&id)
+            {
+                hits.push(node_line(id, label));
+            }
+            if !q.is_empty() && !q.starts_with('#') {
+                let mut found: Vec<(u8, usize, i64)> = self
+                    .snap
+                    .label
+                    .iter()
+                    .filter_map(|(id, l)| rank(l, &q).map(|r| (r, l.chars().count(), *id)))
+                    .collect();
+                found.sort_unstable();
+                for (_, _, id) in found {
+                    if hits.len() >= PALETTE_HITS {
+                        break;
+                    }
+                    if !hits.iter().any(|h| h.0 == Goal::Node(id)) {
+                        hits.push(node_line(id, &self.snap.label[&id]));
+                    }
                 }
             }
         }
@@ -127,6 +155,7 @@ impl App {
                         self.jump_to(id)?;
                         self.pane = Pane::List;
                     }
+                    Some(Goal::Command(i)) => self.run_command(i)?,
                     None => {}
                 }
             }
@@ -165,13 +194,24 @@ impl App {
         };
         f.render_widget(Clear, area);
         let block = Block::bordered()
-            .title(t(" Go to: a list, a place, a thing or #id "))
+            .title(t(" Go to a list, a place, a thing or #id · > a command "))
             .border_style(Style::new().fg(pal().code).bold());
         let inner = block.inner(area);
         f.render_widget(block, area);
         let mut lines = vec![Line::from(format!(": {}▏", p.query))];
-        for (i, (_, label)) in p.hits.iter().enumerate() {
-            let text = fit(vec![Span::raw(label.clone())], inner.width as usize);
+        for (i, (goal, label)) in p.hits.iter().enumerate() {
+            // A command shows its key at the right edge, so the palette teaches it.
+            let key = match goal {
+                Goal::Command(c) => key_label(COMMANDS[*c].key),
+                _ => String::new(),
+            };
+            let room = (inner.width as usize).saturating_sub(key.chars().count() + 1);
+            let mut text = fit(vec![Span::raw(label.clone())], room);
+            if !key.is_empty() {
+                let used: usize = text.iter().map(|s| s.content.chars().count()).sum();
+                text.push(Span::raw(" ".repeat(room.saturating_sub(used) + 1)));
+                text.push(Span::styled(key, Style::new().fg(pal().muted)));
+            }
             let line = Line::from(text);
             lines.push(if i == p.at {
                 line.style(Style::new().reversed())

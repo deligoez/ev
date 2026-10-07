@@ -732,3 +732,43 @@ fn a_line_entered_by_hand_is_corrected_and_one_from_a_source_is_not() {
     let e = inv.buy_edit(shop, &fields(&["paid=1"])).unwrap_err();
     assert_eq!(id(e).as_deref(), Some("purchase_edit_not_manual"));
 }
+
+#[test]
+fn an_ak_payment_about_a_thing_is_tied_to_it_and_counts_in_what_it_costs() {
+    let (_d, mut inv) = setup();
+    let drill = inv.resolve("Matkap", false).unwrap();
+    let lines = [
+        json!({"source": "ak", "key": "3", "name": "Örnek Servis #3", "paid": "350.00",
+               "currency": "TRY", "bucket": "service", "thing": drill, "period": "2026-01",
+               "status": "delivered", "shop": "Örnek Servis", "ordered_at": "2026-01-10"}),
+        // A refund comes as a negative amount, and an id ev does not know is said, not failed.
+        json!({"source": "ak", "key": "4", "name": "İade #4", "paid": "-50.00",
+               "currency": "TRY", "bucket": "service", "thing": drill,
+               "ordered_at": "2026-02-01"}),
+        json!({"source": "ak", "key": "5", "name": "Başka #5", "paid": "10.00",
+               "currency": "TRY", "bucket": "service", "thing": 99999,
+               "ordered_at": "2026-02-02"}),
+    ]
+    .iter()
+    .map(Value::to_string)
+    .collect::<Vec<_>>()
+    .join("\n");
+    let v = inv.buy_import(&lines).unwrap();
+    assert_eq!(
+        v["imported"]["things_unknown"],
+        json!([{"key": "5", "thing": 99999}])
+    );
+    let line = inv
+        .buy_list_where(&ev_core::BuyFilter {
+            source: Some("ak"),
+            key: Some("3"),
+            ..Default::default()
+        })
+        .unwrap();
+    let three = line["purchases"][0].clone();
+    assert_eq!(three["about"]["id"], drill);
+    assert_eq!(three["period"], "2026-01");
+    assert_eq!(three["linked"], json!([]));
+    let shown = inv.show("Matkap", false).unwrap();
+    assert_eq!(shown["cost"]["TRY"]["upkeep"], "300.00");
+}

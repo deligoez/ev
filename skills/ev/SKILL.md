@@ -244,8 +244,14 @@ Record the kinds that have their own verbs as you meet them:
 - **Something to buy or make** (a box ran out, a battery is low, a gridfinity bin to print):
   `ev need add "<what>" [--qty n] [--make] [--for <place>]`; `ev need got <id>` when it
   arrived, then record it in the tree.
-- **Broken:** `ev broken <x> --note "<what is wrong>"`; `ev fixed <x>`; if it will not be fixed,
-  propose `ev dispose`.
+- **Broken:** `ev broken <x> --note "<what is wrong>"`; when fixed,
+  `ev fixed <x> --work "<what was done>" --by "<who>"` (the repair is recorded too); if it will
+  not be fixed, propose `ev dispose`.
+- **Repairs and maintenance** the person mentions or a service form shows (a car's service, an
+  inspection, a boiler check): `ev upkeep add <x> --kind service|repair|inspection --work "…"`
+  with `--at`, `--km`, `--by`, and `--next` / `--next-km` when the form says when it is due
+  again; attach the form with `ev doc add` and pass `--doc <id>`. Never a cost: that is ak's.
+  `ev todo` lists what is due (`upkeep_due`).
 - **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
 - **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …
   --condition new|like-new|used` (ask the condition here, and only here),

@@ -384,6 +384,17 @@ placed, the theme is set), remove it in the same step with `ev unobserve <id>` �
 keeps both. Before you call a place done, read its `observations` in `ev show <place>`; one
 left behind keeps coming back in `ev next` as work still to do.
 
+**What the person says is there, before anyone looked, is a record marked as a guess, not an
+observation.** "The Pi 400 is in the cabinet":
+`ev add "Raspberry Pi 400" --kind item --in <cabinet> --guess "<who said it>"`. It is found,
+it can wait for its purchase, and its place's tour lists it (`guesses` in
+`ev review <place> --as toured`, and `ev next` while there): ask whether it was seen. Seen:
+`ev guess <ref> --clear`; not there: `ev gone <ref> --as mistake --why "…"` or `ev lost`. A
+field you assumed instead of reading it (a year from the box, a coverage end one year from the
+purchase) is `ev guess <ref> --field came --note "…"` (`--field cover:<id>` for a coverage's
+end), never "kesinlik" in a note: `ev todo` lists it to check, and a value said again with
+`ev edit` clears it. Say which facts are guesses when you report.
+
 ## Documents
 
 **An invoice, a warranty certificate or a manual the person shows goes into `ev doc add`,**

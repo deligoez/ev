@@ -78,6 +78,28 @@ second open line for the same thing. Decided with ak's development agent:
   Two of ev's own adapters seeing one order are left as today, so this changes nothing about
   lines already in the inventory.
 
+## Payments about a thing, and what a thing costs (decided 2026-10-08, with ak's agent)
+
+A car costs more than its price: fines, taxes, insurance, services. Those are ak's payments, tied
+to the thing in ak (`thing=`, the person's word), but not things themselves. They come to ev the
+way purchases do, and ev adds them up per thing, read-only.
+
+- **The line:** ak exports a payment (or one of its items) tied to a thing even when it is not
+  marked for ev, as `bucket: "service"` with **`"thing": <ev id>`** (a number; `for` stays for
+  people). `period` (`2026-10`, `2026`) is sent when the payment has one; `category` is ak's own
+  word, kept as text; a refund is a negative `paid`. A `durable` line may carry `thing` too.
+- **The import links it:** `ev buy import` links a line carrying `thing` to that record, all of
+  its open units, once: a line already linked is left as it is, so the person's own linking wins
+  over a re-import. A `thing` ev does not know is not a failure: the import answers it as
+  `imported.things_unknown: [{key, thing}]` and leaves the line unlinked. `period` is kept with
+  the line (`ev buy show`), and ev reads no meaning into it.
+- **What a thing costs** (`ev show` → `cost`, by currency, never converted):
+  `bought` (its linked durable lines' share of what was paid), `upkeep` (its linked service lines,
+  refunds counted negative), `cover` (premiums of the coverages on it), `sold` (what a sale
+  brought), and `value` (its latest valuation, apart: what it is worth, not what it cost). The
+  text output and `ev ui`'s summary show it as one "Money" block; nothing is summed across
+  currencies.
+
 ## The way back
 
 ak answers "when did the dishwasher's instalments end" by asking ev which of its payments a

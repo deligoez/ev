@@ -15,3 +15,11 @@ and `ev stats` counts vehicles apart (`vehicles`, each with its cost), so a car'
 longer swamps the value of the home's things. Units fitted directly in a car count as in use,
 those kept in its glovebox as spares. `ev ui` marks a vehicle ▭ and opens it on the first
 screen.
+
+## Leaving a home
+
+A home is now left the way a box is: when nothing of ours is in it any more. `ev gone <home>
+--as moved` closes a home moved out of, `--as sell` an owned one that was sold; its rooms are
+its structure and leave with it, as a car's glovebox and boot do when the car is sold. Anything
+else still in it refuses, listed by the room it is in, with the two ways to empty it: move it
+where it goes, or say it stayed behind (`--as left`).

@@ -49,3 +49,23 @@ fn a_home_is_left_only_once_empty_and_its_rooms_go_with_it() {
     assert_eq!(kitchen["node"]["state"], "gone");
     assert_eq!(kitchen["node"]["disposition"], "moved");
 }
+
+#[test]
+fn moved_is_a_homes_and_a_home_leaves_only_moved_out_of_or_sold() {
+    let (_d, mut inv) = setup();
+    let id = |e: ev_core::Error| e.id().map(str::to_string);
+    // A pan that stayed behind at a move is left behind, not moved.
+    let pan = inv.gone("Tava", Some(Disposition::Moved)).unwrap_err();
+    assert_eq!(id(pan).as_deref(), Some("moved_is_a_homes"));
+    // Nothing is set aside to be moved out of.
+    let aside = inv
+        .dispose_qty("Yeni ev", Disposition::Moved, false, None, None)
+        .unwrap_err();
+    assert_eq!(id(aside).as_deref(), Some("nothing_set_aside"));
+    // A home is not thrown out or given away.
+    let thrown = inv.gone("Yeni ev", Some(Disposition::Trash)).unwrap_err();
+    assert_eq!(id(thrown).as_deref(), Some("home_leaves_moved_or_sold"));
+    // An owned one is sold, empty.
+    let sold = inv.gone("Yeni ev", Some(Disposition::Sell)).unwrap();
+    assert_eq!(sold["node"]["disposition"], "sell");
+}

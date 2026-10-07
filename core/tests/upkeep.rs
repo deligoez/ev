@@ -56,3 +56,58 @@ fn a_service_is_recorded_on_the_thing_and_shown_newest_first() {
         .unwrap_err();
     assert_eq!(e.id(), Some("upkeep_kind_unknown"));
 }
+
+#[test]
+fn work_is_due_by_date_or_by_odometer_and_a_newer_one_of_its_kind_takes_over() {
+    let (_d, mut inv) = setup();
+    let soon = (chrono::Local::now().date_naive() + chrono::Duration::days(20))
+        .format("%Y-%m-%d")
+        .to_string();
+    let later = (chrono::Local::now().date_naive() + chrono::Duration::days(400))
+        .format("%Y-%m-%d")
+        .to_string();
+    // Due by date in 20 days.
+    inv.upkeep_add(
+        "34 ABC 123",
+        &NewUpkeep {
+            at: Some("2025-01".into()),
+            next_at: Some(soon),
+            ..work("inspection", "muayene")
+        },
+    )
+    .unwrap();
+    // Due by odometer: 500 km left from the last reading.
+    inv.upkeep_add(
+        "34 ABC 123",
+        &NewUpkeep {
+            at: Some("2025-05".into()),
+            km: Some(80000),
+            next_km: Some(80500),
+            next_at: Some(later.clone()),
+            ..work("service", "yağ değişimi")
+        },
+    )
+    .unwrap();
+    let due = inv.upkeep_list(None, true).unwrap()["upkeep"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert_eq!(due.len(), 2, "{due:?}");
+    let service = due.iter().find(|u| u["kind"] == "service").unwrap();
+    assert_eq!(service["km_left"], 500);
+    assert_eq!(inv.todo().unwrap()["counts"]["upkeep_due"], 2);
+    // The next inspection is done: its own next date is far, so nothing of that kind is due.
+    inv.upkeep_add(
+        "34 ABC 123",
+        &NewUpkeep {
+            next_at: Some(later),
+            ..work("inspection", "muayene")
+        },
+    )
+    .unwrap();
+    let due = inv.upkeep_list(None, true).unwrap()["upkeep"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert!(due.iter().all(|u| u["kind"] != "inspection"), "{due:?}");
+}

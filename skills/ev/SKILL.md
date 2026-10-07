@@ -114,7 +114,9 @@ a portion, an ordinary record with its own count, and the portions share what th
    say in each note what it belongs with. One record per bag of the set is too much (the sets
    are interchangeable); one record for the whole set hides the parts — a cable cannot be
    moved to the jumper wires, nor a board missed. A record that already holds several kinds is
-   split with `ev split <x> "<part>=<n>"… --rename "<what the original keeps>"`, never by
+   split with `ev split <x> "<part>=<n>"… --rename "<what the original keeps>"` (a part that
+   goes elsewhere says so in the same call: `"<part>=<n>@<place>"`, or `--stdin` with `to` or
+   `gone` and `why` per line; never a split, then a move and a gone per piece), never by
    editing it and adding new records by hand: the split links them in the history. When the
    parts are some of the record's own units instead (two of four cells turn out another make),
    add `--take`: their counts come off the original's; without it the original keeps its count,

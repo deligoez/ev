@@ -380,3 +380,31 @@ fn a_short_word_meets_the_start_of_a_word_not_its_middle() {
     // A longer word is still found inside another, as before.
     assert!(names(&inv, "kartuş").contains(&"Mixable mürekkep kartuşu".to_string()));
 }
+
+#[test]
+fn a_synonym_names_a_whole_word_or_its_stem_not_the_start_of_another() {
+    let (_d, mut inv) = setup();
+    inv.synonym_add("ekran, lcd, display").unwrap();
+    for name in ["LCD modülü", "Ekranlı multimetre", "DisplayPort kablo"] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Oda".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    let found = names(&inv, "display");
+    assert!(found.contains(&"LCD modülü".to_string()), "{found:?}");
+    assert!(
+        found.contains(&"Ekranlı multimetre".to_string()),
+        "{found:?}"
+    );
+    // `display` itself is in `DisplayPort` and still finds it as written; the synonym `ekran`
+    // does not drag the cable in.
+    let found = names(&inv, "ekran");
+    assert!(
+        !found.contains(&"DisplayPort kablo".to_string()),
+        "{found:?}"
+    );
+}

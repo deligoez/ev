@@ -66,3 +66,12 @@ matters: `ev show`, `ev find` (marked), `ev todo` (a list to check), `ev next` w
 is open, the answer of `ev review --as toured` (the guesses inside, to settle on the person's
 word), and a coverage whose end is a guess says so. `--clear` takes it back, and a field said
 again with `ev edit` is no longer a guess. Stored as marks: no schema change.
+
+## A place just emptied says what of it went stale
+
+When the last thing leaves a box, its theme and the observations on it describe what used to be
+there, and nothing said which place had just become empty. `ev move`, `ev done` and `ev gone`
+now answer `emptied` for such a place, with its theme and observations, and the text output
+names the two commands that clear them. ev clears nothing on its own. `ev unobserve` takes
+several ids now, and `--on <place>` removes every observation of a place at once, each kept in
+the history.

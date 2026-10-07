@@ -570,48 +570,73 @@ pub(crate) fn draw_marks(file: &Path, marks: &[(String, Shape)], out: &Path) -> 
 /// as a JPEG: the way to check a whole drawer's cut at a glance instead of opening each crop.
 /// Tiles keep their proportions inside a fixed box, six to a row, in the order given.
 pub(crate) fn contact_sheet(file: &Path, tiles: &[(String, Crop)], out: &Path) -> Result<()> {
-    const COLS: u32 = 6;
-    const TILE: (u32, u32) = (240, 200);
-    const GAP: u32 = 8;
-    const S: f64 = 2.0;
     let img = open_upright(file)?.to_rgb8();
     let (w, h) = (f64::from(img.width()), f64::from(img.height()));
+    let cuts = tiles
+        .iter()
+        .map(|(text, c)| {
+            let px = |v: f64, max: f64| (v * max).round().clamp(0.0, max) as u32;
+            let (x, y) = (px(c.x, w), px(c.y, h));
+            let cw = px(c.w, w).min(img.width().saturating_sub(x)).max(1);
+            let ch = px(c.h, h).min(img.height().saturating_sub(y)).max(1);
+            (
+                text.clone(),
+                image::imageops::crop_imm(&img, x, y, cw, ch).to_image(),
+            )
+        })
+        .collect::<Vec<_>>();
+    write_sheet(&cuts, 6, (240, 200), out)
+}
+
+/// Several photos on one sheet, four to a row, each titled: a batch of the series as one
+/// image for the agent (spec/series-grid.md).
+pub(crate) fn photos_sheet(photos: &[(String, &Path)], out: &Path) -> Result<()> {
+    let pictures = photos
+        .iter()
+        .map(|(text, file)| Ok((text.clone(), open_upright(file)?.to_rgb8())))
+        .collect::<Result<Vec<_>>>()?;
+    write_sheet(&pictures, 4, (360, 300), out)
+}
+
+/// Lays labelled pictures out in rows of `cols`, each fitted in a `tile` box and keeping its
+/// proportions, and writes the sheet to `out` as a JPEG.
+fn write_sheet(
+    pictures: &[(String, image::RgbImage)],
+    cols: u32,
+    tile: (u32, u32),
+    out: &Path,
+) -> Result<()> {
+    const GAP: u32 = 8;
+    const S: f64 = 2.0;
     let strip = label_size(&["X".to_string()], S).1 as u32 + 4;
-    let (cell_w, cell_h) = (TILE.0 + GAP, TILE.1 + strip + GAP);
-    let n = tiles.len().max(1) as u32;
-    let (cols, rows) = (n.min(COLS), n.div_ceil(COLS));
+    let (cell_w, cell_h) = (tile.0 + GAP, tile.1 + strip + GAP);
+    let n = pictures.len().max(1) as u32;
+    let (shown_cols, rows) = (n.min(cols), n.div_ceil(cols));
     let mut sheet = image::RgbImage::from_pixel(
-        cols * cell_w + GAP,
+        shown_cols * cell_w + GAP,
         rows * cell_h + GAP,
         image::Rgb([40, 40, 40]),
     );
-    for (i, (text, c)) in tiles.iter().enumerate() {
-        let (col, row) = (i as u32 % COLS, i as u32 / COLS);
+    for (i, (text, picture)) in pictures.iter().enumerate() {
+        let (col, row) = (i as u32 % cols, i as u32 / cols);
         let (x0, y0) = (GAP + col * cell_w, GAP + row * cell_h);
-        let px = |v: f64, max: f64| (v * max).round().clamp(0.0, max) as u32;
-        let (x, y) = (px(c.x, w), px(c.y, h));
-        let cw = px(c.w, w).min(img.width().saturating_sub(x)).max(1);
-        let ch = px(c.h, h).min(img.height().saturating_sub(y)).max(1);
-        let cut = image::imageops::crop_imm(&img, x, y, cw, ch).to_image();
-        let scale = (f64::from(TILE.0) / f64::from(cw)).min(f64::from(TILE.1) / f64::from(ch));
+        let (pw, ph) = (picture.width().max(1), picture.height().max(1));
+        let scale = (f64::from(tile.0) / f64::from(pw)).min(f64::from(tile.1) / f64::from(ph));
         let (tw, th) = (
-            ((f64::from(cw) * scale).round() as u32).max(1),
-            ((f64::from(ch) * scale).round() as u32).max(1),
+            ((f64::from(pw) * scale).round() as u32).max(1),
+            ((f64::from(ph) * scale).round() as u32).max(1),
         );
-        let thumb = image::imageops::resize(&cut, tw, th, image::imageops::FilterType::Triangle);
+        let thumb = image::imageops::resize(picture, tw, th, image::imageops::FilterType::Triangle);
         image::imageops::replace(
             &mut sheet,
             &thumb,
-            i64::from(x0 + (TILE.0 - tw) / 2),
-            i64::from(y0 + strip + (TILE.1 - th) / 2),
+            i64::from(x0 + (tile.0 - tw) / 2),
+            i64::from(y0 + strip + (tile.1 - th) / 2),
         );
-        label(
-            &mut sheet,
-            std::slice::from_ref(text),
-            f64::from(x0),
-            f64::from(y0),
-            S,
-        );
+        // The title is cut to its tile, so a long note does not run over the next one.
+        let (lines, _) = wrap(text, S, f64::from(tile.0));
+        let first = lines.into_iter().next().unwrap_or_default();
+        label(&mut sheet, &[first], f64::from(x0), f64::from(y0), S);
     }
     if let Some(dir) = out.parent() {
         std::fs::create_dir_all(dir).map_err(io(dir))?;

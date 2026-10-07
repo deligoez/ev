@@ -591,6 +591,38 @@ impl Inventory {
         Ok(v)
     }
 
+    /// `ev photo sheet`: the series pictures `ns` (all of them when empty) on one sheet, each
+    /// titled with its `f`-number and note, for the agent to look at a batch at once
+    /// (spec/series-grid.md). A scratch file, like a mark's; `out` puts it elsewhere.
+    pub fn photo_sheet(&self, ns: &[usize], out: Option<&Path>) -> Result<Value> {
+        let pictures = self.series_pictures(ns)?;
+        if pictures.is_empty() {
+            return Err(usage("series_is_empty", Value::Null));
+        }
+        let titles: Vec<(String, &Path)> = pictures
+            .iter()
+            .map(|(n, file, note)| {
+                let title = match note {
+                    Some(note) if !note.is_empty() => format!("f{n} · {note}"),
+                    _ => format!("f{n}"),
+                };
+                (title, file.as_path())
+            })
+            .collect();
+        let out = out.map_or_else(
+            || scratch_path(Path::new("series"), "sheet"),
+            Path::to_path_buf,
+        );
+        crate::photo::photos_sheet(&titles, &out)?;
+        Ok(json!({
+            "sheet": out.to_string_lossy(),
+            "pictures": pictures
+                .iter()
+                .map(|(n, file, note)| json!({ "n": n, "file": file.to_string_lossy(), "note": note }))
+                .collect::<Vec<_>>(),
+        }))
+    }
+
     pub fn photo_list(&self, reference: &str) -> Result<Value> {
         let id = resolve(&self.conn, reference, true)?;
         let mut stmt = self.conn.prepare(

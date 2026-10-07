@@ -1311,6 +1311,14 @@ enum PhotoCmd {
         #[arg(long, conflicts_with = "no_show")]
         keep_numbers: bool,
     },
+    /// Pictures of the marked series on one image, four to a row, each titled with its
+    /// f-number: a batch at a glance for the agent. `f16..f31`, `f2 f5`, or the whole series.
+    Sheet {
+        pictures: Vec<String>,
+        /// Where to write the sheet; a scratch folder otherwise.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
     /// A node's photos, numbered from 1.
     List { reference: String },
     /// Detach the n-th photo of a node.
@@ -2708,6 +2716,9 @@ fn run(cli: Cli) -> Result<Value> {
                     inv.focus_drawn(&files, Some(&note), &frames, &file, about)?["focus"].clone();
             }
             Ok(v)
+        }
+        Cmd::Photo(PhotoCmd::Sheet { pictures, out }) => {
+            inv.photo_sheet(&ev_core::series_numbers(&pictures)?, out.as_deref())
         }
         Cmd::Photo(PhotoCmd::List { reference }) => inv.photo_list(&reference),
         Cmd::Photo(PhotoCmd::Remove { reference, n }) => inv.photo_remove(&reference, n),

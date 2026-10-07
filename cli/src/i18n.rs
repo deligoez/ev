@@ -1029,6 +1029,15 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "önizlenecek bir şey yok: <ref>=x,y,w,h ya da --grid ile --place ver",
     ),
     (
+        "series_ref_bad",
+        "`{text}` bir dizi resmi değil: f12 ya da f16..f31 gibi bir aralık ver",
+    ),
+    ("series_is_empty", "işaretli fotoğraf dizisinde resim yok"),
+    (
+        "photo_mark_whole_with_marks",
+        "--whole resimlerin tamamını çerçeveler: <label>=… değil, f-numaraları ver",
+    ),
+    (
         "photo_mark_nothing",
         "en az bir <label>=x,y,w,h ya da <label>=<cell> ver",
     ),

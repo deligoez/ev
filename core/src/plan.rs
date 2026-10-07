@@ -188,6 +188,29 @@ pub fn series_number(text: &str) -> Option<usize> {
         .filter(|n| *n > 0)
 }
 
+/// The pictures several series references name, in order: `f12`, and ranges `f16..f31`.
+pub fn series_numbers(texts: &[String]) -> Result<Vec<usize>> {
+    let mut out = Vec::new();
+    for text in texts {
+        let bad = || usage("series_ref_bad", json!({ "text": text }));
+        match text.split_once("..") {
+            Some((a, b)) => {
+                let a = series_number(a.trim()).ok_or_else(bad)?;
+                // `f16..31` reads as `f16..f31`.
+                let b = series_number(b.trim())
+                    .or_else(|| b.trim().parse().ok())
+                    .ok_or_else(bad)?;
+                if b < a {
+                    return Err(bad());
+                }
+                out.extend(a..=b);
+            }
+            None => out.push(series_number(text.trim()).ok_or_else(bad)?),
+        }
+    }
+    Ok(out)
+}
+
 /// The key a marked copy of `file` would have: copies go to `<temp>/ev-marks`.
 fn source_key(file: &std::path::Path) -> String {
     let stem = file
@@ -970,6 +993,33 @@ impl Inventory {
         Ok(series
             .get(n.wrapping_sub(1))
             .and_then(|m| m.note.as_str().map(str::to_string)))
+    }
+
+    /// The series pictures `ns` names, as they are on screen (marks and all), with their
+    /// numbers and notes; every picture when `ns` is empty. A number the series lacks is
+    /// refused, as `ev focus f12` refuses it.
+    pub(crate) fn series_pictures(
+        &self,
+        ns: &[usize],
+    ) -> Result<Vec<(usize, std::path::PathBuf, Option<String>)>> {
+        let series = series_of(&self.focus_request()?);
+        let ns: Vec<usize> = if ns.is_empty() {
+            (1..=series.len()).collect()
+        } else {
+            ns.to_vec()
+        };
+        ns.into_iter()
+            .map(|n| {
+                let m = series.get(n.wrapping_sub(1)).ok_or_else(|| {
+                    not_found(
+                        "plan_series_has_no",
+                        json!({ "n": n, "count": series.len() }),
+                    )
+                })?;
+                let note = m.note.as_str().map(str::to_string);
+                Ok((n, std::path::PathBuf::from(&m.file), note))
+            })
+            .collect()
     }
 
     /// `ev focus f12`: the series' twelfth picture on the person's screen again.

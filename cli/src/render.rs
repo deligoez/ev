@@ -2881,6 +2881,15 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
+    // `ev photo sheet`: the pictures on it, then where it is.
+    if v.get("sheet").is_some() && v.get("pictures").is_some() {
+        for p in v["pictures"].as_array().into_iter().flatten() {
+            let note = p["note"].as_str().map(|n| format!("  {n}")).unwrap_or_default();
+            let _ = writeln!(out, "f{}{note}", p["n"]);
+        }
+        let _ = writeln!(out, "{}", tf("Contact sheet: {}", &[&s(v, "sheet")]));
+        return out;
+    }
     // `ev photo mark`: each label and where it is, then the numbered copy.
     if v.get("marks").is_some() && v.get("marked").is_some() {
         for m in v["marks"].as_array().into_iter().flatten() {

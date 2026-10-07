@@ -202,6 +202,22 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "araç kaybolamaz; çalınan araç elden çıkmıştır (--as stolen)",
     ),
     (
+        "coverage_edit_nothing",
+        "neyin düzeltileceğini söyleyin: --for, --off ya da issuer=, number=, term=, ends=, premium=, deductible=, currency=, scope=, note=",
+    ),
+    (
+        "coverage_edit_field_bad",
+        "`{field}` alan=değer biçiminde değil",
+    ),
+    (
+        "coverage_edit_field_unknown",
+        "`{field}` düzeltilemez; şunlardan birini kullanın: {fields}",
+    ),
+    (
+        "coverage_on_nothing",
+        "{id} numaralı kapsam hiçbir kayda bağlı kalmazdı; bir hataysa ev cover remove ile kaldırın",
+    ),
+    (
         "purchase_edit_not_manual",
         "{id} numaralı alım {source} kaynağından geldi; orada düzeltip yeniden içe aktarın",
     ),

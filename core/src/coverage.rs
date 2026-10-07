@@ -6,7 +6,7 @@ use chrono::{Days, Months, NaiveDate, NaiveDateTime};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 
-use crate::error::{not_found, usage};
+use crate::error::{not_found, refuse, usage};
 use crate::purchases::{money, parse_money};
 use crate::store::{Inventory, brief, event, ids, now, resolve};
 use crate::{Error, Result};
@@ -944,6 +944,131 @@ impl Inventory {
             .filter(|c| !ending || c["status"] == "ending")
             .collect::<Vec<_>>();
         Ok(json!({ "coverages": list }))
+    }
+
+    /// Corrects a coverage in place, keeping its id, its documents and its history: `add` puts
+    /// it on more records (`--for`), `remove` takes it off some (`--off`), never off its last
+    /// one (`ev cover remove` is for a coverage that was a mistake); `fields` are
+    /// `field=value` for issuer, number, term, ends, premium, deductible, currency, scope and
+    /// note, an empty value clearing what may be empty. It must still say when it ends.
+    pub fn cover_edit(
+        &mut self,
+        id: i64,
+        add: &[String],
+        remove: &[String],
+        fields: &[String],
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let r = row(&tx, id)?;
+        if add.is_empty() && remove.is_empty() && fields.is_empty() {
+            return Err(usage("coverage_edit_nothing", Value::Null));
+        }
+        // A record here first, then one that left (a car sold, insured while it was ours).
+        let find = |reference: &str| match resolve(&tx, reference, false) {
+            Err(e) if e.is_not_found() => resolve(&tx, reference, true),
+            found => found,
+        };
+        for reference in add {
+            let n = find(reference)?;
+            let added = tx.execute(
+                "INSERT OR IGNORE INTO coverage_nodes (coverage_id, node_id) VALUES (?1, ?2)",
+                params![id, n],
+            )?;
+            if added > 0 {
+                clear_decision(&tx, n, "coverage")?;
+                event(
+                    &tx,
+                    n,
+                    "coverage_added",
+                    json!({ "coverage": id, "kind": r.kind }),
+                )?;
+            }
+        }
+        for reference in remove {
+            let n = resolve(&tx, reference, true)?;
+            let removed = tx.execute(
+                "DELETE FROM coverage_nodes WHERE coverage_id = ?1 AND node_id = ?2",
+                params![id, n],
+            )?;
+            if removed > 0 {
+                event(
+                    &tx,
+                    n,
+                    "coverage_removed",
+                    json!({ "coverage": id, "kind": r.kind }),
+                )?;
+            }
+        }
+        if nodes_of(&tx, id)?.is_empty() {
+            return Err(refuse(
+                "coverage_on_nothing",
+                json!({ "id": id }),
+                Value::Null,
+            ));
+        }
+        let set = |column: &str, value: rusqlite::types::Value| -> Result<()> {
+            tx.execute(
+                &format!("UPDATE coverages SET {column} = ?1 WHERE id = ?2"),
+                params![value, id],
+            )?;
+            Ok(())
+        };
+        let or_null = |v: Option<String>| v.map_or(rusqlite::types::Value::Null, Into::into);
+        let money = |v: Option<String>| -> Result<rusqlite::types::Value> {
+            Ok(v.as_deref()
+                .map(parse_money)
+                .transpose()?
+                .map_or(rusqlite::types::Value::Null, Into::into))
+        };
+        for f in fields {
+            let Some((key, value)) = f.split_once('=') else {
+                return Err(usage("coverage_edit_field_bad", json!({ "field": f })));
+            };
+            let value = text(&Some(value.to_string()));
+            match key.trim() {
+                "issuer" => set("issuer", or_null(value))?,
+                "number" => set("number", or_null(value))?,
+                "scope" => set("scope", or_null(value))?,
+                "note" => set("note", or_null(value))?,
+                "ends" => {
+                    let d = value
+                        .map(|e| parse_day(&e).map(|d| d.to_string()))
+                        .transpose()?;
+                    set("ends_on", or_null(d))?;
+                }
+                "term" => {
+                    let term = value.map(|t| parse_term(&t)).transpose()?;
+                    set(
+                        "term_n",
+                        term.map_or(rusqlite::types::Value::Null, |(n, _)| n.into()),
+                    )?;
+                    set("term_unit", or_null(term.map(|(_, u)| u.to_string())))?;
+                }
+                "premium" => set("premium", money(value)?)?,
+                "deductible" => set("deductible", money(value)?)?,
+                "currency" => {
+                    let c = value.map(|c| crate::money::currency_code(&c)).transpose()?;
+                    set("currency", or_null(c))?;
+                }
+                other => {
+                    return Err(usage(
+                        "coverage_edit_field_unknown",
+                        json!({ "field": other,
+                                "fields": "issuer, number, term, ends, premium, deductible, currency, scope, note" }),
+                    ));
+                }
+            }
+        }
+        let says_end: bool = tx.query_row(
+            "SELECT term_n IS NOT NULL OR ends_on IS NOT NULL FROM coverages WHERE id = ?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        if !says_end {
+            return Err(usage("coverage_needs_term", Value::Null));
+        }
+        tx.commit()?;
+        self.cover_show(id)
     }
 
     /// Removes a coverage record (a mistake); its documents stay in the store.

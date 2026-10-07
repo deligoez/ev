@@ -52,6 +52,19 @@ pub const ERRORS: &[(&str, &str)] = &[
         "a vehicle cannot be lost; a stolen one is gone (--as stolen)",
     ),
     (
+        "coverage_edit_nothing",
+        "say what to correct: --for, --off, or issuer=, number=, term=, ends=, premium=, deductible=, currency=, scope=, note=",
+    ),
+    ("coverage_edit_field_bad", "`{field}` is not field=value"),
+    (
+        "coverage_edit_field_unknown",
+        "`{field}` cannot be corrected; use one of {fields}",
+    ),
+    (
+        "coverage_on_nothing",
+        "coverage {id} would be on nothing; remove it with ev cover remove if it was a mistake",
+    ),
+    (
         "purchase_edit_not_manual",
         "purchase {id} came from {source}; correct it there and import it again",
     ),

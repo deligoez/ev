@@ -800,6 +800,18 @@ enum CoverCmd {
         #[arg(value_parser = record_id)]
         id: i64,
     },
+    /// Correct a coverage in place, keeping its id, documents and history: --for puts it on
+    /// a record, --off takes it off one; issuer=, number=, term=, ends=, premium=,
+    /// deductible=, currency=, scope=, note= correct its fields.
+    Edit {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        #[arg(long = "for")]
+        add: Vec<String>,
+        #[arg(long = "off")]
+        remove: Vec<String>,
+        fields: Vec<String>,
+    },
     /// Remove a coverage recorded by mistake; its documents stay.
     Remove {
         #[arg(value_parser = record_id)]
@@ -2269,6 +2281,12 @@ fn run(cli: Cli) -> Result<Value> {
             inv.money_import(&text)
         }
         Cmd::Cover(CoverCmd::Show { id }) => inv.cover_show(id),
+        Cmd::Cover(CoverCmd::Edit {
+            id,
+            add,
+            remove,
+            fields,
+        }) => inv.cover_edit(id, &add, &remove, &fields),
         Cmd::Cover(CoverCmd::Remove { id }) => inv.cover_remove(id),
         Cmd::Cover(CoverCmd::Purchase { coverage, line, .. }) => inv.cover_purchase(coverage, line),
         Cmd::Track {

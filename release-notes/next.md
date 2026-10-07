@@ -53,3 +53,16 @@ finds every `bir` (in one household's inventory it went from 365 results to the 
 IR), and `ble` no longer finds an ink cartridge called `Mixable`. A synonym is met only as a
 whole word or its stem: a group `ekran, lcd, display` no longer brings in every DisplayPort
 cable.
+
+## What is only a guess
+
+The inventory agent kept two kinds of uncertainty in prose: things known only from the
+person's words before their place was toured (written as observations, so `ev find` missed
+them), and facts it assumed ("kesinlik: büyük ihtimalle" in a note, a coverage end taken as one
+year from the purchase), which reminders then trusted. `ev guess` marks either: a record
+(`ev add … --guess "<who said it>"` adds one as a guess) or some of its fields (`--field came`,
+`--field cover:<id>` for a coverage's end), with a note. A guess is shown everywhere it
+matters: `ev show`, `ev find` (marked), `ev todo` (a list to check), `ev next` while its place
+is open, the answer of `ev review --as toured` (the guesses inside, to settle on the person's
+word), and a coverage whose end is a guess says so. `--clear` takes it back, and a field said
+again with `ev edit` is no longer a guess. Stored as marks: no schema change.

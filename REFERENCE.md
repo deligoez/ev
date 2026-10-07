@@ -486,6 +486,21 @@ A request is a message to the UI, not a change to the inventory: it is kept besi
 in `ev.db-focus.json`, and `ev.db` stays as it was; `X` removing it is the one write `ev ui`
 makes.
 
+`ev photo sheet [f16..f31 | f2 f5 …] [--out file]` puts series pictures on one JPEG for the agent
+to look at a batch at once: four to a row, each fitted in its tile and titled `f12 · <note>` (cut
+to the tile), as they are on screen (marks and all); the whole series without arguments. A range
+and single pictures mix (`f2 f5..f8`, and `f16..31` reads as `f16..f31`); a reference that is
+not one is refused (`series_ref_bad`), a number the series lacks too (`plan_series_has_no`), an
+empty series as `series_is_empty`. It goes to `--out` or the scratch folder of `photo mark` and is
+not sent to `ev ui`. Output: `sheet` and `pictures: [{n, file, note}]`.
+
+`ev photo mark --whole f2 f3 f5..f9` gives each of those series pictures one frame round the
+whole photo (`0.03,0.03,0.94,0.94`), numbered on from the series, and shows each as
+`ev photo mark fN 1=…` does, in one call: a batch of photos of one thing each becomes frames the
+person and the agent can name. Every picture is found before the first is marked, so a wrong
+number marks none. `--whole` takes no marks and none of `--grid`, `--out`, `--show`,
+`--no-show`, `--codes`, `--keep-numbers`. Output: `framed: [{picture, frame, marked}]`.
+
 `ev photo mark <target> <label>=<where>… [--codes] [--grid corners] [--out file] [--show note | --no-show] [--keep-numbers]` draws a
 red frame (edged in dark, so it reads on a red thing too) and a label for each mark on a copy of a photo: `<target>` is a photo file or a place
 (its newest whole photo), `<where>` is `x,y,w,h` in fractions of the upright photo or cells of

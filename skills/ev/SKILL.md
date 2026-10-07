@@ -563,6 +563,12 @@ nothing still means show it:** every photo the person sends goes into the series
 framed or not. `ev photo add` puts it there with its `--note`; a photo you do not attach goes
 with `ev focus --file <photo>=<note>`.
 
+**A batch at once.** To look at many new pictures together, `ev photo sheet f16..f31` writes
+them on one image, each titled with its `f`-number (through MCP it comes back as an image);
+build no contact sheet of your own. When each photo of a batch shows one thing,
+`ev photo mark --whole f16..f31` frames every one whole and numbers them on in one call
+(`framed` says which number each took); quote those numbers.
+
 **The marked photo series (işaretli foto serisi) is the person's, its numbers are ev's.**
 Everything you put on their screen joins one series in `ev ui` until the person closes it with
 `X`; Esc only hides it and `m` brings it back. Never decide where a series ends (`ev focus

@@ -95,3 +95,19 @@ names what is due within 60 days or 1,000 km, or past, from the newest piece of 
 `ev show` and the thing's summary in `ev ui` list what was done, newest first.
 `ev fixed <ref> --work "…"` closes a broken mark and records the repair in one step. What it cost stays ak's:
 ev records no amount here. Schema 36 adds the `upkeep` table.
+
+## What a thing costs, with ak's payments about it
+
+A car costs more than its price: taxes, fines, insurance and services are ak's payments, tied to
+the car there. ak now exports them with `"thing": <ev id>` (and `period`, and a refund as a
+negative amount), and `ev buy import` ties each service line to that record as `about`: it
+counts in what the thing costs without ever being one of its units, so counts and statistics of
+what things were bought for stay as they were. A durable line carrying `thing` is linked as a
+purchase is. An id ev does not know is reported, not failed. `ev buy about <line> <ref>` ties
+a service line by hand. `ev show` now answers `cost`, by currency and never converted: what
+was paid for it, its upkeep, its coverage premiums and what a sale brought, also on its summary
+in `ev ui`.
+
+Upkeep also learned a first due date with nothing done yet, for a new car's first inspection:
+`ev upkeep due <ref> --kind inspection --next 2029-04`; the inspection recorded later
+answers it. `ev upkeep list` names each thing once, its work under it. Schema 37.

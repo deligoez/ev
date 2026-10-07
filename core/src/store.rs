@@ -333,13 +333,15 @@ impl Inventory {
                 Ok(json!({ "tree": [subtree(&index, id, depth)] }))
             }
             None => {
-                let mut homes: Vec<i64> = index
+                // The homes, then the vehicles beside them.
+                let mut homes: Vec<(bool, i64)> = index
                     .nodes
                     .values()
-                    .filter(|n| n.kind == Kind::Home)
-                    .map(|n| n.id)
+                    .filter(|n| n.kind.at_top())
+                    .map(|n| (n.kind == Kind::Vehicle, n.id))
                     .collect();
                 homes.sort_unstable();
+                let homes: Vec<i64> = homes.into_iter().map(|(_, id)| id).collect();
                 let tree: Vec<Value> = homes.iter().map(|id| subtree(&index, *id, depth)).collect();
                 // Whose place is not known: every lost thing, each with where it was last seen.
                 let mut lost: Vec<&Node> = index.nodes.values().filter(|n| n.lost).collect();
@@ -1170,6 +1172,9 @@ impl Inventory {
         let node = crate::portions::take(&tx, node, qty)?;
         if node.kind == Kind::Home {
             return Err(refuse("home_cannot_be_lost", Value::Null, Value::Null));
+        }
+        if node.kind == Kind::Vehicle {
+            return Err(refuse("vehicle_cannot_be_lost", Value::Null, Value::Null));
         }
         tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
         touch(&tx, node.id)?;
@@ -2296,6 +2301,15 @@ fn check_placement(
             None => Ok(()),
         };
     }
+    // A car stands beside the homes, never in one (spec/vehicles-homes.md); stolen is gone,
+    // not lost.
+    if kind == Kind::Vehicle {
+        return match parent {
+            Some(_) => Err(refuse("vehicle_inside", Value::Null, Value::Null)),
+            None if lost => Err(refuse("vehicle_cannot_be_lost", Value::Null, Value::Null)),
+            None => Ok(()),
+        };
+    }
     let Some(pid) = parent else {
         return if lost {
             Ok(())
@@ -2848,7 +2862,7 @@ impl Inventory {
             [node.id],
         )?;
         // A thing recorded already gone was never in a place: back, its place is not known.
-        if node.parent_id.is_none() && node.kind != Kind::Home {
+        if node.parent_id.is_none() && !node.kind.at_top() {
             tx.execute("UPDATE nodes SET lost = 1 WHERE id = ?1", [node.id])?;
         }
         // It never left: how, when and for what it left were never so.

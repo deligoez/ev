@@ -52,7 +52,17 @@ label_enum!(Kind, "kind", {
     Furniture => "furniture",
     Container => "container",
     Item => "item",
+    // A car: at the top beside the homes, a holder of its compartments with a thing's life
+    // (spec/vehicles-homes.md).
+    Vehicle => "vehicle",
 });
+
+impl Kind {
+    /// A home or a vehicle: at the top of the tree, never inside anything, never lost.
+    pub fn at_top(self) -> bool {
+        matches!(self, Kind::Home | Kind::Vehicle)
+    }
+}
 
 label_enum!(State, "state", {
     Active => "active",

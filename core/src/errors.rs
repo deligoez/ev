@@ -47,6 +47,14 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("already_lost", "{node} is already lost"),
     ("home_cannot_be_lost", "a home cannot be lost"),
+    (
+        "vehicle_cannot_be_lost",
+        "a vehicle cannot be lost; a stolen one is gone (--as stolen)",
+    ),
+    (
+        "vehicle_inside",
+        "a vehicle stands at the top beside the homes, never inside another node",
+    ),
     ("not_lost", "{node} is not lost"),
     (
         "never_seen",

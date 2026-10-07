@@ -197,6 +197,14 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ),
     ("already_lost", "{node} zaten kayıp"),
     ("home_cannot_be_lost", "ev kaybolamaz"),
+    (
+        "vehicle_cannot_be_lost",
+        "araç kaybolamaz; çalınan araç elden çıkmıştır (--as stolen)",
+    ),
+    (
+        "vehicle_inside",
+        "araç evlerin yanında en üstte durur, hiçbir kaydın içine konamaz",
+    ),
     ("not_lost", "{node} kayıp değil"),
     (
         "never_seen",

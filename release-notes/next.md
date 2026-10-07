@@ -52,5 +52,6 @@ the vehicles first; a home nothing dates is left out of a year instead of counte
   later. `--date` now takes a month or a year as `ev add --came` does, today's money reading it
   as its middle, and `ev buy edit <line> field=value` corrects the person's own lines (name,
   date, price, currency, shop, brand, order, quantity); a line from a source is corrected there.
-- `ev task add --on` refused a record that had left, so a task about a former home ("find when
-  we moved in") had to name something else. It takes one now, a record still here found first.
+- `ev task add --on` and `ev task edit --on` refused a record that had left, so a task about a
+  former home ("find when we moved in") had to name something else. They take one now, a record
+  still here found first.

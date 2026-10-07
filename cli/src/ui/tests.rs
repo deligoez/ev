@@ -2295,3 +2295,16 @@ fn the_series_grid_shares_the_height_left_under_its_rows_among_them() {
     term.draw(|f| app.draw(f)).unwrap();
     assert!(app.grid_hits.iter().all(|(r, _)| r.height == 37));
 }
+
+#[test]
+fn leaving_turns_off_the_mouse_and_the_appearance_reports() {
+    // What the panic hook writes, as a normal exit does.
+    let mut out = Vec::new();
+    super::leave(&mut out);
+    let out = String::from_utf8(out).unwrap();
+    assert!(out.contains("\x1b[?2031l"), "{out:?}");
+    assert!(
+        out.contains("\x1b[?1000l") && out.contains("\x1b[?1006l"),
+        "{out:?}"
+    );
+}

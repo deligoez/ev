@@ -232,3 +232,58 @@ fn take_splits_an_empty_case_off_two_recorded_as_one_and_the_cells_stay() {
         "taken empty"
     );
 }
+
+#[test]
+fn a_part_goes_to_its_place_or_leaves_in_the_same_step() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "Çekmece".into(),
+        kind: "container".into(),
+        parent: Some("Oda".into()),
+        code: Some("S5-01".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let parts = [
+        ev_core::SplitPart {
+            name: "LM393 kart".into(),
+            qty: Some(3),
+            to: Some("S5-01".into()),
+            ..Default::default()
+        },
+        ev_core::SplitPart {
+            name: "Kablo".into(),
+            qty: Some(3),
+            gone: Some(ev_core::Disposition::Trash),
+            why: Some("uçları kopuk".into()),
+            ..Default::default()
+        },
+    ];
+    let v = inv
+        .split_parts("Toprak nemi seti", &parts, Some("HW-080 prob"), None, false)
+        .unwrap();
+    let into = v["into"].as_array().unwrap();
+    assert!(
+        into[0]["path_text"].as_str().unwrap().contains("S5-01"),
+        "{into:?}"
+    );
+    assert_eq!(into[1]["state"], "gone");
+    assert_eq!(into[1]["disposition"], "trash");
+    // The history keeps where it came from, then the move or the leaving.
+    let kinds = |r: &str| -> Vec<String> {
+        events(&inv, r)
+            .iter()
+            .map(|e| e["type"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let card = format!("#{}", into[0]["id"]);
+    assert!(kinds(&card).contains(&"split_from".to_string()));
+    assert!(kinds(&card).contains(&"move".to_string()));
+    let shown = inv.show(&format!("#{}", into[1]["id"]), true).unwrap();
+    assert!(
+        shown["node"]["note"]
+            .as_str()
+            .unwrap()
+            .contains("uçları kopuk")
+    );
+}

@@ -55,3 +55,7 @@ the vehicles first; a home nothing dates is left out of a year instead of counte
 - `ev task add --on` and `ev task edit --on` refused a record that had left, so a task about a
   former home ("find when we moved in") had to name something else. They take one now, a record
   still here found first.
+- A coverage recorded on the wrong thing (an insurance on one home that insures another) could
+  only be removed and added again, which lost its id, its history and its documents' tie. `ev
+  cover edit <id> --for <ref> --off <ref>` moves it, and `field=value` corrects its number,
+  dates, premium and the rest, keeping all of that.

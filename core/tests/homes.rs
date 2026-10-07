@@ -275,3 +275,32 @@ fn a_task_may_be_about_a_former_home() {
     assert_eq!(t["nodes"][0]["name"], "Kiralık daire");
     assert_eq!(t["nodes"][0]["state"], "gone");
 }
+
+#[test]
+fn a_task_is_moved_onto_a_former_home() {
+    let (_d, mut inv) = setup();
+    inv.add(past_thing("Kiralık daire", "moved", "home", None, None))
+        .unwrap();
+    let t = inv
+        .task_add("Kontratı bul", "adres geçmişi", &["Raf".to_string()], None)
+        .unwrap();
+    let id = t["id"].as_i64().unwrap();
+    // From the shelf it was parked on to the former home it is about.
+    let t = inv
+        .task_edit(
+            id,
+            None,
+            None,
+            &["Kiralık daire".to_string()],
+            &["Raf".to_string()],
+            None,
+        )
+        .unwrap();
+    let names: Vec<&str> = t["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Kiralık daire"]);
+}

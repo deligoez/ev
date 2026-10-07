@@ -754,6 +754,12 @@ change its separator.
 
 - `ev find <text> [--tag t] [--kind k] [--empty]` — where is it? `ev find --tag t` alone lists all tagged
   t: tag things that belong together but are scattered (`3d yazıcı`) so they can be gathered.
+  A question about a whole family of things ("every Pi, ESP board and sensor") is one call:
+  `ev find --any "raspberry pi" esp32 "sensör" --kind item`, each result once with the texts
+  that `matched` it. Every result's `place_count` says whether its place was counted (`toured`)
+  or the record is a guess (`raw`); say which when you hand such a list to the person or to
+  another agent. A family ev does not know as one word (ekran, LCD, OLED) gets a synonym group:
+  `ev synonym add ekran lcd oled display`.
   `ev find --empty` lists the boxes known to be empty (their place toured, or something left
   them), worked out from the records: never tag a box empty. Boxes with nothing recorded only
   because nobody counted them come apart (`not_known`): open them before calling them empty.

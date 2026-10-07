@@ -1597,9 +1597,14 @@ impl Inventory {
         let why = non_empty("why", why)?;
         let due = parse_due(due)?;
         let tx = self.conn.transaction()?;
+        // A task may be about a record that left (a former home whose dates are still to find),
+        // as an edit may: one here is found first.
         let nodes = on
             .iter()
-            .map(|r| resolve(&tx, r, false))
+            .map(|r| match resolve(&tx, r, false) {
+                Err(e) if e.is_not_found() => resolve(&tx, r, true),
+                found => found,
+            })
             .collect::<Result<Vec<_>>>()?;
         let t = now();
         tx.execute(

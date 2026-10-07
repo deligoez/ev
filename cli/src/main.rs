@@ -61,9 +61,12 @@ enum Cmd {
     },
     /// Word search over name, code, make, model, serial, note, theme and tags: every word in any order, by stem, synonym or with a typo.
     Find {
-        /// What to look for; may be left out with --tag or --kind, to list all of them.
-        #[arg(default_value = "")]
-        text: String,
+        /// What to look for; may be left out with --tag or --kind, to list all of them. Several
+        /// words are one text (every word), unless --any.
+        text: Vec<String>,
+        /// Each text on its own, the results in one list: `--any "raspberry pi" esp32 sensör`.
+        #[arg(long, conflicts_with = "empty")]
+        any: bool,
         #[arg(long)]
         tag: Option<String>,
         #[arg(long)]
@@ -1884,13 +1887,17 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Tree { reference, depth } => inv.tree(reference.as_deref(), depth),
         Cmd::Find {
             text,
+            any,
             tag,
             kind,
             include_gone,
             empty,
         } => {
             let kind = kind.map(|k| k.parse::<Kind>()).transpose()?;
-            inv.find_with(&text, tag.as_deref(), kind, include_gone, empty)
+            if any {
+                return inv.find_any(&text, tag.as_deref(), kind, include_gone);
+            }
+            inv.find_with(&text.join(" "), tag.as_deref(), kind, include_gone, empty)
         }
         Cmd::Edit { stdin: true, .. } => {
             let text = read_input()?;

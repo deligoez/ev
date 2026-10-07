@@ -477,6 +477,47 @@ impl Inventory {
         Ok(v)
     }
 
+    /// `ev find --any`: each text found as `find` finds it, the results in one list, each record
+    /// once in the order first found with `matched`, the texts that found it; `per_text` counts
+    /// each text's hits, so one that found nothing shows (spec/find-any.md).
+    pub fn find_any(
+        &self,
+        texts: &[String],
+        tag: Option<&str>,
+        kind: Option<Kind>,
+        include_gone: bool,
+    ) -> Result<Value> {
+        let texts: Vec<&str> = texts
+            .iter()
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+            .collect();
+        if texts.is_empty() {
+            return Err(usage("search_text_empty", Value::Null));
+        }
+        let mut results: Vec<Value> = Vec::new();
+        let mut per_text = serde_json::Map::new();
+        for text in &texts {
+            let found = self.find_with(text, tag, kind, include_gone, false)?;
+            let list = found["results"].as_array().cloned().unwrap_or_default();
+            per_text.insert(text.to_string(), json!(list.len()));
+            for mut r in list {
+                match results.iter_mut().find(|x| x["id"] == r["id"]) {
+                    Some(x) => {
+                        if let Some(m) = x["matched"].as_array_mut() {
+                            m.push(json!(text));
+                        }
+                    }
+                    None => {
+                        r["matched"] = json!([text]);
+                        results.push(r);
+                    }
+                }
+            }
+        }
+        Ok(json!({ "query": texts, "results": results, "per_text": per_text }))
+    }
+
     /// Applies `field=value` assignments (spec §6, §11.6).
     pub fn edit(&mut self, reference: &str, assignments: &[String]) -> Result<Value> {
         let tx = self.conn.transaction()?;

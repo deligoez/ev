@@ -94,6 +94,10 @@ pub(crate) struct FindArgs {
     /// Words to look for, in any order (stems, synonyms and typos match); may be left out with
     /// `tag` or `kind` to list all of them.
     text: Option<String>,
+    /// Several texts, each found on its own, in one list: every Raspberry Pi, ESP board and
+    /// sensor in one call (`["raspberry pi", "esp32", "sensör"]`). Each result says which
+    /// texts found it (`matched`).
+    any: Option<Vec<String>>,
     /// Only things with this tag.
     tag: Option<String>,
     /// Only this kind: home, room, furniture, container or item.
@@ -276,8 +280,13 @@ and tags, best match first, each with its #id and full path. Act on a result by 
                 flag("--kind", p.kind),
                 switch("--include-gone", p.include_gone),
                 switch("--empty", p.empty),
+                // The texts stay positional (after `--`): `--any` only says to take each alone.
+                switch("--any", p.any.is_some().then_some(true)),
             ],
-            p.text.into_iter().collect(),
+            match p.any {
+                Some(texts) => texts,
+                None => p.text.into_iter().collect(),
+            },
         );
         self.call(args, None, p.format).await
     }

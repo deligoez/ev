@@ -93,3 +93,26 @@ fn a_vehicles_plate_needs_no_label_and_a_past_vehicle_keeps_it() {
     assert_eq!(juke["node"]["state"], "gone");
     assert!(juke["marks"]["label"].is_null());
 }
+
+#[test]
+fn placement_keeps_the_home_and_a_vehicle_apart() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, node("Yangın söndürücü", "item", Some("Torpido"))).unwrap();
+    let names = |v: &Value| -> Vec<String> {
+        v["containers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    // Asked for the home, the car's glovebox is never offered, though its words match.
+    let home = inv.suggest("yangın söndürücü", None).unwrap();
+    assert!(!names(&home).contains(&"Torpido".to_string()), "{home}");
+    assert!(names(&home).contains(&"Raf".to_string()), "{home}");
+    // Asked about a thing in the car, only the car's places are weighed.
+    let car = inv
+        .suggest_with("yangın söndürücü", None, Some("Yangın söndürücü"))
+        .unwrap();
+    assert!(!names(&car).contains(&"Raf".to_string()), "{car}");
+}

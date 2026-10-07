@@ -231,3 +231,29 @@ fn homes_and_vehicles_lead_the_past_and_leave_the_lists_of_things() {
     assert_eq!(summary["records"], 2, "{summary}");
     assert_eq!(summary["got"]["TRY"], "900000.00", "{summary}");
 }
+
+#[test]
+fn a_year_names_the_home_we_lived_in_first_and_skips_a_home_nothing_dates() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        came: Some("2012-11".into()),
+        ..past_thing("Kiralık daire", "moved", "home", Some("2015-04"), None)
+    })
+    .unwrap();
+    inv.add(NewNode {
+        came: Some("2013".into()),
+        ..past_thing("Bisiklet", "sell", "item", Some("2016"), None)
+    })
+    .unwrap();
+    let y = inv.past_year(2014).unwrap();
+    let names: Vec<&str> = y["owned"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Kiralık daire", "Bisiklet"]);
+    // The setup's two homes say no date: neither listed nor counted among the undated things,
+    // which are the pan alone.
+    assert_eq!(y["unknown"], 1, "{y}");
+}

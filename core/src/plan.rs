@@ -753,7 +753,7 @@ fn while_there(
             .collect()
     };
     let mut out = serde_json::Map::new();
-    for key in ["photos", "labels", "unclear", "parked"] {
+    for key in ["photos", "labels", "unclear", "guesses", "parked"] {
         let found = pick(&todo[key]);
         if !found.is_empty() {
             out.insert(key.into(), json!(found));
@@ -1482,6 +1482,12 @@ impl Inventory {
             let check = photo_check(&self.conn, id)?;
             if !check.is_null() {
                 v["photo_check"] = check;
+            }
+            // What inside is still only a guess: the tour is when it is settled, on the
+            // person's word (spec/guesses.md).
+            let guesses = crate::marks::guesses_under(&self.conn, id)?;
+            if !guesses.is_empty() {
+                v["guesses"] = json!(guesses);
             }
         }
         Ok(v)

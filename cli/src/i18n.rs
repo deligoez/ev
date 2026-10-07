@@ -634,6 +634,18 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ("split_no_parts", "ayırmak için en az bir <name>=<qty> ver"),
     ("split_part_needs_name", "ayrılan parçanın bir adı olmalı"),
     (
+        "guess_nothing",
+        "tahmin olarak işaretlenecek en az bir kayıt ver",
+    ),
+    (
+        "guess_field_unknown",
+        "`{field}` tahmin olabilecek bir alan değil: {fields} ya da cover:<id>",
+    ),
+    (
+        "guess_cover_not_its",
+        "{cover} numaralı kapsam #{id} kaydının kapsamlarından biri değil",
+    ),
+    (
         "split_part_moves_and_leaves",
         "`{name}` parçasına hem gideceği bir yer hem bir çıkış verilmiş: biri yeter",
     ),
@@ -1444,6 +1456,21 @@ static TR: &[(&str, &str)] = &[
         " Go to a list, a place, a thing or #id · > a command ",
         " Git: bir liste, bir yer, bir eşya ya da #id · > bir komut ",
     ),
+    // What is only a guess (spec/guesses.md).
+    ("(end is a guess)", "(bitişi tahmin)"),
+    ("Only a guess", "Yalnızca tahmin"),
+    (
+        "Still a guess here: ask whether each was seen",
+        "Burada hâlâ tahmin olanlar: her biri görüldü mü, sor",
+    ),
+    ("a guess", "tahmin"),
+    ("guess", "tahmin"),
+    ("guessed", "tahmini alan"),
+    ("a guess: {}", "tahmin: {}"),
+    ("check: {}", "kontrol et: {}"),
+    ("no guess", "tahmin yok"),
+    ("{} is a guess", "{} tahmin"),
+    ("{} is a guess: {}", "{} tahmin: {}"),
     // The screen's commands, as `:` offers them (ui/commands.rs).
     ("Search everything", "Her yerde ara"),
     ("Map of the home", "Evin haritası"),

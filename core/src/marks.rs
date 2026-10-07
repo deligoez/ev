@@ -105,6 +105,120 @@ pub(crate) fn clear_mark(conn: &Connection, id: i64, kind: &str) -> Result<()> {
     Ok(())
 }
 
+/// The mark of a guess: `guess` on a record that is one, `guess:<field>` on a field.
+const GUESS: &str = "guess";
+
+/// The fields of a record that can be a guess; `cover:<id>` names a coverage's end too.
+pub(crate) const GUESS_FIELDS: [&str; 7] =
+    ["came", "left", "make", "model", "serial", "qty", "size"];
+
+/// A field `ev guess` takes: one of `GUESS_FIELDS`, or `cover:<id>` of a coverage on `id`.
+fn check_guess_field(conn: &Connection, id: i64, field: &str) -> Result<()> {
+    let field = field.trim();
+    if GUESS_FIELDS.contains(&field) {
+        return Ok(());
+    }
+    if let Some(cover) = field
+        .strip_prefix("cover:")
+        .and_then(|c| c.parse::<i64>().ok())
+    {
+        let on: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM coverage_nodes WHERE coverage_id = ?1 AND node_id = ?2",
+            params![cover, id],
+            |r| r.get(0),
+        )?;
+        if on > 0 {
+            return Ok(());
+        }
+        return Err(refuse(
+            "guess_cover_not_its",
+            json!({ "cover": cover, "id": id }),
+            Value::Null,
+        ));
+    }
+    Err(usage(
+        "guess_field_unknown",
+        json!({ "field": field, "fields": GUESS_FIELDS.join(", ") }),
+    ))
+}
+
+/// A record's guesses: the record's own (`{note, at}`, or null) and its fields'
+/// (`[{field, note, at}]`).
+pub(crate) fn guesses_of(conn: &Connection, id: i64) -> Result<(Value, Vec<Value>)> {
+    let mut stmt = conn.prepare(
+        "SELECT kind, note, at FROM marks WHERE node_id = ?1 AND (kind = 'guess' OR kind LIKE 'guess:%')
+          ORDER BY kind",
+    )?;
+    let rows = stmt
+        .query_map([id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut own = Value::Null;
+    let mut fields = Vec::new();
+    for (kind, note, at) in rows {
+        match kind.strip_prefix("guess:") {
+            Some(field) => fields.push(json!({ "field": field, "note": note, "at": at })),
+            None => own = json!({ "note": note, "at": at }),
+        }
+    }
+    Ok((own, fields))
+}
+
+/// The live records in `place` and below it that are a guess or have a field that is, each
+/// brief with `guess` and `guessed`.
+pub(crate) fn guesses_under(conn: &Connection, place: i64) -> Result<Vec<Value>> {
+    let under = crate::store::ids(
+        conn,
+        "WITH RECURSIVE d(id) AS (
+             SELECT ?1 UNION ALL SELECT n.id FROM nodes n JOIN d ON n.parent_id = d.id
+               WHERE n.state != 'gone'
+         )
+         SELECT id FROM d WHERE id != ?1",
+        [place],
+    )?;
+    let mut out = Vec::new();
+    for id in under {
+        let (guess, guessed) = guesses_of(conn, id)?;
+        if !guess.is_null() || !guessed.is_empty() {
+            let mut v = brief_value(conn, id)?;
+            v["guess"] = guess;
+            v["guessed"] = json!(guessed);
+            out.push(v);
+        }
+    }
+    Ok(out)
+}
+
+/// Whether a coverage's end is a guess, with what was said of it.
+pub(crate) fn cover_guess(conn: &Connection, cover: i64) -> Result<Option<Option<String>>> {
+    Ok(conn
+        .query_row(
+            "SELECT note FROM marks WHERE kind = ?1 LIMIT 1",
+            [format!("{GUESS}:cover:{cover}")],
+            |r| r.get::<_, Option<String>>(0),
+        )
+        .optional()?)
+}
+
+/// A field said again is the person's word: it is no longer a guess.
+pub(crate) fn field_said(conn: &Connection, id: i64, field: &str) -> Result<()> {
+    clear_mark(conn, id, &format!("{GUESS}:{field}"))
+}
+
+/// A coverage changed by hand is said again: its end is no longer a guess, on any record.
+pub(crate) fn cover_said(conn: &Connection, cover: i64) -> Result<()> {
+    conn.execute(
+        "DELETE FROM marks WHERE kind = ?1",
+        [format!("{GUESS}:cover:{cover}")],
+    )?;
+    Ok(())
+}
+
 /// A thing leaving in the bin is shredded first: it carries a name, a number or a barcode.
 pub(crate) fn mark_shred(conn: &Connection, id: i64) -> Result<()> {
     set_mark(conn, id, "shred", Some("yes"), None, None)
@@ -646,6 +760,67 @@ impl Inventory {
         show(&self.conn, id)
     }
 
+    /// `ev guess` (spec/guesses.md): the records, or with `fields` those fields of each, are only
+    /// a guess, with `note` saying who said it or how sure it is; with `clear` they are not any
+    /// more. A field is one of `GUESS_FIELDS`, or `cover:<id>` for the end of one of its
+    /// coverages. All or nothing.
+    pub fn guess(
+        &mut self,
+        references: &[String],
+        fields: &[String],
+        note: Option<&str>,
+        clear: bool,
+    ) -> Result<Value> {
+        if references.is_empty() {
+            return Err(usage("guess_nothing", Value::Null));
+        }
+        let tx = self.conn.transaction()?;
+        let mut ids = Vec::new();
+        for r in references {
+            // What left may have a guessed date of leaving.
+            let id = resolve(&tx, r, true)?;
+            for f in fields {
+                check_guess_field(&tx, id, f)?;
+            }
+            let kinds: Vec<String> = if fields.is_empty() {
+                vec![GUESS.to_string()]
+            } else {
+                fields
+                    .iter()
+                    .map(|f| format!("{GUESS}:{}", f.trim()))
+                    .collect()
+            };
+            for kind in &kinds {
+                if clear {
+                    clear_mark(&tx, id, kind)?;
+                } else {
+                    set_mark(&tx, id, kind, None, None, note)?;
+                }
+            }
+            crate::store::event(
+                &tx,
+                id,
+                if clear { "guess_cleared" } else { "guess" },
+                json!({ "fields": fields, "note": note }),
+            )?;
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+        tx.commit()?;
+        let nodes = ids
+            .iter()
+            .map(|id| {
+                let mut v = brief_value(&self.conn, *id)?;
+                let (guess, guessed) = guesses_of(&self.conn, *id)?;
+                v["guess"] = guess;
+                v["guessed"] = json!(guessed);
+                Ok(v)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "nodes": nodes }))
+    }
+
     /// Records a use-by date (`YYYY-MM-DD` or `YYYY-MM`), or clears it.
     pub fn expires(&mut self, reference: &str, date: Option<&str>) -> Result<Value> {
         let tx = self.conn.transaction()?;
@@ -807,6 +982,7 @@ impl Inventory {
         let mut repairs = Vec::new();
         let mut expiring = Vec::new();
         let mut unclear = Vec::new();
+        let mut guesses = Vec::new();
         let today = today();
         for n in all.iter().filter(|n| n.state != State::Gone) {
             let broken = mark(&self.conn, n.id, "broken")?;
@@ -827,6 +1003,14 @@ impl Inventory {
             }
             if unsure(n) {
                 unclear.push(brief_value(&self.conn, n.id)?);
+            }
+            // What is only a guess, to settle when its place is open (spec/guesses.md).
+            let (guess, guessed) = guesses_of(&self.conn, n.id)?;
+            if !guess.is_null() || !guessed.is_empty() {
+                let mut v = brief_value(&self.conn, n.id)?;
+                v["guess"] = guess;
+                v["guessed"] = json!(guessed);
+                guesses.push(v);
             }
         }
         expiring.sort_by_key(|v| v["days_left"].as_i64().unwrap_or_default());
@@ -906,6 +1090,7 @@ impl Inventory {
                 "parked": parked.len(),
                 "stale": stale.len(),
                 "unclear": unclear.len(),
+                "guesses": guesses.len(),
                 "photos": photos.len(),
                 "photos_now": photos_now,
                 "shared_photos": shared.len(),
@@ -927,6 +1112,7 @@ impl Inventory {
             "parked": parked,
             "stale": stale,
             "unclear": unclear,
+            "guesses": guesses,
             "photos": photos,
             "shared_photos": shared,
             "coverage_ending": coverage_ending,
@@ -977,6 +1163,7 @@ impl Inventory {
             "repairs",
             "expiring",
             "unclear",
+            "guesses",
             "uncounted",
             "parked",
             "stale",

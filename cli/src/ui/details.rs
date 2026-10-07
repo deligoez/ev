@@ -376,6 +376,19 @@ impl App {
         if let Some(c) = n["code"].as_str() {
             field(t("code"), c.to_string(), Style::new().fg(pal().code));
         }
+        // Only a guess: the record, or some of its fields (spec/guesses.md).
+        let guessed = Style::new().fg(pal().mark);
+        if v["guess"].is_object() {
+            let note = v["guess"]["note"].as_str().unwrap_or("—").to_string();
+            field(t("guess"), note, guessed);
+        }
+        for g in v["guessed"].as_array().into_iter().flatten() {
+            let what = match g["note"].as_str() {
+                Some(note) => format!("{}: {note}", str_of(g, "field")),
+                None => str_of(g, "field"),
+            };
+            field(t("guessed"), what, guessed);
+        }
         // With `E`, the identity fields still empty show as “—”, so the gaps are in view.
         let empty = Style::new().fg(pal().muted);
         for (k, key, identity) in [

@@ -147,6 +147,8 @@ pub(super) fn edit_in(
         };
         let was = value_of(&before)?;
         apply_edit(conn, &before, field, value)?;
+        // Said again, a field is the person's word, not a guess any more (spec/guesses.md).
+        crate::marks::field_said(conn, id, field)?;
         let after = load(conn, id)?;
         let first = changes
             .get(field)

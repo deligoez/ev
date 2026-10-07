@@ -109,10 +109,37 @@ pub fn empty_said(e: &Value) -> String {
     }
 }
 
+/// What is only a guess about a record (spec/guesses.md), after it on its line: the record
+/// itself with what was said, then each field. Empty when nothing is.
+fn guess_text(n: &Value) -> String {
+    let mut parts = Vec::new();
+    if n["guess"].is_object() {
+        parts.push(match n["guess"]["note"].as_str() {
+            Some(note) => tf("a guess: {}", &[&note]),
+            None => t("a guess").to_string(),
+        });
+    }
+    for g in n["guessed"].as_array().into_iter().flatten() {
+        let field = s(g, "field");
+        parts.push(match g["note"].as_str() {
+            Some(note) => tf("{} is a guess: {}", &[&field, &note]),
+            None => tf("{} is a guess", &[&field]),
+        });
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!("  ({})", parts.join("; "))
+    }
+}
+
 /// What `ev find` adds after a result: that the place it is in was not counted yet (so it is
 /// what the inventory guessed), and with `--any` which texts found it.
 fn find_marks(n: &Value) -> String {
     let mut out = String::new();
+    if n["guess"] == true {
+        out.push_str(&format!("  ({})", t("a guess")));
+    }
     if let Some(c) = n["place_count"].as_str()
         && c != "toured"
     {
@@ -1173,10 +1200,12 @@ fn todo(out: &mut String, v: &Value) {
         ("parked", t("Waiting for a final place")),
         ("stale", t("Changed since counted")),
         ("unclear", t("Unclear records")),
+        ("guesses", t("Only a guess")),
     ] {
         if head(out, title, &c[key]) {
             for n in v[key].as_array().into_iter().flatten() {
                 let extra = match key {
+                    "guesses" => Some(guess_text(n)),
                     "repairs" => n["note"].as_str().map(|x| format!("  ({x})")),
                     "expiring" => Some(tf("  {} ({} days)", &[&s(n, "expires"), &n["days_left"]])),
                     // A thing that only waits for another is not parked anywhere.
@@ -1360,6 +1389,10 @@ pub(crate) fn coverage_line(cv: &Value) -> String {
         parts.push(tf("+{} days in repair", &[&r]));
     }
     parts.push(coverage_status(cv));
+    // An end assumed, not read off a certificate (spec/guesses.md).
+    if cv["end_guessed"] == true {
+        parts.push(t("(end is a guess)").to_string());
+    }
     parts.join("  ")
 }
 
@@ -2628,6 +2661,18 @@ pub fn human(v: &Value) -> String {
                 let _ = writeln!(out, "  {}", line(n));
             }
         }
+        // `ev review --as toured`: what inside is still only a guess, to settle with the person.
+        let guesses = v["guesses"].as_array().cloned().unwrap_or_default();
+        if !guesses.is_empty() {
+            let _ = writeln!(
+                out,
+                "\n{}",
+                t("Still a guess here: ask whether each was seen")
+            );
+            for n in &guesses {
+                let _ = writeln!(out, "  {}{}", line(n), guess_text(n));
+            }
+        }
         // `ev review`: what is still not counted around the place (spec/counting.md).
         let left = &v["left_here"];
         for (key, head) in [
@@ -2900,6 +2945,22 @@ pub fn human(v: &Value) -> String {
     if v.get("preview").is_some() && v.get("legend").is_some() {
         legend(&mut out, v);
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
+        return out;
+    }
+    // `ev guess`: each record with what of it is a guess now.
+    if let Some(list) = v.get("nodes").and_then(Value::as_array)
+        && list.iter().all(|n| n.get("guessed").is_some())
+        && !list.is_empty()
+    {
+        for n in list {
+            let g = guess_text(n);
+            let g = if g.is_empty() {
+                format!("  ({})", t("no guess"))
+            } else {
+                g
+            };
+            let _ = writeln!(out, "{}{g}", line(n));
+        }
         return out;
     }
     // `ev photo mark --whole`: which frame number each picture took.
@@ -3348,6 +3409,7 @@ fn while_there(out: &mut String, w: &Value) {
                 ),
                 "labels" => tf("label: {}", &[&s(n, "code")]),
                 "unclear" => tf("unclear: {}", &[&s(n, "name")]),
+                "guesses" => format!("{}{}", tf("check: {}", &[&s(n, "name")]), guess_text(n)),
                 "parked" => tf("waiting for its place: {}", &[&s(n, "name")]),
                 "leaving" => tf(
                     "take along: {} → {}",
@@ -3483,6 +3545,11 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     let _ = writeln!(out, "{}", line(node));
     if let Some(k) = node["kind"].as_str() {
         let _ = writeln!(out, "  {}: {}", t("kind"), kind(k));
+    }
+    // Only a guess, the record or some of its fields (spec/guesses.md).
+    let guess = guess_text(v);
+    if !guess.is_empty() {
+        let _ = writeln!(out, "  {}", guess.trim());
     }
     for (key, label) in [
         ("make", t("make")),

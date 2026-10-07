@@ -491,6 +491,18 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("split_part_needs_name", "a split-off part needs a name"),
     (
+        "guess_nothing",
+        "name at least one record to mark as a guess",
+    ),
+    (
+        "guess_field_unknown",
+        "`{field}` is no field that can be a guess: one of {fields}, or cover:<id>",
+    ),
+    (
+        "guess_cover_not_its",
+        "coverage {cover} is not one of #{id}'s coverages",
+    ),
+    (
         "split_part_moves_and_leaves",
         "the part `{name}` is given both a place to go and a way to leave: one of them",
     ),

@@ -411,6 +411,21 @@ enum Cmd {
         #[arg(long)]
         needed: bool,
     },
+    /// Only a guess (spec/guesses.md): records known from what the person said and not seen
+    /// yet, or with --field a field assumed (came, left, make, model, serial, qty, size, or
+    /// cover:<id> for a coverage's end). --clear takes it back; editing a field clears its
+    /// guess.
+    Guess {
+        #[arg(required = true)]
+        references: Vec<String>,
+        #[arg(long = "field")]
+        fields: Vec<String>,
+        /// Who said it, or how sure.
+        #[arg(long, conflicts_with = "clear")]
+        note: Option<String>,
+        #[arg(long)]
+        clear: bool,
+    },
     /// Mark a node broken, with what is wrong.
     Broken {
         reference: String,
@@ -1403,6 +1418,10 @@ enum PlaceCmd {
 #[derive(Args)]
 struct AddArgs {
     name: Option<String>,
+    /// Only a guess: known from what the person said, not seen yet. The value says who said
+    /// it or how sure (spec/guesses.md).
+    #[arg(long, value_name = "NOTE")]
+    guess: Option<String>,
     /// home, room, furniture, container or item (required, except with --gone or --of).
     #[arg(long)]
     kind: Option<String>,
@@ -2188,6 +2207,12 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Cmd::Label { references, needed } => inv.label(&references, !needed),
         Cmd::Empty { references, note } => inv.mark_empty(&references, note.as_deref()),
+        Cmd::Guess {
+            references,
+            fields,
+            note,
+            clear,
+        } => inv.guess(&references, &fields, note.as_deref(), clear),
         Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
         Cmd::Fixed { reference } => inv.broken(&reference, None, true),
         Cmd::Expires {
@@ -2928,8 +2953,9 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         ),
     };
     warn_missing_photos(a.photos.iter().map(String::as_str));
+    let guess = a.guess.clone();
     // A swap's other side is checked and written with the record, all or none.
-    inv.add(NewNode {
+    let mut v = inv.add(NewNode {
         key: None,
         name,
         kind,
@@ -2956,7 +2982,14 @@ fn add(inv: &mut Inventory, a: AddArgs) -> Result<Value> {
         came: a.came,
         place: a.place,
         traded_for: a.traded_for,
-    })
+    })?;
+    // What the person said is there, recorded as a guess in the same call.
+    if let (Some(note), Some(id)) = (guess, v["node"]["id"].as_i64()) {
+        let note = Some(note.trim()).filter(|n| !n.is_empty());
+        let g = inv.guess(&[format!("#{id}")], &[], note, false)?;
+        v["guess"] = g["nodes"][0]["guess"].clone();
+    }
+    Ok(v)
 }
 
 /// `--traded-for` goes with a trade only (said, or the thing set aside to trade), names a thing

@@ -457,6 +457,10 @@ impl Inventory {
                 if let Some(s) = crate::plan::place_count(&self.conn, id)? {
                     v["place_count"] = json!(s);
                 }
+                // A record known only from what was said (spec/guesses.md).
+                if !crate::marks::guesses_of(&self.conn, id)?.0.is_null() {
+                    v["guess"] = json!(true);
+                }
                 Ok(v)
             })
             .collect::<Result<Vec<_>>>()?;
@@ -1772,6 +1776,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let observations = crate::plan::observations_of(conn, id)?;
     let tasks = crate::plan::tasks_of(conn, id)?;
     let marks = crate::marks::marks_of(conn, id)?;
+    let (guess, guessed) = crate::marks::guesses_of(conn, id)?;
     let needs = crate::marks::needs_for(conn, id)?;
     let cells = crate::grid::cells_of(conn, id)?.map(|c| c.name());
     let grid = crate::grid::grid_json(conn, id)?;
@@ -1797,6 +1802,8 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "room": room,
         "tasks": tasks,
         "marks": marks,
+        "guess": guess,
+        "guessed": guessed,
         "needs": needs,
         "node": node,
         "thing": crate::portions::thing_json(conn, &n)?,

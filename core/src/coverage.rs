@@ -278,6 +278,11 @@ pub(crate) fn coverage_json(conn: &Connection, id: i64, warning: i64) -> Result<
         v["repair_days"] = json!(repair);
     }
     v["status"] = json!(status);
+    // An end assumed, not read off a certificate (spec/guesses.md).
+    if let Some(note) = crate::marks::cover_guess(conn, id)? {
+        v["end_guessed"] = json!(true);
+        v["guess_note"] = json!(note);
+    }
     v["nodes"] = json!(
         nodes_of(conn, id)?
             .into_iter()
@@ -1035,8 +1040,11 @@ impl Inventory {
                         .map(|e| parse_day(&e).map(|d| d.to_string()))
                         .transpose()?;
                     set("ends_on", or_null(d))?;
+                    // An end said again is no longer a guess (spec/guesses.md).
+                    crate::marks::cover_said(&tx, id)?;
                 }
                 "term" => {
+                    crate::marks::cover_said(&tx, id)?;
                     let term = value.map(|t| parse_term(&t)).transpose()?;
                     set(
                         "term_n",

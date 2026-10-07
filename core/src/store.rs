@@ -2432,8 +2432,10 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         if matches!(kind, Kind::Home | Kind::Room) || parent.is_some() || new.lost {
             return Err(usage("past_in_a_place", Value::Null));
         }
-        // Where a thing stands, or is to go, says nothing of one that left.
-        if non_empty(&new.to).is_some() || new.temporary || non_empty(&new.code).is_some() {
+        // Where a thing stands, or is to go, says nothing of one that left; a vehicle's plate
+        // is the label printed on it, and stays its name.
+        let code = non_empty(&new.code).filter(|_| kind != Kind::Vehicle);
+        if non_empty(&new.to).is_some() || new.temporary || code.is_some() {
             return Err(usage("past_no_place_fields", Value::Null));
         }
         if non_empty(&new.place).is_some_and(|p| p.starts_with('#')) {

@@ -143,3 +143,15 @@ fn a_tour_lists_the_guesses_inside_the_place() {
     assert_eq!(v["guesses"][0]["name"], "Mini bilgisayar", "{v}");
     assert_eq!(v["guesses"][0]["guess"]["note"], "Ayşe söyledi");
 }
+
+#[test]
+fn a_guess_said_again_without_a_note_keeps_its_note() {
+    let (_d, mut inv) = setup();
+    let field = ["came".to_string()];
+    inv.guess(&["Mini bilgisayar".into()], &field, Some("kutudan"), false)
+        .unwrap();
+    inv.guess(&["Mini bilgisayar".into()], &field, None, false)
+        .unwrap();
+    let shown = inv.show("Mini bilgisayar", false).unwrap();
+    assert_eq!(shown["guessed"][0]["note"], "kutudan");
+}

@@ -88,13 +88,17 @@ way purchases do, and ev adds them up per thing, read-only.
   marked for ev, as `bucket: "service"` with **`"thing": <ev id>`** (a number; `for` stays for
   people). `period` (`2026-10`, `2026`) is sent when the payment has one; `category` is ak's own
   word, kept as text; a refund is a negative `paid`. A `durable` line may carry `thing` too.
-- **The import links it:** `ev buy import` links a line carrying `thing` to that record, all of
-  its open units, once: a line already linked is left as it is, so the person's own linking wins
-  over a re-import. A `thing` ev does not know is not a failure: the import answers it as
-  `imported.things_unknown: [{key, thing}]` and leaves the line unlinked. `period` is kept with
-  the line (`ev buy show`), and ev reads no meaning into it.
+- **The import ties it** (schema 37): a `service` line is *about* a thing, not a unit of it, so it
+  is not linked (a link counts what a thing was bought as, and stats and portions read links that
+  way): the line keeps `about`, the record it is about. A `durable` line carrying `thing` is
+  linked as a purchase is, all of its open units, once. Either way a line already tied or linked
+  is left as it is, so the person's own word wins over a re-import. A `thing` ev does not know
+  is not a failure: the import answers it as `imported.things_unknown: [{key, thing}]` and
+  leaves the line as it is. `period` is a column of the line (`ev buy show`); ev reads no
+  meaning into it. By hand: `ev buy about <line> <ref>` ties a service line (from any source)
+  to a thing, `--clear` unties it.
 - **What a thing costs** (`ev show` → `cost`, by currency, never converted):
-  `bought` (its linked durable lines' share of what was paid), `upkeep` (its linked service lines,
+  `bought` (its linked lines' share of what was paid), `upkeep` (the service lines about it,
   refunds counted negative), `cover` (premiums of the coverages on it), `sold` (what a sale
   brought), and `value` (its latest valuation, apart: what it is worth, not what it cost). The
   text output and `ev ui`'s summary show it as one "Money" block; nothing is summed across

@@ -30,7 +30,7 @@ Decided with the person on 2026-10-07, through the inventory agent.
   first-aid kit) is neither, as today.
 - **A home is left when it is empty.** `ev gone <home> --as moved` (a rented or lent home moved
   out of; `moved` is a home's only), or `--as sell` with `ev sold` for one that was owned.
-  - Its rooms are its structure and leave with it.
+  - Its rooms are its structure and leave with it, as a vehicle's compartments do when it goes.
   - Everything else must be moved (`ev move … <new home>`) or gone (`--as left` for what stayed
     behind) first. The refusal lists what is left, by room, with the commands, so leaving a home
     is a short guided batch.

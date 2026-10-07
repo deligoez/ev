@@ -54,7 +54,8 @@ impl App {
         let n = ["remembered", "left_inventory"]
             .iter()
             .map(|k| v[k]["past"].as_array().map_or(0, Vec::len))
-            .sum();
+            .sum::<usize>()
+            + v["homes_and_vehicles"].as_array().map_or(0, Vec::len);
         self.counts.insert(Tab::Past, n);
         self.count_purchases()
     }
@@ -543,6 +544,43 @@ impl App {
                 .collect::<Vec<_>>()
                 .join(" + ")
         };
+        // The homes and vehicles, here now or before, lead under a heading of their own
+        // (spec/vehicles-homes.md).
+        let homes = v["homes_and_vehicles"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        if !homes.is_empty() {
+            let id = PAST_LIST - 2;
+            let open = !self.collapsed.contains(&id);
+            out.push(Row {
+                id,
+                depth: 0,
+                spans: vec![Span::styled(
+                    tf("Homes and vehicles ({})", &[&homes.len()]),
+                    Style::new().fg(pal().blue).bold(),
+                )],
+                expandable: true,
+                expanded: open,
+            });
+            if open {
+                for h in &homes {
+                    let line = crate::render::home_line(h);
+                    // The id is the row's own, not repeated in it.
+                    let line = line
+                        .split_once(' ')
+                        .map_or(line.as_str(), |(_, r)| r)
+                        .trim_start();
+                    out.push(Row {
+                        id: h["id"].as_i64().unwrap_or_default(),
+                        depth: 1,
+                        spans: vec![Span::raw(line.to_string())],
+                        expandable: false,
+                        expanded: false,
+                    });
+                }
+            }
+        }
         // Two lists, remembered first (decided with the person, 2026-10-06), each a heading
         // that opens and closes, with its years under it.
         let lists = [

@@ -2976,11 +2976,22 @@ pub fn human(v: &Value) -> String {
         v.get("left_inventory").filter(|l| l.is_object()),
     ) {
         let count = |l: &Value| l["past"].as_array().map_or(0, Vec::len);
-        if count(remembered) + count(recorded) == 0 {
+        let homes = v["homes_and_vehicles"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        if count(remembered) + count(recorded) + homes.len() == 0 {
             let _ = writeln!(out, "{}", t("(nothing past)"));
             return out;
         }
-        let mut first = true;
+        // Where we lived and what we drove, here now or before, lead (spec/vehicles-homes.md).
+        let mut first = homes.is_empty();
+        if !homes.is_empty() {
+            let _ = writeln!(out, "{}", tf("Homes and vehicles ({})", &[&homes.len()]));
+            for h in &homes {
+                let _ = writeln!(out, "  {}", home_line(h));
+            }
+        }
         for (l, head) in [
             (remembered, "Remembered ({})"),
             (recorded, "Left the inventory ({})"),
@@ -3052,6 +3063,61 @@ pub fn human(v: &Value) -> String {
     }
     let _ = writeln!(out, "{v}");
     out
+}
+
+/// A home or a vehicle in `ev past`: its name and plate, then when it came and left, how, its
+/// address, what was paid (and that today) and what a sale brought.
+pub(crate) fn home_line(h: &Value) -> String {
+    let mut parts = Vec::new();
+    let came = h["came"].as_str();
+    match (came, h["left"].as_str(), h["state"] == "gone") {
+        (_, Some(l), _) => parts.push(format!("{} → {l}", came.unwrap_or("?"))),
+        (_, None, true) => parts.push(format!("{} → ?", came.unwrap_or("?"))),
+        (Some(c), None, false) => parts.push(tf("since {}", &[&c])),
+        (None, None, false) => parts.push(t("ours now").to_string()),
+    }
+    if let Some(how) = h["how"].as_str() {
+        parts.push(crate::history::left_as(how).to_string());
+    }
+    if let Some(a) = h["address"].as_str() {
+        parts.push(a.to_string());
+    }
+    let paid: Vec<String> = h["paid"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(c, a)| amount(a.as_str().unwrap_or_default(), c))
+        .collect();
+    if !paid.is_empty() {
+        let mut p = tf("paid {}", &[&paid.join(" + ")]);
+        if let Some(t) = h["paid_today"].as_object() {
+            let today = amount(
+                t["amount"].as_str().unwrap_or_default(),
+                t["currency"].as_str().unwrap_or_default(),
+            );
+            p = format!("{p} ({})", tf("{} today", &[&today]));
+        }
+        parts.push(p);
+    }
+    if let Some(g) = h["got"].as_object() {
+        parts.push(tf(
+            "got {}",
+            &[&amount(
+                g["price"].as_str().unwrap_or_default(),
+                g["currency"].as_str().unwrap_or_default(),
+            )],
+        ));
+    }
+    let name = match h["code"].as_str() {
+        Some(c) => format!("{c}  {}", s(h, "name")),
+        None => s(h, "name"),
+    };
+    format!(
+        "#{:<4} {name} ({})  {}",
+        h["id"],
+        kind(&s(h, "kind")),
+        parts.join(" · ")
+    )
 }
 
 /// What an edit changed, a field a line: `note: old → new`, or `note: + added` when the new

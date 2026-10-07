@@ -109,6 +109,71 @@ pub fn empty_said(e: &Value) -> String {
     }
 }
 
+/// A kind of upkeep in words.
+fn upkeep_kind(kind: &str) -> &'static str {
+    match kind {
+        "repair" => t("repair"),
+        "service" => t("service"),
+        "inspection" => t("inspection"),
+        _ => t("upkeep"),
+    }
+}
+
+/// One piece of upkeep on a line: `#id date kind: work  (82,000 km) · by … · next …`.
+fn upkeep_line(u: &Value) -> String {
+    let mut parts = vec![format!(
+        "#{} {} {}: {}",
+        u["id"],
+        s(u, "at"),
+        upkeep_kind(&s(u, "kind")),
+        s(u, "work")
+    )];
+    if let Some(km) = u["km"].as_i64() {
+        parts.push(tf("{} km", &[&km]));
+    }
+    if let Some(by) = u["by"].as_str() {
+        parts.push(tf("by {}", &[&by]));
+    }
+    let next: Vec<String> = [
+        u["next_at"].as_str().map(str::to_string),
+        u["next_km"].as_i64().map(|k| tf("{} km", &[&k])),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if !next.is_empty() {
+        parts.push(tf("next: {}", &[&next.join(" / ")]));
+    }
+    if let Some(d) = u["doc"].as_i64() {
+        parts.push(tf("document #{}", &[&d]));
+    }
+    parts.join(" · ")
+}
+
+/// How soon a piece of upkeep is due: days and kilometres left, or past.
+fn upkeep_due_text(u: &Value) -> String {
+    let mut parts = Vec::new();
+    if let Some(d) = u["days_left"].as_i64() {
+        parts.push(if d < 0 {
+            tf("{} days past", &[&-d])
+        } else {
+            tf("in {} days", &[&d])
+        });
+    }
+    if let Some(k) = u["km_left"].as_i64() {
+        parts.push(if k < 0 {
+            tf("{} km past", &[&-k])
+        } else {
+            tf("in {} km", &[&k])
+        });
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!("  ({})", parts.join(", "))
+    }
+}
+
 /// What is only a guess about a record (spec/guesses.md), after it on its line: the record
 /// itself with what was said, then each field. Empty when nothing is.
 fn guess_text(n: &Value) -> String {
@@ -1238,6 +1303,18 @@ fn todo(out: &mut String, v: &Value) {
                     .unwrap_or_default();
                 let _ = writeln!(out, "  {id}{}{extra}", s(n, "path_text"));
             }
+        }
+    }
+    // Repairs and maintenance due again, by date or odometer (spec/repairs.md).
+    if head(out, t("Upkeep due"), &c["upkeep_due"]) {
+        for u in v["upkeep_due"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {}{}",
+                s(&u["node"], "path_text"),
+                upkeep_due_text(u)
+            );
+            let _ = writeln!(out, "    {}", upkeep_line(u));
         }
     }
     // Only a photo needed now is listed; a place not counted yet gets its photo on its tour.
@@ -2985,6 +3062,28 @@ fn human_body(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
+    // `ev upkeep add` / `edit`: the piece of work as it stands.
+    if let Some(u) = v.get("upkeep").filter(|u| u.is_object()) {
+        let _ = writeln!(out, "{}", line(&u["node"]));
+        let _ = writeln!(out, "  {}", upkeep_line(u));
+        return out;
+    }
+    // `ev upkeep list`: newest first, or what is due with how soon.
+    if let Some(list) = v.get("upkeep").and_then(Value::as_array) {
+        if list.is_empty() {
+            let _ = writeln!(out, "{}", t("(none)"));
+        }
+        for u in list {
+            let _ = writeln!(out, "{}{}", s(&u["node"], "path_text"), upkeep_due_text(u));
+            let _ = writeln!(out, "  {}", upkeep_line(u));
+        }
+        return out;
+    }
+    // `ev upkeep remove`: what was dropped.
+    if let Some(u) = v.get("removed").filter(|u| u.get("work").is_some()) {
+        let _ = writeln!(out, "{}", tf("Removed: {}", &[&upkeep_line(u)]));
+        return out;
+    }
     // `ev unobserve` of several: how many went, and from where.
     if let Some(list) = v.get("unobserved").and_then(Value::as_array) {
         let _ = writeln!(
@@ -3600,6 +3699,10 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     let guess = guess_text(v);
     if !guess.is_empty() {
         let _ = writeln!(out, "  {}", guess.trim());
+    }
+    // What was done to it, newest first (spec/repairs.md).
+    for u in v["upkeep"].as_array().into_iter().flatten() {
+        let _ = writeln!(out, "  {}", upkeep_line(u));
     }
     for (key, label) in [
         ("make", t("make")),

@@ -446,7 +446,15 @@ enum Cmd {
         note: Option<String>,
     },
     /// A broken node was fixed.
-    Fixed { reference: String },
+    Fixed {
+        reference: String,
+        /// What was done to fix it: also recorded as a repair (`ev upkeep`), dated today.
+        #[arg(long)]
+        work: Option<String>,
+        /// Who fixed it, with --work.
+        #[arg(long, requires = "work")]
+        by: Option<String>,
+    },
     /// Record a use-by date (YYYY-MM-DD or YYYY-MM), or --clear it.
     Expires {
         reference: String,
@@ -482,6 +490,11 @@ enum Cmd {
     /// manufacturer --term 2y`; `ev cover list --ending`.
     #[command(subcommand)]
     Cover(CoverCmd),
+    /// Repairs and maintenance: what was done to a thing and when it is due again (spec/
+    /// repairs.md). `ev upkeep add <ref> --kind service --work "oil change" --km 82000
+    /// --next 2027-04 --next-km 97000`; `ev upkeep list --due`. What it cost is ak's.
+    #[command(subcommand)]
+    Upkeep(UpkeepCmd),
     /// Money over time: the cached price index and exchange rates that give a purchase price in
     /// today's money. `ev money needs | tools/money/fetch.py | ev money import --stdin`.
     #[command(subcommand)]
@@ -820,6 +833,55 @@ struct CoverAddArgs {
     /// the line, and its price is the premium when none is given.
     #[arg(long, value_parser = record_id)]
     purchase: Option<i64>,
+}
+
+#[derive(Subcommand)]
+enum UpkeepCmd {
+    /// A piece of work done to a thing: a repair, a service or an inspection.
+    Add {
+        reference: String,
+        /// repair, service or inspection.
+        #[arg(long)]
+        kind: String,
+        /// What was done, in the person's words.
+        #[arg(long)]
+        work: String,
+        /// When: a date or a partial one (2024, 2024-06); today when left out.
+        #[arg(long)]
+        at: Option<String>,
+        /// The odometer then, in km (a vehicle).
+        #[arg(long)]
+        km: Option<i64>,
+        /// Who did it: a shop, a technician, "ourselves".
+        #[arg(long)]
+        by: Option<String>,
+        /// When it is due again: YYYY-MM-DD or YYYY-MM.
+        #[arg(long)]
+        next: Option<String>,
+        /// The odometer at which it is due again.
+        #[arg(long)]
+        next_km: Option<i64>,
+        /// The invoice or service form, a document's id (`ev doc add`).
+        #[arg(long)]
+        doc: Option<i64>,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// A thing's upkeep, newest first, or every thing's; --due only what is due within 60 days
+    /// or 1,000 km, or past due.
+    List {
+        reference: Option<String>,
+        #[arg(long)]
+        due: bool,
+    },
+    /// Correct a piece of work: kind, work, at, km, by, next_at, next_km, doc, note.
+    Edit {
+        id: i64,
+        #[arg(required = true)]
+        fields: Vec<String>,
+    },
+    /// Drop a piece of work recorded by mistake; the thing's history keeps it.
+    Remove { id: i64 },
 }
 
 #[derive(Subcommand)]
@@ -2241,7 +2303,27 @@ fn run(cli: Cli) -> Result<Value> {
             inv.edit_batch(&lines)
         }
         Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
-        Cmd::Fixed { reference } => inv.broken(&reference, None, true),
+        Cmd::Fixed {
+            reference,
+            work,
+            by,
+        } => {
+            let mut v = inv.broken(&reference, None, true)?;
+            // What was done is the thing's repair record too (spec/repairs.md).
+            if let Some(work) = work {
+                let r = inv.upkeep_add(
+                    &reference,
+                    &ev_core::NewUpkeep {
+                        kind: "repair".into(),
+                        work,
+                        by,
+                        ..Default::default()
+                    },
+                )?;
+                v["upkeep_added"] = r["upkeep"].clone();
+            }
+            Ok(v)
+        }
         Cmd::Expires {
             reference,
             date,
@@ -2397,6 +2479,36 @@ fn run(cli: Cli) -> Result<Value> {
             }
         }
         Cmd::Cover(CoverCmd::List { ending }) => inv.cover_list(ending),
+        Cmd::Upkeep(UpkeepCmd::Add {
+            reference,
+            kind,
+            work,
+            at,
+            km,
+            by,
+            next,
+            next_km,
+            doc,
+            note,
+        }) => inv.upkeep_add(
+            &reference,
+            &ev_core::NewUpkeep {
+                kind,
+                work,
+                at,
+                km,
+                by,
+                next_at: next,
+                next_km,
+                doc,
+                note,
+            },
+        ),
+        Cmd::Upkeep(UpkeepCmd::List { reference, due }) => {
+            inv.upkeep_list(reference.as_deref(), due)
+        }
+        Cmd::Upkeep(UpkeepCmd::Edit { id, fields }) => inv.upkeep_edit(id, &fields),
+        Cmd::Upkeep(UpkeepCmd::Remove { id }) => inv.upkeep_remove(id),
         Cmd::Money(MoneyCmd::Needs) => inv.money_needs(),
         Cmd::Money(MoneyCmd::Status) => inv.money_status(),
         Cmd::Money(MoneyCmd::Import { file, stdin }) => {

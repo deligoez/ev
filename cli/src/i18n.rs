@@ -1482,6 +1482,20 @@ static TR: &[(&str, &str)] = &[
         " Go to a list, a place, a thing or #id · > a command ",
         " Git: bir liste, bir yer, bir eşya ya da #id · > bir komut ",
     ),
+    // Repairs and maintenance (spec/repairs.md).
+    ("Removed: {}", "Silindi: {}"),
+    ("Upkeep due", "Vadesi gelen bakımlar"),
+    ("by {}", "yapan: {}"),
+    ("document #{}", "belge #{}"),
+    ("in {} km", "{} km sonra"),
+    ("inspection", "muayene"),
+    ("next: {}", "sonraki: {}"),
+    ("repair", "onarım"),
+    ("service", "bakım"),
+    ("upkeep", "bakım kaydı"),
+    ("{} days past", "{} gün geçti"),
+    ("{} km", "{} km"),
+    ("{} km past", "{} km geçti"),
     // A place just emptied (spec/emptied-place.md).
     (
         "{} is empty now; what it says is about what was in it:",

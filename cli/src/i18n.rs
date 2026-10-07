@@ -1438,19 +1438,31 @@ static TR: &[(&str, &str)] = &[
     // The screen's commands, as `:` offers them (ui/commands.rs).
     ("Search everything", "Her yerde ara"),
     ("Map of the home", "Evin haritası"),
-    ("Show or hide the sidebar", "Kenar çubuğunu göster ya da gizle"),
+    (
+        "Show or hide the sidebar",
+        "Kenar çubuğunu göster ya da gizle",
+    ),
     ("Narrower list", "Listeyi daralt"),
     ("Wider list", "Listeyi genişlet"),
-    ("Widen the details, or put them back", "Ayrıntıyı genişlet ya da geri al"),
+    (
+        "Widen the details, or put them back",
+        "Ayrıntıyı genişlet ya da geri al",
+    ),
     (
         "Copy: the #id and name, or the document",
         "Kopyala: #id ve adı, ya da belgeyi",
     ),
-    ("Show or hide the empty fields", "Boş alanları göster ya da gizle"),
+    (
+        "Show or hide the empty fields",
+        "Boş alanları göster ya da gizle",
+    ),
     ("Next details tab", "Sonraki ayrıntı sekmesi"),
     ("Previous details tab", "Önceki ayrıntı sekmesi"),
     ("Next place of this thing", "Bu eşyanın bir sonraki yeri"),
-    ("Filter: open, linked, dismissed", "Süz: açık, bağlı, kapatılmış"),
+    (
+        "Filter: open, linked, dismissed",
+        "Süz: açık, bağlı, kapatılmış",
+    ),
     ("Open everything below", "Altındaki her şeyi aç"),
     ("Close everything below", "Altındaki her şeyi kapat"),
     ("Open two levels", "İki seviye aç"),
@@ -1461,8 +1473,14 @@ static TR: &[(&str, &str)] = &[
     ("Rotate the photo left", "Fotoğrafı sola döndür"),
     ("Smaller photo", "Fotoğrafı küçült"),
     ("Larger photo", "Fotoğrafı büyüt"),
-    ("Reopen the marked photo series", "İşaretli fotoğraf dizisini yeniden aç"),
-    ("Close the marked photo series", "İşaretli fotoğraf dizisini kapat"),
+    (
+        "Reopen the marked photo series",
+        "İşaretli fotoğraf dizisini yeniden aç",
+    ),
+    (
+        "Close the marked photo series",
+        "İşaretli fotoğraf dizisini kapat",
+    ),
     ("Quit", "Çık"),
     ("nothing found", "bir şey bulunamadı"),
     ("    Esc ‹ {}", "    Esc ‹ {}"),

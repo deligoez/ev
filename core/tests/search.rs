@@ -81,7 +81,7 @@ fn a_match_in_the_name_ranks_above_one_in_the_note() {
 fn empty_lists_the_containers_known_to_hold_nothing_and_follows_what_moves() {
     let (_d, mut inv) = setup();
     let list = |inv: &Inventory, key: &str| -> Vec<String> {
-        inv.find_with("", None, None, false, true).unwrap()[key]
+        inv.find_with("", &[], None, false, true).unwrap()[key]
             .as_array()
             .unwrap()
             .iter()
@@ -144,7 +144,7 @@ fn siblings_come_by_kind_then_by_code_read_naturally_then_by_name() {
 fn a_box_the_person_calls_empty_is_known_empty_and_one_with_things_is_refused() {
     let (_d, mut inv) = setup();
     let results = |inv: &Inventory| -> Vec<String> {
-        inv.find_with("", None, None, false, true).unwrap()["results"]
+        inv.find_with("", &[], None, false, true).unwrap()["results"]
             .as_array()
             .unwrap()
             .iter()
@@ -214,7 +214,7 @@ fn a_lost_thing_last_seen_in_a_box_does_not_keep_it_from_being_empty() {
         .mark_empty(&["Kablo çantası".into()], Some("boşaldı"))
         .unwrap();
     assert_eq!(v["empty"][0]["name"], "Kablo çantası");
-    let found = inv.find_with("", None, None, false, true).unwrap();
+    let found = inv.find_with("", &[], None, false, true).unwrap();
     assert!(
         found["results"]
             .as_array()
@@ -234,7 +234,7 @@ fn a_box_set_back_to_raw_is_no_longer_known_empty() {
     let (_d, mut inv) = setup();
     inv.mark_empty(&["Kablo çantası".into()], None).unwrap();
     let names = |inv: &Inventory, key: &str| -> Vec<String> {
-        inv.find_with("", None, None, false, true).unwrap()[key]
+        inv.find_with("", &[], None, false, true).unwrap()[key]
             .as_array()
             .unwrap()
             .iter()
@@ -336,7 +336,7 @@ fn any_finds_several_texts_in_one_list_each_record_once() {
         "kırmızı".to_string(),
         "zigbee".to_string(),
     ];
-    let v = inv.find_any(&texts, None, None, false).unwrap();
+    let v = inv.find_any(&texts, &[], None, false).unwrap();
     let results = v["results"].as_array().unwrap();
     let names: Vec<&str> = results
         .iter()

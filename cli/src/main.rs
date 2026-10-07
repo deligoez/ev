@@ -67,8 +67,9 @@ enum Cmd {
         /// Each text on its own, the results in one list: `--any "raspberry pi" esp32 sensör`.
         #[arg(long, conflicts_with = "empty")]
         any: bool,
+        /// Only records with this tag; several: with any of them.
         #[arg(long)]
-        tag: Option<String>,
+        tag: Vec<String>,
         #[arg(long)]
         kind: Option<String>,
         #[arg(long)]
@@ -1917,9 +1918,9 @@ fn run(cli: Cli) -> Result<Value> {
         } => {
             let kind = kind.map(|k| k.parse::<Kind>()).transpose()?;
             if any {
-                return inv.find_any(&text, tag.as_deref(), kind, include_gone);
+                return inv.find_any(&text, &tag, kind, include_gone);
             }
-            inv.find_with(&text.join(" "), tag.as_deref(), kind, include_gone, empty)
+            inv.find_with(&text.join(" "), &tag, kind, include_gone, empty)
         }
         Cmd::Edit { stdin: true, .. } => {
             let text = read_input()?;

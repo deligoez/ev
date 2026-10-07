@@ -382,25 +382,27 @@ impl Inventory {
         kind: Option<Kind>,
         include_gone: bool,
     ) -> Result<Value> {
-        self.find_with(text, tag, kind, include_gone, false)
+        let tags: Vec<String> = tag.map(str::to_string).into_iter().collect();
+        self.find_with(text, &tags, kind, include_gone, false)
     }
 
     /// `find`, and with `empty` only the containers nothing is in: worked out from the records,
-    /// so it never goes stale the way a hand-kept "empty" tag does.
+    /// so it never goes stale the way a hand-kept "empty" tag does. With several `tags`, a
+    /// record carrying any of them (spec/find-any.md).
     pub fn find_with(
         &self,
         text: &str,
-        tag: Option<&str>,
+        tags: &[String],
         kind: Option<Kind>,
         include_gone: bool,
         empty: bool,
     ) -> Result<Value> {
         let query = search::Query::parse(&self.conn, text)?;
         // Without text a filter must narrow it: `--tag x` alone lists everything tagged x.
-        if query.is_empty() && tag.is_none() && kind.is_none() && !empty {
+        if query.is_empty() && tags.is_empty() && kind.is_none() && !empty {
             return Err(usage("search_text_empty", Value::Null));
         }
-        let tag = tag.map(|t| t.trim().to_lowercase());
+        let tags: Vec<String> = tags.iter().map(|t| t.trim().to_lowercase()).collect();
         let filled: std::collections::HashSet<i64> = ids(
             &self.conn,
             // A lost thing is not in its last-seen place (as in `tree`).
@@ -420,7 +422,7 @@ impl Inventory {
             let archived = n.disposition == Some(Disposition::Digitize);
             if (n.state == State::Gone && !include_gone && !archived)
                 || kind.is_some_and(|k| k != n.kind)
-                || tag.as_ref().is_some_and(|t| !n.tags.contains(t))
+                || !tags.is_empty() && !tags.iter().any(|t| n.tags.contains(t))
                 || empty
                     && (n.kind != Kind::Container || n.state == State::Gone || filled.contains(&id))
             {
@@ -487,7 +489,7 @@ impl Inventory {
     pub fn find_any(
         &self,
         texts: &[String],
-        tag: Option<&str>,
+        tags: &[String],
         kind: Option<Kind>,
         include_gone: bool,
     ) -> Result<Value> {
@@ -502,7 +504,7 @@ impl Inventory {
         let mut results: Vec<Value> = Vec::new();
         let mut per_text = serde_json::Map::new();
         for text in &texts {
-            let found = self.find_with(text, tag, kind, include_gone, false)?;
+            let found = self.find_with(text, tags, kind, include_gone, false)?;
             let list = found["results"].as_array().cloned().unwrap_or_default();
             per_text.insert(text.to_string(), json!(list.len()));
             for mut r in list {

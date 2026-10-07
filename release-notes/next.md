@@ -111,3 +111,13 @@ in `ev ui`.
 Upkeep also learned a first due date with nothing done yet, for a new car's first inspection:
 `ev upkeep due <ref> --kind inspection --next 2029-04`; the inspection recorded later
 answers it. `ev upkeep list` names each thing once, its work under it. Schema 37.
+
+## Purchase lists to work through
+
+From the inventory agent's list of needs: `ev buy list` narrows by `--month` and `--currency`
+and sorts the dearest first with `--sort paid`. `ev buy things <line>` names the records a line
+could be, best first with the reasons: `ev buy for` read the other way. `ev buy list --duplicates`
+shows open lines that look like one purchase seen twice (the same name, amount and currency,
+bought within three days), for the person to join or dismiss; and `ev buy list --by-place`
+groups the open durable lines under the place of the record each could best be, so a tour knows
+which purchases it may settle. Over one household's ~800 open lines it takes under a second.

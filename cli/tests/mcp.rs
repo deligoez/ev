@@ -134,6 +134,11 @@ async fn each_read_tool_answers_as_the_command_it_stands_for() {
             json!({ "tag": "led" }),
             json!(["find", "--tag", "led"]),
         ),
+        (
+            "find",
+            json!({ "any": ["led", "çekmece"] }),
+            json!(["find", "--any", "led", "çekmece"]),
+        ),
         ("show", json!({ "ref": "D" }), json!(["show", "D"])),
         (
             "suggest",

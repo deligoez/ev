@@ -157,6 +157,20 @@ fn contains(text: &str, part: &str) -> bool {
     }
 }
 
+/// Whether `text` names a synonym: the words of a phrase in a row, each a whole word of the
+/// text or its Turkish stem (`ekranlı` names `ekran`), never the start of another word
+/// (`displayport` does not name `display`).
+fn names(text: &str, phrase: &str) -> bool {
+    let want: Vec<&str> = words(phrase).collect();
+    let have: Vec<&str> = words(text).collect();
+    if want.is_empty() || have.len() < want.len() {
+        return false;
+    }
+    let is = |t: &str, s: &str| t == s || candidates(t).iter().any(|c| c == s);
+    have.windows(want.len())
+        .any(|run| run.iter().zip(&want).all(|(t, s)| is(t, s)))
+}
+
 fn quality(w: &Word, text: &str, typos: bool) -> Option<f64> {
     if contains(text, &w.text) {
         let whole = words(text).any(|t| t == w.text);
@@ -170,7 +184,7 @@ fn quality(w: &Word, text: &str, typos: bool) -> Option<f64> {
     {
         return Some(STEM);
     }
-    if w.synonyms.iter().any(|s| contains(text, s)) {
+    if w.synonyms.iter().any(|s| names(text, s)) {
         return Some(SYNONYM);
     }
     let allowed = match w.text.chars().count() {

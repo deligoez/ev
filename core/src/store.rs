@@ -1009,16 +1009,42 @@ impl Inventory {
         at: Option<&str>,
         place: Option<&str>,
     ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let (id, warnings) =
+            Self::gone_in(&tx, reference, disposition, why, shred, qty, at, place)?;
+        tx.commit()?;
+        let mut v = show(&self.conn, id)?;
+        if !warnings.is_empty() {
+            v["warnings"] = json!(warnings);
+        }
+        Ok(v)
+    }
+
+    /// One leaving inside the caller's transaction, for `gone_left` and for a part of
+    /// `ev split` that leaves at once: the record that left, and any warnings.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each is a fact of the leaving the person may say"
+    )]
+    fn gone_in(
+        tx: &Connection,
+        reference: &str,
+        disposition: Option<Disposition>,
+        why: Option<&str>,
+        shred: bool,
+        qty: Option<i64>,
+        at: Option<&str>,
+        place: Option<&str>,
+    ) -> Result<(i64, Vec<String>)> {
         let why = why.map(str::trim).filter(|w| !w.is_empty());
         not_merged(disposition)?;
         if disposition == Some(Disposition::Mistake) && why.is_none() {
             return Err(usage("mistake_needs_why", Value::Null));
         }
-        let tx = self.conn.transaction()?;
-        let node = load(&tx, resolve(&tx, reference, false)?)?;
+        let node = load(tx, resolve(tx, reference, false)?)?;
         // A part leaving is split off first; a sale listed on the whole is still its listing.
         let listed_on = node.id;
-        let node = crate::portions::take(&tx, node, qty)?;
+        let node = crate::portions::take(tx, node, qty)?;
         if node.state == State::Active && disposition.is_none() {
             return Err(refuse(
                 "gone_needs_how",
@@ -1028,8 +1054,8 @@ impl Inventory {
         }
         check_home_leaving(&node, disposition)?;
         // A home's rooms and a vehicle's compartments are its structure: they leave with it.
-        let structure = structure_of(&tx, &node)?;
-        let inside = require_empty_but(&tx, &node, &structure)?;
+        let structure = structure_of(tx, &node)?;
+        let inside = require_empty_but(tx, &node, &structure)?;
         let leaving = disposition
             .or(node.disposition)
             .unwrap_or(Disposition::Trash);
@@ -1044,27 +1070,27 @@ impl Inventory {
                 n.disposition
             };
             if d == Some(Disposition::Digitize) {
-                warnings.extend(require_copy(&tx, n)?);
+                warnings.extend(require_copy(tx, n)?);
             }
         }
         let final_disposition = match (node.state, disposition) {
             (State::Active, Some(d)) => {
-                set_candidate(&tx, node.id, d)?;
+                set_candidate(tx, node.id, d)?;
                 d
             }
             (_, Some(d)) => d,
             (_, None) => leaving,
         };
         if shred {
-            crate::marks::mark_shred(&tx, node.id)?;
+            crate::marks::mark_shred(tx, node.id)?;
         }
         tx.execute(
             "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
             params![final_disposition.as_str(), node.id],
         )?;
-        past::set_departure(&tx, node.id, at, place)?;
+        past::set_departure(tx, node.id, at, place)?;
         if final_disposition == Disposition::Sell {
-            past::carry_sale(&tx, node.id, listed_on)?;
+            past::carry_sale(tx, node.id, listed_on)?;
         } else {
             // Not sold after all: a price said while it waited (`ev sold`) no longer stands.
             tx.execute(
@@ -1074,8 +1100,8 @@ impl Inventory {
         }
         // Gone, it is on sale no more; a part that left leaves the rest still listed.
         if listed_on == node.id {
-            crate::marks::clear_mark(&tx, node.id, "sale")?;
-            crate::marks::clear_mark(&tx, node.id, "condition")?;
+            crate::marks::clear_mark(tx, node.id, "sale")?;
+            crate::marks::clear_mark(tx, node.id, "condition")?;
         }
         if let Some(w) = why {
             let note = match node.note.as_deref() {
@@ -1087,9 +1113,9 @@ impl Inventory {
                 params![note, node.id],
             )?;
         }
-        touch(&tx, node.id)?;
+        touch(tx, node.id)?;
         event(
-            &tx,
+            tx,
             node.id,
             "gone",
             json!({ "as": final_disposition, "why": why, "dropped_pending": node.pending_to,
@@ -1101,9 +1127,9 @@ impl Inventory {
                 "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
                 params![final_disposition.as_str(), n.id],
             )?;
-            touch(&tx, n.id)?;
+            touch(tx, n.id)?;
             event(
-                &tx,
+                tx,
                 n.id,
                 "gone",
                 json!({ "as": final_disposition, "with": node.id }),
@@ -1115,20 +1141,15 @@ impl Inventory {
                 "UPDATE nodes SET state = 'gone', pending_to = NULL WHERE id = ?1",
                 [n.id],
             )?;
-            touch(&tx, n.id)?;
+            touch(tx, n.id)?;
             event(
-                &tx,
+                tx,
                 n.id,
                 "gone",
                 json!({ "as": n.disposition, "with": node.id, "dropped_pending": n.pending_to }),
             )?;
         }
-        tx.commit()?;
-        let mut v = show(&self.conn, node.id)?;
-        if !warnings.is_empty() {
-            v["warnings"] = json!(warnings);
-        }
-        Ok(v)
+        Ok((node.id, warnings))
     }
 
     /// Every candidate grouped by disposition. A candidate held by another candidate leaves

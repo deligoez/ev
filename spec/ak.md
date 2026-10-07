@@ -13,8 +13,10 @@ is made in both repositories.
   subscription, a bill or groceries stay in ak.
 - **The key:** `source: "ak"`, and `key` the bare id of ak's payment (`412`) when the whole
   payment is one thing, or the payment's id and the item's place in it (`412.2`) when a payment
-  holds several lines and only some are things (a pot on a grocery receipt). An item's place in
-  its payment is fixed: ak follows its decisions by the item, not by the receipt's order. ak
+  holds several lines and only some are things (a pot on a grocery receipt). The item's number
+  is ak's and never given to another item, even when a receipt read again reorders its lines (a
+  new item takes the next free number); ev reads the key as opaque text, `--key 412` matching
+  `412` and every `412.<n>`. ak
   never changes nor reuses a payment id. ev keys a line by (`source`, `key`), so the same line
   imported again updates it and never adds a second.
 - **Whole or items, never both** (agreed 2026-10-07, ak's spec §5): a payment goes to ev either

@@ -99,6 +99,15 @@ fn series_of(req: &Value) -> Vec<Marked> {
         .collect()
 }
 
+/// The record a task's `--on` names. A task may be about a record that left (a former home
+/// whose dates are still to find), as an edit may; one still here is found first.
+fn task_node(conn: &Connection, reference: &str) -> Result<i64> {
+    match resolve(conn, reference, false) {
+        Err(e) if e.is_not_found() => resolve(conn, reference, true),
+        found => found,
+    }
+}
+
 /// Why a place is not toured yet, one line per place that holds it back (its own photo, or a
 /// box's in its grid): no photo at all, or one older than its last change (by how many minutes
 /// when that is little, since the records may only have caught up with the photo), then what
@@ -1597,14 +1606,9 @@ impl Inventory {
         let why = non_empty("why", why)?;
         let due = parse_due(due)?;
         let tx = self.conn.transaction()?;
-        // A task may be about a record that left (a former home whose dates are still to find),
-        // as an edit may: one here is found first.
         let nodes = on
             .iter()
-            .map(|r| match resolve(&tx, r, false) {
-                Err(e) if e.is_not_found() => resolve(&tx, r, true),
-                found => found,
-            })
+            .map(|r| task_node(&tx, r))
             .collect::<Result<Vec<_>>>()?;
         let t = now();
         tx.execute(
@@ -1765,7 +1769,7 @@ impl Inventory {
             )?;
         }
         for r in add {
-            let n = resolve(&tx, r, false)?;
+            let n = task_node(&tx, r)?;
             tx.execute(
                 "INSERT OR IGNORE INTO task_nodes (task_id, node_id) VALUES (?1, ?2)",
                 params![id, n],

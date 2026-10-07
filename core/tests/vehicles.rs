@@ -68,3 +68,28 @@ fn a_vehicle_stands_at_the_top_and_is_never_inside_anything_nor_lost() {
         .collect();
     assert_eq!(roots, [("Ev", "home"), ("Aile arabası", "vehicle")]);
 }
+
+#[test]
+fn a_vehicles_plate_needs_no_label_and_a_past_vehicle_keeps_it() {
+    let (_d, mut inv) = setup();
+    let car = inv.show("34 ABC 123", false).unwrap();
+    assert!(car["marks"]["label"].is_null(), "{}", car["marks"]);
+    // A box's new code still asks for a label.
+    let shelf = inv.show("R-1", false).unwrap();
+    assert_eq!(shelf["marks"]["label"]["value"], "needed");
+    // A car that was sold is recorded with the last plate it carried.
+    add(
+        &mut inv,
+        NewNode {
+            code: Some("06 XY 99".into()),
+            gone: Some("sell".into()),
+            came: Some("2018-03".into()),
+            at: Some("2026-04-08".into()),
+            ..node("Eski araba", "vehicle", None)
+        },
+    )
+    .unwrap();
+    let juke = inv.show("06 XY 99", true).unwrap();
+    assert_eq!(juke["node"]["state"], "gone");
+    assert!(juke["marks"]["label"].is_null());
+}

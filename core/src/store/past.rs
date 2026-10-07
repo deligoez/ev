@@ -77,7 +77,44 @@ pub(crate) fn left_of(conn: &Connection, node: i64) -> Result<Option<String>> {
     )?)
 }
 
-/// Records when and where a gone record left, keeping what a sale already said.
+/// The home of ours that was left which `text` names (its name, code or `#id`), if one does
+/// (spec/vehicles-homes.md): `--where` takes a former home before a place.
+pub(crate) fn former_home(conn: &Connection, text: &str) -> Result<Option<i64>> {
+    let t = text.trim();
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, name, code FROM nodes WHERE kind = 'home' AND state = 'gone' ORDER BY id",
+    )?;
+    let homes = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, Option<String>>(2)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let wanted = crate::fold::fold(t);
+    let by_id = t.trim_start_matches('#').parse::<i64>().ok();
+    let found: Vec<i64> = homes
+        .into_iter()
+        .filter(|(id, name, code)| {
+            Some(*id) == by_id
+                || crate::fold::fold(name) == wanted
+                || code
+                    .as_deref()
+                    .is_some_and(|c| crate::fold::fold(c) == wanted)
+        })
+        .map(|(id, _, _)| id)
+        .collect();
+    Ok(match found.as_slice() {
+        [one] => Some(*one),
+        _ => None,
+    })
+}
+
+/// Records when and where a gone record left, keeping what a sale already said. A former home
+/// of ours named as where it was is where the record now stands, so the home lists what was
+/// left in it; any other name is a place.
 pub(super) fn set_departure(
     conn: &Connection,
     node: i64,
@@ -92,6 +129,20 @@ pub(super) fn set_departure(
         && let Some(c) = came_of(conn, node)?
     {
         came_before_left(&c, a)?;
+    }
+    if let Some(home) = place.map(|p| former_home(conn, p)).transpose()?.flatten()
+        && home != node
+    {
+        conn.execute(
+            "UPDATE nodes SET parent_id = ?1, lost = 0 WHERE id = ?2",
+            params![home, node],
+        )?;
+        conn.execute(
+            "INSERT INTO departures (node_id, at) VALUES (?1, ?2)
+             ON CONFLICT(node_id) DO UPDATE SET at = COALESCE(excluded.at, at), place_id = NULL",
+            params![node, at],
+        )?;
+        return Ok(());
     }
     if place.is_some_and(|p| {
         let p = p.trim();
@@ -144,8 +195,10 @@ pub(crate) fn departure_json(conn: &Connection, node: i64) -> Result<Value> {
     );
     let row: Option<Row> = conn
         .query_row(
-            "SELECT d.at, p.name, d.price, d.currency, d.via, d.note
+            "SELECT d.at, COALESCE(p.name, h.name), d.price, d.currency, d.via, d.note
                FROM departures d LEFT JOIN places p ON p.id = d.place_id
+               JOIN nodes n ON n.id = d.node_id
+               LEFT JOIN nodes h ON h.id = n.parent_id AND h.kind = 'home'
               WHERE d.node_id = ?1",
             [node],
             |r| {
@@ -467,22 +520,26 @@ impl Inventory {
     /// `name` keeps those whose name holds the word; `place` those left in that place.
     pub fn past(&self, name: Option<&str>, place: Option<&str>) -> Result<Value> {
         let conn = &self.conn;
-        let place = place
-            .map(|p| super::places::resolve_place(conn, p))
-            .transpose()?;
+        // A former home of ours, else a place.
+        let home_where = place.map(|p| former_home(conn, p)).transpose()?.flatten();
+        let place = match (place, home_where) {
+            (Some(p), None) => Some(super::places::resolve_place(conn, p)?),
+            _ => None,
+        };
         let word = name.map(crate::fold::fold).filter(|w| !w.is_empty());
         let home = crate::money::home_currency(conn)?;
         // Remembered: it left before it was recorded, so it was added already gone, or gone with
         // a date said (decided with the person, 2026-10-06). A date said later (`ev sold --at`,
         // `ev edit left=`) dates the leaving but does not make it remembered.
         let mut stmt = conn.prepare(&format!(
-            "SELECT n.id, n.name, n.disposition, {CAME}, {LEFT}, pl.name, d.place_id,
-                    d.price, d.currency, d.via, n.qty, d.traded_for,
+            "SELECT n.id, n.name, n.disposition, {CAME}, {LEFT}, COALESCE(pl.name, h.name),
+                    COALESCE(d.place_id, -h.id), d.price, d.currency, d.via, n.qty, d.traded_for,
                     EXISTS (SELECT 1 FROM events e WHERE e.node_id = n.id AND e.type = 'gone'
                       AND (json_extract(e.data, '$.past') = 1
                         OR json_extract(e.data, '$.at') IS NOT NULL))
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
                LEFT JOIN places pl ON pl.id = d.place_id
+               LEFT JOIN nodes h ON h.id = n.parent_id AND h.kind = 'home' AND h.state = 'gone'
               WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}"
         ))?;
         type Row = (
@@ -551,7 +608,9 @@ impl Inventory {
             remembered,
         ) in rows
         {
-            if place.is_some() && place_id != place {
+            // A former home is told apart from a place by its negative id (see the query).
+            let wanted = home_where.map(|h| -h).or(place);
+            if wanted.is_some() && place_id != wanted {
                 continue;
             }
             if let Some(w) = &word

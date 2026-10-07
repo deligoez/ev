@@ -2471,7 +2471,10 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         if non_empty(&new.to).is_some() || new.temporary || code.is_some() {
             return Err(usage("past_no_place_fields", Value::Null));
         }
-        if non_empty(&new.place).is_some_and(|p| p.starts_with('#')) {
+        // An id names a former home of ours only; any other place goes by its name.
+        if let Some(p) = non_empty(&new.place).filter(|p| p.starts_with('#'))
+            && past::former_home(conn, &p)?.is_none()
+        {
             return Err(usage("past_where_is_a_place", Value::Null));
         }
     } else if non_empty(&new.at).is_some() || non_empty(&new.place).is_some() {

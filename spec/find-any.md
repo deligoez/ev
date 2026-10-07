@@ -28,6 +28,22 @@ and which were only guessed from a place never gone through.
   by several words (ekran, LCD, OLED, display) is a synonym group (`ev synonym add`), not a
   ranking rule.
 
+### A family of things is a tag, not a category tree (decided 2026-10-08)
+
+The inventory agent missed a whole shelf of smart-home devices when asked for "every Zigbee
+device": it read drawers with `ev tree` cut short. It asked for a category facet (electronics ›
+sensor › presence). One household's inventory already carries 90 tags on 249 of 923 records;
+a family of things is what a tag says, and a tree of categories would be a second, competing
+way to say it, with a schema and a vocabulary to keep. Tags stay the one way, with what was
+missing to use them for this:
+
+- **`ev find --tag a --tag b`**: a record carrying any of the tags (each tag alone, as before,
+  narrows to it). With text or `--any`, the tags narrow every text.
+- **`ev tag <tag> <ref>…`** tags several records in one step, all or none, as
+  `ev edit <ref> tags=+<tag>` does one; `--remove` takes the tag off. Tagging a family once
+  (`ev tag zigbee #12 #40 #41 …`) makes the question one call for good:
+  `ev find --tag zigbee`.
+
 ## Why
 
 Friction is a missing verb: an agent merging thirty-five answers by hand is ev lacking a
@@ -36,5 +52,4 @@ guesses, since that agent cannot tell.
 
 ## Not now
 
-- Categories (electronics › sensor › presence) to find a whole kind without naming its words:
-  a decision of its own (tags may be enough).
+- Categories (electronics › sensor › presence): decided against above; tags carry families.

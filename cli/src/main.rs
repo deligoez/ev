@@ -415,6 +415,15 @@ enum Cmd {
         #[arg(long)]
         needed: bool,
     },
+    /// Tag several records in one step, all or none, as `ev edit <ref> tags=+<tag>` does one;
+    /// --remove takes the tag off. A family of things is a tag: `ev find --tag <tag>`.
+    Tag {
+        tag: String,
+        #[arg(required = true)]
+        references: Vec<String>,
+        #[arg(long)]
+        remove: bool,
+    },
     /// Only a guess (spec/guesses.md): records known from what the person said and not seen
     /// yet, or with --field a field assumed (came, left, make, model, serial, qty, size, or
     /// cover:<id> for a coverage's end). --clear takes it back; editing a field clears its
@@ -2219,6 +2228,18 @@ fn run(cli: Cli) -> Result<Value> {
             note,
             clear,
         } => inv.guess(&references, &fields, note.as_deref(), clear),
+        Cmd::Tag {
+            tag,
+            references,
+            remove,
+        } => {
+            let sign = if remove { '-' } else { '+' };
+            let lines: Vec<(String, Vec<String>)> = references
+                .into_iter()
+                .map(|r| (r, vec![format!("tags={sign}{}", tag.trim())]))
+                .collect();
+            inv.edit_batch(&lines)
+        }
         Cmd::Broken { reference, note } => inv.broken(&reference, note.as_deref(), false),
         Cmd::Fixed { reference } => inv.broken(&reference, None, true),
         Cmd::Expires {

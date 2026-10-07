@@ -287,3 +287,36 @@ fn a_part_goes_to_its_place_or_leaves_in_the_same_step() {
             .contains("uçları kopuk")
     );
 }
+
+#[test]
+fn a_part_whose_place_is_unknown_undoes_the_whole_split() {
+    let (_d, mut inv) = setup();
+    let parts = [
+        ev_core::SplitPart {
+            name: "LM393 kart".into(),
+            ..Default::default()
+        },
+        ev_core::SplitPart {
+            name: "Kablo".into(),
+            to: Some("YOK-99".into()),
+            ..Default::default()
+        },
+    ];
+    assert!(
+        inv.split_parts("Toprak nemi seti", &parts, None, None, false)
+            .is_err()
+    );
+    // Nothing was made: the first part, already added in the step, went back with it.
+    assert!(inv.show("LM393 kart", false).is_err());
+    // A part told both to go and to leave is refused before anything is made.
+    let both = [ev_core::SplitPart {
+        name: "Kablo".into(),
+        to: Some("B7".into()),
+        gone: Some(ev_core::Disposition::Trash),
+        ..Default::default()
+    }];
+    let e = inv
+        .split_parts("Toprak nemi seti", &both, None, None, false)
+        .unwrap_err();
+    assert_eq!(e.id(), Some("split_part_moves_and_leaves"));
+}

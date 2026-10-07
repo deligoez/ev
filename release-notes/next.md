@@ -36,3 +36,18 @@ or `ev gone` per piece, carrying ids from one answer to the next. A part of `ev 
 where it goes: `"USB-C kablo=2@S5-01"` moves it there, and `ev split <ref> --stdin` takes one
 JSON line per part with `to`, or with `gone` and `why` to let it leave at once. The split, the
 moves and the leavings are one transaction: an unknown place undoes all of it.
+
+## Finding a whole family of things, and whether it was counted
+
+Other agents now ask the inventory questions like "every Raspberry Pi, ESP board and sensor
+we have". `ev find` matches every word of its text, so the inventory agent ran dozens of finds
+and merged them by hand. `ev find --any "raspberry pi" esp32 sensör` now finds each text on its
+own and answers one list, each record once with the texts that found it (`matched`), and how
+many each text found (`per_text`, so one that found nothing shows); the MCP `find` tool takes
+`any` too. Every result now also says how far the place it is in was counted (`place_count`):
+a thing in a toured place was counted, one in a raw place is what the inventory guessed, and
+the text output marks it. Several words without `--any` are one text, unquoted.
+
+A query word of three letters or fewer now meets only the start of a word: `ir` no longer
+finds every `bir` (in one household's inventory it went from 365 results to the 13 that say
+IR), and `ble` no longer finds an ink cartridge called `Mixable`.

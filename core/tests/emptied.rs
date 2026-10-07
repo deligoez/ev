@@ -61,3 +61,17 @@ fn a_place_still_holding_something_or_with_nothing_said_is_not_listed() {
     let v = inv.move_to("USB kablo", "K1", false).unwrap();
     assert!(v["emptied"].is_null(), "{v}");
 }
+
+#[test]
+fn unobserve_on_a_place_removes_all_of_its_observations() {
+    let (_d, mut inv) = setup();
+    inv.observe("K1", "ikinci not", None).unwrap();
+    let v = inv.unobserve_many(&[], Some("K1")).unwrap();
+    assert_eq!(v["unobserved"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        inv.show("K1", false).unwrap()["observations"],
+        serde_json::json!([])
+    );
+    let e = inv.unobserve_many(&[], None).unwrap_err();
+    assert_eq!(e.id(), Some("unobserve_nothing"));
+}

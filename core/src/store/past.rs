@@ -540,7 +540,13 @@ impl Inventory {
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
                LEFT JOIN places pl ON pl.id = d.place_id
                LEFT JOIN nodes h ON h.id = n.parent_id AND h.kind = 'home' AND h.state = 'gone'
-              WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}"
+               LEFT JOIN nodes p ON p.id = n.parent_id
+              WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}
+                -- Homes and vehicles have a section of their own, and what left with one as
+                -- its structure (rooms, a car's compartments) is no past thing of its own.
+                AND n.kind NOT IN ('home', 'vehicle', 'room')
+                AND NOT (n.kind IN ('container', 'furniture') AND p.kind = 'vehicle'
+                         AND p.disposition IS n.disposition)"
         ))?;
         type Row = (
             i64,
@@ -674,7 +680,126 @@ impl Inventory {
             let undated = (l.undated.0 > 0).then(|| year(l.undated));
             json!({ "past": l.things, "years": years, "undated": undated })
         });
-        Ok(json!({ "remembered": remembered, "left_inventory": recorded }))
+        // The homes and vehicles, ours now or before, lead (spec/vehicles-homes.md); a list
+        // narrowed to one place has none.
+        let homes = if home_where.is_none() && place.is_none() {
+            self.homes_and_vehicles(word.as_deref())?
+        } else {
+            Vec::new()
+        };
+        Ok(json!({
+            "homes_and_vehicles": homes,
+            "remembered": remembered,
+            "left_inventory": recorded,
+        }))
+    }
+
+    /// Every home and vehicle of ours, here or left: when it came and left, how, its address or
+    /// plate, what was paid for it (and that in today's money when every line converts) and
+    /// what a sale brought. The current ones first, then the last left first.
+    fn homes_and_vehicles(&self, word: Option<&str>) -> Result<Vec<Value>> {
+        let conn = &self.conn;
+        let home = crate::money::home_currency(conn)?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT n.id, n.name, n.state, {CAME}, {LEFT}, d.price, d.currency, d.via
+               FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
+              WHERE n.kind IN ('home', 'vehicle') AND n.owner_place IS NULL
+                AND (n.state != 'gone' OR n.disposition NOT IN {NOT_PAST})"
+        ))?;
+        type Row = (
+            i64,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        );
+        let rows: Vec<Row> = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                    r.get(6)?,
+                    r.get(7)?,
+                ))
+            })?
+            .collect::<std::result::Result<_, _>>()?;
+        let mut lines = conn.prepare(
+            "SELECT COALESCE(p.currency, ''), p.paid * l.qty / MAX(p.qty * p.pack, 1),
+                    COALESCE(p.delivered_at, p.ordered_at)
+               FROM purchase_links l JOIN purchases p ON p.id = l.purchase_id
+              WHERE l.node_id = ?1 AND p.paid IS NOT NULL",
+        )?;
+        let mut out = Vec::new();
+        for (id, name, state, came, left, price, currency, via) in rows {
+            if let Some(w) = word
+                && !crate::fold::fold(&name).contains(w)
+            {
+                continue;
+            }
+            let gone = state == "gone";
+            let mut paid: BTreeMap<String, i64> = BTreeMap::new();
+            let (mut today, mut whole, mut any) = (0i64, true, false);
+            let rows = lines.query_map([id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })?;
+            for row in rows {
+                let (c, cents, date) = row?;
+                let c = if c.is_empty() { home.clone() } else { c };
+                *paid.entry(c.clone()).or_default() += cents;
+                any = true;
+                let t = crate::money::today_money(conn, cents, Some(c.as_str()), date.as_deref())?
+                    .and_then(|t| t["amount"].as_str().map(str::to_string))
+                    .and_then(|a| crate::purchases::parse_money(&a).ok());
+                today += t.unwrap_or(cents);
+                whole &= t.is_some();
+            }
+            let mut v = super::brief_json(conn, id)?;
+            let n = super::load(conn, id)?;
+            if let Some(a) = &n.address {
+                v["address"] = json!(a);
+            }
+            v["came"] = json!(came);
+            if gone {
+                v["left"] = json!(left);
+                v["how"] = json!(n.disposition);
+            }
+            v["paid"] = sums_json(&paid);
+            if any && whole {
+                v["paid_today"] =
+                    json!({ "amount": crate::purchases::money(today), "currency": home });
+            }
+            let got = price
+                .as_deref()
+                .map(crate::purchases::parse_money)
+                .transpose()?;
+            if let Some(g) = got {
+                v["got"] = json!({
+                    "price": crate::purchases::money(g),
+                    "currency": currency.unwrap_or_else(|| home.clone()),
+                    "via": via,
+                });
+            }
+            out.push(v);
+        }
+        // Here now first; then the last left first, a year before any month or day in it.
+        out.sort_by(|a, b| {
+            (a["state"] == "gone")
+                .cmp(&(b["state"] == "gone"))
+                .then_with(|| b["left"].as_str().cmp(&a["left"].as_str()))
+                .then_with(|| b["came"].as_str().cmp(&a["came"].as_str()))
+        });
+        Ok(out)
     }
 
     /// What was ours in `year` (spec/past-belongings.md): every thing, past or present, that
@@ -748,6 +873,18 @@ impl Inventory {
             *how.entry(n["how"].as_str().unwrap_or_default().to_string())
                 .or_default() += 1;
         }
+        // The homes and vehicles that left count too, though they are listed on their own.
+        let left: Vec<&Value> = all["homes_and_vehicles"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|h| h["state"] == "gone")
+            .collect();
+        for h in &left {
+            records += 1;
+            *how.entry(h["how"].as_str().unwrap_or_default().to_string())
+                .or_default() += 1;
+        }
         let total = |key: &str| -> Result<Value> {
             let mut sums: BTreeMap<String, i64> = BTreeMap::new();
             for l in lists {
@@ -757,6 +894,19 @@ impl Inventory {
                         *sums.entry(c.clone()).or_default() +=
                             crate::purchases::parse_money(a.as_str().unwrap_or_default())?;
                     }
+                }
+            }
+            for h in &left {
+                if key == "paid" {
+                    for (c, a) in h["paid"].as_object().into_iter().flatten() {
+                        *sums.entry(c.clone()).or_default() +=
+                            crate::purchases::parse_money(a.as_str().unwrap_or_default())?;
+                    }
+                } else if let Some(g) = h["got"].as_object() {
+                    *sums
+                        .entry(g["currency"].as_str().unwrap_or_default().to_string())
+                        .or_default() +=
+                        crate::purchases::parse_money(g["price"].as_str().unwrap_or_default())?;
                 }
             }
             Ok(sums_json(&sums))

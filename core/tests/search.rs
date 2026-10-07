@@ -327,3 +327,33 @@ fn a_result_says_whether_its_place_was_counted_or_only_guessed() {
     inv.review("LED kutusu", "counting", None).unwrap();
     assert_eq!(count(&inv), "counting");
 }
+
+#[test]
+fn any_finds_several_texts_in_one_list_each_record_once() {
+    let (_d, inv) = setup();
+    let texts = [
+        "led".to_string(),
+        "kırmızı".to_string(),
+        "zigbee".to_string(),
+    ];
+    let v = inv.find_any(&texts, None, None, false).unwrap();
+    let results = v["results"].as_array().unwrap();
+    let names: Vec<&str> = results
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    // The red LED is found by two texts and listed once, with both.
+    assert_eq!(
+        names.iter().filter(|n| **n == "Kırmızı LED, 5 mm").count(),
+        1,
+        "{names:?}"
+    );
+    let red = results
+        .iter()
+        .find(|r| r["name"] == "Kırmızı LED, 5 mm")
+        .unwrap();
+    assert_eq!(red["matched"], serde_json::json!(["led", "kırmızı"]));
+    assert!(names.contains(&"Kırmızı kablo"), "{names:?}");
+    // A text that found nothing is counted as nothing, not left out.
+    assert_eq!(v["per_text"]["zigbee"], 0);
+}

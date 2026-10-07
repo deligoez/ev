@@ -2045,6 +2045,38 @@ fn colon_runs_a_command_by_its_name_and_shows_its_key() {
 }
 
 #[test]
+fn a_greater_than_finds_only_the_commands_that_apply_here() {
+    let (_dir, inv) = led_drawer();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    let commands = |app: &App| -> Vec<String> {
+        let p = app.palette.as_ref().unwrap();
+        assert!(
+            p.hits
+                .iter()
+                .all(|h| matches!(h.0, super::palette::Goal::Command(_))),
+            "{:?}",
+            p.hits
+        );
+        p.hits.iter().map(|h| h.1.clone()).collect()
+    };
+    // On the tree its own commands are offered.
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, ">two");
+    assert_eq!(commands(&app), ["Open two levels"]);
+    press(&mut app, KeyCode::Esc);
+    // On another list they are not; what applies everywhere still is.
+    press(&mut app, KeyCode::Char('3'));
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, ">two");
+    assert!(commands(&app).is_empty());
+    press(&mut app, KeyCode::Backspace);
+    press(&mut app, KeyCode::Backspace);
+    press(&mut app, KeyCode::Backspace);
+    type_in(&mut app, "map");
+    assert_eq!(commands(&app), ["Map of the home"]);
+}
+
+#[test]
 fn a_record_that_leaves_the_list_hands_the_selection_to_its_neighbour_and_says_so() {
     let (dir, mut inv) = led_drawer();
     inv.move_to("Aktif buzzer", "D-A1", true).unwrap();

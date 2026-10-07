@@ -820,16 +820,21 @@ impl Inventory {
         plan: bool,
         qty: Option<i64>,
     ) -> Result<Value> {
+        let from = holder_of(&self.conn, reference);
         let tx = self.conn.transaction()?;
         let id = move_in(&tx, reference, to, plan, qty)?;
         tx.commit()?;
-        show(&self.conn, id)
+        with_emptied(&self.conn, show(&self.conn, id)?, &[from])
     }
 
     /// Several records to one place in one step, all or none (a box emptied before it goes):
     /// each as `move_to` would move it, or plan it with `plan`. Answers with where each one is
     /// now (or is planned to go) rather than a node payload for each.
     pub fn move_many(&mut self, references: &[String], to: &str, plan: bool) -> Result<Value> {
+        let from: Vec<Option<i64>> = references
+            .iter()
+            .map(|r| holder_of(&self.conn, r))
+            .collect();
         let tx = self.conn.transaction()?;
         let mut moved = Vec::with_capacity(references.len());
         for r in references {
@@ -847,7 +852,7 @@ impl Inventory {
             .collect::<Result<Vec<_>>>()?;
         let mut v = json!({ "to": brief(&self.conn, target)? });
         v[key] = json!(rows);
-        Ok(v)
+        with_emptied(&self.conn, v, &from)
     }
 
     /// Records made separately are one thing kept in several places (spec/portions.md §4.3).
@@ -892,10 +897,11 @@ impl Inventory {
     }
 
     pub fn done(&mut self, reference: &str) -> Result<Value> {
+        let from = holder_of(&self.conn, reference);
         let tx = self.conn.transaction()?;
         let holder = done_in(&tx, reference)?;
         tx.commit()?;
-        show(&self.conn, holder)
+        with_emptied(&self.conn, show(&self.conn, holder)?, &[from])
     }
 
     pub fn cancel(&mut self, reference: &str) -> Result<Value> {
@@ -911,6 +917,10 @@ impl Inventory {
         if let [one] = references {
             return self.done(one);
         }
+        let from: Vec<Option<i64>> = references
+            .iter()
+            .map(|r| holder_of(&self.conn, r))
+            .collect();
         let tx = self.conn.transaction()?;
         let mut ids = Vec::with_capacity(references.len());
         for r in references {
@@ -924,7 +934,7 @@ impl Inventory {
             .iter()
             .map(|id| brief(&self.conn, *id))
             .collect::<Result<Vec<_>>>()?;
-        Ok(json!({ "done": rows }))
+        with_emptied(&self.conn, json!({ "done": rows }), &from)
     }
 
     /// Several planned moves dropped at once, all or none: one answers as `cancel`, several
@@ -1122,6 +1132,7 @@ impl Inventory {
         at: Option<&str>,
         place: Option<&str>,
     ) -> Result<Value> {
+        let from = holder_of(&self.conn, reference);
         let tx = self.conn.transaction()?;
         let (id, warnings) =
             Self::gone_in(&tx, reference, disposition, why, shred, qty, at, place)?;
@@ -1130,7 +1141,7 @@ impl Inventory {
         if !warnings.is_empty() {
             v["warnings"] = json!(warnings);
         }
-        Ok(v)
+        with_emptied(&self.conn, v, &[from])
     }
 
     /// One leaving inside the caller's transaction, for `gone_left` and for a part of
@@ -1685,6 +1696,52 @@ fn cancel_in(conn: &Connection, reference: &str) -> Result<i64> {
     touch(conn, node.id)?;
     event(conn, node.id, "cancel", json!({ "to": target }))?;
     Ok(node.id)
+}
+
+/// The place a record is in, before a command takes it out; None when it does not resolve
+/// (the command itself then says why).
+fn holder_of(conn: &Connection, reference: &str) -> Option<i64> {
+    let id = resolve(conn, reference, false).ok()?;
+    load(conn, id).ok()?.parent_id
+}
+
+/// `v` with `emptied` (spec/emptied-place.md): those of `holders` the command left with nothing
+/// live in them that still carry a theme or observations, which now describe what used to be
+/// there.
+fn with_emptied(conn: &Connection, mut v: Value, holders: &[Option<i64>]) -> Result<Value> {
+    let mut seen = Vec::new();
+    let mut out = Vec::new();
+    for h in holders.iter().flatten() {
+        if seen.contains(h) {
+            continue;
+        }
+        seen.push(*h);
+        let inside: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone' AND lost = 0",
+            [h],
+            |r| r.get(0),
+        )?;
+        if inside > 0 {
+            continue;
+        }
+        let n = load(conn, *h)?;
+        let observations: Vec<Value> = crate::plan::observations_of(conn, *h)?
+            .into_iter()
+            .map(|o| json!({ "id": o["id"], "text": o["text"] }))
+            .collect();
+        if n.theme.is_none() && observations.is_empty() {
+            continue;
+        }
+        out.push(json!({
+            "node": brief(conn, *h)?,
+            "theme": n.theme,
+            "observations": observations,
+        }));
+    }
+    if !out.is_empty() {
+        v["emptied"] = json!(out);
+    }
+    Ok(v)
 }
 
 /// One move inside the caller's transaction: `qty` of the record's units (all by default) to

@@ -1456,6 +1456,20 @@ static TR: &[(&str, &str)] = &[
         " Go to a list, a place, a thing or #id · > a command ",
         " Git: bir liste, bir yer, bir eşya ya da #id · > bir komut ",
     ),
+    // A place just emptied (spec/emptied-place.md).
+    (
+        "{} is empty now; what it says is about what was in it:",
+        "{} artık boş; üzerinde yazanlar içinde olanlarla ilgili:",
+    ),
+    ("clear: ev edit {} theme=", "temizle: ev edit {} theme="),
+    (
+        "clear: ev unobserve --on {}",
+        "temizle: ev unobserve --on {}",
+    ),
+    (
+        "Removed {} observation(s) from:",
+        "{} gözlem silindi, şuradan:",
+    ),
     // What is only a guess (spec/guesses.md).
     ("(end is a guess)", "(bitişi tahmin)"),
     ("Only a guess", "Yalnızca tahmin"),

@@ -2130,11 +2130,49 @@ fn drop_nulls(v: &mut Value) {
     }
 }
 
+pub fn human(v: &Value) -> String {
+    let mut out = human_body(v);
+    emptied_text(&mut out, v);
+    out
+}
+
+/// After any command that took things out (spec/emptied-place.md): the places it left empty
+/// whose theme and observations now describe what used to be there, and how to clear them.
+fn emptied_text(out: &mut String, v: &Value) {
+    for e in v["emptied"].as_array().into_iter().flatten() {
+        let place = &e["node"];
+        let name = place["code"]
+            .as_str()
+            .map_or_else(|| s(place, "name"), str::to_string);
+        let _ = writeln!(
+            out,
+            "\n{}",
+            tf(
+                "{} is empty now; what it says is about what was in it:",
+                &[&name]
+            )
+        );
+        if let Some(theme) = e["theme"].as_str() {
+            let _ = writeln!(out, "  {}: {theme}", t("theme"));
+        }
+        let observations = e["observations"].as_array().cloned().unwrap_or_default();
+        for o in &observations {
+            let _ = writeln!(out, "  [{}] {}", o["id"], s(o, "text"));
+        }
+        if e["theme"].is_string() {
+            let _ = writeln!(out, "  {}", tf("clear: ev edit {} theme=", &[&name]));
+        }
+        if !observations.is_empty() {
+            let _ = writeln!(out, "  {}", tf("clear: ev unobserve --on {}", &[&name]));
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one branch per output shape; the long shapes have their own functions"
 )]
-pub fn human(v: &Value) -> String {
+fn human_body(v: &Value) -> String {
     let mut out = String::new();
     if v.get("overview").is_some() && v.get("tour").is_some() {
         stats_text(&mut out, v);

@@ -177,3 +177,57 @@ fn a_place_that_was_a_home_of_ours_becomes_one_and_a_household_is_refused() {
     let e = inv.place_home("Annemler", None, None, None).unwrap_err();
     assert_eq!(e.id(), Some("place_is_a_household"));
 }
+
+#[test]
+fn homes_and_vehicles_lead_the_past_and_leave_the_lists_of_things() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        came: Some("2012-11".into()),
+        address: Some("Örnek Sok. 1".into()),
+        ..past_thing("Kiralık daire", "moved", "home", Some("2015-04"), None)
+    })
+    .unwrap();
+    // A car sold, its glovebox with it.
+    inv.add(NewNode {
+        name: "Eski araba".into(),
+        kind: "vehicle".into(),
+        code: Some("06 XY 99".into()),
+        came: Some("2018-03".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    add(&mut inv, "Torpido", "container", Some("06 XY 99"));
+    inv.gone("06 XY 99", Some(Disposition::Sell)).unwrap();
+    inv.sold("06 XY 99", "900000", None, None, None, None)
+        .unwrap();
+    let past = inv.past(None, None).unwrap();
+    let section: Vec<(&str, Option<&str>)> = past["homes_and_vehicles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| (h["name"].as_str().unwrap(), h["left"].as_str()))
+        .collect();
+    // Here now first, then the last left first.
+    assert_eq!(section[0], ("Eski ev", None));
+    assert_eq!(section[1], ("Yeni ev", None));
+    assert_eq!(section[3], ("Kiralık daire", Some("2015-04")));
+    let car = &past["homes_and_vehicles"][2];
+    assert_eq!(car["code"], "06 XY 99");
+    assert_eq!(car["how"], "sell");
+    assert_eq!(car["got"]["price"], "900000.00");
+    let flat = &past["homes_and_vehicles"][3];
+    assert_eq!(flat["address"], "Örnek Sok. 1");
+    // None of them, nor the glovebox that went with the car, is a past thing of its own.
+    for list in ["remembered", "left_inventory"] {
+        for p in past[list]["past"].as_array().unwrap() {
+            assert!(
+                !["Kiralık daire", "Eski araba", "Torpido"].contains(&p["name"].as_str().unwrap()),
+                "{p}"
+            );
+        }
+    }
+    // ev stats' past still counts what left, the sale's money with it.
+    let summary = &inv.stats().unwrap()["past"];
+    assert_eq!(summary["records"], 2, "{summary}");
+    assert_eq!(summary["got"]["TRY"], "900000.00", "{summary}");
+}

@@ -68,8 +68,14 @@ fn series(conn: &Connection) -> Result<String> {
     setting(conn, "price_index", "eurostat:TR")
 }
 
+/// The day a purchase date stands for: the day itself, or for a date remembered only to the
+/// month or the year (`2018-03`, `2018`), its middle, the least wrong guess for prices then.
 fn day(d: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(d.get(..10).unwrap_or(d), "%Y-%m-%d").ok()
+    let d = d.get(..10).unwrap_or(d);
+    NaiveDate::parse_from_str(d, "%Y-%m-%d")
+        .or_else(|_| NaiveDate::parse_from_str(&format!("{d}-15"), "%Y-%m-%d"))
+        .or_else(|_| NaiveDate::parse_from_str(&format!("{d}-07-01"), "%Y-%m-%d"))
+        .ok()
 }
 
 /// The index for a month: the month's own value, else its year's (an annual series).

@@ -849,7 +849,7 @@ enum BuyCmd {
         name: String,
         #[arg(long)]
         shop: Option<String>,
-        /// When it was bought, YYYY-MM-DD.
+        /// When it was bought: YYYY-MM-DD, or a month or a year as remembered (2018-03, 2018).
         #[arg(long)]
         date: Option<String>,
         /// What was paid for the whole line, e.g. 1234.56.

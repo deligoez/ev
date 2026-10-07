@@ -83,9 +83,22 @@ pub(crate) fn date(v: &Option<String>) -> Result<Option<String>> {
     v.as_deref()
         .map(|d| {
             let d = d.get(..10).unwrap_or(d);
-            chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
-                .map(|_| d.to_string())
-                .map_err(|_| usage("not_a_date", json!({ "date": d })))
+            // A day, or a month or a year as the person remembers it (`2018-03`, `2018`).
+            let partial = || {
+                let parts: Vec<&str> = d.split('-').collect();
+                let digits =
+                    |s: &str, n: usize| s.len() == n && s.bytes().all(|b| b.is_ascii_digit());
+                match parts.as_slice() {
+                    [y] => digits(y, 4),
+                    [y, m] => digits(y, 4) && digits(m, 2) && ("01"..="12").contains(m),
+                    _ => false,
+                }
+            };
+            if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_ok() || partial() {
+                Ok(d.to_string())
+            } else {
+                Err(usage("not_a_date", json!({ "date": d })))
+            }
         })
         .transpose()
 }

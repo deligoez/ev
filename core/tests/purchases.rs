@@ -686,3 +686,49 @@ fn dismissed_lines_are_listed_of_any_reason_or_of_one() {
         .unwrap_err();
     assert_eq!(e.id(), Some("purchase_reason_unknown"));
 }
+
+#[test]
+fn a_line_entered_by_hand_is_corrected_and_one_from_a_source_is_not() {
+    let (d, mut inv) = setup();
+    let hand = inv
+        .buy_add(
+            &json!({ "name": "Araba", "paid": "100000" }),
+            Some("Matkap"),
+        )
+        .unwrap()["purchase"]["id"]
+        .as_i64()
+        .unwrap();
+    let fields = |f: &[&str]| f.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let v = inv
+        .buy_edit(
+            hand,
+            &fields(&[
+                "date=2018-03",
+                "paid=90000",
+                "shop=Bayi",
+                "order=",
+                "name=Eski araba",
+            ]),
+        )
+        .unwrap();
+    let p = &v["purchase"];
+    assert_eq!(p["ordered_at"], "2018-03");
+    assert_eq!(p["paid"], "90000.00");
+    assert_eq!(p["shop"], "Bayi");
+    assert_eq!(p["name"], "Eski araba");
+    // Still linked to what it bought.
+    assert_eq!(p["linked"][0]["node"]["name"], "Matkap");
+    let id = |e: ev_core::Error| e.id().map(str::to_string);
+    // No fewer units than are linked; no field it does not have; no day still to come.
+    let below = inv.buy_edit(hand, &fields(&["qty=0"])).unwrap_err();
+    assert_eq!(id(below).as_deref(), Some("qty_below_one"));
+    let unknown = inv.buy_edit(hand, &fields(&["colour=red"])).unwrap_err();
+    assert_eq!(id(unknown).as_deref(), Some("purchase_edit_field_unknown"));
+    let future = inv.buy_edit(hand, &fields(&["date=2099-01"])).unwrap_err();
+    assert_eq!(id(future).as_deref(), Some("date_still_to_come"));
+    // A line from a shop's export is the shop's: corrected there.
+    inv.buy_import(&export(&d, "1999.00")).unwrap();
+    let shop = id_of(&inv, "Bosch");
+    let e = inv.buy_edit(shop, &fields(&["paid=1"])).unwrap_err();
+    assert_eq!(id(e).as_deref(), Some("purchase_edit_not_manual"));
+}

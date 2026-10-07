@@ -8,7 +8,7 @@ them by hand afterwards, since the person said not to ask about it (its report),
 told it which place had just become empty.
 
 - **Every command that takes things out says which place it left empty:** `ev move` (one or
-  several), `ev done`, `ev gone` and `ev split` (a part moved away) answer `emptied` when a place
+  several), `ev done` and `ev gone` answer `emptied` when a place
   they took the last live thing out of still carries a theme or observations:
   `[{node, theme, observations: [{id, text}]}]`. A place left empty with neither is not listed:
   nothing about it went stale.

@@ -2448,8 +2448,22 @@ fn add_one(conn: &Connection, new: &NewNode, parent: Option<i64>) -> Result<i64>
         ) {
             return Err(usage("past_way_not_allowed", json!({ "way": g.as_str() })));
         }
-        if matches!(kind, Kind::Home | Kind::Room) || parent.is_some() || new.lost {
+        // A home of ours left long ago is added already left (spec/vehicles-homes.md); a room
+        // is part of a home and never on its own.
+        if kind == Kind::Room || parent.is_some() || new.lost {
             return Err(usage("past_in_a_place", Value::Null));
+        }
+        if kind == Kind::Home && !matches!(g, Disposition::Moved | Disposition::Sell) {
+            return Err(usage(
+                "home_leaves_moved_or_sold",
+                json!({ "way": g.as_str() }),
+            ));
+        }
+        if kind != Kind::Home && g == Disposition::Moved {
+            return Err(usage(
+                "moved_is_a_homes",
+                json!({ "kind": kind.to_string() }),
+            ));
         }
         // Where a thing stands, or is to go, says nothing of one that left; a vehicle's plate
         // is the label printed on it, and stays its name.

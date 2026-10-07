@@ -39,7 +39,9 @@ person's word, `--as left`. A home we lived in before the inventory is added alr
 (`ev add "<name>" --kind home --gone moved --came … --at … --address "…"`, its papers attached
 with `ev doc add … --for`), and a thing left there names it with `--where`; a place used so far
 for one becomes one with `ev place home <place>`. A home still ours that we lived in only at
-times (the parents' house) keeps those periods in its note. `kind` is only a label — any node can hold other nodes. Codes are
+times (the parents' house) keeps those periods in its note. The address history is `ev past`'s
+first section (homes and vehicles, with their dates), and "where did we live, what did we drive
+in 2015" is `ev past --year 2015`. `kind` is only a label — any node can hold other nodes. Codes are
 what is printed on the physical labels, and there are two kinds. **A slot of furniture has a
 positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says where, so it is
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial

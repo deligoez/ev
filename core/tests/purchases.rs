@@ -801,3 +801,47 @@ fn a_service_line_is_tied_by_hand_and_a_thing_own_purchase_is_linked_instead() {
     let v = inv.buy_about(service, None, true).unwrap();
     assert!(v["purchase"]["about"].is_null());
 }
+
+#[test]
+fn lines_are_narrowed_by_month_and_currency_and_sorted_dearest_first() {
+    let (_d, mut inv) = setup();
+    let line = |key: &str, paid: &str, currency: &str, at: &str| {
+        json!({"source": "shop", "key": key, "name": format!("Satır {key}"), "paid": paid,
+               "currency": currency, "ordered_at": at})
+        .to_string()
+    };
+    inv.buy_import(
+        &[
+            line("a", "100.00", "TRY", "2025-03-02"),
+            line("b", "900.00", "TRY", "2025-03-20"),
+            line("c", "50.00", "USD", "2025-03-05"),
+            line("d", "500.00", "TRY", "2025-04-01"),
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    let keys = |f: &ev_core::BuyFilter| -> Vec<String> {
+        inv.buy_list_where(f).unwrap()["purchases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["source_key"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(
+        keys(&ev_core::BuyFilter {
+            month: Some("2025-03"),
+            currency: Some("TRY"),
+            by_paid: true,
+            ..Default::default()
+        }),
+        ["b", "a"]
+    );
+    assert_eq!(
+        keys(&ev_core::BuyFilter {
+            currency: Some("usd"),
+            ..Default::default()
+        }),
+        ["c"]
+    );
+}

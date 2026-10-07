@@ -116,3 +116,26 @@ fn placement_keeps_the_home_and_a_vehicle_apart() {
         .unwrap();
     assert!(!names(&car).contains(&"Raf".to_string()), "{car}");
 }
+
+#[test]
+fn a_vehicles_price_is_counted_apart_from_the_homes_things() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, node("Matkap", "item", Some("R-1"))).unwrap();
+    let line = |name: &str, paid: &str| json!({ "name": name, "paid": paid, "currency": "TRY" });
+    inv.buy_add(&line("Araba", "2000000"), Some("34 ABC 123"))
+        .unwrap();
+    inv.buy_add(&line("Matkap", "1999"), Some("Matkap"))
+        .unwrap();
+    let stats = inv.stats().unwrap();
+    // The home's value is its things'; the car stands apart, with its own price.
+    assert_eq!(
+        stats["value"]["cost"]["TRY"], "1999.00",
+        "{}",
+        stats["value"]
+    );
+    assert_eq!(stats["value"]["dearest"].as_array().unwrap().len(), 1);
+    let vehicles = stats["vehicles"].as_array().unwrap();
+    assert_eq!(vehicles.len(), 1);
+    assert_eq!(vehicles[0]["code"], "34 ABC 123");
+    assert_eq!(vehicles[0]["cost"]["TRY"], "2000000.00");
+}

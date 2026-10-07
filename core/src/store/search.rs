@@ -28,6 +28,8 @@ const SYNONYM: f64 = 0.7;
 /// `diamond`).
 const TYPO: f64 = 0.5;
 const TYPO_OF_A_START: f64 = 0.25;
+/// A word this long or shorter is a whole word or a word's start, never found inside another.
+const SHORT: usize = 3;
 
 /// A query word with everything else it may be written as.
 struct Word {
@@ -144,18 +146,31 @@ fn meet(w: &Word, fields: &[Field], typos: bool) -> Option<f64> {
         .max_by(f64::total_cmp)
 }
 
+/// Whether `part` is in `text`: anywhere, or for a short part only at the start of a word, so
+/// `ir` is the IR sensor and not every `bir`, and `ble` is not inside `mixable`
+/// (spec/find-any.md).
+fn contains(text: &str, part: &str) -> bool {
+    if part.chars().count() <= SHORT {
+        words(text).any(|t| t.starts_with(part))
+    } else {
+        text.contains(part)
+    }
+}
+
 fn quality(w: &Word, text: &str, typos: bool) -> Option<f64> {
-    if text.contains(&w.text) {
+    if contains(text, &w.text) {
         let whole = words(text).any(|t| t == w.text);
         return Some(if whole { WHOLE_WORD } else { INSIDE });
     }
+    // A stem of a letter or two starts too many words to say anything.
     if w.stems
         .iter()
+        .filter(|s| s.chars().count() > 2)
         .any(|s| words(text).any(|t| t.starts_with(s.as_str())))
     {
         return Some(STEM);
     }
-    if w.synonyms.iter().any(|s| text.contains(s.as_str())) {
+    if w.synonyms.iter().any(|s| contains(text, s)) {
         return Some(SYNONYM);
     }
     let allowed = match w.text.chars().count() {

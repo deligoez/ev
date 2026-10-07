@@ -251,7 +251,12 @@ Record the kinds that have their own verbs as you meet them:
   inspection, a boiler check): `ev upkeep add <x> --kind service|repair|inspection --work "…"`
   with `--at`, `--km`, `--by`, and `--next` / `--next-km` when the form says when it is due
   again; attach the form with `ev doc add` and pass `--doc <id>`. Never a cost: that is ak's.
-  `ev todo` lists what is due (`upkeep_due`).
+  `ev todo` lists what is due (`upkeep_due`). A first due date with nothing done yet (a new
+  car's first inspection): `ev upkeep due <x> --kind inspection --next 2029-04`.
+- **What a thing costs** is read, never entered: `ev show <x>` → `cost` adds up its linked
+  purchases, the service lines about it (ak's taxes, insurance and repair bills arrive tied by
+  `thing`; tie another by hand with `ev buy about <line> <x>`), its coverage premiums and a
+  sale. Each currency apart.
 - **A use-by date** seen on a package or photo: `ev expires <x> 2026-07`.
 - **Selling:** after `ev dispose <x> --as sell`, `ev sale <x> --listed --price n --where …
   --condition new|like-new|used` (ask the condition here, and only here),

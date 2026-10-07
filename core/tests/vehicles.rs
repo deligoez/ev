@@ -196,3 +196,22 @@ fn a_vehicle_is_toured_through_its_compartments_and_is_ours_in_its_years() {
     assert!(year(2020).contains(&"Eski araba".to_string()));
     assert!(!year(2017).contains(&"Eski araba".to_string()));
 }
+
+#[test]
+fn a_vehicle_sold_takes_its_compartments_once_they_are_empty() {
+    let (_d, mut inv) = setup();
+    add(&mut inv, node("Yangın söndürücü", "item", Some("Torpido"))).unwrap();
+    let e = inv
+        .gone("34 ABC 123", Some(ev_core::Disposition::Sell))
+        .unwrap_err();
+    assert_eq!(id_of(e).as_deref(), Some("leaving_still_holds"));
+    // The extinguisher goes to the home; the car is sold with its glovebox.
+    inv.move_to("Yangın söndürücü", "R-1", false).unwrap();
+    let sold = inv
+        .gone("34 ABC 123", Some(ev_core::Disposition::Sell))
+        .unwrap();
+    assert_eq!(sold["node"]["state"], "gone");
+    let glovebox = inv.show("Torpido", true).unwrap();
+    assert_eq!(glovebox["node"]["state"], "gone");
+    assert_eq!(glovebox["node"]["disposition"], "sell");
+}

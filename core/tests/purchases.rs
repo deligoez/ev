@@ -904,3 +904,32 @@ fn one_purchase_seen_twice_is_listed_as_a_possible_duplicate() {
         .collect();
     assert_eq!(keys, ["a", "b"]);
 }
+
+#[test]
+fn open_lines_are_grouped_by_the_place_of_the_record_each_could_be() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(
+        &[
+            json!({"source": "shop", "key": "m1", "name": "Bosch GSB 13 RE Darbeli Matkap",
+                   "paid": "1999.00", "currency": "TRY", "ordered_at": "2024-05-01"}),
+            json!({"source": "shop", "key": "z1", "name": "Bahçe hortumu 20 m",
+                   "paid": "300.00", "currency": "TRY", "ordered_at": "2024-06-01"}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n"),
+    )
+    .unwrap();
+    // Its model read off the label: what makes a line sure enough to be offered.
+    inv.edit("Matkap", &["make=Bosch".into(), "model=GSB 13 RE".into()])
+        .unwrap();
+    let v = inv.buy_by_place().unwrap();
+    let groups = v["by_place"].as_array().unwrap();
+    // The drill under the room it lies in; the hose, which nothing recorded could be, last.
+    assert_eq!(groups[0]["place"]["name"], "Oda", "{v}");
+    assert_eq!(groups[0]["lines"][0]["candidate"]["node"]["name"], "Matkap");
+    let last = groups.last().unwrap();
+    assert!(last["place"].is_null());
+    assert_eq!(last["lines"][0]["purchase"]["source_key"], "z1");
+}

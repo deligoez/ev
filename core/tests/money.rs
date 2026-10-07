@@ -106,3 +106,21 @@ fn an_import_with_one_bad_line_imports_nothing() {
     assert!(e.contains("line 3"), "{e}");
     assert_eq!(inv.money_status().unwrap()["money"]["periods"], 0);
 }
+
+#[test]
+fn a_purchase_remembered_to_the_month_reads_in_todays_money_as_that_month() {
+    let (_d, mut inv) = setup();
+    // Bought "in 2024-05", no day said: kept as said, and today's money reads that month.
+    let id = buy(&mut inv, "500.00", "TRY", "2024-05");
+    inv.money_import(&lines(&index_lines())).unwrap();
+    let p = &inv.buy_show(id).unwrap()["purchase"];
+    assert_eq!(p["ordered_at"], "2024-05");
+    assert_eq!(p["today"]["amount"], "940.14");
+    // A month that is none, or one still to come, is refused.
+    for bad in ["2024-13", "2099-01"] {
+        let e = inv
+            .buy_add(&json!({"name": "X", "ordered_at": bad, "paid": "1"}), None)
+            .unwrap_err();
+        assert_eq!(e.code(), 2, "{bad}");
+    }
+}

@@ -53,6 +53,7 @@ ev add Salon --kind room --in Ev
 ev add --stdin < box.ndjson      # a box and its contents in one all-or-nothing batch
 ev find flipper                  # word search over name, code, note, theme, tags
 ev find --tag "3d yazıcı"        # everything carrying a tag, no text needed
+ev tag zigbee "Akıllı priz" "Kapı sensörü"  # a family tagged in one step
 ev find --empty                  # the boxes known to be empty, worked out, no tag to keep
 ev find --any esp32 "raspberry pi"  # several kinds of thing in one list, counted or guessed
 ev add "Pi 400" --kind item --in D --guess "said, not seen"  # what the person said is there

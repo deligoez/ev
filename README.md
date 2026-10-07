@@ -60,6 +60,7 @@ ev add "Pi 400" --kind item --in D --guess "said, not seen"  # what the person s
 ev guess X --field came --note "from the box"  # a fact assumed, listed until it is said
 ev upkeep add "34 ABC 123" --kind service --work "oil and filter" --km 82000 --next 2027-04 --next-km 97000
 ev upkeep list --due              # repairs, services and inspections due by date or odometer
+ev buy about 412 "34 ABC 123"     # a tax or insurance payment is about the car: in what it costs
 ev empty S3-12 --note "came empty" # a box the person opened and found empty
 ev show K4x4-07-Ü                # one node with its path, children and photos
 ev show #534                     # any command takes the #id ev ui shows

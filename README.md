@@ -129,7 +129,10 @@ place waits for another (glue sticks until the lost glue gun turns up) says so w
 thing becomes a record per part with `ev split X "LM393 kart=3" "Kablo=3" --rename "Prob"`;
 the history links the pieces both ways, and the place's photo stays current (the same things
 lie there, only recorded apart). When the parts are some of its units instead (two of four
-cells are another make), `--take` takes their count off the original. A bought kit is a
+cells are another make), `--take` takes their count off the original. A part that goes elsewhere
+says so in the same step: `ev split X "USB-C kablo=2@S5-01"` moves it to S5-01, and `--stdin`
+takes a destination or a way out per part (`{"name":"Kablo","gone":"trash","why":"broken"}`),
+all in one transaction. A bought kit is a
 checklist: `ev kit add "Proje seti" --copies 2
 --part "RC522 okuyucu" --part "Kablo=3"`, `ev kit link "Proje seti" 1 <record>…` as its parts
 turn up, and `ev kit show "Proje seti"` counts each part found, lost and still missing, from

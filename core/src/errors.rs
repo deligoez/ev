@@ -52,6 +52,23 @@ pub const ERRORS: &[(&str, &str)] = &[
         "a vehicle cannot be lost; a stolen one is gone (--as stolen)",
     ),
     (
+        "purchase_edit_not_manual",
+        "purchase {id} came from {source}; correct it there and import it again",
+    ),
+    (
+        "purchase_edit_nothing",
+        "say what to correct: name=, date=, paid=, currency=, shop=, brand=, order= or qty=",
+    ),
+    ("purchase_edit_field_bad", "`{field}` is not field=value"),
+    (
+        "purchase_edit_field_unknown",
+        "`{field}` cannot be corrected; use one of {fields}",
+    ),
+    (
+        "purchase_qty_below_linked",
+        "purchase {id} has {linked} unit(s) linked to things; qty {qty} is fewer",
+    ),
+    (
         "place_is_a_household",
         "{place} has {count} errand(s): it is another household, not a home of ours",
     ),

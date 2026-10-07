@@ -881,6 +881,14 @@ enum BuyCmd {
         #[arg(long = "for")]
         for_ref: Option<String>,
     },
+    /// Correct a line entered by hand: name=, date= (a day, a month or a year), paid=,
+    /// currency=, shop=, brand=, order=, qty=. A line from a source is corrected there.
+    Edit {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        #[arg(required = true)]
+        fields: Vec<String>,
+    },
     /// Purchase lines, newest first.
     List {
         /// Only lines with something left to link and not dismissed.
@@ -2199,6 +2207,7 @@ fn run(cli: Cli) -> Result<Value> {
             }),
             for_ref.as_deref(),
         ),
+        Cmd::Buy(BuyCmd::Edit { id, fields }) => inv.buy_edit(id, &fields),
         Cmd::Buy(BuyCmd::List {
             open,
             bucket,

@@ -202,6 +202,26 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "araç kaybolamaz; çalınan araç elden çıkmıştır (--as stolen)",
     ),
     (
+        "purchase_edit_not_manual",
+        "{id} numaralı alım {source} kaynağından geldi; orada düzeltip yeniden içe aktarın",
+    ),
+    (
+        "purchase_edit_nothing",
+        "neyin düzeltileceğini söyleyin: name=, date=, paid=, currency=, shop=, brand=, order= ya da qty=",
+    ),
+    (
+        "purchase_edit_field_bad",
+        "`{field}` alan=değer biçiminde değil",
+    ),
+    (
+        "purchase_edit_field_unknown",
+        "`{field}` düzeltilemez; şunlardan birini kullanın: {fields}",
+    ),
+    (
+        "purchase_qty_below_linked",
+        "{id} numaralı alımın {linked} birimi eşyalara bağlı; {qty} adet bundan az",
+    ),
+    (
         "place_is_a_household",
         "{place} için {count} iş var: orası başka bir hane, bizim eski evimiz değil",
     ),

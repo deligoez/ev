@@ -796,6 +796,101 @@ impl Inventory {
         self.buy_show(id)
     }
 
+    /// Corrects a line entered by hand (`source: manual`), the person's own: `field=value` for
+    /// name, date (a day, or a month or a year as remembered), paid, currency, shop, brand,
+    /// order and qty; an empty value clears what may be empty. A line from a source is that
+    /// source's: corrected there and imported again.
+    pub fn buy_edit(&mut self, id: i64, fields: &[String]) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let p = purchase_json(&tx, id)?;
+        if p["source"] != "manual" {
+            return Err(refuse(
+                "purchase_edit_not_manual",
+                json!({ "id": id, "source": p["source"] }),
+                Value::Null,
+            ));
+        }
+        if fields.is_empty() {
+            return Err(usage("purchase_edit_nothing", Value::Null));
+        }
+        let set = |column: &str, value: rusqlite::types::Value| -> Result<()> {
+            tx.execute(
+                &format!("UPDATE purchases SET {column} = ?1, updated_at = ?2 WHERE id = ?3"),
+                params![value, now(), id],
+            )?;
+            Ok(())
+        };
+        let text = |v: Option<String>| v.map_or(rusqlite::types::Value::Null, Into::into);
+        for f in fields {
+            let Some((key, value)) = f.split_once('=') else {
+                return Err(usage("purchase_edit_field_bad", json!({ "field": f })));
+            };
+            let value = Some(value.trim().to_string()).filter(|v| !v.is_empty());
+            match key.trim() {
+                "name" => {
+                    let name = value.ok_or_else(|| usage("name_empty", Value::Null))?;
+                    set("name", name.into())?;
+                }
+                "date" => {
+                    let d = date(&value)?;
+                    if let Some(d) = &d
+                        && d.as_str() > crate::store::today().to_string().as_str()
+                    {
+                        return Err(usage("date_still_to_come", json!({ "date": d })));
+                    }
+                    set("ordered_at", text(d))?;
+                }
+                "paid" => {
+                    let cents = value.as_deref().map(parse_money).transpose()?;
+                    set(
+                        "paid",
+                        cents.map_or(rusqlite::types::Value::Null, Into::into),
+                    )?;
+                }
+                "currency" => {
+                    let c = value
+                        .as_deref()
+                        .map(crate::money::currency_code)
+                        .transpose()?;
+                    set("currency", text(c))?;
+                }
+                "shop" => set("shop", text(value))?,
+                "brand" => set("brand", text(value))?,
+                "order" => set("order_no", text(value))?,
+                "qty" => {
+                    let qty = value
+                        .as_deref()
+                        .and_then(|q| q.parse::<i64>().ok())
+                        .filter(|q| *q >= 1)
+                        .ok_or_else(|| usage("qty_below_one", Value::Null))?;
+                    let linked: i64 = tx.query_row(
+                        "SELECT COALESCE(SUM(qty), 0) FROM purchase_links WHERE purchase_id = ?1",
+                        [id],
+                        |r| r.get(0),
+                    )?;
+                    let pack = p["pack"].as_i64().unwrap_or(1);
+                    if qty * pack < linked {
+                        return Err(refuse(
+                            "purchase_qty_below_linked",
+                            json!({ "id": id, "qty": qty, "linked": linked }),
+                            Value::Null,
+                        ));
+                    }
+                    set("qty", qty.into())?;
+                }
+                other => {
+                    return Err(usage(
+                        "purchase_edit_field_unknown",
+                        json!({ "field": other,
+                                "fields": "name, date, paid, currency, shop, brand, order, qty" }),
+                    ));
+                }
+            }
+        }
+        tx.commit()?;
+        self.buy_show(id)
+    }
+
     /// Lines, open ones first: `open` keeps only those with something left to link and not
     /// dismissed.
     pub fn buy_list(

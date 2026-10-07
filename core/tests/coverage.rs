@@ -240,3 +240,48 @@ fn no_statutory_warranty_is_proposed_once_it_has_ended_or_for_a_line_bought_abro
     bought_from(&mut inv, "Telefon", "Amazon.de", "EUR", &day(2, 0));
     assert_eq!(proposal(&inv, "Telefon")["start"], day(2, 0));
 }
+
+#[test]
+fn a_coverage_on_the_wrong_thing_moves_to_the_right_one_and_keeps_its_id() {
+    let (_d, mut inv) = setup();
+    let id = inv
+        .cover_add(
+            &["Matkap".into()],
+            &NewCoverage {
+                ends: Some("2030-01-01".into()),
+                ..cover("insurance", None)
+            },
+        )
+        .unwrap()["coverage"]["id"]
+        .as_i64()
+        .unwrap();
+    // It insures the phone, not the drill: moved, with its number corrected.
+    let v = inv
+        .cover_edit(
+            id,
+            &["Telefon".into()],
+            &["Matkap".into()],
+            &["number=P-123".into(), "premium=500".into()],
+        )
+        .unwrap();
+    let c = &v["coverage"];
+    assert_eq!(c["id"], id);
+    assert_eq!(c["number"], "P-123");
+    assert_eq!(c["premium"], "500.00");
+    assert!(coverages(&inv, "Matkap").as_array().unwrap().is_empty());
+    assert_eq!(coverages(&inv, "Telefon")[0]["id"], id);
+    let e = |r: ev_core::Result<Value>| r.unwrap_err().id().map(str::to_string);
+    // Never on nothing; never without an end; no field it does not have.
+    assert_eq!(
+        e(inv.cover_edit(id, &[], &["Telefon".into()], &[])).as_deref(),
+        Some("coverage_on_nothing")
+    );
+    assert_eq!(
+        e(inv.cover_edit(id, &[], &[], &["ends=".into()])).as_deref(),
+        Some("coverage_needs_term")
+    );
+    assert_eq!(
+        e(inv.cover_edit(id, &[], &[], &["colour=red".into()])).as_deref(),
+        Some("coverage_edit_field_unknown")
+    );
+}

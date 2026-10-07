@@ -631,7 +631,7 @@ impl Inventory {
         let mut stmt = conn.prepare(&format!(
             "SELECT n.id, n.state, {CAME}, {LEFT}
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
-              WHERE n.kind IN ('item', 'furniture') AND n.owner_place IS NULL
+              WHERE n.kind IN ('item', 'furniture', 'vehicle') AND n.owner_place IS NULL
                 AND (n.state != 'gone' OR n.disposition NOT IN {NOT_PAST})"
         ))?;
         let rows: Vec<(i64, String, Option<String>, Option<String>)> = stmt

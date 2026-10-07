@@ -1224,3 +1224,28 @@ fn add_with_guess_records_what_the_person_said_as_a_guess() {
     let v = ev.ok(&["guess", "Mini bilgisayar", "--clear"]);
     assert!(v["nodes"][0]["guess"].is_null(), "{v}");
 }
+
+#[test]
+fn tag_marks_a_family_and_find_with_several_tags_lists_it() {
+    let ev = seeded();
+    ev.ok(&["add", "Akıllı priz", "--kind", "item", "--in", "Salon"]);
+    ev.ok(&["add", "Kapı sensörü", "--kind", "item", "--in", "Salon"]);
+    ev.ok(&["add", "Wi-Fi ampul", "--kind", "item", "--in", "Salon"]);
+    ev.ok(&["tag", "zigbee", "Akıllı priz", "Kapı sensörü"]);
+    ev.ok(&["tag", "wifi", "Wi-Fi ampul"]);
+    let names = |v: &Value| -> Vec<String> {
+        v["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names(&ev.ok(&["find", "--tag", "zigbee"])).len(), 2);
+    assert_eq!(
+        names(&ev.ok(&["find", "--tag", "zigbee", "--tag", "wifi"])).len(),
+        3
+    );
+    ev.ok(&["tag", "zigbee", "Kapı sensörü", "--remove"]);
+    assert_eq!(names(&ev.ok(&["find", "--tag", "zigbee"])), ["Akıllı priz"]);
+}

@@ -470,6 +470,10 @@ For the back-fill and at the end of each tour, `ev buy for --toured` lists every
 in a toured place with its one best line, numbered and best first: ask down that list by number
 instead of looping over records yourself. The reasons say why: a shared model code is strong,
 shared words are weak. Under My Roof is never imported; use it only to confirm a match.
+From a line instead: `ev buy things <line>` names the records it could be. Before touring a
+place, `ev buy list --open --by-place` shows which open lines it may settle; now and then
+`ev buy list --duplicates` shows lines that look like one purchase seen twice, for the person to
+join or dismiss. `--month`, `--currency` and `--sort paid` narrow and order any list.
 
 **When the person says a candidate is not the thing, record it:** `ev buy decline <line> <ref>
 --why "…"`. The line stays open for other things and is not offered to this one again; do not

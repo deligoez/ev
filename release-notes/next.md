@@ -34,3 +34,13 @@ thing left there names it with `--where`, by its name or `#id`, and is recorded 
 it. A place used for a former home until now becomes one with `ev place home <place>`: what
 was left there moves into the new home record, and the place goes; a place that is another
 household's (with errands) is refused.
+
+## Homes and vehicles lead the past
+
+`ev past` now opens with every home and vehicle of ours, here now or left: when it came and
+left, how, the address or the plate, what was paid for it (in today's money too, so a car
+bought in 2017 reads against today's prices) and what a sale brought. It is the address
+history with its dates in one list, and Past in `ev ui` shows it as its first heading. They
+leave the two lists of things, as does what left with them (a home's rooms, a car's glovebox);
+`ev stats` still counts the ones that left. `ev past --year` names the home we lived in and
+the vehicles first; a home nothing dates is left out of a year instead of counted as undated.

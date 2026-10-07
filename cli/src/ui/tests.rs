@@ -1761,16 +1761,19 @@ fn a_click_on_the_series_grid_opens_the_picture_under_it() {
 #[test]
 fn seven_opens_the_past_by_year_apart_from_the_inventory() {
     let (_dir, mut inv) = home();
-    inv.add(NewNode {
-        name: "Oyun konsolu".into(),
-        kind: "item".into(),
-        gone: Some("sell".into()),
-        at: Some("2019-05".into()),
-        came: Some("2016".into()),
-        place: Some("Eski ev".into()),
-        ..Default::default()
-    })
-    .unwrap();
+    let console = inv
+        .add(NewNode {
+            name: "Oyun konsolu".into(),
+            kind: "item".into(),
+            gone: Some("sell".into()),
+            at: Some("2019-05".into()),
+            came: Some("2016".into()),
+            place: Some("Eski ev".into()),
+            ..Default::default()
+        })
+        .unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
     inv.sold("Oyun konsolu", "1500", None, None, None, None)
         .unwrap();
     let mut app = app_tr(inv);
@@ -1784,7 +1787,8 @@ fn seven_opens_the_past_by_year_apart_from_the_inventory() {
     );
     press(&mut app, KeyCode::Char('7'));
     assert!(app.tab == Tab::Past);
-    let thing = app.rows.iter().position(|r| r.id > 0).unwrap();
+    // The homes and vehicles lead; the thing is in the remembered list under them.
+    let thing = app.rows.iter().position(|r| r.id == console).unwrap();
     app.select(thing).unwrap();
     term.draw(|f| app.draw(f)).unwrap();
     let s = screen(&term);
@@ -1800,10 +1804,14 @@ fn seven_opens_the_past_by_year_apart_from_the_inventory() {
     press(&mut app, KeyCode::Enter);
     assert!(app.tab == Tab::Past);
     // The year closes with Enter, and its things go.
-    let year = app.rows.iter().position(|r| r.id < 0).unwrap();
+    let year = app
+        .rows
+        .iter()
+        .position(|r| r.id < 0 && r.depth == 1)
+        .unwrap();
     app.select(year).unwrap();
     press(&mut app, KeyCode::Enter);
-    assert!(app.rows.iter().all(|r| r.id <= 0));
+    assert!(app.rows.iter().all(|r| r.id != console));
 }
 
 /// A whole photo of `place` taken now, so a tour of it finds its photo current.

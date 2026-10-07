@@ -75,3 +75,11 @@ now answer `emptied` for such a place, with its theme and observations, and the 
 names the two commands that clear them. ev clears nothing on its own. `ev unobserve` takes
 several ids now, and `--on <place>` removes every observation of a place at once, each kept in
 the history.
+
+## A family of things is a tag
+
+Asked for every Zigbee device, the inventory agent read drawers one by one and missed a
+shelf. ev keeps families as tags rather than a tree of categories (one household already uses
+90 tags on a quarter of its records), and gets what was missing to use them that way:
+`ev tag <tag> <ref>…` tags several records in one step (`--remove` takes it off), and
+`ev find --tag a --tag b` lists records with any of the tags.

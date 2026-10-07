@@ -257,3 +257,21 @@ fn a_year_names_the_home_we_lived_in_first_and_skips_a_home_nothing_dates() {
     // which are the pan alone.
     assert_eq!(y["unknown"], 1, "{y}");
 }
+
+#[test]
+fn a_task_may_be_about_a_former_home() {
+    let (_d, mut inv) = setup();
+    inv.add(past_thing("Kiralık daire", "moved", "home", None, None))
+        .unwrap();
+    // Its dates are still to find: a task about it.
+    let t = inv
+        .task_add(
+            "Taşınma tarihini bul",
+            "adres geçmişi",
+            &["Kiralık daire".to_string()],
+            None,
+        )
+        .unwrap();
+    assert_eq!(t["nodes"][0]["name"], "Kiralık daire");
+    assert_eq!(t["nodes"][0]["state"], "gone");
+}

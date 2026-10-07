@@ -2016,6 +2016,35 @@ fn colon_finds_a_thing_by_name_or_id_and_opens_it_in_the_tree() {
 }
 
 #[test]
+fn colon_runs_a_command_by_its_name_and_shows_its_key() {
+    let (_dir, inv) = led_drawer();
+    let mut app = app_tr(inv);
+    let mut term = Terminal::new(TestBackend::new(140, 24)).unwrap();
+    press(&mut app, KeyCode::Char(':'));
+    type_in(&mut app, "harita");
+    term.draw(|f| app.draw(f)).unwrap();
+    let s = screen(&term);
+    // The command's key at the right edge of its line, to be learnt.
+    let line = s
+        .lines()
+        .find(|l| l.contains("Evin haritası"))
+        .unwrap_or_else(|| panic!("{s}"));
+    let after = line.split("Evin haritası").nth(1).unwrap();
+    assert_eq!(after.split('│').next().unwrap().trim(), "M", "{line}");
+    let at = app
+        .palette
+        .as_ref()
+        .unwrap()
+        .hits
+        .iter()
+        .position(|h| matches!(h.0, super::palette::Goal::Command(_)))
+        .unwrap();
+    app.palette.as_mut().unwrap().at = at;
+    press(&mut app, KeyCode::Enter);
+    assert!(app.palette.is_none() && app.map_view.is_some());
+}
+
+#[test]
 fn a_record_that_leaves_the_list_hands_the_selection_to_its_neighbour_and_says_so() {
     let (dir, mut inv) = led_drawer();
     inv.move_to("Aktif buzzer", "D-A1", true).unwrap();

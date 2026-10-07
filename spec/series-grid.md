@@ -35,6 +35,27 @@ pictures, finding f27 by stepping takes 26 key presses, and the person cannot se
 whole. A width-based grid answers the open questions without one more thing to set up: how many
 fit a row follows from the terminal and one size the person picks once.
 
+## The batch for the agent (decided 2026-10-08)
+
+The grid is the person's view of a batch; the agent had none. To look at sixteen new photos it
+built its own contact sheet with ImageMagick, and to give each photo of single things a number
+it ran one `ev photo mark … 1=0.03,0.03,0.94,0.94` per photo (the inventory agent's report).
+
+- **`ev photo sheet [f16..f31 | f2 f5 …]`** writes one JPEG of those series pictures, four to a
+  row, each fitted in its tile and titled with its `f`-number (and its note, cut to the tile),
+  and answers its path with the pictures it holds. Without arguments, the whole series. It
+  shows the pictures as they are on screen (with their marks), is a scratch file like a mark's,
+  and is not sent to `ev ui`: it is for the agent's eyes, the grid is the person's. A range and
+  single numbers mix (`f2 f5..f8`); a number the series lacks is refused, as `ev focus f12`
+  refuses it.
+- **`ev photo mark --whole f2 f3 f4`** gives each of those pictures one frame round the whole
+  photo, numbered on from the series as any numbered mark is, in one call: a batch of photos of
+  one thing each becomes frames `1`…`n` the person and the agent can name. It is the same as one
+  `ev photo mark fN 1=0.03,0.03,0.94,0.94` per picture, sent to `ev ui` as those are.
+
+Why: friction is a missing verb. Both were scripts around ev, and both are a batch the series
+already knows.
+
 ## Not now
 
 - Choosing several pictures in the grid to act on (attach, close): the agent attaches by

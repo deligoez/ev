@@ -1249,3 +1249,26 @@ fn tag_marks_a_family_and_find_with_several_tags_lists_it() {
     ev.ok(&["tag", "zigbee", "Kapı sensörü", "--remove"]);
     assert_eq!(names(&ev.ok(&["find", "--tag", "zigbee"])), ["Akıllı priz"]);
 }
+
+#[test]
+fn fixed_with_work_closes_broken_and_records_the_repair() {
+    let ev = seeded();
+    ev.ok(&["add", "Çamaşır makinesi", "--kind", "item", "--in", "Salon"]);
+    ev.ok(&["broken", "Çamaşır makinesi", "--note", "su boşaltmıyor"]);
+    let v = ev.ok(&[
+        "fixed",
+        "Çamaşır makinesi",
+        "--work",
+        "pompa değişti",
+        "--by",
+        "Servis A",
+    ]);
+    assert_eq!(v["upkeep_added"]["kind"], "repair", "{v}");
+    assert_eq!(v["upkeep_added"]["by"], "Servis A");
+    let list = ev.ok(&["upkeep", "list", "Çamaşır makinesi"]);
+    assert_eq!(list["upkeep"][0]["work"], "pompa değişti");
+    let id = list["upkeep"][0]["id"].as_i64().unwrap().to_string();
+    ev.ok(&["upkeep", "edit", &id, "work=pompa ve filtre"]);
+    let removed = ev.ok(&["upkeep", "remove", &id]);
+    assert_eq!(removed["removed"]["work"], "pompa ve filtre");
+}

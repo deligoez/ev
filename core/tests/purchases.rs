@@ -845,3 +845,32 @@ fn lines_are_narrowed_by_month_and_currency_and_sorted_dearest_first() {
         ["c"]
     );
 }
+
+#[test]
+fn a_line_names_the_records_it_could_be_best_first() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(
+        &json!({"source": "shop", "key": "m1", "name": "Bosch GSB 13 RE Darbeli Matkap",
+                "paid": "1999.00", "currency": "TRY", "ordered_at": "2024-05-01"})
+        .to_string(),
+    )
+    .unwrap();
+    let id = inv
+        .buy_list_where(&ev_core::BuyFilter {
+            key: Some("m1"),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["id"]
+        .as_i64()
+        .unwrap();
+    let v = inv.buy_things(id).unwrap();
+    assert_eq!(v["candidates"][0]["node"]["name"], "Matkap", "{v}");
+    assert!(
+        v["candidates"][0]["why"]
+            .as_array()
+            .is_some_and(|w| !w.is_empty())
+    );
+    // Linked, the line is settled and names nothing more.
+    inv.buy_link(id, "Matkap", None).unwrap();
+    assert_eq!(inv.buy_things(id).unwrap()["candidates"], json!([]));
+}

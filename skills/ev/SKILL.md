@@ -27,7 +27,12 @@ conversation, so show it there too when no `ev ui` is open. A refused call retur
 ## Model in one paragraph
 
 Everything is a node in one tree: `home` › `room` (rooms may nest) › `furniture` ›
-`container` › `item`. `kind` is only a label — any node can hold other nodes. Codes are
+`container` › `item`, and beside the homes, each car as a `vehicle` (its plate as its code,
+VIN as `serial`, the model year in `model`; its glovebox and boot are `container`s under it,
+toured like any place; insurance is coverage, its papers are documents; a sold car is a past
+thing with `ev sold`; what was proposed for the home never goes into it, so put things in a
+car only on the person's word; earlier plates and a registered owner who is not the household
+go in its note with their dates, never as `owner=`, which would say the car was not ours). `kind` is only a label — any node can hold other nodes. Codes are
 what is printed on the physical labels, and there are two kinds. **A slot of furniture has a
 positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says where, so it is
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial

@@ -143,6 +143,34 @@ pub(crate) fn live_nodes(conn: &Connection) -> Result<Vec<Node>> {
     super::load_live(conn)
 }
 
+/// The vehicle `id` is or is in, walking up from it.
+pub(crate) fn vehicle_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {
+    let mut cur = Some(id);
+    for _ in 0..MAX_DEPTH {
+        let n = by_id.get(&cur?)?;
+        if n.kind == Kind::Vehicle {
+            return Some(n.id);
+        }
+        cur = n.parent_id;
+    }
+    None
+}
+
+/// The live nodes placement weighs for `about` (spec/vehicles-homes.md): a vehicle and the
+/// home are apart, so what is proposed for the home never goes into a car or comes out of one,
+/// and what is asked about a car stays in that car. With nothing named, the home's.
+pub(crate) fn placement_nodes(conn: &Connection, about: Option<i64>) -> Result<Vec<Node>> {
+    let all = live_nodes(conn)?;
+    let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
+    let side = about.and_then(|a| vehicle_of(&by_id, a));
+    let keep: std::collections::HashSet<i64> = all
+        .iter()
+        .filter(|n| vehicle_of(&by_id, n.id) == side)
+        .map(|n| n.id)
+        .collect();
+    Ok(all.into_iter().filter(|n| keep.contains(&n.id)).collect())
+}
+
 /// The parking place (`temporary`) that `id` is, or stands inside, if any: the nearest one up
 /// its chain of holders.
 pub(crate) fn parking_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {

@@ -18,7 +18,9 @@ mod places;
 mod schema;
 mod search;
 
-pub(crate) use audit::{holder_json, is_holder, live_nodes, parking_of, rules_json};
+pub(crate) use audit::{
+    holder_json, is_holder, live_nodes, parking_of, placement_nodes, rules_json,
+};
 pub(crate) use edit::{apply_edit, parse_size};
 use edit::{edit_in, field_value, normalize_size, size_in_name};
 pub(crate) use places::place_errands;

@@ -16,8 +16,8 @@ use crate::error::{Result, not_found, usage};
 use crate::fold;
 use crate::model::{Kind, Node};
 use crate::store::{
-    Inventory, brief_json, holder_json, is_holder, live_nodes, parking_of, parse_size, resolve,
-    rules_json,
+    Inventory, brief_json, holder_json, is_holder, live_nodes, parking_of, parse_size,
+    placement_nodes, resolve, rules_json,
 };
 
 mod index;
@@ -213,7 +213,9 @@ impl Inventory {
         tag: Option<&str>,
         for_ref: Option<&str>,
     ) -> Result<Value> {
-        let all = live_nodes(&self.conn)?;
+        // A thing in a car is placed within that car; anything else within the home.
+        let about = for_ref.map(|r| resolve(&self.conn, r, false)).transpose()?;
+        let all = placement_nodes(&self.conn, about)?;
         let mut query = terms(text);
         if let Some(t) = tag {
             query.extend(terms(t));
@@ -380,7 +382,10 @@ impl Inventory {
     /// kind has a themed home, full holders with a bigger spare box that would fit, sparse
     /// holders that could merge, mixed holders, and holders whose fill is unknown or stale.
     pub fn regroup(&self, reference: Option<&str>) -> Result<Value> {
-        let all = live_nodes(&self.conn)?;
+        let about = reference
+            .map(|r| resolve(&self.conn, r, false))
+            .transpose()?;
+        let all = placement_nodes(&self.conn, about)?;
         let has_children: HashSet<i64> = all.iter().filter_map(|n| n.parent_id).collect();
         let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
         let (root, scope) = match reference {

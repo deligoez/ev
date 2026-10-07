@@ -151,8 +151,8 @@ impl Inventory {
     /// layout drafted from the contents alone: the kinds, largest first, each given the place
     /// that holds most of it, the moves that takes and a theme for each place. Nothing is moved.
     pub fn layout(&self, reference: &str, propose: bool) -> Result<Value> {
-        let all = live_nodes(&self.conn)?;
         let root = resolve(&self.conn, reference, false)?;
+        let all = crate::store::placement_nodes(&self.conn, Some(root))?;
         let scope = subtree(&all, root);
         let by_id: HashMap<i64, &Node> = all.iter().map(|n| (n.id, n)).collect();
         let mut kids: HashMap<i64, Vec<&Node>> = HashMap::new();

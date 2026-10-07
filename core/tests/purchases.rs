@@ -874,3 +874,33 @@ fn a_line_names_the_records_it_could_be_best_first() {
     inv.buy_link(id, "Matkap", None).unwrap();
     assert_eq!(inv.buy_things(id).unwrap()["candidates"], json!([]));
 }
+
+#[test]
+fn one_purchase_seen_twice_is_listed_as_a_possible_duplicate() {
+    let (_d, mut inv) = setup();
+    let line = |source: &str, key: &str, at: &str| {
+        json!({"source": source, "key": key, "name": "USB kablo", "paid": "99.90",
+               "currency": "TRY", "ordered_at": at})
+        .to_string()
+    };
+    inv.buy_import(
+        &[
+            line("shop", "a", "2025-03-01"),
+            line("mail", "b", "2025-03-03"),
+            // The same cable a month later is a second purchase.
+            line("shop", "c", "2025-04-10"),
+        ]
+        .join("\n"),
+    )
+    .unwrap();
+    let v = inv.buy_duplicates().unwrap();
+    let groups = v["duplicates"].as_array().unwrap();
+    assert_eq!(groups.len(), 1, "{v}");
+    let keys: Vec<&str> = groups[0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["source_key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys, ["a", "b"]);
+}

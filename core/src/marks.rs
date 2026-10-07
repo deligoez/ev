@@ -115,9 +115,11 @@ pub(crate) fn clear_shred(conn: &Connection, id: i64) -> Result<()> {
     clear_mark(conn, id, "shred")
 }
 
-/// A new or changed code needs a new label; a removed code needs none.
+/// A new or changed code needs a new label; a removed code needs none. Nor does a vehicle's,
+/// its plate printed on it already, nor that of a thing that has left.
 pub(crate) fn code_changed(conn: &Connection, id: i64, has_code: bool) -> Result<()> {
-    if has_code {
+    let n = crate::store::load(conn, id)?;
+    if has_code && n.kind != Kind::Vehicle && n.state != crate::model::State::Gone {
         set_mark(conn, id, "label", Some("needed"), None, None)
     } else {
         clear_mark(conn, id, "label")

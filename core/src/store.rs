@@ -868,7 +868,7 @@ impl Inventory {
         }
         if matches!(
             disposition,
-            Disposition::Left | Disposition::Stolen | Disposition::Unknown
+            Disposition::Left | Disposition::Stolen | Disposition::Unknown | Disposition::Moved
         ) {
             return Err(usage(
                 "nothing_set_aside",
@@ -1026,7 +1026,10 @@ impl Inventory {
                 Value::Null,
             ));
         }
-        let inside = require_no_active_inside(&tx, &node)?;
+        check_home_leaving(&node, disposition)?;
+        // A home's rooms and a vehicle's compartments are its structure: they leave with it.
+        let structure = structure_of(&tx, &node)?;
+        let inside = require_empty_but(&tx, &node, &structure)?;
         let leaving = disposition
             .or(node.disposition)
             .unwrap_or(Disposition::Trash);
@@ -1092,6 +1095,20 @@ impl Inventory {
             json!({ "as": final_disposition, "why": why, "dropped_pending": node.pending_to,
                     "at": at, "where": place }),
         )?;
+        // Its structure leaves with it, the way it left.
+        for n in &structure {
+            tx.execute(
+                "UPDATE nodes SET state = 'gone', disposition = ?1, pending_to = NULL WHERE id = ?2",
+                params![final_disposition.as_str(), n.id],
+            )?;
+            touch(&tx, n.id)?;
+            event(
+                &tx,
+                n.id,
+                "gone",
+                json!({ "as": final_disposition, "with": node.id }),
+            )?;
+        }
         // Candidates inside leave with it, each keeping its own disposition.
         for n in &inside {
             tx.execute(
@@ -2710,6 +2727,98 @@ fn require_no_active_inside(conn: &Connection, node: &Node) -> Result<Vec<Node>>
         "still_holds",
         json!({ "node": label(node), "count": active.len() }),
         json!({ "children": children }),
+    ))
+}
+
+/// `moved` is a home's only, and a home leaves only moved out of, sold, or as a mistake
+/// (spec/vehicles-homes.md).
+fn check_home_leaving(node: &Node, disposition: Option<Disposition>) -> Result<()> {
+    let d = disposition.or(node.disposition);
+    if node.kind == Kind::Home {
+        if let Some(d) = d
+            && !matches!(
+                d,
+                Disposition::Moved | Disposition::Sell | Disposition::Mistake
+            )
+        {
+            return Err(usage(
+                "home_leaves_moved_or_sold",
+                json!({ "way": d.as_str() }),
+            ));
+        }
+    } else if d == Some(Disposition::Moved) {
+        return Err(usage(
+            "moved_is_a_homes",
+            json!({ "kind": node.kind.to_string() }),
+        ));
+    }
+    Ok(())
+}
+
+/// What leaves with a home or a vehicle as its structure: a home's rooms (rooms in rooms too),
+/// a vehicle's compartments. Nothing for anything else.
+fn structure_of(conn: &Connection, node: &Node) -> Result<Vec<Node>> {
+    let below = live_descendants(conn, node.id)?;
+    let part = |n: &Node| match node.kind {
+        Kind::Home => n.kind == Kind::Room && n.state == State::Active,
+        Kind::Vehicle => {
+            n.parent_id == Some(node.id)
+                && matches!(n.kind, Kind::Container | Kind::Furniture)
+                && n.state == State::Active
+        }
+        _ => false,
+    };
+    Ok(below.into_iter().filter(part).collect())
+}
+
+/// `require_no_active_inside`, the structure aside: what is still active below `node`, other
+/// than its structure, refuses, listed by the part of the structure it is in, with the two ways
+/// on (moved where it goes, or said to have stayed behind).
+fn require_empty_but(conn: &Connection, node: &Node, structure: &[Node]) -> Result<Vec<Node>> {
+    if structure.is_empty() {
+        return require_no_active_inside(conn, node);
+    }
+    let parts: HashSet<i64> = structure.iter().map(|n| n.id).collect();
+    let below = live_descendants(conn, node.id)?;
+    let active: Vec<&Node> = below
+        .iter()
+        .filter(|n| n.state == State::Active && !parts.contains(&n.id))
+        .collect();
+    if active.is_empty() {
+        return Ok(below
+            .into_iter()
+            .filter(|n| !parts.contains(&n.id))
+            .collect());
+    }
+    // Each record by the part it stands in, the outermost only: a box goes with what it holds.
+    let mut by_part: Vec<(Option<i64>, Vec<i64>)> = Vec::new();
+    let ids: HashSet<i64> = active.iter().map(|n| n.id).collect();
+    for n in &active {
+        if n.parent_id.is_some_and(|p| ids.contains(&p)) {
+            continue;
+        }
+        let part = n.parent_id.filter(|p| parts.contains(p));
+        match by_part.iter_mut().find(|(p, _)| *p == part) {
+            Some((_, list)) => list.push(n.id),
+            None => by_part.push((part, vec![n.id])),
+        }
+    }
+    let remaining = by_part
+        .iter()
+        .map(|(part, list)| {
+            let refs: Vec<String> = list.iter().map(|id| format!("#{id}")).collect();
+            Ok(json!({
+                "in": part.map(|p| brief_json(conn, p)).transpose()?,
+                "nodes": list.iter().map(|k| brief_json(conn, *k)).collect::<Result<Vec<_>>>()?,
+                "move": format!("ev move --to <where> {}", refs.join(" ")),
+                "left": refs.iter().map(|r| format!("ev gone {r} --as left")).collect::<Vec<_>>(),
+            }))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Err(refuse(
+        "leaving_still_holds",
+        json!({ "node": label(node), "count": active.len() }),
+        json!({ "remaining": remaining }),
     ))
 }
 

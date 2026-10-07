@@ -202,6 +202,18 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "araç kaybolamaz; çalınan araç elden çıkmıştır (--as stolen)",
     ),
     (
+        "home_leaves_moved_or_sold",
+        "bir ev taşınılarak (--as moved), satılarak (--as sell) ya da kayıt hatası olarak bırakılır, {way} olarak değil",
+    ),
+    (
+        "moved_is_a_homes",
+        "--as moved evler içindir; taşınırken geride kalan bir {kind} için --as left kullanın",
+    ),
+    (
+        "leaving_still_holds",
+        "{node} odaları ya da bölmeleri dışında hâlâ {count} kayıt tutuyor; önce her birini gideceği yere taşıyın ya da geride kaldığını söyleyin (--as left)",
+    ),
+    (
         "vehicle_inside",
         "araç evlerin yanında en üstte durur, hiçbir kaydın içine konamaz",
     ),

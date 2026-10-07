@@ -93,6 +93,9 @@ label_enum!(Disposition, "disposition", {
     // Swapped for something else ("my bike for a friend's guitar"): neither given nor sold.
     // What came in exchange is linked on the departure.
     Trade => "trade",
+    // A home moved out of (rented, lent): a home's only, and only `gone` takes it
+    // (spec/vehicles-homes.md). An owned home that was sold is `sell`.
+    Moved => "moved",
     // A portion that joined another portion of the same thing in its place (spec/portions.md
     // §4.2): its units live on in the other record. ev's own; never given on the command line.
     Merged => "merged",

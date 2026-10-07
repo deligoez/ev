@@ -52,6 +52,18 @@ pub const ERRORS: &[(&str, &str)] = &[
         "a vehicle cannot be lost; a stolen one is gone (--as stolen)",
     ),
     (
+        "home_leaves_moved_or_sold",
+        "a home leaves moved out of (--as moved), sold (--as sell) or as a mistake, not as {way}",
+    ),
+    (
+        "moved_is_a_homes",
+        "--as moved is a home's; a {kind} that stayed behind at a move is --as left",
+    ),
+    (
+        "leaving_still_holds",
+        "{node} still holds {count} record(s) besides its rooms or compartments; move each where it goes, or say it stayed behind (--as left), first",
+    ),
+    (
         "vehicle_inside",
         "a vehicle stands at the top beside the homes, never inside another node",
     ),

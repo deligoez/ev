@@ -181,7 +181,8 @@ enum Cmd {
     Gone {
         reference: String,
         /// How it left: trash, give, sell, trade, return, used, digitize, left, stolen,
-        /// unknown or mistake; a thing set aside leaves as it was set aside.
+        /// unknown or mistake; a home moved out of: moved (its rooms go with it); a thing set
+        /// aside leaves as it was set aside.
         #[arg(long = "as")]
         disposition: Option<String>,
         /// Why it left; recorded in the event and appended to the note.

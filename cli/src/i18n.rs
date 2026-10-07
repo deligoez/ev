@@ -634,6 +634,28 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ("split_no_parts", "ayırmak için en az bir <name>=<qty> ver"),
     ("split_part_needs_name", "ayrılan parçanın bir adı olmalı"),
     (
+        "upkeep_kind_unknown",
+        "`{kind}` bir bakım türü değil: {kinds} olabilir",
+    ),
+    ("upkeep_work_empty", "ne yapıldığını söyle (--work)"),
+    ("upkeep_at_empty", "ne zaman yapıldığını söyle"),
+    (
+        "upkeep_next_bad",
+        "vade tarihi YYYY-AA-GG ya da YYYY-AA olmalı, gelen: `{date}`",
+    ),
+    ("upkeep_km_bad", "kilometre tam sayı olmalı, gelen: `{km}`"),
+    ("upkeep_doc_unknown", "{doc} numaralı belge yok"),
+    ("upkeep_not_found", "{id} numaralı bakım kaydı yok"),
+    ("upkeep_edit_nothing", "en az bir alan=değer ver"),
+    (
+        "upkeep_edit_field_bad",
+        "`{field}` alan=değer biçiminde değil",
+    ),
+    (
+        "upkeep_edit_field_unknown",
+        "`{field}` bir bakım alanı değil: kind, work, at, km, by, next_at, next_km, doc ya da note",
+    ),
+    (
         "unobserve_nothing",
         "bir gözlem numarası ver ya da tüm gözlemlerini silmek için --on ile bir yer",
     ),

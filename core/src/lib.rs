@@ -21,6 +21,7 @@ mod purchase_match;
 mod purchases;
 mod stats;
 mod store;
+mod upkeep;
 mod valuations;
 
 pub use coverage::{COVERAGE_KINDS, INVENTORY_SETTINGS, NewCoverage};
@@ -36,4 +37,5 @@ pub use photo::{Crop, open_upright};
 pub use plan::{series_number, series_numbers};
 pub use purchases::{BUCKETS, BuyFilter, DISMISSALS};
 pub use store::{Inventory, SCHEMA_VERSION, SplitPart};
+pub use upkeep::{NewUpkeep, UPKEEP_KINDS};
 pub use valuations::NewValuation;

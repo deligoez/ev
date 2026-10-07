@@ -28,7 +28,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 35;
+pub const SCHEMA_VERSION: i64 = 36;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -234,6 +234,9 @@ impl Inventory {
         }
         if version < 35 {
             conn.execute_batch(SCHEMA_V35)?;
+        }
+        if version < 36 {
+            conn.execute_batch(SCHEMA_V36)?;
         }
         // Indexes no schema version depends on: an older build opens the file as before, and
         // this one adds what is missing once. A purchase's joined lines are found by
@@ -1836,6 +1839,8 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let tasks = crate::plan::tasks_of(conn, id)?;
     let marks = crate::marks::marks_of(conn, id)?;
     let (guess, guessed) = crate::marks::guesses_of(conn, id)?;
+    // What was done to it, newest first (spec/repairs.md).
+    let upkeep = crate::upkeep::upkeep_of(conn, id, Some(10))?;
     let needs = crate::marks::needs_for(conn, id)?;
     let cells = crate::grid::cells_of(conn, id)?.map(|c| c.name());
     let grid = crate::grid::grid_json(conn, id)?;
@@ -1863,6 +1868,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "marks": marks,
         "guess": guess,
         "guessed": guessed,
+        "upkeep": upkeep,
         "needs": needs,
         "node": node,
         "thing": crate::portions::thing_json(conn, &n)?,

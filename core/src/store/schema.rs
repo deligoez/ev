@@ -630,3 +630,26 @@ ALTER TABLE coverages ADD COLUMN purchase_id INTEGER REFERENCES purchases(id);
 PRAGMA user_version = 35;
 COMMIT;
 ";
+
+/// Schema 36: repairs and maintenance (spec/repairs.md). What was done to a thing and when it is
+/// due again; what it cost is ak's.
+pub(super) const SCHEMA_V36: &str = "
+BEGIN;
+CREATE TABLE upkeep (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    kind TEXT NOT NULL,
+    at TEXT NOT NULL,
+    km INTEGER,
+    work TEXT NOT NULL,
+    by TEXT,
+    next_at TEXT,
+    next_km INTEGER,
+    doc_id INTEGER REFERENCES documents(id),
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX upkeep_node ON upkeep(node_id);
+PRAGMA user_version = 36;
+COMMIT;
+";

@@ -1014,6 +1014,8 @@ impl Inventory {
             }
         }
         expiring.sort_by_key(|v| v["days_left"].as_i64().unwrap_or_default());
+        // Repairs and maintenance due again, by date or odometer (spec/repairs.md).
+        let upkeep_due = crate::upkeep::upkeep_due(&self.conn)?;
 
         let progress = self.progress()?;
         let places = progress["places"].as_array().cloned().unwrap_or_default();
@@ -1091,6 +1093,7 @@ impl Inventory {
                 "stale": stale.len(),
                 "unclear": unclear.len(),
                 "guesses": guesses.len(),
+                "upkeep_due": upkeep_due.len(),
                 "photos": photos.len(),
                 "photos_now": photos_now,
                 "shared_photos": shared.len(),
@@ -1113,6 +1116,7 @@ impl Inventory {
             "stale": stale,
             "unclear": unclear,
             "guesses": guesses,
+            "upkeep_due": upkeep_due,
             "photos": photos,
             "shared_photos": shared,
             "coverage_ending": coverage_ending,
@@ -1157,6 +1161,9 @@ impl Inventory {
         }
         for s in each(&todo["shared_photos"]) {
             refs.extend(each(&s["nodes"]));
+        }
+        for u in each(&todo["upkeep_due"]) {
+            refs.push(u["node"].clone());
         }
         for k in [
             "labels",

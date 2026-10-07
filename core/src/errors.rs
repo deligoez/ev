@@ -491,6 +491,28 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("split_part_needs_name", "a split-off part needs a name"),
     (
+        "upkeep_kind_unknown",
+        "`{kind}` is no kind of upkeep: one of {kinds}",
+    ),
+    ("upkeep_work_empty", "say what was done (--work)"),
+    ("upkeep_at_empty", "say when it was done"),
+    (
+        "upkeep_next_bad",
+        "a due date is YYYY-MM-DD or YYYY-MM, got `{date}`",
+    ),
+    (
+        "upkeep_km_bad",
+        "an odometer reading is a whole number of km, got `{km}`",
+    ),
+    ("upkeep_doc_unknown", "no document with id {doc}"),
+    ("upkeep_not_found", "no upkeep with id {id}"),
+    ("upkeep_edit_nothing", "give at least one field=value"),
+    ("upkeep_edit_field_bad", "`{field}` is not field=value"),
+    (
+        "upkeep_edit_field_unknown",
+        "`{field}` is no field of upkeep: kind, work, at, km, by, next_at, next_km, doc or note",
+    ),
+    (
         "unobserve_nothing",
         "give an observation id, or --on a place to remove all of its observations",
     ),

@@ -212,7 +212,8 @@ is (`ev review <place> --as counting|toured|kept`; a place is being counted once
 starts during a task on it, never because the task started), and flags counted ones that
 changed since. `ev progress K4x4` reads one cabinet or room, each place with its tasks, and a
 place settled names what is still not counted in the same cabinet and room. `ev observe` keeps what was
-noticed about a place (`ev unobserve` closes a note once it is dealt with, and the place's
+noticed about a place (`ev unobserve` closes a note once it is dealt with, `--on <place>` all
+of a place's at once, and a move that empties a place names its theme and notes as stale; the place's
 history keeps what it said); `ev task` is an ordered work list where every entry says why it
 matters, and may carry the day it is due (`--due`); `ev next` hands over the current task (one
 due within a day goes first) with its places, what is planned to arrive there, everything

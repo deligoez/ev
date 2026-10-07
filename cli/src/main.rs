@@ -363,10 +363,13 @@ enum Cmd {
         #[arg(long)]
         photo: Option<usize>,
     },
-    /// Remove an observation by id.
+    /// Remove observations by id, or with --on every observation of a place (one just emptied).
     Unobserve {
-        #[arg(value_parser = record_id)]
-        id: i64,
+        #[arg(value_parser = record_id, required_unless_present = "on")]
+        ids: Vec<i64>,
+        /// Every observation of this place.
+        #[arg(long)]
+        on: Option<String>,
     },
     /// Mark how far a place has been counted: counting (its tour has begun), toured (counted),
     /// kept (left as it is) or raw (not counted, the default).
@@ -2163,7 +2166,9 @@ fn run(cli: Cli) -> Result<Value> {
             text,
             photo,
         } => inv.observe(&reference, &text, photo),
-        Cmd::Unobserve { id } => inv.unobserve(id),
+        // One alone answers with its place, as before.
+        Cmd::Unobserve { ids, on: None } if ids.len() == 1 => inv.unobserve(ids[0]),
+        Cmd::Unobserve { ids, on } => inv.unobserve_many(&ids, on.as_deref()),
         Cmd::Review {
             reference,
             status,

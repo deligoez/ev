@@ -491,6 +491,10 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("split_part_needs_name", "a split-off part needs a name"),
     (
+        "unobserve_nothing",
+        "give an observation id, or --on a place to remove all of its observations",
+    ),
+    (
         "guess_nothing",
         "name at least one record to mark as a guess",
     ),

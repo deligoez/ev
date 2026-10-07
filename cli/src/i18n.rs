@@ -634,6 +634,10 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ("split_no_parts", "ayırmak için en az bir <name>=<qty> ver"),
     ("split_part_needs_name", "ayrılan parçanın bir adı olmalı"),
     (
+        "unobserve_nothing",
+        "bir gözlem numarası ver ya da tüm gözlemlerini silmek için --on ile bir yer",
+    ),
+    (
         "guess_nothing",
         "tahmin olarak işaretlenecek en az bir kayıt ver",
     ),

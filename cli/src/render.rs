@@ -2985,6 +2985,18 @@ fn human_body(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
+    // `ev unobserve` of several: how many went, and from where.
+    if let Some(list) = v.get("unobserved").and_then(Value::as_array) {
+        let _ = writeln!(
+            out,
+            "{}",
+            tf("Removed {} observation(s) from:", &[&list.len()])
+        );
+        for p in v["places"].as_array().into_iter().flatten() {
+            let _ = writeln!(out, "  {}", line(p));
+        }
+        return out;
+    }
     // `ev guess`: each record with what of it is a guess now.
     if let Some(list) = v.get("nodes").and_then(Value::as_array)
         && list.iter().all(|n| n.get("guessed").is_some())

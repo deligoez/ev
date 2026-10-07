@@ -1373,6 +1373,58 @@ impl Inventory {
         show(&self.conn, node)
     }
 
+    /// Several observations removed at once, all or none: those of `ids`, and with `on` every
+    /// observation of that place (a place just emptied, spec/emptied-place.md). Each leaves an
+    /// `unobserve` event, as one removed alone does. Answers with the places they were on.
+    pub fn unobserve_many(&mut self, ids: &[i64], on: Option<&str>) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let mut wanted = ids.to_vec();
+        if let Some(place) = on {
+            let place = resolve(&tx, place, false)?;
+            wanted.extend(crate::store::ids(
+                &tx,
+                "SELECT id FROM observations WHERE node_id = ?1 ORDER BY id",
+                [place],
+            )?);
+        }
+        if wanted.is_empty() {
+            return Err(usage("unobserve_nothing", Value::Null));
+        }
+        let mut places = Vec::new();
+        let mut removed = Vec::new();
+        for observation in wanted {
+            if removed.contains(&observation) {
+                continue;
+            }
+            let row: Option<(i64, String)> = tx
+                .query_row(
+                    "SELECT node_id, text FROM observations WHERE id = ?1",
+                    [observation],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?;
+            let (node, text) =
+                row.ok_or_else(|| not_found("plan_no_observation", json!({ "id": observation })))?;
+            tx.execute("DELETE FROM observations WHERE id = ?1", [observation])?;
+            event(
+                &tx,
+                node,
+                "unobserve",
+                json!({ "observation": observation, "text": text }),
+            )?;
+            removed.push(observation);
+            if !places.contains(&node) {
+                places.push(node);
+            }
+        }
+        tx.commit()?;
+        let places = places
+            .iter()
+            .map(|p| brief(&self.conn, *p))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(json!({ "unobserved": removed, "places": places }))
+    }
+
     /// Marks how far a place has been counted: `counting` (its tour has begun), `toured` (every
     /// thing in it looked at and the person said it is done), `kept` (the person wants it left
     /// as it is), or `raw` (not counted, the default) to clear it. Everything below the place

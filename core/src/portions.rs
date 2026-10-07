@@ -470,7 +470,8 @@ pub(crate) fn thing_json(conn: &Connection, n: &Node) -> Result<Option<Value>> {
     for p in &portions {
         let used = p
             .parent_id
-            .map(|parent| load(conn, parent).map(|h| h.kind == Kind::Item))
+            // In a device or a car, they are in use (spec/vehicles-homes.md).
+            .map(|parent| load(conn, parent).map(|h| matches!(h.kind, Kind::Item | Kind::Vehicle)))
             .transpose()?
             .unwrap_or(false);
         if p.lost {

@@ -430,6 +430,7 @@ pub(crate) fn event_words(
         "join" => own("joined to a thing", format!("#{}", d["thing"])),
         "unjoin" => own("taken from a thing", format!("#{}", d["thing"])),
         "empty" => own("found empty", str_of(d, "note")),
+        "was_place" => own("made from the place", str_of(d, "place")),
         other => (t("event"), format!("{other} {d}"), Tone::Other),
     }
 }

@@ -135,6 +135,77 @@ impl Inventory {
         place_json(&self.conn, b)
     }
 
+    /// A place that was a home of ours becomes a home that was left (spec/vehicles-homes.md):
+    /// made with the place's name, `came`, the day it was `left` and its `address`; the things
+    /// that named the place as where they were move into it, and the place goes with its
+    /// aliases. A place that is also another household's (something to take there, return
+    /// there or collect from there) is refused: that is a household, not a home of ours.
+    pub fn place_home(
+        &mut self,
+        place: &str,
+        came: Option<&str>,
+        left: Option<&str>,
+        address: Option<&str>,
+    ) -> Result<Value> {
+        let tx = self.conn.transaction()?;
+        let pid = resolve_place(&tx, place)?;
+        let errands: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM nodes
+              WHERE owner_place = ?1 OR with_place = ?1 OR to_place = ?1",
+            [pid],
+            |r| r.get(0),
+        )?;
+        if errands > 0 {
+            return Err(refuse(
+                "place_is_a_household",
+                json!({ "place": place.trim(), "count": errands }),
+                json!({ "errands": place_errands(&tx, pid)? }),
+            ));
+        }
+        let name: String =
+            tx.query_row("SELECT name FROM places WHERE id = ?1", [pid], |r| r.get(0))?;
+        let home = add_one(
+            &tx,
+            &crate::model::NewNode {
+                name: name.clone(),
+                kind: "home".into(),
+                gone: Some("moved".into()),
+                came: came.map(Into::into),
+                at: left.map(Into::into),
+                address: address.map(Into::into),
+                ..Default::default()
+            },
+            None,
+        )?;
+        let moved = ids(
+            &tx,
+            "SELECT node_id FROM departures WHERE place_id = ?1 ORDER BY node_id",
+            [pid],
+        )?;
+        for id in &moved {
+            tx.execute(
+                "UPDATE nodes SET parent_id = ?1, lost = 0 WHERE id = ?2",
+                params![home, id],
+            )?;
+        }
+        tx.execute(
+            "UPDATE departures SET place_id = NULL WHERE place_id = ?1",
+            [pid],
+        )?;
+        tx.execute("DELETE FROM place_aliases WHERE place_id = ?1", [pid])?;
+        tx.execute("DELETE FROM places WHERE id = ?1", [pid])?;
+        event(
+            &tx,
+            home,
+            "was_place",
+            json!({ "place": name, "moved": moved }),
+        )?;
+        tx.commit()?;
+        let mut v = show(&self.conn, home)?;
+        v["moved_in"] = json!(moved.len());
+        Ok(v)
+    }
+
     pub fn place_list(&self) -> Result<Value> {
         let list = ids(&self.conn, "SELECT id FROM places ORDER BY name", [])?;
         let mut out = Vec::new();

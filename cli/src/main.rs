@@ -1345,6 +1345,19 @@ enum PlaceCmd {
     List,
     /// Fold one place into another; references and aliases move.
     Merge { from: String, into: String },
+    /// A place that was a home of ours becomes a home that was left: the things left there
+    /// move into it, and the place goes.
+    Home {
+        place: String,
+        /// When we moved in (2013, 2013-09, 2013-09-01).
+        #[arg(long)]
+        came: Option<String>,
+        /// When we moved out.
+        #[arg(long)]
+        left: Option<String>,
+        #[arg(long)]
+        address: Option<String>,
+    },
 }
 
 #[derive(Args)]
@@ -1973,6 +1986,17 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Place(PlaceCmd::Alias { place, alias }) => inv.place_alias(&place, &alias),
         Cmd::Place(PlaceCmd::List) => inv.place_list(),
         Cmd::Place(PlaceCmd::Merge { from, into }) => inv.place_merge(&from, &into),
+        Cmd::Place(PlaceCmd::Home {
+            place,
+            came,
+            left,
+            address,
+        }) => inv.place_home(
+            &place,
+            came.as_deref(),
+            left.as_deref(),
+            address.as_deref(),
+        ),
         Cmd::Suggest { text, tag, for_ref } => {
             inv.suggest_with(&text.join(" "), tag.as_deref(), for_ref.as_deref())
         }

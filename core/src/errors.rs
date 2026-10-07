@@ -52,6 +52,10 @@ pub const ERRORS: &[(&str, &str)] = &[
         "a vehicle cannot be lost; a stolen one is gone (--as stolen)",
     ),
     (
+        "place_is_a_household",
+        "{place} has {count} errand(s): it is another household, not a home of ours",
+    ),
+    (
         "home_leaves_moved_or_sold",
         "a home leaves moved out of (--as moved), sold (--as sell) or as a mistake, not as {way}",
     ),

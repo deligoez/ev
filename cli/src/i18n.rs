@@ -202,6 +202,10 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "araç kaybolamaz; çalınan araç elden çıkmıştır (--as stolen)",
     ),
     (
+        "place_is_a_household",
+        "{place} için {count} iş var: orası başka bir hane, bizim eski evimiz değil",
+    ),
+    (
         "home_leaves_moved_or_sold",
         "bir ev taşınılarak (--as moved), satılarak (--as sell) ya da kayıt hatası olarak bırakılır, {way} olarak değil",
     ),
@@ -2126,6 +2130,7 @@ static TR: &[(&str, &str)] = &[
     ("used up", "kullanılıp bitti"),
     ("left behind", "geride bırakıldı"),
     ("moved out", "taşınıldı"),
+    ("made from the place", "şu yerden yapıldı"),
     ("stolen", "çalındı"),
     ("left, how not known", "gitti, nasıl bilinmiyor"),
     ("came", "geldi"),

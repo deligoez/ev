@@ -882,6 +882,20 @@ enum UpkeepCmd {
     },
     /// Drop a piece of work recorded by mistake; the thing's history keeps it.
     Remove { id: i64 },
+    /// When a kind of work is first due, nothing done yet (a car's first inspection): listed as
+    /// due like any other, until work of that kind is recorded.
+    Due {
+        reference: String,
+        #[arg(long)]
+        kind: String,
+        /// YYYY-MM-DD or YYYY-MM.
+        #[arg(long)]
+        next: Option<String>,
+        #[arg(long)]
+        next_km: Option<i64>,
+        #[arg(long)]
+        note: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1072,6 +1086,17 @@ enum BuyCmd {
         #[arg(value_parser = record_id)]
         id: i64,
         reference: String,
+    },
+    /// A service line (a tax, an insurance premium, a repair bill) is about this record without
+    /// being one of its units: it counts in what the thing costs (`ev show` → cost). `--clear`
+    /// unties it. ak's lines carrying `thing` are tied on import.
+    About {
+        #[arg(value_parser = record_id)]
+        id: i64,
+        #[arg(required_unless_present = "clear")]
+        reference: Option<String>,
+        #[arg(long)]
+        clear: bool,
     },
     /// Settle a line that will never be a thing: consumed, given, returned, elsewhere,
     /// not-mine, duplicate; `--clear` takes that back.
@@ -2509,6 +2534,13 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Cmd::Upkeep(UpkeepCmd::Edit { id, fields }) => inv.upkeep_edit(id, &fields),
         Cmd::Upkeep(UpkeepCmd::Remove { id }) => inv.upkeep_remove(id),
+        Cmd::Upkeep(UpkeepCmd::Due {
+            reference,
+            kind,
+            next,
+            next_km,
+            note,
+        }) => inv.upkeep_first_due(&reference, &kind, next.as_deref(), next_km, note.as_deref()),
         Cmd::Money(MoneyCmd::Needs) => inv.money_needs(),
         Cmd::Money(MoneyCmd::Status) => inv.money_status(),
         Cmd::Money(MoneyCmd::Import { file, stdin }) => {
@@ -2575,6 +2607,11 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Buy(BuyCmd::Pack { id, pack }) => inv.buy_pack(id, pack),
         Cmd::Buy(BuyCmd::Bucket { id, bucket }) => inv.buy_bucket(id, &bucket),
         Cmd::Buy(BuyCmd::Unlink { id, reference }) => inv.buy_unlink(id, &reference),
+        Cmd::Buy(BuyCmd::About {
+            id,
+            reference,
+            clear,
+        }) => inv.buy_about(id, reference.as_deref(), clear),
         Cmd::Buy(BuyCmd::Decline {
             id,
             reference,

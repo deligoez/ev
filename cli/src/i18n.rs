@@ -638,6 +638,18 @@ static ERRORS_TR: &[(&str, &str)] = &[
         "`{kind}` bir bakım türü değil: {kinds} olabilir",
     ),
     ("upkeep_work_empty", "ne yapıldığını söyle (--work)"),
+    (
+        "purchase_about_needs_service",
+        "{id} numaralı satır {bucket}: bir eşyanın kendi alımı bağlanır (ev buy link), yalnız bir hizmet ya da indirme bir eşya hakkında olur",
+    ),
+    (
+        "purchase_about_needs_thing",
+        "satırın hangi kayıt hakkında olduğunu söyle, ya da --clear",
+    ),
+    (
+        "upkeep_due_needs_when",
+        "ilk ne zaman yapılması gerektiğini söyle: --next <tarih>, --next-km n ya da ikisi",
+    ),
     ("upkeep_at_empty", "ne zaman yapıldığını söyle"),
     (
         "upkeep_next_bad",
@@ -1482,6 +1494,13 @@ static TR: &[(&str, &str)] = &[
         " Go to a list, a place, a thing or #id · > a command ",
         " Git: bir liste, bir yer, bir eşya ya da #id · > bir komut ",
     ),
+    // Payments about a thing, and what it costs (spec/ak.md).
+    ("about #{} {}", "hakkında: #{} {}"),
+    ("category", "kategori"),
+    ("cost", "maliyet"),
+    ("cover", "teminat"),
+    ("period", "dönem"),
+    ("nothing done yet", "henüz yapılmadı"),
     // Repairs and maintenance (spec/repairs.md).
     ("Removed: {}", "Silindi: {}"),
     ("Upkeep due", "Vadesi gelen bakımlar"),

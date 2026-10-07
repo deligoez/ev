@@ -87,9 +87,9 @@ pub(crate) fn upkeep_json(conn: &Connection, id: i64) -> Result<Value> {
                     "id": id,
                     "node_id": r.get::<_, i64>(0)?,
                     "kind": r.get::<_, String>(1)?,
-                    "at": r.get::<_, String>(2)?,
+                    "at": r.get::<_, Option<String>>(2)?,
                     "km": r.get::<_, Option<i64>>(3)?,
-                    "work": r.get::<_, String>(4)?,
+                    "work": r.get::<_, Option<String>>(4)?,
                     "by": r.get::<_, Option<String>>(5)?,
                     "next_at": r.get::<_, Option<String>>(6)?,
                     "next_km": r.get::<_, Option<i64>>(7)?,
@@ -113,7 +113,7 @@ pub(crate) fn upkeep_json(conn: &Connection, id: i64) -> Result<Value> {
 pub(crate) fn upkeep_of(conn: &Connection, node: i64, limit: Option<usize>) -> Result<Vec<Value>> {
     let list = ids(
         conn,
-        "SELECT id FROM upkeep WHERE node_id = ?1 ORDER BY at DESC, id DESC",
+        "SELECT id FROM upkeep WHERE node_id = ?1 ORDER BY COALESCE(at, substr(created_at, 1, 10)) DESC, id DESC",
         [node],
     )?;
     list.into_iter()
@@ -130,7 +130,7 @@ pub(crate) fn upkeep_due(conn: &Connection) -> Result<Vec<Value>> {
         let mut stmt = conn.prepare(
             "SELECT u.id, u.node_id, u.kind FROM upkeep u JOIN nodes n ON n.id = u.node_id
               WHERE n.state != 'gone' AND (u.next_at IS NOT NULL OR u.next_km IS NOT NULL)
-              ORDER BY u.at DESC, u.id DESC",
+              ORDER BY COALESCE(u.at, substr(u.created_at, 1, 10)) DESC, u.id DESC",
         )?;
         stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
             .collect::<rusqlite::Result<_>>()?
@@ -211,11 +211,54 @@ impl Inventory {
             ],
         )?;
         let id = tx.last_insert_rowid();
+        // Work of that kind done: a first due date said before it is answered by this one.
+        tx.execute(
+            "DELETE FROM upkeep WHERE node_id = ?1 AND kind = ?2 AND at IS NULL AND work IS NULL",
+            params![node, kind],
+        )?;
         event(
             &tx,
             node,
             "upkeep_added",
             json!({ "upkeep": id, "kind": kind, "work": work, "at": at }),
+        )?;
+        tx.commit()?;
+        Ok(json!({ "upkeep": upkeep_json(&self.conn, id)? }))
+    }
+
+    /// `ev upkeep due`: when a kind of work is first due, nothing done yet (a car's first
+    /// inspection, three years after registration): a piece with no date and no work, which a
+    /// piece of that kind done later takes over from.
+    pub fn upkeep_first_due(
+        &mut self,
+        reference: &str,
+        kind: &str,
+        next_at: Option<&str>,
+        next_km: Option<i64>,
+        note: Option<&str>,
+    ) -> Result<Value> {
+        let kind = check_kind(kind)?;
+        let next_at = text(next_at);
+        if let Some(n) = &next_at {
+            due_day(n)?;
+        }
+        let next_km = check_km(next_km)?;
+        if next_at.is_none() && next_km.is_none() {
+            return Err(usage("upkeep_due_needs_when", Value::Null));
+        }
+        let tx = self.conn.transaction()?;
+        let node = resolve(&tx, reference, false)?;
+        tx.execute(
+            "INSERT INTO upkeep (node_id, kind, next_at, next_km, note, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![node, kind, next_at, next_km, text(note), now()],
+        )?;
+        let id = tx.last_insert_rowid();
+        event(
+            &tx,
+            node,
+            "upkeep_added",
+            json!({ "upkeep": id, "kind": kind, "next_at": next_at, "next_km": next_km }),
         )?;
         tx.commit()?;
         Ok(json!({ "upkeep": upkeep_json(&self.conn, id)? }))
@@ -240,7 +283,7 @@ impl Inventory {
                 Some(n) => upkeep_of(&self.conn, n, None)?,
                 None => ids(
                     &self.conn,
-                    "SELECT id FROM upkeep ORDER BY at DESC, id DESC",
+                    "SELECT id FROM upkeep ORDER BY COALESCE(at, substr(created_at, 1, 10)) DESC, id DESC",
                     [],
                 )?
                 .into_iter()

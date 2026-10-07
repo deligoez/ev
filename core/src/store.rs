@@ -28,7 +28,7 @@ use places::place_or_create;
 use schema::*;
 
 /// The schema version this build writes (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 36;
+pub const SCHEMA_VERSION: i64 = 37;
 
 /// Guards every upward walk against a corrupted parent chain.
 const MAX_DEPTH: usize = 10_000;
@@ -237,6 +237,9 @@ impl Inventory {
         }
         if version < 36 {
             conn.execute_batch(SCHEMA_V36)?;
+        }
+        if version < 37 {
+            conn.execute_batch(SCHEMA_V37)?;
         }
         // Indexes no schema version depends on: an older build opens the file as before, and
         // this one adds what is missing once. A purchase's joined lines are found by
@@ -1895,6 +1898,8 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "kits": crate::kits::kits_of(conn, id)?,
         "documents": crate::portions::across(conn, &n, |m| crate::docs::docs_of(conn, m))?,
         "purchases": crate::portions::across(conn, &n, |m| crate::purchases::purchases_of(conn, m))?,
+        // What it costs, by currency (spec/ak.md); null when nothing is known.
+        "cost": crate::purchases::cost_of(conn, id)?,
         "valuations": crate::portions::across(conn, &n, |m| crate::valuations::valuations_of(conn, m))?,
         "links": crate::portions::across(conn, &n, |m| crate::links::links_of(conn, m))?,
         "coverages": coverages,

@@ -653,3 +653,33 @@ CREATE INDEX upkeep_node ON upkeep(node_id);
 PRAGMA user_version = 36;
 COMMIT;
 ";
+
+/// Schema 37: a purchase line about a thing without being one of its units (an ak payment for a
+/// car's tax or insurance, spec/ak.md) and the period a payment covers; and upkeep that is only
+/// due, nothing done yet (a car's first inspection), so its date and work may be empty.
+pub(super) const SCHEMA_V37: &str = "
+BEGIN;
+ALTER TABLE purchases ADD COLUMN period TEXT;
+ALTER TABLE purchases ADD COLUMN about_id INTEGER REFERENCES nodes(id);
+CREATE TABLE upkeep_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id INTEGER NOT NULL REFERENCES nodes(id),
+    kind TEXT NOT NULL,
+    at TEXT,
+    km INTEGER,
+    work TEXT,
+    by TEXT,
+    next_at TEXT,
+    next_km INTEGER,
+    doc_id INTEGER REFERENCES documents(id),
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+INSERT INTO upkeep_new SELECT id, node_id, kind, at, km, work, by, next_at, next_km, doc_id, note,
+    created_at FROM upkeep;
+DROP TABLE upkeep;
+ALTER TABLE upkeep_new RENAME TO upkeep;
+CREATE INDEX upkeep_node ON upkeep(node_id);
+PRAGMA user_version = 37;
+COMMIT;
+";

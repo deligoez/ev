@@ -683,8 +683,16 @@ impl App {
         lines
     }
 
-    /// What was done to it, newest first (spec/repairs.md); nothing when nothing was.
+    /// What it costs in all, by currency (spec/ak.md), then what was done to it, newest first
+    /// (spec/repairs.md); nothing of either when nothing is known.
     fn upkeep_section(lines: &mut Vec<Line<'static>>, v: &Value, width: usize) {
+        if let Some(cost) = crate::render::cost_text(&v["cost"]) {
+            Self::push_fields(
+                lines,
+                vec![(t("cost").to_string(), cost, Style::new())],
+                width,
+            );
+        }
         let upkeep = v["upkeep"].as_array().cloned().unwrap_or_default();
         if upkeep.is_empty() {
             return;

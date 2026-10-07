@@ -495,6 +495,18 @@ pub const ERRORS: &[(&str, &str)] = &[
         "`{kind}` is no kind of upkeep: one of {kinds}",
     ),
     ("upkeep_work_empty", "say what was done (--work)"),
+    (
+        "purchase_about_needs_service",
+        "line {id} is {bucket}: a thing's own purchase is linked (ev buy link), only a service or a download is about one",
+    ),
+    (
+        "purchase_about_needs_thing",
+        "name the record the line is about, or --clear",
+    ),
+    (
+        "upkeep_due_needs_when",
+        "say when it is first due: --next <date>, --next-km n, or both",
+    ),
     ("upkeep_at_empty", "say when it was done"),
     (
         "upkeep_next_bad",

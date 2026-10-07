@@ -121,12 +121,18 @@ fn upkeep_kind(kind: &str) -> &'static str {
 
 /// One piece of upkeep on a line: `#id date kind: work  (82,000 km) · by … · next …`.
 pub(crate) fn upkeep_line(u: &Value) -> String {
+    // Only due, nothing done yet: a first inspection still to come.
+    let work = u["work"]
+        .as_str()
+        .map_or_else(|| t("nothing done yet").to_string(), str::to_string);
+    let at = u["at"]
+        .as_str()
+        .map(|a| format!("{a} "))
+        .unwrap_or_default();
     let mut parts = vec![format!(
-        "#{} {} {}: {}",
+        "#{} {at}{}: {work}",
         u["id"],
-        s(u, "at"),
-        upkeep_kind(&s(u, "kind")),
-        s(u, "work")
+        upkeep_kind(&s(u, "kind"))
     )];
     if let Some(km) = u["km"].as_i64() {
         parts.push(tf("{} km", &[&km]));
@@ -148,6 +154,26 @@ pub(crate) fn upkeep_line(u: &Value) -> String {
         parts.push(tf("document #{}", &[&d]));
     }
     parts.join(" · ")
+}
+
+/// What a thing costs on one line, each currency apart: `bought 1999.00 TRY · upkeep 350.00
+/// TRY · cover 120.00 TRY · sold 900.00 TRY`. None when nothing is known.
+pub(crate) fn cost_text(cost: &Value) -> Option<String> {
+    let by = cost.as_object()?;
+    let mut parts = Vec::new();
+    for (currency, c) in by {
+        for (key, label) in [
+            ("bought", t("bought")),
+            ("upkeep", t("upkeep")),
+            ("cover", t("cover")),
+            ("sold", t("sold")),
+        ] {
+            if let Some(a) = c[key].as_str() {
+                parts.push(format!("{label} {}", amount(a, currency)));
+            }
+        }
+    }
+    (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
 /// How soon a piece of upkeep is due: days and kilometres left, or past.
@@ -872,10 +898,23 @@ fn purchase(out: &mut String, p: &Value) {
         ("order_url", t("order page")),
         ("product_url", t("product page")),
         ("why", t("why")),
+        ("category", t("category")),
+        ("period", t("period")),
     ] {
         if let Some(x) = p[k].as_str() {
             let _ = writeln!(out, "  {label}: {x}");
         }
+    }
+    // A payment about a thing, not one of its units (spec/ak.md).
+    if p["about"].is_object() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "about #{} {}",
+                &[&p["about"]["id"], &s(&p["about"], "path_text")]
+            )
+        );
     }
     for l in p["linked"].as_array().into_iter().flatten() {
         // A thing that left is named where it was, marked as gone.
@@ -3073,9 +3112,14 @@ fn human_body(v: &Value) -> String {
         if list.is_empty() {
             let _ = writeln!(out, "{}", t("(none)"));
         }
+        // Each thing named once, its work under it.
+        let mut last = None;
         for u in list {
-            let _ = writeln!(out, "{}{}", s(&u["node"], "path_text"), upkeep_due_text(u));
-            let _ = writeln!(out, "  {}", upkeep_line(u));
+            if last != Some(&u["node"]["id"]) {
+                let _ = writeln!(out, "{}", s(&u["node"], "path_text"));
+                last = Some(&u["node"]["id"]);
+            }
+            let _ = writeln!(out, "  {}{}", upkeep_line(u), upkeep_due_text(u));
         }
         return out;
     }
@@ -3703,6 +3747,10 @@ fn show(out: &mut String, v: &Value, node: &Value) {
     // What was done to it, newest first (spec/repairs.md).
     for u in v["upkeep"].as_array().into_iter().flatten() {
         let _ = writeln!(out, "  {}", upkeep_line(u));
+    }
+    // What it costs, by currency (spec/ak.md).
+    if let Some(line) = cost_text(&v["cost"]) {
+        let _ = writeln!(out, "  {}: {line}", t("cost"));
     }
     for (key, label) in [
         ("make", t("make")),

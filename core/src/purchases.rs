@@ -129,7 +129,8 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
         .query_row(
             "SELECT source, source_key, shop, merchant, order_no, order_url, product_url, shop_sku,
                     name, brand, category, ordered_at, delivered_at, qty, paid, currency,
-                    billed_to, status, bucket, dismissed, why, raw, same_as, imported_at, pack
+                    billed_to, status, bucket, dismissed, why, raw, same_as, imported_at, pack,
+                    period, about_id
                FROM purchases WHERE id = ?1",
             [id],
             |r| {
@@ -162,11 +163,23 @@ pub(crate) fn purchase_row(conn: &Connection, id: i64) -> Result<Value> {
                     "raw": r.get::<_, Option<String>>(21)?,
                     "same_as": r.get::<_, Option<i64>>(22)?,
                     "imported_at": r.get::<_, String>(23)?,
+                    "period": r.get::<_, Option<String>>(25)?,
+                    "about_id": r.get::<_, Option<i64>>(26)?,
                 }))
             },
         )
         .optional()?;
     let mut p = row.ok_or_else(|| not_found("no_purchase_with_id", json!({ "id": id })))?;
+    // The record a payment is about (spec/ak.md), not one of its units.
+    p["about"] = match p["about_id"].as_i64() {
+        Some(n) => {
+            serde_json::to_value(brief(conn, n)?).map_err(|e| Error::Internal(e.to_string()))?
+        }
+        None => Value::Null,
+    };
+    if let Some(o) = p.as_object_mut() {
+        o.remove("about_id");
+    }
     let mut stmt = conn.prepare(
         "SELECT node_id, qty FROM purchase_links WHERE purchase_id = ?1 ORDER BY node_id",
     )?;
@@ -357,7 +370,9 @@ fn with_today(conn: &Connection, p: &mut Value, qty: i64) -> Result<()> {
 struct Line {
     source: String,
     key: String,
-    fields: [(&'static str, Option<String>); 13],
+    fields: [(&'static str, Option<String>); 14],
+    /// The ev record an ak payment is about (spec/ak.md): tied or linked on import.
+    thing: Option<i64>,
     qty: i64,
     paid: Option<i64>,
     status: String,
@@ -392,11 +407,12 @@ pub struct BuyFilter<'a> {
 }
 
 /// The fields of a purchase line ev reads besides `LINE_FIELDS`.
-const PURCHASE_KEYS: [&str; 8] = [
-    "type", "source", "key", "name", "status", "bucket", "qty", "paid",
+const PURCHASE_KEYS: [&str; 9] = [
+    "type", "source", "key", "name", "status", "bucket", "qty", "paid", "thing",
 ];
 
-const LINE_FIELDS: [(&str, &str); 13] = [
+const LINE_FIELDS: [(&str, &str); 14] = [
+    ("period", "period"),
     ("shop", "shop"),
     ("merchant", "merchant"),
     ("order_no", "order"),
@@ -464,6 +480,12 @@ fn line_from(v: &Value) -> Result<Option<(Line, String)>> {
             source,
             key,
             fields,
+            thing: v.get("thing").and_then(|t| {
+                t.as_i64().or_else(|| {
+                    t.as_str()
+                        .and_then(|s| s.trim_start_matches('#').parse().ok())
+                })
+            }),
             qty,
             paid,
             status,
@@ -609,6 +631,7 @@ impl Inventory {
         // (a typo such as `orderd_at` would otherwise lose a date without a word).
         let mut unknown = std::collections::BTreeMap::<String, i64>::new();
         let mut docs_added = 0;
+        let mut things_unknown: Vec<Value> = Vec::new();
         for (i, raw) in ndjson.lines().enumerate() {
             let raw = raw.trim();
             if raw.is_empty() {
@@ -631,8 +654,14 @@ impl Inventory {
                     match line {
                         None => *counts.entry("skipped").or_default() += 1,
                         Some((l, name)) => {
-                            let (_, how) = upsert(&tx, &l, &name).map_err(at)?;
+                            let (id, how) = upsert(&tx, &l, &name).map_err(at)?;
                             *counts.entry(how).or_default() += 1;
+                            // A payment about a thing (spec/ak.md): tied, or linked, once.
+                            if let Some(thing) = l.thing
+                                && !tie_to_thing(&tx, id, thing)?
+                            {
+                                things_unknown.push(json!({ "key": l.key, "thing": thing }));
+                            }
                         }
                     }
                 }
@@ -747,6 +776,9 @@ impl Inventory {
         });
         if !unknown.is_empty() {
             v["imported"]["unknown_fields"] = json!(unknown);
+        }
+        if !things_unknown.is_empty() {
+            v["imported"]["things_unknown"] = json!(things_unknown);
         }
         // Relayed lines of an order ev has several lines of, none of them told: for the person.
         if !unjoined.is_empty() {
@@ -1123,6 +1155,34 @@ impl Inventory {
         self.buy_show(id)
     }
 
+    /// `ev buy about <line> <ref>`: a service line (a tax, an insurance premium, a repair bill)
+    /// is about this record without being one of its units (spec/ak.md); `clear` unties it.
+    pub fn buy_about(&mut self, id: i64, reference: Option<&str>, clear: bool) -> Result<Value> {
+        let p = purchase_json(&self.conn, id)?;
+        if clear {
+            self.conn.execute(
+                "UPDATE purchases SET about_id = NULL, updated_at = ?1 WHERE id = ?2",
+                params![now(), id],
+            )?;
+            return self.buy_show(id);
+        }
+        if !matches!(p["bucket"].as_str(), Some("digital" | "service")) {
+            return Err(refuse(
+                "purchase_about_needs_service",
+                json!({ "id": id, "bucket": p["bucket"] }),
+                Value::Null,
+            ));
+        }
+        let reference =
+            reference.ok_or_else(|| usage("purchase_about_needs_thing", Value::Null))?;
+        let node = resolve(&self.conn, reference, true)?;
+        self.conn.execute(
+            "UPDATE purchases SET about_id = ?1, updated_at = ?2 WHERE id = ?3",
+            params![node, now(), id],
+        )?;
+        self.buy_show(id)
+    }
+
     pub fn buy_unlink(&mut self, id: i64, reference: &str) -> Result<Value> {
         let tx = self.conn.transaction()?;
         let node = resolve(&tx, reference, true)?;
@@ -1308,6 +1368,123 @@ fn set_pack(conn: &Connection, id: i64, pack: i64) -> Result<()> {
         params![pack, id],
     )?;
     Ok(())
+}
+
+/// What a thing costs (spec/ak.md), by currency and never converted: `bought` (its linked lines'
+/// share of what was paid), `upkeep` (the service lines about it, refunds negative), `cover`
+/// (premiums of its coverages), `sold` (what a sale brought). Null when nothing is known.
+pub(crate) fn cost_of(conn: &Connection, node: i64) -> Result<Value> {
+    let home = crate::money::home_currency(conn)?;
+    let mut by: std::collections::BTreeMap<String, [i64; 4]> = std::collections::BTreeMap::new();
+    let mut add = |currency: Option<String>, slot: usize, cents: i64| {
+        by.entry(currency.unwrap_or_else(|| home.clone()))
+            .or_insert([0; 4])[slot] += cents;
+    };
+    let mut stmt = conn.prepare(
+        "SELECT p.paid, p.currency, l.qty, p.qty * p.pack FROM purchase_links l
+           JOIN purchases p ON p.id = l.purchase_id
+          WHERE l.node_id = ?1 AND p.paid IS NOT NULL",
+    )?;
+    let rows = stmt
+        .query_map([node], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (paid, currency, linked, units) in rows {
+        add(currency, 0, paid * linked / units.max(1));
+    }
+    let mut stmt = conn.prepare(
+        "SELECT paid, currency FROM purchases
+          WHERE about_id = ?1 AND paid IS NOT NULL AND dismissed IS NULL",
+    )?;
+    let rows = stmt
+        .query_map([node], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (paid, currency) in rows {
+        add(currency, 1, paid);
+    }
+    let mut stmt = conn.prepare(
+        "SELECT c.premium, c.currency FROM coverages c
+           JOIN coverage_nodes cn ON cn.coverage_id = c.id
+          WHERE cn.node_id = ?1 AND c.premium IS NOT NULL",
+    )?;
+    let rows = stmt
+        .query_map([node], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (premium, currency) in rows {
+        add(currency, 2, premium);
+    }
+    let sale: Option<(Option<String>, Option<String>)> = conn
+        .query_row(
+            "SELECT price, currency FROM departures WHERE node_id = ?1 AND price IS NOT NULL",
+            [node],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    if let Some((Some(price), currency)) = sale
+        && let Ok(cents) = parse_money(&price)
+    {
+        add(currency, 3, cents);
+    }
+    if by.is_empty() {
+        return Ok(Value::Null);
+    }
+    let out: serde_json::Map<String, Value> = by
+        .into_iter()
+        .map(|(currency, [bought, upkeep, cover, sold])| {
+            let mut v = serde_json::Map::new();
+            for (k, cents) in [
+                ("bought", bought),
+                ("upkeep", upkeep),
+                ("cover", cover),
+                ("sold", sold),
+            ] {
+                if cents != 0 {
+                    v.insert(k.into(), json!(money(cents)));
+                }
+            }
+            (currency, Value::Object(v))
+        })
+        .collect();
+    Ok(Value::Object(out))
+}
+
+/// An imported line about `thing` (spec/ak.md): a service or a download is tied to it
+/// (`about`), anything else linked with all its open units. Once only: a line already tied or
+/// linked is left as the person last left it. False when ev has no such record, or it cannot
+/// hold a purchase (a place, a record closed by mistake), so the import can say so.
+fn tie_to_thing(conn: &Connection, id: i64, thing: i64) -> Result<bool> {
+    let exists: Option<i64> = conn
+        .query_row("SELECT id FROM nodes WHERE id = ?1", [thing], |r| r.get(0))
+        .optional()?;
+    if exists.is_none() {
+        return Ok(false);
+    }
+    let p = purchase_json(conn, id)?;
+    if matches!(p["bucket"].as_str(), Some("digital" | "service")) {
+        if p["about"].is_null() {
+            conn.execute(
+                "UPDATE purchases SET about_id = ?1 WHERE id = ?2",
+                params![thing, id],
+            )?;
+        }
+        return Ok(true);
+    }
+    let linked = p["linked"].as_array().is_some_and(|l| !l.is_empty());
+    let open = p["open_qty"].as_i64().unwrap_or(0);
+    if linked || open < 1 {
+        return Ok(true);
+    }
+    Ok(link_in(conn, id, thing, open).is_ok())
 }
 
 fn link_in(conn: &Connection, id: i64, node: i64, qty: i64) -> Result<()> {

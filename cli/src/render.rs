@@ -120,7 +120,7 @@ fn upkeep_kind(kind: &str) -> &'static str {
 }
 
 /// One piece of upkeep on a line: `#id date kind: work  (82,000 km) · by … · next …`.
-fn upkeep_line(u: &Value) -> String {
+pub(crate) fn upkeep_line(u: &Value) -> String {
     let mut parts = vec![format!(
         "#{} {} {}: {}",
         u["id"],

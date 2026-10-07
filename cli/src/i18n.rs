@@ -1485,6 +1485,7 @@ static TR: &[(&str, &str)] = &[
     // Repairs and maintenance (spec/repairs.md).
     ("Removed: {}", "Silindi: {}"),
     ("Upkeep due", "Vadesi gelen bakımlar"),
+    ("Upkeep", "Bakım"),
     ("by {}", "yapan: {}"),
     ("document #{}", "belge #{}"),
     ("in {} km", "{} km sonra"),

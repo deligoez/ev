@@ -595,6 +595,8 @@ impl App {
             }
         }
 
+        Self::upkeep_section(&mut lines, v, width);
+
         // What proves it: counts and kinds here, the files themselves on the Documents tab.
         let docs: Vec<Value> = proof_documents(v).into_iter().map(|(_, d)| d).collect();
         let links = self.detail_links();
@@ -679,6 +681,24 @@ impl App {
             Style::new().fg(pal().muted),
         )));
         lines
+    }
+
+    /// What was done to it, newest first (spec/repairs.md); nothing when nothing was.
+    fn upkeep_section(lines: &mut Vec<Line<'static>>, v: &Value, width: usize) {
+        let upkeep = v["upkeep"].as_array().cloned().unwrap_or_default();
+        if upkeep.is_empty() {
+            return;
+        }
+        Self::section(lines, t("Upkeep").to_string(), width);
+        for u in &upkeep {
+            Self::push_wrapped(
+                lines,
+                &crate::render::upkeep_line(u),
+                "  ",
+                Style::new(),
+                width,
+            );
+        }
     }
 
     /// A section heading: its title, then a rule to the edge.

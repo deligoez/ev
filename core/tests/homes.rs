@@ -69,3 +69,79 @@ fn moved_is_a_homes_and_a_home_leaves_only_moved_out_of_or_sold() {
     let sold = inv.gone("Yeni ev", Some(Disposition::Sell)).unwrap();
     assert_eq!(sold["node"]["disposition"], "sell");
 }
+
+fn past_thing(
+    name: &str,
+    gone: &str,
+    kind: &str,
+    at: Option<&str>,
+    place: Option<&str>,
+) -> NewNode {
+    NewNode {
+        name: name.into(),
+        kind: kind.into(),
+        gone: Some(gone.into()),
+        at: at.map(Into::into),
+        place: place.map(Into::into),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn a_former_home_is_added_already_left_and_holds_what_was_left_there() {
+    let (_d, mut inv) = setup();
+    let flat = inv
+        .add(NewNode {
+            came: Some("2012-11".into()),
+            address: Some("Örnek Sok. 1".into()),
+            ..past_thing("Kiralık daire", "moved", "home", Some("2015-04"), None)
+        })
+        .unwrap();
+    assert_eq!(flat["node"]["state"], "gone");
+    assert_eq!(flat["node"]["address"], "Örnek Sok. 1");
+    let flat_id = flat["node"]["id"].as_i64().unwrap();
+    // Left there: by the home's name, or by its id.
+    inv.add(past_thing(
+        "Koltuk",
+        "left",
+        "item",
+        Some("2015-04"),
+        Some("Kiralık daire"),
+    ))
+    .unwrap();
+    inv.add(past_thing(
+        "Masa",
+        "left",
+        "item",
+        None,
+        Some(&format!("#{flat_id}")),
+    ))
+    .unwrap();
+    let shown = inv.show("Kiralık daire", true).unwrap();
+    let inside: Vec<&str> = shown["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(inside, ["Koltuk", "Masa"]);
+    let past = inv.past(None, Some("Kiralık daire")).unwrap();
+    let names: Vec<&str> = past["remembered"]["past"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert_eq!(past["remembered"]["past"][0]["where"], "Kiralık daire");
+    // A home is not thrown out, and a room is never added on its own.
+    let id = |e: ev_core::Error| e.id().map(str::to_string);
+    let trash = inv
+        .add(past_thing("X", "trash", "home", None, None))
+        .unwrap_err();
+    assert_eq!(id(trash).as_deref(), Some("home_leaves_moved_or_sold"));
+    let room = inv
+        .add(past_thing("Oda", "moved", "room", None, None))
+        .unwrap_err();
+    assert_eq!(id(room).as_deref(), Some("past_in_a_place"));
+}

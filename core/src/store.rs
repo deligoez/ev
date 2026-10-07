@@ -453,6 +453,10 @@ impl Inventory {
                 if empty {
                     v["slot"] = json!(is_slot(&self.conn, &n)?);
                 }
+                // Counted, or only guessed: how far the place it is in was gone through.
+                if let Some(s) = crate::plan::place_count(&self.conn, id)? {
+                    v["place_count"] = json!(s);
+                }
                 Ok(v)
             })
             .collect::<Result<Vec<_>>>()?;

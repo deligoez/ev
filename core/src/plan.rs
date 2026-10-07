@@ -358,6 +358,13 @@ pub(crate) fn count_state(conn: &Connection, id: i64) -> Result<Option<String>> 
     Ok((unit == id).then_some(status))
 }
 
+/// How far the unit a node is or is in has been counted: whether a thing found was counted
+/// (`toured`) or is only what the inventory guessed (`raw`). None above the units and for a
+/// lost thing (spec/find-any.md).
+pub(crate) fn place_count(conn: &Connection, id: i64) -> Result<Option<String>> {
+    Ok(unit_state(conn, id)?.map(|(_, status)| status))
+}
+
 /// The unit a node is or is in, and how far it has been counted.
 fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
     // The path from the top down; the unit is the first node on it that is one.

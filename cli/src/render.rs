@@ -109,6 +109,27 @@ pub fn empty_said(e: &Value) -> String {
     }
 }
 
+/// What `ev find` adds after a result: that the place it is in was not counted yet (so it is
+/// what the inventory guessed), and with `--any` which texts found it.
+fn find_marks(n: &Value) -> String {
+    let mut out = String::new();
+    if let Some(c) = n["place_count"].as_str()
+        && c != "toured"
+    {
+        out.push_str(&format!("  ({})", count_label(c)));
+    }
+    let matched: Vec<&str> = n["matched"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    if !matched.is_empty() {
+        out.push_str(&format!("  ← {}", matched.join(", ")));
+    }
+    out
+}
+
 /// How far a place has been counted, in words: `raw`, `counting`, `toured`, `kept`.
 pub fn count_label(state: &str) -> &'static str {
     match state {
@@ -2827,7 +2848,7 @@ pub fn human(v: &Value) -> String {
                     }
                     continue;
                 }
-                let _ = writeln!(out, "{}", line(n));
+                let _ = writeln!(out, "{}{}", line(n), find_marks(n));
                 changed_lines(&mut out, &n["changed"]);
                 // An `ev edit --stdin` line that set make or model, asked as a single edit is.
                 if let Some(c) = n.get("purchase_candidates") {

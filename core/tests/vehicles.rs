@@ -89,9 +89,9 @@ fn a_vehicles_plate_needs_no_label_and_a_past_vehicle_keeps_it() {
         },
     )
     .unwrap();
-    let juke = inv.show("06 XY 99", true).unwrap();
-    assert_eq!(juke["node"]["state"], "gone");
-    assert!(juke["marks"]["label"].is_null());
+    let sold = inv.show("06 XY 99", true).unwrap();
+    assert_eq!(sold["node"]["state"], "gone");
+    assert!(sold["marks"]["label"].is_null());
 }
 
 #[test]

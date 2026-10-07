@@ -50,6 +50,7 @@ pub(crate) fn kind(k: &str) -> String {
         "furniture" => t("furniture"),
         "container" => t("container"),
         "item" => t("item"),
+        "vehicle" => t("vehicle"),
         other => return other.to_string(),
     }
     .to_string()

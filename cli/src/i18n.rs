@@ -1116,6 +1116,7 @@ static TR: &[(&str, &str)] = &[
     ("furniture", "mobilya"),
     ("container", "kap"),
     ("item", "eşya"),
+    ("vehicle", "araç"),
     ("take", "götür"),
     ("collect", "geri al"),
     ("listed", "ilanda"),

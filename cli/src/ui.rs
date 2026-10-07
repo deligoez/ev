@@ -418,10 +418,11 @@ fn children(n: &Value) -> &[Value] {
     n["children"].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
-/// What is open on the first screen: homes and rooms, so it shows the furniture.
+/// What is open on the first screen: homes, rooms and vehicles, so it shows the furniture and a
+/// car's compartments.
 fn first_open(roots: &[Value]) -> HashSet<i64> {
     fn open(n: &Value, out: &mut HashSet<i64>) {
-        if matches!(n["kind"].as_str(), Some("home" | "room")) {
+        if matches!(n["kind"].as_str(), Some("home" | "room" | "vehicle")) {
             out.insert(n["id"].as_i64().unwrap_or_default());
             for c in children(n) {
                 open(c, out);
@@ -573,6 +574,7 @@ fn kind_name(k: &str) -> &'static str {
         "furniture" => t("furniture"),
         "container" => t("container"),
         "item" => t("item"),
+        "vehicle" => t("vehicle"),
         _ => "?",
     }
 }
@@ -582,7 +584,7 @@ fn kind_name(k: &str) -> &'static str {
 /// beside it), faded while it waits to leave.
 fn name_style(n: &Value, snap: &Snapshot) -> Style {
     let s = match n["kind"].as_str() {
-        Some("home" | "room") => Style::new().bold(),
+        Some("home" | "room" | "vehicle") => Style::new().bold(),
         _ => Style::new(),
     };
     let counted = n["count"] == "toured" && n["changed_since"] != true;
@@ -602,6 +604,7 @@ fn name_style(n: &Value, snap: &Snapshot) -> Style {
 fn kind_mark(n: &Value) -> Span<'static> {
     let (mark, style) = match n["kind"].as_str() {
         Some("home") => ("⌂", Style::new().bold()),
+        Some("vehicle") => ("▭", Style::new().bold()),
         Some("room") => ("◫", Style::new().bold()),
         Some("furniture") => ("▥", Style::new().fg(pal().furniture)),
         Some("container") => ("□", Style::new().fg(pal().code)),

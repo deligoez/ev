@@ -1,1 +1,17 @@
 Draft for the next release.
+
+## Vehicles
+
+A household's car is now a record of its own kind, `vehicle`, at the top of the tree beside the
+homes (spec/vehicles-homes.md). It holds its compartments, a glovebox or a boot recorded as
+containers under it and toured like any drawer, and it has a thing's life: make, model with its
+year, the VIN as its serial and its plate as its code, purchases, insurance as coverage,
+values, documents, and, once sold, `ev sold` and a place in `ev past` and `ev past --year`. A
+past car is added in one step with its last plate. It is never inside a home and never lost
+(a stolen car is gone, `--as stolen`), and its plate needs no label: it is printed on it
+already. Two guards keep it from distorting the home: placement never proposes moving a
+household thing into a car or out of one (asked about a car, it weighs that car's places only),
+and `ev stats` counts vehicles apart (`vehicles`, each with its cost), so a car's price no
+longer swamps the value of the home's things. Units fitted directly in a car count as in use,
+those kept in its glovebox as spares. `ev ui` marks a vehicle ▭ and opens it on the first
+screen.

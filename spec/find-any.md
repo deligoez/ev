@@ -20,6 +20,13 @@ and which were only guessed from a place never gone through.
   a `raw` place is what the inventory guessed before anyone looked. The text output marks a
   result whose place is not yet counted.
 - **MCP:** the `find` tool takes `any` (a list of texts) as well as `text`.
+- **A short word is a word's start** (decided with the inventory agent's cases, same day): a
+  query word of three letters or fewer meets only the start of a word, never its middle, and a
+  Turkish stem of two letters or fewer is not tried. `ir` found 365 records of one household
+  (every `bir`), now the 13 that say IR; `ble` found an ink cartridge (`Mixable`) and a
+  cabinet lock, now nothing but BLE. A longer word is still found inside words. A family named
+  by several words (ekran, LCD, OLED, display) is a synonym group (`ev synonym add`), not a
+  ranking rule.
 
 ## Why
 
@@ -29,7 +36,5 @@ guesses, since that agent cannot tell.
 
 ## Not now
 
-- Fewer weak matches (a word found inside an unrelated name): wait for concrete examples, and
-  fix the ranking, not this list.
 - Categories (electronics › sensor › presence) to find a whole kind without naming its words:
   a decision of its own (tags may be enough).

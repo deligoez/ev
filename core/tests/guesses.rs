@@ -45,3 +45,28 @@ fn a_record_known_from_words_is_found_shown_and_listed_as_a_guess() {
     assert!(inv.show("Mini bilgisayar", false).unwrap()["guess"].is_null());
     assert_eq!(inv.todo().unwrap()["counts"]["guesses"], 0);
 }
+
+#[test]
+fn a_field_said_again_is_no_longer_a_guess() {
+    let (_d, mut inv) = setup();
+    inv.edit("Mini bilgisayar", &["came=2021".into()]).unwrap();
+    inv.guess(
+        &["Mini bilgisayar".into()],
+        &["came".into()],
+        Some("kutusundan tahmin"),
+        false,
+    )
+    .unwrap();
+    let shown = inv.show("Mini bilgisayar", false).unwrap();
+    assert_eq!(shown["guessed"][0]["field"], "came");
+    assert!(shown["guess"].is_null());
+    // The person says the year: the field is theirs now.
+    inv.edit("Mini bilgisayar", &["came=2022".into()]).unwrap();
+    let shown = inv.show("Mini bilgisayar", false).unwrap();
+    assert_eq!(shown["guessed"], serde_json::json!([]));
+    // A field that cannot be a guess is refused, naming those that can.
+    let e = inv
+        .guess(&["Mini bilgisayar".into()], &["colour".into()], None, false)
+        .unwrap_err();
+    assert_eq!(e.id(), Some("guess_field_unknown"));
+}

@@ -813,17 +813,25 @@ impl Inventory {
         }
         let conn = &self.conn;
         let mut stmt = conn.prepare(&format!(
-            "SELECT n.id, n.state, {CAME}, {LEFT}
+            "SELECT n.id, n.state, {CAME}, {LEFT}, n.kind
                FROM nodes n LEFT JOIN departures d ON d.node_id = n.id
-              WHERE n.kind IN ('item', 'furniture', 'vehicle') AND n.owner_place IS NULL
+              WHERE n.kind IN ('item', 'furniture', 'vehicle', 'home') AND n.owner_place IS NULL
                 AND (n.state != 'gone' OR n.disposition NOT IN {NOT_PAST})"
         ))?;
-        let rows: Vec<(i64, String, Option<String>, Option<String>)> = stmt
-            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        type Row = (i64, String, Option<String>, Option<String>, String);
+        let rows: Vec<Row> = stmt
+            .query_map([], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })?
             .collect::<std::result::Result<_, _>>()?;
         let mut owned = Vec::new();
         let mut unknown = 0;
-        for (id, state, came, left) in rows {
+        for (id, state, came, left, kind) in rows {
+            // A home is where we lived, a fact of its dates: one nothing dates is neither listed
+            // nor counted among the things nothing dates.
+            if kind == "home" && came.is_none() {
+                continue;
+            }
             let gone = state == "gone";
             let left = left.filter(|_| gone);
             if left.as_deref().and_then(year_of).is_some_and(|y| y < year) {
@@ -852,7 +860,17 @@ impl Inventory {
             }
             owned.push(v);
         }
-        owned.sort_by(|a, b| a["came"].as_str().cmp(&b["came"].as_str()));
+        // Where we lived and what we drove lead: the homes, the vehicles, then the things.
+        let rank = |v: &Value| match v["kind"].as_str() {
+            Some("home") => 0,
+            Some("vehicle") => 1,
+            _ => 2,
+        };
+        owned.sort_by(|a, b| {
+            rank(a)
+                .cmp(&rank(b))
+                .then_with(|| a["came"].as_str().cmp(&b["came"].as_str()))
+        });
         Ok(json!({ "year": year, "owned": owned, "unknown": unknown }))
     }
 }

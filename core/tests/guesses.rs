@@ -122,3 +122,24 @@ fn a_coverage_end_assumed_says_so_until_it_is_said() {
         .unwrap_err();
     assert_eq!(e.id(), Some("guess_cover_not_its"));
 }
+
+#[test]
+fn a_tour_lists_the_guesses_inside_the_place() {
+    let (dir, mut inv) = setup();
+    inv.guess(
+        &["Mini bilgisayar".into()],
+        &[],
+        Some("Ayşe söyledi"),
+        false,
+    )
+    .unwrap();
+    // The place's photo as it is now, which a tour asks for.
+    let photo = dir.path().join("dolap.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([9, 9, 9]))
+        .save(&photo)
+        .unwrap();
+    inv.photo_add("Dolap", &photo, None, None).unwrap();
+    let v = inv.review("Dolap", "toured", None).unwrap();
+    assert_eq!(v["guesses"][0]["name"], "Mini bilgisayar", "{v}");
+    assert_eq!(v["guesses"][0]["guess"]["note"], "Ayşe söyledi");
+}

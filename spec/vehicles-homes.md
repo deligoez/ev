@@ -67,28 +67,58 @@ No schema change: `kind` and `disposition` are text, checked by ev, not by the d
 
 - `ev add "<name>" --kind vehicle [--code <plate>] [--make …] [--model …] [--serial <VIN>]
   [--came <date>]`: a vehicle, at the top; `--in` is refused. `ev add … --gone sell --at …`
-  records a past one in one step, as for any past thing.
+  records a past one in one step, as for any past thing, with its last plate as its code.
 - `ev add "Torpido" --kind container --in <plate>`: a compartment, as any holder.
 - `ev gone <home> --as moved [--at <date>]`: refused while anything but its rooms is active in
   it, listing what is left by room; its rooms go with it.
+- `ev add "<name>" --kind home --gone moved|sell --came <date> --at <date> [--address "…"]`: a
+  home we lived in once, added already left.
+- `ev place home <place> [--came <date>] [--left <date>] [--address "…"]`: a place that was a
+  home of ours becomes a home that was left (see **Former homes**).
+
+## Former homes (decided 2026-10-07)
+
+The person wants every former address kept, with its dates: an address history for official
+forms, and where past things were left. A former home is a **home record that was left**, not
+a place:
+- added directly, already gone (`ev add … --kind home --gone moved`), with `came` (moved in),
+  the day it was left (`--at`) and its `address`; most former homes have no place row at all;
+- its papers (a rental contract, a registration and deregistration) are documents attached to
+  it, as to any record;
+- a thing left behind there names it: `--where <home>` on `ev add --gone` and `ev gone` takes a
+  former home first, then a place; the thing is recorded inside that home, so `ev show <home>
+  --include-gone` lists what we had and left there, and `ev past --where` finds both;
+- a place used for one until now (`--where "Old home"`) becomes one with `ev place home`: the
+  home is made, already left, with the place's name, the things that named the place move into
+  it, and the place goes with its aliases. A place that is also another household's (errands,
+  `owner=`, `with=`) is refused: that is a household, not a home of ours;
+- the homes lead `ev past` with their addresses and dates (phase 4): which home we lived in in
+  a year is `ev past --year`.
+
+## A vehicle's history (decided 2026-10-07)
+
+A car may change plates, and may be registered to someone else (a parent) while it is ours.
+- Its `code` is its current plate, or the last one a past car carried. Earlier plates, with
+  their dates, go in its note ("Plates: 54 ABC 01 (2018-03 → 2022-11)"), where `ev find` reads
+  them.
+- A registered owner who is not the household goes in the note with the dates, never as
+  `owner=`: `owner=` says a thing is not ours, and would take the car out of the household's
+  past and money. The person's word that it was ours decides.
+- Dated plate changes as their own records wait for a second case that needs them.
 
 ## Phases
 
 1. The `vehicle` kind: at the top only, a holder with a thing's life; the two guards; in use
    directly in it. README, REFERENCE, the skill.
 2. Leaving a home: `moved`, rooms leaving with it, the guided refusal.
-3. The past: homes and vehicles first in `ev past`, `--year` and Past in `ev ui`.
-
-## Open, with the person
-
-- **Former homes as records.** Today a former home is a place (`--where`). Turning it into a
-  home record that was left would let `ev show` say what we had there and left behind there,
-  and `ev past --year` say where we lived. The person asked what it would be good for, since
-  nothing of ours remains in one; on hold until they decide.
-- **Service and inspection** (odometer, the two-yearly inspection as a due date): ak keeps what
-  it cost; whether ev keeps what was done to the car is the person's call.
+3. Former homes: added already left, `--where` naming one, `ev place home`.
+4. The past: homes and vehicles first in `ev past`, `--year` and Past in `ev ui`.
 
 ## Not now
 
+- Service and inspection (date, odometer, the work done, the next due date, the invoice): ev
+  will keep what was done to the car and ak what it cost (decided with the person); it belongs
+  to the repairs and maintenance spec, later.
 - ak tagging its payments with a vehicle: when it comes, by the vehicle's id (`#id`), never by
   its plate, which can change.
+- Dated plate changes as records of their own.

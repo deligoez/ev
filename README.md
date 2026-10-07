@@ -284,6 +284,9 @@ so they read on a red box too. `ev focus X [--photo n]` shows a recorded node,
 so "which one do you mean?" is answered on screen too. While labels go on a gridded drawer's
 boxes, `ev photo mark <drawer> --codes` writes each box's code in the corner of its own cells,
 so the person reads which label goes on which box; a label keeps the letters as given.
+For a batch, `ev photo sheet f16..f31` puts those pictures on one image for the agent to look at
+together, and `ev photo mark --whole f2 f3 f4` frames each of them whole, numbered on, in one
+call: a batch of photos of one thing each becomes frames the person can name.
 
 **Watching.** `ev ui` is a read-only browser in three panes: a sidebar of lists, the list chosen,
 and the selected record's details. The sidebar groups the lists under headings, each with the

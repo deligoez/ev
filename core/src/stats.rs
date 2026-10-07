@@ -70,6 +70,43 @@ fn room_of(by_id: &HashMap<i64, &Node>, id: i64) -> Option<i64> {
     None
 }
 
+/// The vehicles still here, apart from the home's things: each with what its linked purchases
+/// cost, by currency, and that in today's money when every line of it could be converted.
+fn vehicles_section(
+    conn: &Connection,
+    all: &[Node],
+    costs: &[Cost],
+    home: &str,
+) -> Result<Vec<Value>> {
+    all.iter()
+        .filter(|n| n.kind == Kind::Vehicle)
+        .map(|n| {
+            let (mut cost, mut today, mut whole) = (BTreeMap::new(), 0i64, true);
+            for c in costs.iter().filter(|c| c.node == n.id) {
+                *cost.entry(c.currency.clone()).or_default() += c.cents;
+                let t = crate::money::today_money(
+                    conn,
+                    c.cents,
+                    Some(c.currency.as_str()).filter(|s| !s.is_empty()),
+                    c.date.as_deref(),
+                )?
+                .and_then(|t| t["amount"].as_str().map(str::to_string))
+                .and_then(|a| crate::purchases::parse_money(&a).ok());
+                today += t.unwrap_or(c.cents);
+                whole &= t.is_some();
+            }
+            let mut v = brief_json(conn, n.id)?;
+            v["cost"] = per_currency(&cost, home);
+            v["today"] = if whole && !cost.is_empty() {
+                json!({ "amount": money(today), "currency": home })
+            } else {
+                Value::Null
+            };
+            Ok(v)
+        })
+        .collect()
+}
+
 fn refs(conn: &Connection, list: &[(i64, Value)]) -> Result<Vec<Value>> {
     list.iter()
         .map(|(id, extra)| {
@@ -121,8 +158,12 @@ impl Inventory {
             "documents": documents,
         });
 
-        // Value: what the linked purchases say the things still here cost.
-        let costs = costs(conn)?;
+        // Value: what the linked purchases say the things still here cost. A vehicle is counted
+        // apart: its price would swamp the home's things (spec/vehicles-homes.md).
+        let (vehicle_costs, costs): (Vec<_>, Vec<_>) = costs(conn)?
+            .into_iter()
+            .partition(|c| by_id.get(&c.node).is_some_and(|n| n.kind == Kind::Vehicle));
+        let vehicles = vehicles_section(conn, &all, &vehicle_costs, &home)?;
         let mut sums: BTreeMap<String, i64> = BTreeMap::new();
         // Per record: what it cost as paid, by currency (never added across currencies), what
         // that is today (as paid where it cannot be converted), and whether every line of it
@@ -171,7 +212,8 @@ impl Inventory {
         {
             let mut stmt = conn.prepare(
                 "SELECT v.amount, v.currency FROM valuations v JOIN nodes n ON n.id = v.node_id
-                  WHERE n.state != 'gone' AND v.id = (SELECT v2.id FROM valuations v2
+                  WHERE n.state != 'gone' AND n.kind != 'vehicle'
+                    AND v.id = (SELECT v2.id FROM valuations v2
                     WHERE v2.node_id = v.node_id ORDER BY v2.at DESC, v2.id DESC LIMIT 1)",
             )?;
             let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
@@ -264,7 +306,7 @@ impl Inventory {
         let fills: Vec<i64> = all.iter().filter_map(|n| n.fill).collect();
         let mut fullest: Vec<(i64, usize)> = all
             .iter()
-            .filter(|n| n.kind != Kind::Item && n.kind != Kind::Room && n.kind != Kind::Home)
+            .filter(|n| !matches!(n.kind, Kind::Item | Kind::Room | Kind::Home | Kind::Vehicle))
             .map(|n| (n.id, children.get(&n.id).copied().unwrap_or(0)))
             .filter(|(_, c)| *c > 0)
             .collect();
@@ -332,6 +374,7 @@ impl Inventory {
         Ok(json!({
             "overview": overview,
             "value": value,
+            "vehicles": vehicles,
             "rooms": refs(conn, &rooms)?,
             "tour": tour,
             "purchases": purchases,

@@ -111,3 +111,35 @@ fn work_is_due_by_date_or_by_odometer_and_a_newer_one_of_its_kind_takes_over() {
         .clone();
     assert!(due.iter().all(|u| u["kind"] != "inspection"), "{due:?}");
 }
+
+#[test]
+fn a_first_due_with_nothing_done_is_listed_until_work_of_its_kind_comes() {
+    let (_d, mut inv) = setup();
+    let soon = (chrono::Local::now().date_naive() + chrono::Duration::days(30))
+        .format("%Y-%m")
+        .to_string();
+    let v = inv
+        .upkeep_first_due(
+            "34 ABC 123",
+            "inspection",
+            Some(&soon),
+            None,
+            Some("ilk muayene"),
+        )
+        .unwrap();
+    assert!(v["upkeep"]["work"].is_null() && v["upkeep"]["at"].is_null());
+    let due = inv.upkeep_list(None, true).unwrap();
+    assert_eq!(due["upkeep"].as_array().unwrap().len(), 1, "{due}");
+    // The inspection done: the first due date is answered and goes.
+    inv.upkeep_add("34 ABC 123", &work("inspection", "muayene geçti"))
+        .unwrap();
+    let all = inv.upkeep_list(Some("34 ABC 123"), false).unwrap();
+    let list = all["upkeep"].as_array().unwrap();
+    assert_eq!(list.len(), 1, "{all}");
+    assert_eq!(list[0]["work"], "muayene geçti");
+    // Saying neither a date nor an odometer says nothing.
+    let e = inv
+        .upkeep_first_due("34 ABC 123", "service", None, None, None)
+        .unwrap_err();
+    assert_eq!(e.id(), Some("upkeep_due_needs_when"));
+}

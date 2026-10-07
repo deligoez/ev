@@ -450,7 +450,12 @@ fn a_sheet_puts_the_series_pictures_on_one_image_titled_by_number() {
     assert_eq!(ns, [1, 2, 3]);
     assert_eq!(v["pictures"][0]["note"], "Çekmece");
     let sheet = image::open(&out).unwrap();
-    assert!(sheet.width() > sheet.height(), "{}x{}", sheet.width(), sheet.height());
+    assert!(
+        sheet.width() > sheet.height(),
+        "{}x{}",
+        sheet.width(),
+        sheet.height()
+    );
     // Some of them, and a number the series lacks is refused.
     let v = inv.photo_sheet(&[2, 3], Some(&out)).unwrap();
     assert_eq!(v["pictures"].as_array().unwrap().len(), 2);
@@ -460,9 +465,8 @@ fn a_sheet_puts_the_series_pictures_on_one_image_titled_by_number() {
 
 #[test]
 fn series_references_read_single_pictures_and_ranges() {
-    let refs = |t: &[&str]| {
-        ev_core::series_numbers(&t.iter().map(|s| s.to_string()).collect::<Vec<_>>())
-    };
+    let refs =
+        |t: &[&str]| ev_core::series_numbers(&t.iter().map(|s| s.to_string()).collect::<Vec<_>>());
     assert_eq!(refs(&["f2", "f5..f7"]).unwrap(), [2, 5, 6, 7]);
     // The second end may leave out its `f`.
     assert_eq!(refs(&["F16..18"]).unwrap(), [16, 17, 18]);

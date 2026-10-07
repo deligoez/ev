@@ -27,3 +27,12 @@ per photo. `ev photo sheet f16..f31` now puts those pictures on one image, four 
 titled with its `f`-number and note (through MCP it comes back as an image), and
 `ev photo mark --whole f16..f31` frames each of them whole, numbered on from the series, in one
 call. Both read ranges and single pictures (`f2 f5..f8`).
+
+## A split part goes where it belongs in the same step
+
+Touring a place, a record the inventory once guessed in bulk ("many cables") is broken up into
+one record per piece, and each piece goes its own way. That took `ev split`, then an `ev move`
+or `ev gone` per piece, carrying ids from one answer to the next. A part of `ev split` now says
+where it goes: `"USB-C kablo=2@S5-01"` moves it there, and `ev split <ref> --stdin` takes one
+JSON line per part with `to`, or with `gone` and `why` to let it leave at once. The split, the
+moves and the leavings are one transaction: an unknown place undoes all of it.

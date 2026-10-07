@@ -50,4 +50,6 @@ the text output marks it. Several words without `--any` are one text, unquoted.
 
 A query word of three letters or fewer now meets only the start of a word: `ir` no longer
 finds every `bir` (in one household's inventory it went from 365 results to the 13 that say
-IR), and `ble` no longer finds an ink cartridge called `Mixable`.
+IR), and `ble` no longer finds an ink cartridge called `Mixable`. A synonym is met only as a
+whole word or its stem: a group `ekran, lcd, display` no longer brings in every DisplayPort
+cable.

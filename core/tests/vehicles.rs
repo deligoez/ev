@@ -139,3 +139,26 @@ fn a_vehicles_price_is_counted_apart_from_the_homes_things() {
     assert_eq!(vehicles[0]["code"], "34 ABC 123");
     assert_eq!(vehicles[0]["cost"]["TRY"], "2000000.00");
 }
+
+#[test]
+fn units_directly_in_a_vehicle_are_in_use_and_those_in_its_glovebox_spare() {
+    let (_d, mut inv) = setup();
+    let shelf = add(
+        &mut inv,
+        NewNode {
+            qty: Some(6),
+            ..node("H7 ampul", "item", Some("R-1"))
+        },
+    )
+    .unwrap();
+    let shelf = format!("#{shelf}");
+    // Two fitted in the car, two kept in its glovebox as spares.
+    inv.move_qty(&shelf, "34 ABC 123", false, Some(2)).unwrap();
+    let v = inv.move_qty(&shelf, "Torpido", false, Some(2)).unwrap();
+    let thing = &v["thing"];
+    assert_eq!(
+        (&thing["total"], &thing["in_use"], &thing["spare"]),
+        (&6.into(), &2.into(), &4.into()),
+        "{thing}"
+    );
+}

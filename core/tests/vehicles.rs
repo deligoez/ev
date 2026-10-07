@@ -162,3 +162,37 @@ fn units_directly_in_a_vehicle_are_in_use_and_those_in_its_glovebox_spare() {
         "{thing}"
     );
 }
+
+#[test]
+fn a_vehicle_is_toured_through_its_compartments_and_is_ours_in_its_years() {
+    let (_d, mut inv) = setup();
+    let places: Vec<String> = inv.progress_in(None).unwrap()["places"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_string())
+        .collect();
+    assert!(places.contains(&"Torpido".to_string()), "{places:?}");
+    assert!(!places.contains(&"Aile arabası".to_string()), "{places:?}");
+    // A car sold is among what was ours in the years it was here.
+    add(
+        &mut inv,
+        NewNode {
+            gone: Some("sell".into()),
+            came: Some("2018-03".into()),
+            at: Some("2026-04-08".into()),
+            ..node("Eski araba", "vehicle", None)
+        },
+    )
+    .unwrap();
+    let year = |y: i32| -> Vec<String> {
+        inv.past_year(y).unwrap()["owned"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert!(year(2020).contains(&"Eski araba".to_string()));
+    assert!(!year(2017).contains(&"Eski araba".to_string()));
+}

@@ -145,3 +145,35 @@ fn a_former_home_is_added_already_left_and_holds_what_was_left_there() {
         .unwrap_err();
     assert_eq!(id(room).as_deref(), Some("past_in_a_place"));
 }
+
+#[test]
+fn a_place_that_was_a_home_of_ours_becomes_one_and_a_household_is_refused() {
+    let (_d, mut inv) = setup();
+    // Until now a former home was a place named where things were left.
+    inv.add(past_thing("Lamba", "left", "item", None, Some("Eski yurt")))
+        .unwrap();
+    let home = inv
+        .place_home("Eski yurt", Some("2010"), Some("2011-06"), None)
+        .unwrap();
+    assert_eq!(home["node"]["kind"], "home");
+    assert_eq!(home["node"]["disposition"], "moved");
+    assert_eq!(home["moved_in"], 1);
+    assert_eq!(home["children"][0]["name"], "Lamba");
+    assert!(
+        inv.place_list().unwrap()["places"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    // A place with errands is another household: refused.
+    inv.add(NewNode {
+        name: "Ödünç matkap".into(),
+        kind: "item".into(),
+        parent: Some("Yeni ev".into()),
+        owner: Some("Annemler".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    let e = inv.place_home("Annemler", None, None, None).unwrap_err();
+    assert_eq!(e.id(), Some("place_is_a_household"));
+}

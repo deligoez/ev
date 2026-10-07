@@ -357,3 +357,26 @@ fn any_finds_several_texts_in_one_list_each_record_once() {
     // A text that found nothing is counted as nothing, not left out.
     assert_eq!(v["per_text"]["zigbee"], 0);
 }
+
+#[test]
+fn a_short_word_meets_the_start_of_a_word_not_its_middle() {
+    let (_d, mut inv) = setup();
+    for name in [
+        "IR alıcı sensör",
+        "Bir kutu vida",
+        "Mixable mürekkep kartuşu",
+        "BLE modülü",
+    ] {
+        inv.add(NewNode {
+            name: name.into(),
+            kind: "item".into(),
+            parent: Some("Oda".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    }
+    assert_eq!(names(&inv, "ir"), ["IR alıcı sensör"]);
+    assert_eq!(names(&inv, "ble"), ["BLE modülü"]);
+    // A longer word is still found inside another, as before.
+    assert!(names(&inv, "kartuş").contains(&"Mixable mürekkep kartuşu".to_string()));
+}

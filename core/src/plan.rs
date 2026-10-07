@@ -305,7 +305,8 @@ fn unit_by_children(n: &Node, children: &[&Node]) -> bool {
     }
     match n.kind {
         Kind::Home | Kind::Item => false,
-        Kind::Room => !children
+        // A car is counted through its compartments, as a room through its furniture.
+        Kind::Room | Kind::Vehicle => !children
             .iter()
             .any(|c| matches!(c.kind, Kind::Room | Kind::Furniture | Kind::Container)),
         _ => !children
@@ -346,7 +347,7 @@ fn unit_state(conn: &Connection, id: i64) -> Result<Option<(i64, String)>> {
             continue;
         }
         // The same test as `unit_by_children`, asked of the database.
-        let blocked = if n.kind == Kind::Room {
+        let blocked = if matches!(n.kind, Kind::Room | Kind::Vehicle) {
             let count: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM nodes WHERE parent_id = ?1 AND state != 'gone'
                    AND kind IN ('room', 'furniture', 'container')",

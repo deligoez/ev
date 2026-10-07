@@ -772,3 +772,32 @@ fn an_ak_payment_about_a_thing_is_tied_to_it_and_counts_in_what_it_costs() {
     let shown = inv.show("Matkap", false).unwrap();
     assert_eq!(shown["cost"]["TRY"]["upkeep"], "300.00");
 }
+
+#[test]
+fn a_service_line_is_tied_by_hand_and_a_thing_own_purchase_is_linked_instead() {
+    let (_d, mut inv) = setup();
+    let line = |key: &str, bucket: &str| {
+        json!({"source": "shop", "key": key, "name": format!("Satır {key}"), "paid": "100.00",
+               "currency": "TRY", "bucket": bucket, "ordered_at": "2025-03-01"})
+        .to_string()
+    };
+    inv.buy_import(&[line("s1", "service"), line("d1", "durable")].join("\n"))
+        .unwrap();
+    let id = |key: &str| -> i64 {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (service, durable) = (id("s1"), id("d1"));
+    let v = inv.buy_about(service, Some("Matkap"), false).unwrap();
+    assert_eq!(v["purchase"]["about"]["name"], "Matkap");
+    // A thing's own purchase is linked, not tied.
+    let e = inv.buy_about(durable, Some("Matkap"), false).unwrap_err();
+    assert_eq!(e.id(), Some("purchase_about_needs_service"));
+    let v = inv.buy_about(service, None, true).unwrap();
+    assert!(v["purchase"]["about"].is_null());
+}

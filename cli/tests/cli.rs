@@ -1126,7 +1126,9 @@ fn whole_frames_each_series_picture_in_one_call_numbered_on() {
             f.to_str().unwrap().to_string()
         })
         .collect();
-    ev.ok(&["focus", "--file", &files[0], "--file", &files[1], "--file", &files[2]]);
+    ev.ok(&[
+        "focus", "--file", &files[0], "--file", &files[1], "--file", &files[2],
+    ]);
     let v = ev.ok(&["photo", "mark", "--whole", "f1", "f2..f3"]);
     let frames: Vec<&str> = v["framed"]
         .as_array()

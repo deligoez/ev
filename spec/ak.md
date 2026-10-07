@@ -26,6 +26,14 @@ is made in both repositories.
   the agent finds the line (`ev buy list --source ak --key <id>`) and dismisses it there on that
   word (`ev buy dismiss <line> --as not-mine`, or `duplicate`). A line joined to a shop's line
   goes that way too; the shop's line, ev's own, stays as it was.
+- **One purchase paid in parts** (agreed 2026-10-07, ak's spec §5): a purchase paid as several
+  payments (a car's deposit, then the rest) reaches ev as one line. In ak the person marks each
+  part as part of the main payment (`ak edit <part> part_of=<main>`); ak sends one line keyed
+  by the main payment (`<main>` or `<main>.<item>`), its `paid` the sum of the main and its
+  parts, its `ordered_at` the earliest part's day, the rest the main's. A part is never sent on
+  its own, and an item of a main with parts is not marked. A part added or taken back later
+  re-sends the same key with the new `paid`; ev updates the line, keeping its links, dismissal
+  and join.
 - **One purchase, one line, in full.** A purchase paid in instalments is sent once: `paid` is the
   full price, `ordered_at` the day it was bought. The parts and the statements that billed
   them stay in ak. ev reckons today's money from the purchase day; a part's day would be wrong

@@ -1911,6 +1911,13 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
         app.probe = Some(ImageProbe::default());
     }
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
+    // ratatui's own hook restores raw mode and the screen but not what `ev ui` turned on
+    // itself, so a panic left the shell printing mouse reports; this one runs before it.
+    let restore = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        leave(&mut std::io::stdout());
+        restore(info);
+    }));
     let result = app.run(&mut terminal);
     // The position is kept even with resuming off, so turning it on picks up from the last
     // session; the layout always.
@@ -1918,10 +1925,16 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
         let _ = state.save(&db, app.tree_position(), app.layout_json());
         let _ = state.save_tree(&db, app.tree_json());
     }
-    send(input::STOP);
-    let _ = execute!(std::io::stdout(), DisableMouseCapture);
+    leave(&mut std::io::stdout());
     ratatui::restore();
     result
+}
+
+/// Turns off what `ev ui` turned on beyond ratatui's own: the appearance reports and the
+/// mouse. Written on a normal exit and from the panic hook alike.
+fn leave(out: &mut impl Write) {
+    let _ = out.write_all(input::STOP.as_bytes());
+    let _ = execute!(out, DisableMouseCapture);
 }
 
 /// Writes a control sequence to the terminal; a failed write only costs the feature.

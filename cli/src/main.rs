@@ -92,12 +92,17 @@ enum Cmd {
     /// (3 sets → `card=3` `cable=3`) and the original keeps its count; with --take they are
     /// some of its units (2 of 4 cells are another make) and come off its count. --rename and
     /// --qty set the original. The history links them both ways; photos stay on the original,
-    /// to be cropped per part.
+    /// to be cropped per part. A part may go somewhere at once: `<name>=<qty>@<place>`, or with
+    /// --stdin one `{"name", "qty", "to"}` or `{"name", "qty", "gone", "why"}` a line.
     Split {
         reference: String,
-        /// `<name>=<qty>`, or just `<name>` for a record without a count.
-        #[arg(required = true)]
+        /// `<name>=<qty>`, or just `<name>` for a record without a count; `@<place>` after it
+        /// moves the part there.
+        #[arg(required_unless_present = "stdin", conflicts_with = "stdin")]
         parts: Vec<String>,
+        /// The parts as JSON lines on standard input, each with where it goes.
+        #[arg(long)]
+        stdin: bool,
         /// A new name for the original, for the part it keeps.
         #[arg(long)]
         rename: Option<String>,
@@ -1643,6 +1648,61 @@ fn db_path(flag: Option<PathBuf>) -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".ev").join("ev.db"))
 }
 
+/// A part of `ev split` as typed: `<name>[=<qty>][@<place>]`.
+fn split_part(p: &str) -> Result<ev_core::SplitPart> {
+    let (head, to) = match p.rsplit_once('@') {
+        Some((head, to)) => (head, Some(to.trim().to_string())),
+        None => (p, None),
+    };
+    let (name, qty) = match head.rsplit_once('=') {
+        Some((name, q)) => {
+            let q = q
+                .trim()
+                .parse::<i64>()
+                .map_err(|_| Error::Usage(format!("`{p}`: the count after = is not a number")))?;
+            (name, Some(q))
+        }
+        None => (head, None),
+    };
+    Ok(ev_core::SplitPart {
+        name: name.trim().to_string(),
+        qty,
+        to,
+        ..Default::default()
+    })
+}
+
+/// `ev split --stdin`: one `{name, qty?, to?}` or `{name, qty?, gone, why?}` a line.
+fn split_lines(text: &str) -> Result<Vec<ev_core::SplitPart>> {
+    let mut parts = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let bad = |what: String| Error::Usage(format!("line {}: {what}", i + 1));
+        let v: Value = serde_json::from_str(line).map_err(|e| bad(e.to_string()))?;
+        let text = |k: &str| v[k].as_str().map(str::to_string);
+        let qty = match &v["qty"] {
+            Value::Null => None,
+            q => Some(
+                q.as_i64()
+                    .ok_or_else(|| bad("qty is a whole number".into()))?,
+            ),
+        };
+        parts.push(ev_core::SplitPart {
+            name: text("name").ok_or_else(|| bad("a part needs a name".into()))?,
+            qty,
+            to: text("to"),
+            gone: text("gone").as_deref().map(disposition).transpose()?,
+            why: text("why"),
+        });
+    }
+    if parts.is_empty() {
+        return Err(Error::Usage("no part on standard input".into()));
+    }
+    Ok(parts)
+}
+
 fn disposition(s: &str) -> Result<Disposition> {
     s.parse()
 }
@@ -1854,24 +1914,20 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Split {
             reference,
             parts,
+            stdin,
             rename,
             qty,
             take,
         } => {
-            let parts = parts
-                .iter()
-                .map(|p| match p.rsplit_once('=') {
-                    Some((name, q)) => q
-                        .trim()
-                        .parse::<i64>()
-                        .map(|q| (name.trim().to_string(), Some(q)))
-                        .map_err(|_| {
-                            Error::Usage(format!("`{p}`: the count after = is not a number"))
-                        }),
-                    None => Ok((p.trim().to_string(), None)),
-                })
-                .collect::<Result<Vec<_>>>()?;
-            inv.split_with(&reference, &parts, rename.as_deref(), qty, take)
+            let parts = if stdin {
+                split_lines(&read_input()?)?
+            } else {
+                parts
+                    .iter()
+                    .map(|p| split_part(p))
+                    .collect::<Result<Vec<_>>>()?
+            };
+            inv.split_parts(&reference, &parts, rename.as_deref(), qty, take)
         }
         Cmd::Recode { pairs } => {
             let pairs = pairs

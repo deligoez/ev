@@ -634,6 +634,10 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ("split_no_parts", "ayırmak için en az bir <name>=<qty> ver"),
     ("split_part_needs_name", "ayrılan parçanın bir adı olmalı"),
     (
+        "split_part_moves_and_leaves",
+        "`{name}` parçasına hem gideceği bir yer hem bir çıkış verilmiş: biri yeter",
+    ),
+    (
         "split_take_with_qty",
         "--take asıl kaydın sayısını kendisi belirler; --qty verme",
     ),

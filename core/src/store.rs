@@ -40,6 +40,17 @@ const NODE_COLUMNS: &str = "id, name, kind, parent_id, code, address, qty, note,
      (SELECT name FROM places WHERE id = to_place), size, temporary, make, model, serial, thing, \
      waits_for, came_at";
 
+/// One part of `ev split`: its name and count, and where it goes at once, if anywhere: moved
+/// `to` a place, or `gone` as a disposition with `why` (spec/split-destination.md).
+#[derive(Debug, Clone, Default)]
+pub struct SplitPart {
+    pub name: String,
+    pub qty: Option<i64>,
+    pub to: Option<String>,
+    pub gone: Option<Disposition>,
+    pub why: Option<String>,
+}
+
 pub struct Inventory {
     pub(crate) conn: Connection,
     photo_dir: std::path::PathBuf,
@@ -538,6 +549,27 @@ impl Inventory {
         qty: Option<i64>,
         take: bool,
     ) -> Result<Value> {
+        let parts: Vec<SplitPart> = parts
+            .iter()
+            .map(|(name, qty)| SplitPart {
+                name: name.clone(),
+                qty: *qty,
+                ..Default::default()
+            })
+            .collect();
+        self.split_parts(reference, &parts, rename, qty, take)
+    }
+
+    /// `split_with` whose parts may each go somewhere at once (spec/split-destination.md): moved
+    /// to `to`, or gone as `gone` with `why`, in the same transaction as the split.
+    pub fn split_parts(
+        &mut self,
+        reference: &str,
+        parts: &[SplitPart],
+        rename: Option<&str>,
+        qty: Option<i64>,
+        take: bool,
+    ) -> Result<Value> {
         if parts.is_empty() {
             return Err(usage("split_no_parts", Value::Null));
         }
@@ -559,15 +591,22 @@ impl Inventory {
             ));
         }
         let mut into = Vec::new();
-        for (name, q) in parts {
-            let name = name.trim();
+        let mut left = Vec::new();
+        for part in parts {
+            let name = part.name.trim();
             if name.is_empty() {
                 return Err(usage("split_part_needs_name", Value::Null));
+            }
+            if part.to.is_some() && part.gone.is_some() {
+                return Err(usage(
+                    "split_part_moves_and_leaves",
+                    json!({ "name": name }),
+                ));
             }
             let new = NewNode {
                 name: name.to_string(),
                 kind: n.kind.to_string(),
-                qty: *q,
+                qty: part.qty,
                 tags: n.tags.clone(),
                 // Where it came from is its history (`split_from`), read in the reader's
                 // language; a note in one language would stay in it.
@@ -580,12 +619,33 @@ impl Inventory {
                 "split_from",
                 json!({ "from": n.id, "name": n.name }),
             )?;
+            // Where the part goes, in the same step: a move (which may join a portion of the
+            // same thing there) or a leaving.
+            let id = match (&part.to, part.gone) {
+                (Some(to), _) => move_in(&tx, &format!("#{id}"), to, false, None)?,
+                (None, Some(d)) => {
+                    let why = part.why.as_deref();
+                    let (gone, _) = Self::gone_in(
+                        &tx,
+                        &format!("#{id}"),
+                        Some(d),
+                        why,
+                        false,
+                        None,
+                        None,
+                        None,
+                    )?;
+                    left.push(gone);
+                    gone
+                }
+                (None, None) => id,
+            };
             into.push(id);
         }
         // Parts are what each unit is made of (three sets → three cards, three cables) unless
         // `take`: then they are some of the units, and come off the original's count.
         let qty = if take {
-            let taken: Option<i64> = parts.iter().map(|(_, q)| *q).sum();
+            let taken: Option<i64> = parts.iter().map(|p| p.qty).sum();
             match (qty, n.qty, taken) {
                 (Some(_), _, _) => {
                     return Err(usage("split_take_with_qty", Value::Null));
@@ -632,12 +692,16 @@ impl Inventory {
         event(&tx, n.id, "split", json!({ "into": parts_json }))?;
         touch(&tx, n.id)?;
         tx.commit()?;
-        // Each new part may be a purchase of its own, asked while it is in hand (spec §4.2).
+        // Each new part may be a purchase of its own, asked while it is in hand (spec §4.2);
+        // not one that left at once.
         let into = into
             .iter()
             .map(|id| {
                 let v = serde_json::to_value(brief(&self.conn, *id)?)
                     .map_err(|e| Error::Internal(e.to_string()))?;
+                if left.contains(id) {
+                    return Ok(v);
+                }
                 offer_purchases(&self.conn, *id, v)
             })
             .collect::<Result<Vec<_>>>()?;

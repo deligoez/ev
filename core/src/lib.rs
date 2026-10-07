@@ -35,5 +35,5 @@ pub use model::{Disposition, Kind, NewNode, Node, NodeRef, PathSegment, State};
 pub use photo::{Crop, open_upright};
 pub use plan::{series_number, series_numbers};
 pub use purchases::{BUCKETS, BuyFilter, DISMISSALS};
-pub use store::{Inventory, SCHEMA_VERSION};
+pub use store::{Inventory, SCHEMA_VERSION, SplitPart};
 pub use valuations::NewValuation;

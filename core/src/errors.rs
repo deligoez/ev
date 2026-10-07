@@ -491,6 +491,10 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("split_part_needs_name", "a split-off part needs a name"),
     (
+        "split_part_moves_and_leaves",
+        "the part `{name}` is given both a place to go and a way to leave: one of them",
+    ),
+    (
         "split_take_with_qty",
         "--take sets the original's count itself; leave --qty out",
     ),

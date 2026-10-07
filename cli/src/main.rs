@@ -1044,6 +1044,15 @@ enum BuyCmd {
         /// Only dismissed lines, of any reason or of the one given (`--dismissed elsewhere`).
         #[arg(long, num_args = 0..=1, value_name = "REASON")]
         dismissed: Option<Option<String>>,
+        /// Only lines bought in this month: YYYY-MM.
+        #[arg(long)]
+        month: Option<String>,
+        /// Only lines paid in this currency (TRY, USD, EUR).
+        #[arg(long)]
+        currency: Option<String>,
+        /// `paid`: the dearest first instead of the newest.
+        #[arg(long, value_parser = ["paid"])]
+        sort: Option<String>,
     },
     /// One line with what it is linked to and its documents.
     Show {
@@ -2464,6 +2473,9 @@ fn run(cli: Cli) -> Result<Value> {
             source,
             key,
             dismissed,
+            month,
+            currency,
+            sort,
         }) => inv.buy_list_where(&ev_core::BuyFilter {
             open,
             bucket: bucket.as_deref(),
@@ -2474,6 +2486,9 @@ fn run(cli: Cli) -> Result<Value> {
             source: source.as_deref(),
             key: key.as_deref(),
             dismissed: dismissed.as_ref().map(Option::as_deref),
+            month: month.as_deref(),
+            currency: currency.as_deref(),
+            by_paid: sort.as_deref() == Some("paid"),
         }),
         Cmd::Cover(CoverCmd::Add(a)) => {
             let a = *a;

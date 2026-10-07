@@ -404,6 +404,12 @@ pub struct BuyFilter<'a> {
     /// Only dismissed lines: `Some(None)` any of them, `Some(Some(reason))` those dismissed so
     /// (`elsewhere`: what belongs in ak, spec/ak.md).
     pub dismissed: Option<Option<&'a str>>,
+    /// Only lines bought in this month (`2025-03`), by `ordered_at`, else `delivered_at`.
+    pub month: Option<&'a str>,
+    /// Only lines paid in this currency.
+    pub currency: Option<&'a str>,
+    /// The dearest first instead of the newest.
+    pub by_paid: bool,
 }
 
 /// The fields of a purchase line ev reads besides `LINE_FIELDS`.
@@ -968,7 +974,11 @@ impl Inventory {
             source,
             key,
             dismissed,
+            month,
+            currency,
+            by_paid,
         } = *filter;
+        let currency = currency.map(crate::money::currency_code).transpose()?;
         if let Some(Some(r)) = dismissed
             && !DISMISSALS.contains(&r)
         {
@@ -1030,6 +1040,15 @@ impl Inventory {
                         .or(p["delivered_at"].as_str())
                         .is_none_or(|x| x < d)
                 })
+                || month.is_some_and(|m| {
+                    !p["ordered_at"]
+                        .as_str()
+                        .or(p["delivered_at"].as_str())
+                        .is_some_and(|x| x.starts_with(m.trim()))
+                })
+                || currency
+                    .as_ref()
+                    .is_some_and(|c| p["currency"] != c.as_str())
                 || !words.is_empty() && {
                     let text = crate::fold(
                         &["name", "shop", "brand", "shop_sku", "order_no", "billed_to"]
@@ -1044,6 +1063,16 @@ impl Inventory {
                 continue;
             }
             out.push(p);
+        }
+        // The dearest first; lines with no amount last, newest first among equals.
+        if by_paid {
+            let cents = |p: &Value| {
+                p["paid"]
+                    .as_str()
+                    .and_then(|x| parse_money(x).ok())
+                    .unwrap_or(i64::MIN)
+            };
+            out.sort_by_key(|p| std::cmp::Reverse(cents(p)));
         }
         Ok(json!({ "purchases": out }))
     }

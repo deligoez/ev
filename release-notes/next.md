@@ -83,3 +83,15 @@ shelf. ev keeps families as tags rather than a tree of categories (one household
 90 tags on a quarter of its records), and gets what was missing to use them that way:
 `ev tag <tag> <ref>…` tags several records in one step (`--remove` takes it off), and
 `ev find --tag a --tag b` lists records with any of the tags.
+
+## Repairs and maintenance
+
+What was done to a thing, and when it is due again: a car's service and inspection, a boiler's
+yearly check, a phone's new battery.
+`ev upkeep add <ref> --kind service --work "…"` (or `repair`, `inspection`) records it with
+when it was done, the odometer, who did it, when or at what
+odometer it is due again, and the invoice from `ev doc`. `ev upkeep list --due` (and `ev todo`)
+names what is due within 60 days or 1,000 km, or past, from the newest piece of each kind;
+`ev show` and the thing's summary in `ev ui` list what was done, newest first.
+`ev fixed <ref> --work "…"` closes a broken mark and records the repair in one step. What it cost stays ak's:
+ev records no amount here. Schema 36 adds the `upkeep` table.

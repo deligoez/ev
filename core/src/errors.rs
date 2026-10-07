@@ -871,10 +871,6 @@ pub const ERRORS: &[(&str, &str)] = &[
     ),
     ("series_is_empty", "the marked photo series has no pictures"),
     (
-        "photo_mark_whole_with_marks",
-        "--whole frames whole pictures: give f-numbers, not <label>=… marks",
-    ),
-    (
         "photo_mark_cell_on_file",
         "`{spec}` is a cell: mark a place with a grid (by its code), not a file",
     ),

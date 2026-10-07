@@ -1287,8 +1287,12 @@ enum PhotoCmd {
     Mark {
         /// A photo file, or a place whose newest whole photo is marked.
         target: String,
-        #[arg(required_unless_present = "codes")]
+        #[arg(required_unless_present_any = ["codes", "whole"])]
         marks: Vec<String>,
+        /// One frame round each whole picture, numbered on from the series: TARGET and the rest
+        /// are series pictures (`--whole f2 f3 f5..f9`), not marks.
+        #[arg(long, conflicts_with_all = ["grid", "out", "show", "no_show", "codes", "keep_numbers"])]
+        whole: bool,
         /// The grid's corners in the photo, when it did not keep them (see `photo cut --grid`).
         #[arg(long)]
         grid: Option<String>,
@@ -2565,7 +2569,13 @@ fn run(cli: Cli) -> Result<Value> {
             no_show,
             codes,
             keep_numbers,
+            whole,
         }) => {
+            if whole {
+                let mut pictures = vec![target];
+                pictures.extend(marks);
+                return mark_whole(&mut inv, &pictures);
+            }
             // `f12`: the series' picture, marked again on the photo it was drawn on.
             let target = match ev_core::series_number(&target) {
                 Some(n) if !Path::new(&target).exists() => {
@@ -2609,34 +2619,16 @@ fn run(cli: Cli) -> Result<Value> {
             if no_show {
                 return inv.photo_mark(&target, &marks, grid.as_ref(), out.as_deref());
             }
-            let mut v = inv.photo_mark_numbered(
+            mark_and_show(
+                &mut inv,
                 &target,
                 &marks,
                 grid.as_ref(),
                 out.as_deref(),
                 keep_numbers,
-            )?;
-            if let Some(path) = v["marked"].as_str().map(PathBuf::from) {
-                // Titled with --show's note, or else with the labels as drawn.
-                let note = show.unwrap_or_else(|| {
-                    v["marks"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(|m| m["label"].as_str())
-                        .collect::<Vec<_>>()
-                        .join(" · ")
-                });
-                let frames = v["frames"].as_array().cloned().unwrap_or_default();
-                let source = PathBuf::from(v["source"].as_str().unwrap_or_default());
-                v["shown"] =
-                    inv.focus_drawn(&[path], Some(&note), &frames, &source, about)?["focus"]
-                        .clone();
-            }
-            if let Some(o) = v.as_object_mut() {
-                o.remove("frames");
-            }
-            Ok(v)
+                show,
+                about,
+            )
         }
         Cmd::Photo(PhotoCmd::Cut {
             file,
@@ -2753,6 +2745,65 @@ fn photo_arg(inv: &Inventory, given: &Path) -> Result<PathBuf> {
         Some(n) if !given.exists() => inv.series_photo(n),
         _ => Ok(given.to_path_buf()),
     }
+}
+
+/// `ev photo mark` shown in `ev ui`: the numbered marks drawn, then the copy joining the
+/// series, titled with `show` or else with the labels as drawn.
+#[allow(clippy::too_many_arguments)]
+fn mark_and_show(
+    inv: &mut Inventory,
+    target: &str,
+    marks: &[(String, String)],
+    grid: Option<&ev_core::GridCorners>,
+    out: Option<&Path>,
+    keep_numbers: bool,
+    show: Option<String>,
+    about: Option<i64>,
+) -> Result<Value> {
+    let mut v = inv.photo_mark_numbered(target, marks, grid, out, keep_numbers)?;
+    if let Some(path) = v["marked"].as_str().map(PathBuf::from) {
+        let note = show.unwrap_or_else(|| {
+            v["marks"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|m| m["label"].as_str())
+                .collect::<Vec<_>>()
+                .join(" · ")
+        });
+        let frames = v["frames"].as_array().cloned().unwrap_or_default();
+        let source = PathBuf::from(v["source"].as_str().unwrap_or_default());
+        v["shown"] =
+            inv.focus_drawn(&[path], Some(&note), &frames, &source, about)?["focus"].clone();
+    }
+    if let Some(o) = v.as_object_mut() {
+        o.remove("frames");
+    }
+    Ok(v)
+}
+
+/// The frame `--whole` draws: round the whole photo, just inside its edges.
+const WHOLE_FRAME: &str = "0.03,0.03,0.94,0.94";
+
+/// `ev photo mark --whole f2 f3 f4`: one frame round each of those series pictures, numbered
+/// on from the series, each shown as one `ev photo mark fN 1=…` would be (spec/series-grid.md).
+fn mark_whole(inv: &mut Inventory, pictures: &[String]) -> Result<Value> {
+    // Every picture found before the first is marked, so a wrong number marks none.
+    let photos = ev_core::series_numbers(pictures)?
+        .into_iter()
+        .map(|n| Ok((n, inv.series_photo(n)?.to_string_lossy().into_owned())))
+        .collect::<Result<Vec<_>>>()?;
+    let mut framed = Vec::new();
+    for (n, photo) in photos {
+        let marks = [("1".to_string(), WHOLE_FRAME.to_string())];
+        let v = mark_and_show(inv, &photo, &marks, None, None, false, None, None)?;
+        framed.push(json!({
+            "picture": n,
+            "frame": v["marks"][0]["label"],
+            "marked": v["marked"],
+        }));
+    }
+    Ok(json!({ "framed": framed }))
 }
 /// The title of a numbered photo shown without a note: what each number is, by code or else by
 /// name, so the person reads the numbers on the photo without the agent's table

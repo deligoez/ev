@@ -1034,10 +1034,6 @@ static ERRORS_TR: &[(&str, &str)] = &[
     ),
     ("series_is_empty", "işaretli fotoğraf dizisinde resim yok"),
     (
-        "photo_mark_whole_with_marks",
-        "--whole resimlerin tamamını çerçeveler: <label>=… değil, f-numaraları ver",
-    ),
-    (
         "photo_mark_nothing",
         "en az bir <label>=x,y,w,h ya da <label>=<cell> ver",
     ),

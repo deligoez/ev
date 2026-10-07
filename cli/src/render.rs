@@ -2881,10 +2881,21 @@ pub fn human(v: &Value) -> String {
         let _ = writeln!(out, "{}", tf("Preview: {}", &[&s(v, "preview")]));
         return out;
     }
+    // `ev photo mark --whole`: which frame number each picture took.
+    if let Some(list) = v.get("framed").and_then(Value::as_array) {
+        for f in list {
+            let _ = writeln!(out, "f{}  → {}", f["picture"], s(f, "frame"));
+        }
+        let _ = writeln!(out, "{}", t("Sent to ev ui."));
+        return out;
+    }
     // `ev photo sheet`: the pictures on it, then where it is.
     if v.get("sheet").is_some() && v.get("pictures").is_some() {
         for p in v["pictures"].as_array().into_iter().flatten() {
-            let note = p["note"].as_str().map(|n| format!("  {n}")).unwrap_or_default();
+            let note = p["note"]
+                .as_str()
+                .map(|n| format!("  {n}"))
+                .unwrap_or_default();
             let _ = writeln!(out, "f{}{note}", p["n"]);
         }
         let _ = writeln!(out, "{}", tf("Contact sheet: {}", &[&s(v, "sheet")]));

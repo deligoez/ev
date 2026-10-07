@@ -775,7 +775,10 @@ change its separator.
   that `matched` it. Every result's `place_count` says whether its place was counted (`toured`)
   or the record is a guess (`raw`); say which when you hand such a list to the person or to
   another agent. A family ev does not know as one word (ekran, LCD, OLED) gets a synonym group:
-  `ev synonym add ekran lcd oled display`.
+  `ev synonym add ekran lcd oled display`. A family asked about again (every Zigbee device)
+  is a tag: tag its members once with `ev tag zigbee <ref>…`, then `ev find --tag zigbee`
+  answers it whole (`--tag` several times: any of them). Never answer such a question from
+  `ev tree` output cut short.
   `ev find --empty` lists the boxes known to be empty (their place toured, or something left
   them), worked out from the records: never tag a box empty. Boxes with nothing recorded only
   because nobody counted them come apart (`not_known`): open them before calling them empty.

@@ -315,3 +315,15 @@ fn a_code_is_found_whatever_its_separator_and_padding() {
     series.sort();
     assert_eq!(series, ["Kutu A", "Kutu B", "Kutu C"]);
 }
+
+#[test]
+fn a_result_says_whether_its_place_was_counted_or_only_guessed() {
+    let (_d, mut inv) = setup();
+    let count = |inv: &Inventory| {
+        inv.find("kırmızı led", None, None, false).unwrap()["results"][0]["place_count"].clone()
+    };
+    assert_eq!(count(&inv), "raw");
+    // A tour under way: the place is being counted, not yet counted.
+    inv.review("LED kutusu", "counting", None).unwrap();
+    assert_eq!(count(&inv), "counting");
+}

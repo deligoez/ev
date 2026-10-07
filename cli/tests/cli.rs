@@ -1145,3 +1145,64 @@ fn whole_frames_each_series_picture_in_one_call_numbered_on() {
     assert_ne!(code, 0);
     assert_eq!(ev.ok(&["focus", "--list"])["series"]["next"], 4);
 }
+
+#[test]
+fn split_parts_take_a_place_inline_or_a_way_out_from_stdin() {
+    let ev = seeded();
+    ev.ok(&[
+        "add",
+        "Çekmece",
+        "--kind",
+        "container",
+        "--in",
+        "Salon",
+        "--code",
+        "S5-01",
+    ]);
+    ev.ok(&[
+        "add", "Kablolar", "--kind", "item", "--in", "Salon", "--qty", "4",
+    ]);
+    // Inline: the first part moves to S5-01, the second stays beside the original.
+    let v = ev.ok(&["split", "Kablolar", "USB-C kablo=2@S5-01", "HDMI kablo"]);
+    assert!(
+        v["into"][0]["path_text"]
+            .as_str()
+            .unwrap()
+            .contains("S5-01"),
+        "{v}"
+    );
+    assert!(
+        !v["into"][1]["path_text"]
+            .as_str()
+            .unwrap()
+            .contains("S5-01")
+    );
+    // From standard input, a part that leaves at once, with its reason.
+    let out = Command::cargo_bin("ev")
+        .unwrap()
+        .env_remove("EV_DB")
+        .env("EV_CONFIG", &ev.config)
+        .arg("--db")
+        .arg(&ev.db)
+        .args(["split", "HDMI kablo", "--stdin"])
+        .write_stdin(
+            "{\"name\":\"Kırık kablo\",\"gone\":\"trash\",\"why\":\"ucu kopuk\"}\n\
+             {\"name\":\"Sağlam kablo\",\"to\":\"S5-01\"}\n",
+        )
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["into"][0]["disposition"], "trash");
+    assert!(
+        v["into"][1]["path_text"]
+            .as_str()
+            .unwrap()
+            .contains("S5-01")
+    );
+}

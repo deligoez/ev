@@ -23,3 +23,14 @@ A home is now left the way a box is: when nothing of ours is in it any more. `ev
 its structure and leave with it, as a car's glovebox and boot do when the car is sold. Anything
 else still in it refuses, listed by the room it is in, with the two ways to empty it: move it
 where it goes, or say it stayed behind (`--as left`).
+
+## Former homes
+
+The homes lived in before the inventory are records now, for an address history with dates and
+for where past things were left. `ev add "<name>" --kind home --gone moved --came 2012-11 --at
+2015-04 --address "…"` adds one already left, and its papers attach to it like any record's. A
+thing left there names it with `--where`, by its name or `#id`, and is recorded inside it:
+`ev show <home> --include-gone` lists what we had and left there, and `ev past --where` finds
+it. A place used for a former home until now becomes one with `ev place home <place>`: what
+was left there moves into the new home record, and the place goes; a place that is another
+household's (with errands) is refused.

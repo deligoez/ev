@@ -2125,6 +2125,7 @@ static TR: &[(&str, &str)] = &[
     ("joined another portion", "başka bir porsiyona katıldı"),
     ("used up", "kullanılıp bitti"),
     ("left behind", "geride bırakıldı"),
+    ("moved out", "taşınıldı"),
     ("stolen", "çalındı"),
     ("left, how not known", "gitti, nasıl bilinmiyor"),
     ("came", "geldi"),

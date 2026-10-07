@@ -29,6 +29,7 @@ fn disposition(d: &str) -> String {
         "stolen" => t("stolen"),
         "unknown" => t("left, how not known"),
         "trade" => t("trade"),
+        "moved" => t("moved out"),
         other => return other.to_string(),
     }
     .to_string()

@@ -63,6 +63,7 @@ pub(crate) fn disposition_tr(d: &str) -> &'static str {
         "stolen" => t("stolen"),
         "unknown" => t("left, how not known"),
         "trade" => t("trade"),
+        "moved" => t("moved out"),
         _ => "?",
     }
 }
@@ -82,6 +83,7 @@ pub(crate) fn left_as(d: &str) -> &'static str {
         "stolen" => t("stolen"),
         "unknown" => t("how not known"),
         "trade" => t("traded"),
+        "moved" => t("moved out"),
         _ => "?",
     }
 }

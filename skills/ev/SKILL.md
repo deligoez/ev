@@ -385,8 +385,9 @@ keeps both. Before you call a place done, read its `observations` in `ev show <p
 left behind keeps coming back in `ev next` as work still to do.
 
 **A place a move or a gone leaves empty** comes back as `emptied`, with the theme and the
-observations that now describe what used to be in it. Clear them as the person decided for this
-household (here they said not to ask): `ev edit <place> theme=` and `ev unobserve --on <place>`.
+observations that now describe what used to be in it. Clear them on the person's word (a standing
+word for emptied places counts; ask once if there is none): `ev edit <place> theme=` and
+`ev unobserve --on <place>`.
 
 **What the person says is there, before anyone looked, is a record marked as a guess, not an
 observation.** "The Pi 400 is in the cabinet":

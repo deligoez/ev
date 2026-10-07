@@ -44,3 +44,11 @@ history with its dates in one list, and Past in `ev ui` shows it as its first he
 leave the two lists of things, as does what left with them (a home's rooms, a car's glovebox);
 `ev stats` still counts the ones that left. `ev past --year` names the home we lived in and
 the vehicles first; a home nothing dates is left out of a year instead of counted as undated.
+
+## Fixes
+
+- A purchase entered by hand could not take a remembered month: `ev buy add --date` took only a
+  day, so "bought in 2018-03" was left undated, and no line entered by hand could be corrected
+  later. `--date` now takes a month or a year as `ev add --came` does, today's money reading it
+  as its middle, and `ev buy edit <line> field=value` corrects the person's own lines (name,
+  date, price, currency, shop, brand, order, quantity); a line from a source is corrected there.

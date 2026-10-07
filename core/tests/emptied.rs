@@ -40,3 +40,24 @@ fn moving_the_last_thing_out_says_what_of_the_place_went_stale() {
     // Nothing is cleared on its own.
     assert_eq!(inv.show("K1", false).unwrap()["node"]["theme"], "kablolar");
 }
+
+#[test]
+fn a_place_still_holding_something_or_with_nothing_said_is_not_listed() {
+    let (_d, mut inv) = setup();
+    inv.add(NewNode {
+        name: "USB kablo".into(),
+        kind: "item".into(),
+        parent: Some("K1".into()),
+        ..Default::default()
+    })
+    .unwrap();
+    // One of two leaves: the box still holds the other.
+    let v = inv
+        .gone_because("HDMI kablo", Some(ev_core::Disposition::Trash), None)
+        .unwrap();
+    assert!(v["emptied"].is_null(), "{v}");
+    // The drawer emptied has no theme nor observation: nothing went stale.
+    inv.move_to("USB kablo", "C1", false).unwrap();
+    let v = inv.move_to("USB kablo", "K1", false).unwrap();
+    assert!(v["emptied"].is_null(), "{v}");
+}

@@ -457,3 +457,17 @@ fn a_sheet_puts_the_series_pictures_on_one_image_titled_by_number() {
     let e = inv.photo_sheet(&[9], Some(&out)).unwrap_err();
     assert_eq!(e.id(), Some("plan_series_has_no"));
 }
+
+#[test]
+fn series_references_read_single_pictures_and_ranges() {
+    let refs = |t: &[&str]| {
+        ev_core::series_numbers(&t.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+    };
+    assert_eq!(refs(&["f2", "f5..f7"]).unwrap(), [2, 5, 6, 7]);
+    // The second end may leave out its `f`.
+    assert_eq!(refs(&["F16..18"]).unwrap(), [16, 17, 18]);
+    for bad in ["12", "f7..f5", "f0", "fx..f2"] {
+        let e = refs(&[bad]).unwrap_err();
+        assert_eq!(e.id(), Some("series_ref_bad"), "{bad}");
+    }
+}

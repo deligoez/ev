@@ -426,3 +426,34 @@ fn a_frame_is_edged_in_dark_so_it_reads_on_a_red_photo() {
         .count();
     assert!(dark > 100, "{dark} dark pixels");
 }
+
+#[test]
+fn a_sheet_puts_the_series_pictures_on_one_image_titled_by_number() {
+    let (dir, mut inv, photo) = setup();
+    let files: Vec<std::path::PathBuf> = (1..=3)
+        .map(|i| {
+            let f = dir.path().join(format!("p{i}.png"));
+            std::fs::copy(&photo, &f).unwrap();
+            f
+        })
+        .collect();
+    inv.focus_marked(&files, Some("Çekmece"), &[]).unwrap();
+    // The whole series by default, four to a row: three pictures make one row.
+    let out = dir.path().join("sheet.jpg");
+    let v = inv.photo_sheet(&[], Some(&out)).unwrap();
+    let ns: Vec<u64> = v["pictures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["n"].as_u64().unwrap())
+        .collect();
+    assert_eq!(ns, [1, 2, 3]);
+    assert_eq!(v["pictures"][0]["note"], "Çekmece");
+    let sheet = image::open(&out).unwrap();
+    assert!(sheet.width() > sheet.height(), "{}x{}", sheet.width(), sheet.height());
+    // Some of them, and a number the series lacks is refused.
+    let v = inv.photo_sheet(&[2, 3], Some(&out)).unwrap();
+    assert_eq!(v["pictures"].as_array().unwrap().len(), 2);
+    let e = inv.photo_sheet(&[9], Some(&out)).unwrap_err();
+    assert_eq!(e.id(), Some("plan_series_has_no"));
+}

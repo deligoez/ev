@@ -90,6 +90,35 @@ its candidate things on the right; product images shown in the line's details; t
 "open durable lines by probable place", "suspected duplicates" and "lines of things that left";
 a money panel on a thing's details (purchases, repairs, coverage premium, value, sale).
 
+## The palette's commands (decided 2026-10-07)
+
+`:` also runs the screen's own commands, not only goes somewhere: one palette, as in k9s and
+Helix, with VS Code's prefix to narrow it.
+
+- **One key, one box.** Typing finds lists, then commands, then records. A query starting with
+  `>` finds commands only. No second palette and no `Ctrl+P`: `:` is the habit to keep.
+- **One table of commands** (`cli/src/ui/commands.rs`): each command's name, its key and when it
+  applies. Running a command presses that key, so the palette can never do something the key
+  does not, and a key can never be renamed without the palette following. The idea is
+  ratatui-labs' `ratatui-action` (an application names its capabilities once and every surface
+  reads them); its crates are experiments, so ev keeps its own table of a few dozen lines.
+- **Every line shows its key**, right-aligned and dimmed. The palette teaches the keys: whoever
+  finds "Map of the home" there learns `M`.
+- **Only what applies now is offered**, with the same conditions as the help line: the tree's
+  open/close commands on the tree, the photo commands when a photo is shown, the filter on a
+  purchase list.
+- **Only the screen's commands.** Views, panes, dividers, photos, copying, the map, quitting.
+  Nothing that writes to the inventory: the agent proposes, the person confirms (the principle in
+  CLAUDE.md), and `ev ui` stays a place to look.
+
+Why: research on ratatui and other terminal apps (ratatui-labs' `ratatui-command-palette` and
+`ratatui-action`, `ratada`, k9s, Helix, lazygit-style tools with `Ctrl+P`). The palette that
+already found any list or record was one step from a command palette; the help line cannot hold
+every key on a narrow screen, and the palette can.
+
+Not now: the details tabs as commands (`H`/`L` and a click choose them); a `?` screen listing the
+whole table, until someone asks for it.
+
 ## Not now
 
 - Reordering or pinning lists by the person (Snipe-IT, Linear favourites): the order above is

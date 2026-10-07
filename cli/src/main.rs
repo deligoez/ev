@@ -1053,6 +1053,13 @@ enum BuyCmd {
         /// `paid`: the dearest first instead of the newest.
         #[arg(long, value_parser = ["paid"])]
         sort: Option<String>,
+        /// Open lines that look like one purchase seen twice: same name, amount and currency,
+        /// bought within three days, joined to no other line.
+        #[arg(long, conflicts_with = "by_place")]
+        duplicates: bool,
+        /// The open durable lines grouped by the place of the record each could best be.
+        #[arg(long)]
+        by_place: bool,
     },
     /// One line with what it is linked to and its documents.
     Show {
@@ -1066,6 +1073,12 @@ enum BuyCmd {
         reference: Option<String>,
         #[arg(long)]
         toured: bool,
+    },
+    /// The records that could be this line, best first, with the reasons: `ev buy for` read the
+    /// other way, over the records no purchase is linked to yet.
+    Things {
+        #[arg(value_parser = record_id)]
+        id: i64,
     },
     /// Link a line to a thing on the person's word (all that is left of it by default; on a line
     /// in packs, as many units as the thing stands for).
@@ -2464,6 +2477,10 @@ fn run(cli: Cli) -> Result<Value> {
         ),
         Cmd::Buy(BuyCmd::Edit { id, fields }) => inv.buy_edit(id, &fields),
         Cmd::Buy(BuyCmd::List {
+            duplicates: true, ..
+        }) => inv.buy_duplicates(),
+        Cmd::Buy(BuyCmd::List { by_place: true, .. }) => inv.buy_by_place(),
+        Cmd::Buy(BuyCmd::List {
             open,
             bucket,
             shop,
@@ -2476,6 +2493,8 @@ fn run(cli: Cli) -> Result<Value> {
             month,
             currency,
             sort,
+            duplicates: false,
+            by_place: false,
         }) => inv.buy_list_where(&ev_core::BuyFilter {
             open,
             bucket: bucket.as_deref(),
@@ -2614,6 +2633,7 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Link(LinkCmd::List { reference }) => inv.link_list(&reference),
         Cmd::Link(LinkCmd::Remove { id }) => inv.link_remove(id),
         Cmd::Buy(BuyCmd::Show { id }) => inv.buy_show(id),
+        Cmd::Buy(BuyCmd::Things { id }) => inv.buy_things(id),
         Cmd::Buy(BuyCmd::For { reference, .. }) => match reference {
             Some(r) => inv.buy_for(&r),
             None => inv.buy_backfill(),

@@ -1077,6 +1077,60 @@ impl Inventory {
         Ok(json!({ "purchases": out }))
     }
 
+    /// `ev buy list --duplicates` (spec/purchases.md §14): open lines that look like one
+    /// purchase seen twice: the same name (folded), the same amount and currency, bought within
+    /// three days of each other, joined to no other line. Groups of two or more; the person
+    /// decides, ev never merges.
+    pub fn buy_duplicates(&self) -> Result<Value> {
+        let all = ids(&self.conn, "SELECT id FROM purchases ORDER BY id", [])?;
+        let mut by_key: std::collections::BTreeMap<(String, String, String), Vec<Value>> =
+            std::collections::BTreeMap::new();
+        for id in all {
+            let p = list_row(&self.conn, id)?;
+            let open = p["dismissed"].is_null() && p["open_qty"].as_i64().unwrap_or(0) > 0;
+            if !open || !p["same_as"].is_null() {
+                continue;
+            }
+            let key = (
+                crate::fold(p["name"].as_str().unwrap_or_default()),
+                p["paid"].as_str().unwrap_or_default().to_string(),
+                p["currency"].as_str().unwrap_or_default().to_string(),
+            );
+            by_key.entry(key).or_default().push(p);
+        }
+        let day = |p: &Value| {
+            p["ordered_at"]
+                .as_str()
+                .or(p["delivered_at"].as_str())
+                .and_then(|d| chrono::NaiveDate::parse_from_str(d.get(..10)?, "%Y-%m-%d").ok())
+        };
+        let mut groups = Vec::new();
+        for (_, mut lines) in by_key {
+            if lines.len() < 2 {
+                continue;
+            }
+            lines.sort_by_key(|p| day(p));
+            // Lines a few days apart are one purchase seen twice; a month apart, two purchases.
+            let mut group: Vec<Value> = Vec::new();
+            for p in lines {
+                let close = group.last().is_some_and(|q| match (day(q), day(&p)) {
+                    (Some(a), Some(b)) => (b - a).num_days() <= 3,
+                    _ => false,
+                });
+                if !close && group.len() > 1 {
+                    groups.push(json!(std::mem::take(&mut group)));
+                } else if !close {
+                    group.clear();
+                }
+                group.push(p);
+            }
+            if group.len() > 1 {
+                groups.push(json!(group));
+            }
+        }
+        Ok(json!({ "duplicates": groups }))
+    }
+
     /// How many lines each bucket has, every line counted: what `buy_list` returns for it with
     /// no filter, without reading every line (a sidebar's counts on every change).
     pub fn buy_counts(&self) -> Result<Value> {

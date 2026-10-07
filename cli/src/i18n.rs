@@ -1496,6 +1496,12 @@ static TR: &[(&str, &str)] = &[
     ),
     // Payments about a thing, and what it costs (spec/ak.md).
     ("about #{} {}", "hakkında: #{} {}"),
+    ("(no record could be this)", "(bu olabilecek bir kayıt yok)"),
+    (
+        "(no record could be these)",
+        "(bunlar olabilecek bir kayıt yok)",
+    ),
+    ("{}. maybe one purchase:", "{}. belki tek bir alım:"),
     ("category", "kategori"),
     ("cost", "maliyet"),
     ("cover", "teminat"),

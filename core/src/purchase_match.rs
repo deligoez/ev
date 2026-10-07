@@ -597,6 +597,69 @@ impl Inventory {
         });
         Ok(json!({ "backfill": out, "toured_things": things.len() }))
     }
+
+    /// `ev buy things <line>`: the records that could be this line, best first, with the
+    /// reasons (spec/purchases.md §14): `buy_for` read the other way, over the records no
+    /// purchase is linked to yet. Twelve at most; none for a line that is settled.
+    pub fn buy_things(&self, id: i64) -> Result<Value> {
+        let conn = &self.conn;
+        let purchase = purchase_row(conn, id)?;
+        let nodes = crate::store::live_nodes(conn)?;
+        let matcher = Matcher::new(conn, &nodes)?;
+        let unlinked = unlinked_things(conn, &nodes)?;
+        let things = matcher.things_for(conn, id, &unlinked, 0.0, 12)?;
+        Ok(json!({ "purchase": purchase, "candidates": things }))
+    }
+
+    /// `ev buy list --open --by-place` (spec/purchases.md §14): the open durable lines grouped
+    /// by the place of the record each could best be, above the bar `ev add` offers at; lines
+    /// with no such record under a place of null. Places in the order of their first line.
+    pub fn buy_by_place(&self) -> Result<Value> {
+        let conn = &self.conn;
+        let nodes = crate::store::live_nodes(conn)?;
+        let matcher = Matcher::new(conn, &nodes)?;
+        let unlinked = unlinked_things(conn, &nodes)?;
+        let open_lines: Vec<i64> = matcher
+            .lines
+            .iter()
+            .filter(|l| open(&l.value) && l.value["bucket"] == "durable")
+            .filter_map(|l| l.value["id"].as_i64())
+            .collect();
+        let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
+        for id in open_lines {
+            let best = matcher
+                .things_for(conn, id, &unlinked, OFFER_AT, 1)?
+                .into_iter()
+                .next();
+            let place = match &best {
+                Some(c) => {
+                    let node = c["node"]["id"].as_i64().unwrap_or_default();
+                    match load(conn, node)?.parent_id {
+                        Some(p) => serde_json::to_value(crate::store::brief(conn, p)?)
+                            .map_err(|e| crate::Error::Internal(e.to_string()))?,
+                        None => Value::Null,
+                    }
+                }
+                None => Value::Null,
+            };
+            let mut entry = json!({ "purchase": purchase_row(conn, id)? });
+            if let Some(c) = best {
+                entry["candidate"] = c;
+            }
+            match groups.iter_mut().find(|(p, _)| p["id"] == place["id"]) {
+                Some((_, lines)) => lines.push(entry),
+                None => groups.push((place, vec![entry])),
+            }
+        }
+        // The lines nothing could be come last.
+        groups.sort_by_key(|(p, _)| p.is_null());
+        Ok(json!({
+            "by_place": groups
+                .into_iter()
+                .map(|(place, lines)| json!({ "place": place, "lines": lines }))
+                .collect::<Vec<_>>(),
+        }))
+    }
 }
 
 /// The lines that can still be offered, and how rare each word is among all lines and the
@@ -713,6 +776,82 @@ impl Matcher {
         out.truncate(limit);
         out
     }
+}
+
+impl Matcher {
+    /// The records scoring above `at` for line `id`, at most `limit`, best first, among
+    /// `unlinked` (see `unlinked_things`), none the person said is not this line. Empty for a
+    /// line not offered.
+    fn things_for(
+        &self,
+        conn: &Connection,
+        id: i64,
+        unlinked: &[(&Node, Vec<i64>, Thing)],
+        at: f64,
+        limit: usize,
+    ) -> Result<Vec<Value>> {
+        let Some(line) = self.lines.iter().find(|l| l.value["id"] == id) else {
+            return Ok(Vec::new());
+        };
+        if !open(&line.value) {
+            return Ok(Vec::new());
+        }
+        let mut out = Vec::new();
+        for (n, members, thing) in unlinked {
+            if members.iter().any(|m| self.declined.contains(&(id, *m))) {
+                continue;
+            }
+            let (s, why) = score(&self.corpus, thing, line);
+            if s <= at {
+                continue;
+            }
+            let why: Vec<Value> = why
+                .into_iter()
+                .map(|(kind, value, points)| {
+                    json!({
+                        "why": reason_text(kind, &value), "kind": kind, "value": value,
+                        "points": (points * 10.0).round() / 10.0,
+                    })
+                })
+                .collect();
+            out.push(json!({
+                "node": crate::store::brief(conn, n.id)?,
+                "score": (s * 10.0).round() / 10.0,
+                "why": why,
+            }));
+        }
+        out.sort_by(|a, b| {
+            b["score"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .total_cmp(&a["score"].as_f64().unwrap_or(0.0))
+        });
+        out.truncate(limit);
+        Ok(out)
+    }
+}
+
+/// The things no purchase is linked to yet, each with the records of its thing (a thing kept
+/// in several places counts as linked when any of them is) and its words read once for
+/// scoring; never a home or a room.
+fn unlinked_things<'a>(
+    conn: &Connection,
+    nodes: &'a [Node],
+) -> Result<Vec<(&'a Node, Vec<i64>, Thing<'a>)>> {
+    let linked: HashSet<i64> = ids(conn, "SELECT DISTINCT node_id FROM purchase_links", [])?
+        .into_iter()
+        .collect();
+    let mut out = Vec::new();
+    for n in nodes {
+        if matches!(n.kind, crate::model::Kind::Home | crate::model::Kind::Room) {
+            continue;
+        }
+        let members = crate::portions::members(conn, n)?;
+        if !members.iter().any(|m| linked.contains(m)) {
+            out.push((n, members, Thing::new(n)));
+        }
+    }
+    Ok(out)
 }
 
 /// Something left to link and not dismissed.

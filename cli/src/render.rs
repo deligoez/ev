@@ -2620,6 +2620,60 @@ fn human_body(v: &Value) -> String {
         }
         return out;
     }
+    // `ev buy list --duplicates`: lines that look like one purchase seen twice.
+    if let Some(groups) = v.get("duplicates").and_then(Value::as_array) {
+        if groups.is_empty() {
+            let _ = writeln!(out, "{}", t("(none)"));
+        }
+        for (i, g) in groups.iter().enumerate() {
+            let _ = writeln!(out, "{}", tf("{}. maybe one purchase:", &[&(i + 1)]));
+            for p in g.as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  {}  [{}]", purchase_line(p), s(p, "source"));
+            }
+        }
+        return out;
+    }
+    // `ev buy list --by-place`: open lines under the place of the record each could be.
+    if let Some(groups) = v.get("by_place").and_then(Value::as_array) {
+        for g in groups {
+            let place = if g["place"].is_object() {
+                s(&g["place"], "path_text")
+            } else {
+                t("(no record could be these)").to_string()
+            };
+            let _ = writeln!(out, "{place}");
+            for l in g["lines"].as_array().into_iter().flatten() {
+                let _ = writeln!(out, "  {}", purchase_line(&l["purchase"]));
+                if l["candidate"].is_object() {
+                    let _ = writeln!(out, "    → {}", line(&l["candidate"]["node"]));
+                }
+            }
+        }
+        return out;
+    }
+    // `ev buy things`: the records that could be this line, with why.
+    if let (Some(list), Some(p)) = (
+        v.get("candidates").and_then(Value::as_array),
+        v.get("purchase"),
+    ) {
+        let _ = writeln!(out, "{}", purchase_line(p));
+        if list.is_empty() {
+            let _ = writeln!(out, "  {}", t("(no record could be this)"));
+        }
+        for (i, c) in list.iter().enumerate() {
+            let why: Vec<String> = c["why"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|w| w["why"].as_str().map(str::to_string))
+                .collect();
+            let _ = writeln!(out, "  {}. {}  ({})", i + 1, line(&c["node"]), c["score"]);
+            if !why.is_empty() {
+                let _ = writeln!(out, "     {}", why.join(" · "));
+            }
+        }
+        return out;
+    }
     if let Some(list) = v.get("candidates") {
         let _ = writeln!(out, "{}", line(&v["node"]));
         if list.as_array().is_none_or(Vec::is_empty) {

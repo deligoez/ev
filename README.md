@@ -297,7 +297,9 @@ total, adds up what it shows per currency, and is narrowed with `f` (open, linke
 linked to. `Tab` moves between the panes (the one the keys go to has a coloured
 border); in the sidebar the arrows open each list as they pass it and `Enter` goes into it. `:` finds any list
 or record by code, name or `#id`, typed with Turkish letters or without, and `Esc` steps back
-through what was opened. The
+through what was opened. The same `:` runs the screen's commands by name (the map, the sidebar,
+opening the tree, rotating a photo, …), each shown with its key so the palette teaches it; a
+query starting with `>` finds commands only, and only those that apply where you are. The
 sidebar narrows to a rail of digits and counts under 120 columns, hides under 90 (`b` opens it
 over the list), and under 70, as on a phone, one pane shows at a time; `b` hides or shows it at
 any width and is remembered. It refreshes the moment another process writes, flashes what

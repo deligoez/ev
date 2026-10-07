@@ -390,3 +390,27 @@ Each phase ends with the gate green and one measured check.
    brought (`ev buy bring --type image`, `--all` for the back-fill); the agent tells the
    person. Where the person said pictures always come along, that rule is the household's
    (`~/.ev/CLAUDE.md`), not a setting in ev.
+
+## 14. The lists the inventory agent asked for (2026-10-08)
+
+From the inventory agent's needs list (spec/ui-sidebar.md): the purchase lines narrowed and
+read the ways it works through them, in the CLI, which `ev ui` and MCP reach too.
+
+- **`ev buy list --month 2025-03`** (bought in that month, by `ordered_at`, else
+  `delivered_at`), **`--currency USD`**, and **`--sort paid`** (the dearest first; the default
+  stays newest first). They combine with every filter there is.
+- **`ev buy things <line>`**: the records that could be this line, best first, with the
+  reasons: `ev buy for` read the other way, scored the same way, over the records no purchase
+  is linked to yet (a thing kept in several places counts as linked when any of its records
+  is). Twelve at most.
+- **`ev buy list --duplicates`**: open lines that look like one purchase seen twice: the same
+  name (folded), the same amount and currency, bought within three days of each other, not
+  joined to each other. Groups of two or more, each line with its source. The person decides
+  (`ev buy join`, `ev buy dismiss … duplicate`); ev never merges on its own.
+- **`ev buy list --open --by-place`**: the open durable lines grouped by the place of the record
+  each could best be (its top `ev buy things` candidate above the bar `ev add` offers at),
+  lines with no such record under "unknown": which purchases a tour of a place may settle.
+
+Not now: a month or currency picker in `ev ui` (the filters reach it when asked for); lines of
+things that left as a view of their own (`ev past` holds them); product images on a line's
+details.

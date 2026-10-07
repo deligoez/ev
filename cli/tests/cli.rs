@@ -1115,3 +1115,31 @@ fn todo_only_gives_the_sections_asked_for_with_every_count() {
     let (code, _, _) = ev.run(&["todo", "--only", "bogus"]);
     assert_eq!(code, 2);
 }
+
+#[test]
+fn whole_frames_each_series_picture_in_one_call_numbered_on() {
+    let (ev, photo) = drawer();
+    let files: Vec<String> = (1..=3)
+        .map(|i| {
+            let f = ev._dir.path().join(format!("p{i}.png"));
+            std::fs::copy(&photo, &f).unwrap();
+            f.to_str().unwrap().to_string()
+        })
+        .collect();
+    ev.ok(&["focus", "--file", &files[0], "--file", &files[1], "--file", &files[2]]);
+    let v = ev.ok(&["photo", "mark", "--whole", "f1", "f2..f3"]);
+    let frames: Vec<&str> = v["framed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["frame"].as_str().unwrap())
+        .collect();
+    assert_eq!(frames, ["1", "2", "3"]);
+    let s = &ev.ok(&["focus", "--list"])["series"];
+    assert_eq!(s["pictures"].as_array().unwrap().len(), 3);
+    assert_eq!(s["next"], 4);
+    // A number the series lacks marks none of them.
+    let (code, _, _) = ev.run(&["photo", "mark", "--whole", "f3", "f9"]);
+    assert_ne!(code, 0);
+    assert_eq!(ev.ok(&["focus", "--list"])["series"]["next"], 4);
+}

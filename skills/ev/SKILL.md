@@ -32,7 +32,10 @@ VIN as `serial`, the model year in `model`; its glovebox and boot are `container
 toured like any place; insurance is coverage, its papers are documents; a sold car is a past
 thing with `ev sold`; what was proposed for the home never goes into it, so put things in a
 car only on the person's word; earlier plates and a registered owner who is not the household
-go in its note with their dates, never as `owner=`, which would say the car was not ours). `kind` is only a label — any node can hold other nodes. Codes are
+go in its note with their dates, never as `owner=`, which would say the car was not ours). A
+home that is left (`ev gone <home> --as moved`, or `--as sell`) goes once nothing of ours is in
+it: its rooms go with it; when it refuses, take each listed thing where it goes or, on the
+person's word, `--as left`. `kind` is only a label — any node can hold other nodes. Codes are
 what is printed on the physical labels, and there are two kinds. **A slot of furniture has a
 positional code** (`K4x4-07-Ü`: Kallax compartment 07, upper drawer): it says where, so it is
 found by walking to it, and a slot that moves gets a new label. **A movable box has a serial

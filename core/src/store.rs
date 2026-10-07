@@ -1620,7 +1620,15 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let mut node = serde_json::to_value(&n).map_err(|e| Error::Internal(e.to_string()))?;
     node["path_text"] = json!(path_text(&segments));
     node["path"] = json!(segments);
-    let children = sorted_children(conn, id, true)?;
+    let mut children = sorted_children(conn, id, true)?;
+    // A record that left keeps what left in it: a former home, what was left behind there.
+    if n.state == State::Gone {
+        children.extend(ids(
+            conn,
+            "SELECT id FROM nodes WHERE parent_id = ?1 AND state = 'gone' ORDER BY id",
+            [id],
+        )?);
+    }
     let children = children
         .iter()
         .map(|c| brief(conn, *c))

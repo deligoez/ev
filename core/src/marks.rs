@@ -794,7 +794,12 @@ impl Inventory {
                 if clear {
                     clear_mark(&tx, id, kind)?;
                 } else {
-                    set_mark(&tx, id, kind, None, None, note)?;
+                    // Said again without a note, what was said of it stands.
+                    let before = mark(&tx, id, kind)?;
+                    let note = note
+                        .map(str::to_string)
+                        .or_else(|| before["note"].as_str().map(str::to_string));
+                    set_mark(&tx, id, kind, None, None, note.as_deref())?;
                 }
             }
             crate::store::event(

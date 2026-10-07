@@ -399,7 +399,8 @@ adapter into their database on your own is not part of any other task.
 **What was bought is evidence, not a record.** Purchase lines come from a shop's export
 through an adapter you keep next to it, which also emits each line's product pictures as
 `image` lines (`~/.ev/purchases/<shop>/adapter.py | ev buy import --stdin`), or by hand
-(`ev buy add`); none of them is a thing in the tree. A new shop gets a new adapter: start from
+(`ev buy add`, a remembered month or year as its `--date`; corrected later with `ev buy edit
+<line> field=value`); none of them is a thing in the tree. A new shop gets a new adapter: start from
 `examples/purchases/` in the ev repository (its README walks through it) and keep the adapter
 with the shop's raw export and its `RECIPE.md`.
 Lines from ak (the household's money tool: `ak export --for ev | ev buy import --stdin`, only

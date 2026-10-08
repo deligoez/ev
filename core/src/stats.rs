@@ -472,6 +472,21 @@ fn purchases_section(conn: &Connection, home: &str) -> Result<Value> {
         "lines": count("SELECT COUNT(*) FROM purchases WHERE same_as IS NULL")?,
         "linked": count("SELECT COUNT(DISTINCT purchase_id) FROM purchase_links")?,
         "dismissed": count("SELECT COUNT(*) FROM purchases WHERE dismissed IS NOT NULL")?,
+        // Settled lines by why: a cancelled order apart from one returned.
+        "dismissed_by": crate::purchases::DISMISSALS
+            .iter()
+            .map(|r| {
+                let n: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM purchases WHERE dismissed = ?1",
+                    [r],
+                    |row| row.get(0),
+                )?;
+                Ok(((*r).to_string(), json!(n)))
+            })
+            .collect::<Result<serde_json::Map<_, _>>>()?
+            .into_iter()
+            .filter(|(_, n)| n != 0)
+            .collect::<serde_json::Map<_, _>>(),
         // The same count as `ev todo`'s.
         "open_durable": crate::coverage::open_purchases(conn)?,
         "years": years,

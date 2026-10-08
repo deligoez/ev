@@ -842,19 +842,34 @@ pub(crate) fn purchase_line(p: &Value) -> String {
     parts.join("  ")
 }
 
+/// Why a line was settled, in words.
+fn dismissal(why: &str) -> &str {
+    match why {
+        "consumed" => t("consumed"),
+        "given" => t("given"),
+        "returned" => t("returned to the shop"),
+        "cancelled" => t("cancelled by the shop"),
+        "elsewhere" => t("elsewhere"),
+        "not-mine" => t("not mine"),
+        "duplicate" => t("a duplicate"),
+        other => other,
+    }
+}
+
+/// The settled lines by why, a cancelled order apart from a return; None when none is.
+fn settled_by(p: &Value) -> Option<String> {
+    let by: Vec<String> = p["dismissed_by"]
+        .as_object()?
+        .iter()
+        .map(|(why, n)| format!("{n} {}", dismissal(why)))
+        .collect();
+    (!by.is_empty()).then(|| tf("  settled: {}", &[&by.join(" · ")]))
+}
+
 /// Where a line stands: dismissed, returned, or how much of it is still to link.
 pub(crate) fn purchase_state(p: &Value) -> String {
     if let Some(d) = p["dismissed"].as_str() {
-        let why = match d {
-            "consumed" => t("consumed"),
-            "given" => t("given"),
-            "returned" => t("returned to the shop"),
-            "elsewhere" => t("elsewhere"),
-            "not-mine" => t("not mine"),
-            "duplicate" => t("a duplicate"),
-            other => other,
-        };
-        return tf("[dismissed: {}]", &[&why]);
+        return tf("[dismissed: {}]", &[&dismissal(d)]);
     }
     let open = p["open_qty"].as_i64().unwrap_or(0);
     let kits: Vec<&str> = p["kits"]
@@ -4553,6 +4568,9 @@ pub(crate) fn stats_sections(v: &Value) -> Vec<StatSection> {
             ],
         ),
     )];
+    if let Some(text) = settled_by(p) {
+        buys.push(drill(purchases(None, None), text));
+    }
     for y in p["years"].as_array().into_iter().flatten() {
         let text = tf(
             "  {}: {} lines · {}",

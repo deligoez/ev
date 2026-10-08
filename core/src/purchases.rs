@@ -17,10 +17,13 @@ use crate::{Error, Result};
 pub const BUCKETS: [&str; 4] = ["durable", "clothing", "digital", "service"];
 
 /// Why a line will never be a node.
-pub const DISMISSALS: [&str; 6] = [
+/// `cancelled`: the shop cancelled the order (a payment declined, never shipped), so nothing came
+/// and nothing was spent, unlike `returned`.
+pub const DISMISSALS: [&str; 7] = [
     "consumed",
     "given",
     "returned",
+    "cancelled",
     "elsewhere",
     "not-mine",
     "duplicate",

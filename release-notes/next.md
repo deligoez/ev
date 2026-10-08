@@ -127,4 +127,7 @@ which purchases it may settle. Over one household's ~800 open lines it takes und
 A line from an order the shop cancelled (a payment declined, never shipped) had no fitting
 reason to be settled, and was set aside as a duplicate or a return.
 `ev buy dismiss <id> --as cancelled` says it: nothing came and nothing was spent. `ev stats` now counts the settled lines
-by why (`purchases.dismissed_by`), so cancelled orders stand apart from returns.
+by why (`purchases.dismissed_by`), so cancelled orders stand apart from returns. And an
+adapter that learns an order was cancelled after it was imported now corrects it: the line ev
+has is settled as cancelled (`imported.now_cancelled`), unless the person linked or settled it,
+when it is only named (`imported.cancelled_held`).

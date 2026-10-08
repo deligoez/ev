@@ -641,6 +641,8 @@ impl Inventory {
         let mut unknown = std::collections::BTreeMap::<String, i64>::new();
         let mut docs_added = 0;
         let mut things_unknown: Vec<Value> = Vec::new();
+        let mut now_cancelled: Vec<i64> = Vec::new();
+        let mut cancelled_held: Vec<i64> = Vec::new();
         for (i, raw) in ndjson.lines().enumerate() {
             let raw = raw.trim();
             if raw.is_empty() {
@@ -658,6 +660,25 @@ impl Inventory {
                         {
                             *unknown.entry(k.clone()).or_default() += 1;
                         }
+                    }
+                    // An order the shop cancelled after it was imported: the line ev has is
+                    // settled as cancelled, or named when the person's word stands in the way.
+                    if text(&v, "status").as_deref() == Some("cancelled")
+                        && let (Some(source), Some(key)) = (text(&v, "source"), text(&v, "key"))
+                        && let Some(id) = tx
+                            .query_row(
+                                "SELECT id FROM purchases WHERE source = ?1 AND source_key = ?2",
+                                params![source, key],
+                                |r| r.get::<_, i64>(0),
+                            )
+                            .optional()?
+                    {
+                        match cancel_line(&tx, id)? {
+                            Cancelled::Now => now_cancelled.push(id),
+                            Cancelled::Already => *counts.entry("skipped").or_default() += 1,
+                            Cancelled::Held => cancelled_held.push(id),
+                        }
+                        continue;
                     }
                     let line = line_from(&v).map_err(at)?;
                     match line {
@@ -788,6 +809,12 @@ impl Inventory {
         }
         if !things_unknown.is_empty() {
             v["imported"]["things_unknown"] = json!(things_unknown);
+        }
+        if !now_cancelled.is_empty() {
+            v["imported"]["now_cancelled"] = json!(now_cancelled);
+        }
+        if !cancelled_held.is_empty() {
+            v["imported"]["cancelled_held"] = json!(cancelled_held);
         }
         // Relayed lines of an order ev has several lines of, none of them told: for the person.
         if !unjoined.is_empty() {
@@ -1542,6 +1569,35 @@ pub(crate) fn cost_of(conn: &Connection, node: i64) -> Result<Value> {
         })
         .collect();
     Ok(Value::Object(out))
+}
+
+/// What a re-imported `cancelled` did to a line ev already had.
+enum Cancelled {
+    /// Open: settled as cancelled now.
+    Now,
+    /// Settled as cancelled before: nothing to do.
+    Already,
+    /// Linked to a thing, joined, or settled otherwise by the person: left for them.
+    Held,
+}
+
+/// A line ev already has whose order the shop has since cancelled: settled as `cancelled`
+/// when nothing of the person's stands on it, else left as it is for them to decide.
+fn cancel_line(conn: &Connection, id: i64) -> Result<Cancelled> {
+    let p = purchase_json(conn, id)?;
+    if p["dismissed"] == "cancelled" {
+        return Ok(Cancelled::Already);
+    }
+    let linked = p["linked"].as_array().is_some_and(|l| !l.is_empty());
+    if linked || !p["dismissed"].is_null() || !p["same_as"].is_null() {
+        return Ok(Cancelled::Held);
+    }
+    // No `why`: the reason says it, in the reader's language.
+    conn.execute(
+        "UPDATE purchases SET dismissed = 'cancelled', updated_at = ?1 WHERE id = ?2",
+        params![now(), id],
+    )?;
+    Ok(Cancelled::Now)
 }
 
 /// An imported line about `thing` (spec/ak.md): a service or a download is tied to it

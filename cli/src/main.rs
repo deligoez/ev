@@ -1120,8 +1120,8 @@ enum BuyCmd {
         #[arg(long)]
         clear: bool,
     },
-    /// Settle a line that will never be a thing: consumed, given, returned, elsewhere,
-    /// not-mine, duplicate; `--clear` takes that back.
+    /// Settle a line that will never be a thing: consumed, given, returned, cancelled (the shop
+    /// cancelled the order), elsewhere, not-mine, duplicate; `--clear` takes that back.
     Dismiss {
         #[arg(value_parser = record_id)]
         id: i64,

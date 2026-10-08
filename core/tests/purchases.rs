@@ -967,3 +967,39 @@ fn an_order_the_shop_cancelled_is_dismissed_as_cancelled_and_counted_apart() {
     assert_eq!(by["cancelled"], 1, "{by}");
     assert_eq!(by["returned"], 1);
 }
+
+#[test]
+fn an_order_cancelled_after_its_import_settles_the_line_unless_the_person_linked_it() {
+    let (_d, mut inv) = setup();
+    let line = |key: &str, status: &str| {
+        json!({"source": "shop", "key": key, "name": format!("Satır {key}"), "paid": "100.00",
+               "currency": "TRY", "ordered_at": "2025-05-01", "status": status})
+        .to_string()
+    };
+    inv.buy_import(&[line("o1", "delivered"), line("o2", "delivered")].join("\n"))
+        .unwrap();
+    let id = |inv: &Inventory, key: &str| -> i64 {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (open, linked) = (id(&inv, "o1"), id(&inv, "o2"));
+    inv.buy_link(linked, "Kart", None).unwrap();
+    // The adapter learns both orders were cancelled.
+    let v = inv
+        .buy_import(&[line("o1", "cancelled"), line("o2", "cancelled")].join("\n"))
+        .unwrap();
+    assert_eq!(v["imported"]["now_cancelled"], json!([open]), "{v}");
+    assert_eq!(v["imported"]["cancelled_held"], json!([linked]));
+    assert_eq!(
+        inv.buy_show(open).unwrap()["purchase"]["dismissed"],
+        "cancelled"
+    );
+    // Said again, nothing changes.
+    let v = inv.buy_import(&line("o1", "cancelled")).unwrap();
+    assert!(v["imported"]["now_cancelled"].is_null(), "{v}");
+}

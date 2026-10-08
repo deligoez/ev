@@ -121,3 +121,10 @@ shows open lines that look like one purchase seen twice (the same name, amount a
 bought within three days), for the person to join or dismiss; and `ev buy list --by-place`
 groups the open durable lines under the place of the record each could best be, so a tour knows
 which purchases it may settle. Over one household's ~800 open lines it takes under a second.
+
+## A cancelled order
+
+A line from an order the shop cancelled (a payment declined, never shipped) had no fitting
+reason to be settled, and was set aside as a duplicate or a return.
+`ev buy dismiss <id> --as cancelled` says it: nothing came and nothing was spent. `ev stats` now counts the settled lines
+by why (`purchases.dismissed_by`), so cancelled orders stand apart from returns.

@@ -933,3 +933,37 @@ fn open_lines_are_grouped_by_the_place_of_the_record_each_could_be() {
     assert!(last["place"].is_null());
     assert_eq!(last["lines"][0]["purchase"]["source_key"], "z1");
 }
+
+#[test]
+fn an_order_the_shop_cancelled_is_dismissed_as_cancelled_and_counted_apart() {
+    let (_d, mut inv) = setup();
+    inv.buy_import(
+        &[
+            json!({"source": "shop", "key": "x1", "name": "Kulaklık", "paid": "500.00",
+                   "currency": "TRY", "ordered_at": "2025-05-01"}),
+            json!({"source": "shop", "key": "x2", "name": "Mouse", "paid": "200.00",
+                   "currency": "TRY", "ordered_at": "2025-05-02"}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n"),
+    )
+    .unwrap();
+    let id = |key: &str| -> i64 {
+        inv.buy_list_where(&ev_core::BuyFilter {
+            key: Some(key),
+            ..Default::default()
+        })
+        .unwrap()["purchases"][0]["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (cancelled, returned) = (id("x1"), id("x2"));
+    inv.buy_dismiss(cancelled, Some("cancelled"), Some("ödeme reddedildi"))
+        .unwrap();
+    inv.buy_dismiss(returned, Some("returned"), None).unwrap();
+    let by = &inv.stats().unwrap()["purchases"]["dismissed_by"];
+    assert_eq!(by["cancelled"], 1, "{by}");
+    assert_eq!(by["returned"], 1);
+}

@@ -151,7 +151,8 @@ every part shows that purchase, instead of each part being asked which line it w
 
 **Other households.** Places have aliases (`ev place add|alias|list|merge`). A node can be
 meant for a place (`to=`), belong to one (`owner=`) or be lent out (`ev lend X --to P`,
-`ev back X`). `ev for Annemler` answers "what do I take, return and collect when I go there?".
+`ev back X`). `ev for Annemler` answers "what do I take, return and collect when I go there?". `ev past --to
+Annemler` answers what already went there.
 
 **Where should this go?** `ev suggest "<what it is>"` ranks the holders by how well their
 theme, name, note and contents match, and shows why: the words that matched, from where, and

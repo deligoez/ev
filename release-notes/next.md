@@ -1,1 +1,16 @@
 Draft for the next release.
+
+## Photos in `ev ui` behind a multiplexer
+
+A terminal that speaks the kitty graphics protocol showed photos in `ev ui` as half blocks when
+a multiplexer ran between them. `ev ui` asks four things at start and took the status report as
+the last answer; the multiplexer answered the cell size and the status report itself at once
+and passed the kitty and device-attribute queries on to the terminal, so `ev ui` decided before
+kitty was known and kept half blocks for the whole session. It now waits for both the device
+attributes and the status report, at most two seconds, and an answer that comes later still
+changes the choice.
+
+What was chosen was visible nowhere, so this could only be found by reading the code. The
+Settings tab has a Pictures row: the protocol and cell size in use, why it is half blocks when
+it is, and which answers came. `ev ui --probe` asks the terminal again without opening the
+browser and prints every answer with the time it took to come.

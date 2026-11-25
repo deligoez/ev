@@ -253,6 +253,46 @@ fn the_picture_probe_gives_up_after_a_wait_and_still_takes_a_late_answer() {
 }
 
 #[test]
+fn the_settings_tab_says_how_photos_are_drawn_and_why_half_blocks() {
+    use crate::input::Graphics;
+    if std::env::var_os("WEZTERM_EXECUTABLE").is_some()
+        || std::env::var_os("KONSOLE_VERSION").is_some()
+        || std::env::var("TERM_PROGRAM").as_deref() == Ok("iTerm.app")
+    {
+        return;
+    }
+    let (_dir, inv) = home();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    app.picker = Some(Picker::halfblocks());
+    app.probe = Some(super::ImageProbe::default());
+    assert_eq!(app.pictures_label(), "asking the terminal");
+    for g in [
+        Graphics::Kitty,
+        Graphics::Attributes { sixel: false },
+        Graphics::Done,
+    ] {
+        app.handle(Input::Graphics(g)).unwrap();
+    }
+    assert_eq!(
+        app.pictures_label(),
+        "half blocks (the terminal did not report its cell size)"
+    );
+    app.handle(Input::Graphics(Graphics::CellSize {
+        width: 9,
+        height: 23,
+    }))
+    .unwrap();
+    assert_eq!(app.pictures_label(), "kitty · 9×23 px cell");
+    let row = app
+        .settings_rows()
+        .into_iter()
+        .find(|r| r.id == super::SETTING_PICTURES)
+        .unwrap();
+    let text: String = row.spans.iter().map(|s| s.content.as_ref()).collect();
+    assert_eq!(text, "Pictures: kitty · 9×23 px cell");
+}
+
+#[test]
 fn it_reopens_on_the_tree_node_it_was_on_and_on_the_top_when_that_is_gone() {
     let (_dir, inv) = led_drawer();
     let led = inv.resolve("Kırmızı LED 10 mm", false).unwrap();

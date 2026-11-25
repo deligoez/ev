@@ -571,3 +571,31 @@ fn what_is_never_a_thing_is_paid_for_apart_and_never_waits_to_be_linked() {
     assert_eq!(service["paid"]["TRY"], "3000.00");
     assert_eq!(service["lines"], 1);
 }
+
+#[test]
+fn what_went_back_to_its_owner_is_listed_from_the_owner_place() {
+    let (_d, mut inv) = setup();
+    inv.edit("Eski telefon", &["owner=Annemler".into()])
+        .unwrap();
+    inv.gone_left(
+        "Eski telefon",
+        Some(Disposition::Return),
+        None,
+        false,
+        None,
+        Some("2026-11-20"),
+        None,
+    )
+    .unwrap();
+    let v = inv.past_to("Annemler").unwrap();
+    assert_eq!(v["to"]["name"], "Annemler");
+    let past: Vec<_> = ["remembered", "left_inventory"]
+        .iter()
+        .flat_map(|l| v[l]["past"].as_array().unwrap().clone())
+        .collect();
+    assert_eq!(past.len(), 1);
+    assert_eq!(past[0]["name"], "Eski telefon");
+    assert_eq!(past[0]["how"], "return");
+    assert_eq!(past[0]["left"], "2026-11-20");
+    assert_eq!(inv.errands(Some("Annemler")).unwrap()["went"], 1);
+}

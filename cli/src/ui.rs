@@ -38,8 +38,11 @@ mod details;
 mod draw;
 mod events;
 mod palette;
+mod pictures;
 mod prefs;
 mod rows;
+
+use pictures::ImageProbe;
 
 const POLL: Duration = Duration::from_millis(500);
 /// How many decoded photos are kept: each is up to 1600 px a side, several megabytes.
@@ -990,46 +993,6 @@ impl Series {
             crossed,
             at,
         })
-    }
-}
-
-/// What the terminal said about pictures, gathered until its status report ends the answers.
-#[derive(Default)]
-struct ImageProbe {
-    kitty: bool,
-    sixel: bool,
-    cell: Option<(u16, u16)>,
-}
-
-impl ImageProbe {
-    /// The picker the answers call for, with ratatui-image's own preferences: kitty, then
-    /// iTerm2 where the terminal is known to speak it, then sixel; half blocks without a cell
-    /// size, since pictures are fitted to cells.
-    fn picker(&self) -> Picker {
-        let program = std::env::var("TERM_PROGRAM").unwrap_or_default();
-        let konsole = std::env::var_os("KONSOLE_VERSION").is_some();
-        let wezterm = std::env::var_os("WEZTERM_EXECUTABLE").is_some();
-        let protocol = if konsole {
-            ProtocolType::Halfblocks
-        } else if self.kitty && !wezterm {
-            ProtocolType::Kitty
-        } else if wezterm || program == "iTerm.app" {
-            ProtocolType::Iterm2
-        } else if self.sixel {
-            ProtocolType::Sixel
-        } else {
-            ProtocolType::Halfblocks
-        };
-        match self.cell {
-            Some((w, h)) if w > 0 && h > 0 && protocol != ProtocolType::Halfblocks => {
-                // Deprecated only in favour of the stdio query, which is what this replaces.
-                #[allow(deprecated)]
-                let mut p = Picker::from_fontsize((w, h).into());
-                p.set_protocol_type(protocol);
-                p
-            }
-            _ => Picker::halfblocks(),
-        }
     }
 }
 

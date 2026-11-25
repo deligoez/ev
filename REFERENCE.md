@@ -238,6 +238,21 @@ named colours; the light one uses fixed darker tones readable on white. `ev ui` 
 terminal input itself (keys, SGR mouse reports and these answers), because crossterm treats a
 `997` report as an unfinished sequence and swallows the keys typed after it.
 
+**Pictures.** At start `ev ui` asks the terminal for the kitty graphics protocol (`APC G … a=q`),
+its device attributes (`CSI c`, sixel among them), its cell size in pixels (`CSI 16 t`) and a
+status report (`CSI 5 n`), and draws photos with half-block characters until the answers are
+complete. They are complete when both the device attributes and the status report have come:
+a multiplexer between `ev ui` and the terminal may answer the cell size and the status report
+itself at once and pass the other two on, whose answers then come later. After two seconds the
+photos are drawn with what came, and a later answer still counts. The choice is kitty, then
+iTerm2 (WezTerm, or `TERM_PROGRAM=iTerm.app`, which SSH does not pass on), then sixel; without a
+cell size it is half blocks, since photos are fitted to cells. Inside tmux, ratatui-image asks
+through tmux's passthrough instead. The Settings tab's Pictures row shows the choice, why it is
+half blocks when it is, and which answers came. `ev ui --probe` sends the same query without
+opening the browser and prints the choice and every answer with the milliseconds it took
+(`--json`: `pictures.protocol`, `cell`, `half_blocks_because`, `answers`, `complete`, `ms`,
+`received`, `env`); it talks to `/dev/tty`, so its output can be piped.
+
 ## Settings
 
 Display settings belong to the person at the computer, not to the inventory: they live in

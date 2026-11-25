@@ -6,14 +6,6 @@ that fixes them.
 
 ## Open
 
-- **`ev ui` has no way to force a picture protocol or a cell size.** A terminal that reports
-  no cell size (`CSI 16 t`) and a window of 0×0 pixels gets half blocks however well it draws
-  pictures, and the Settings row can only say why. Also: the parser drops an unfinished answer
-  after `ESC_WAIT` (30 ms), so an answer split across packets with a longer gap is lost (20 ms
-  measured over SSH), and `TERM_PROGRAM` does not cross SSH, so iTerm2 is not recognised there.
-  Expected: an override (`EV_CELL_SIZE`, a forced protocol) and a longer wait for a sequence
-  already started.
-
 - **`ev show --text` prints both photo states after `ev photo stale`.** A place once confirmed
   with `ev photo current`, then marked with `ev photo stale --why …`, shows both "photo still
   current" and "photo stale: …". `ev todo --only photos` gets it right. `ev show`'s JSON has no

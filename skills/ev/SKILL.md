@@ -720,7 +720,8 @@ A place is reviewed, never a thing: a thing is counted with the place it is in. 
 place was emptied or rearranged before it was recorded, the person says "that photo is old"),
 say so with `ev photo stale <ref> --why "<what changed>"`, never only in an observation or a
 photo note: prose is read by no list, and the place keeps its old photo as current until a
-newer one comes.
+newer one comes. `ev show`'s `photo` says where a place stands: `current`, and when it is not,
+`reason` (`none`, `changed`, `marked`), `photo_at` and `changed_at`.
 
 ## Going somewhere
 

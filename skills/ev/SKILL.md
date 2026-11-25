@@ -525,7 +525,8 @@ On a yes, record the thing as remembered, in no place, and link its line:
 - Old photos of it are attached like any photo. No successor chain: a later phone is only a
   later thing of the same kind.
 - **Reading it back:** `ev past` (by year, money paid and got), `ev past --year 2018` (what was
-  ours then; what nothing dates is counted apart), the Past list on `7` in `ev ui`.
+  ours then; what nothing dates is counted apart), `ev past --to <place>` (what went to a
+  place: returned to its owner, given or lent there), the Past list on `7` in `ev ui`.
 
 ## Warranty, insurance and what is not tracked
 
@@ -729,7 +730,8 @@ gidiyorum", "Ayşe gelecek"), run `ev for <place>` with the Turkish case suffix 
 thing is. Record new intentions as they come up: `ev edit X to=<place>` (take it there),
 `ev edit X owner=<place>` (it is theirs), `ev lend X --to <place>` / `ev back X` (lent out).
 Different names for the same household are aliases of one place (`ev place alias`); if two
-places turn out to be the same, `ev place merge`.
+places turn out to be the same, `ev place merge`. "What went to them?" is `ev past --to <place>`;
+`ev for` says how many there are.
 
 ## Show, don't describe
 

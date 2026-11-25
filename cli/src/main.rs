@@ -281,7 +281,12 @@ enum Cmd {
         contents: bool,
     },
     /// Read-only terminal browser that follows the database as it changes.
-    Ui,
+    Ui {
+        /// Ask the terminal how it draws pictures and print its answers, without opening the
+        /// browser.
+        #[arg(long)]
+        probe: bool,
+    },
     /// Serve the inventory to an agent over MCP (stdio): `claude mcp add ev -- ev mcp`.
     Mcp,
     /// Lend a node of ours to a place; it stays in the tree where it returns to.
@@ -2212,7 +2217,8 @@ fn run(cli: Cli) -> Result<Value> {
             reference,
             contents: true,
         } => inv.history_with_contents(&reference),
-        Cmd::Ui => ui::run(inv, &db).map(|()| Value::Null),
+        Cmd::Ui { probe: true } => ui::probe_terminal(),
+        Cmd::Ui { probe: false } => ui::run(inv, &db).map(|()| Value::Null),
         // Handled in `main`, before an inventory is opened.
         Cmd::Mcp => Err(Error::Usage("`ev mcp` serves over stdio; run it on its own".into())),
         Cmd::Lend { reference, to, qty } => inv.lend_qty(&reference, &to, qty),

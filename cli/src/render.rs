@@ -2267,6 +2267,65 @@ pub fn human(v: &Value) -> String {
     out
 }
 
+/// `ev ui --probe`: what `ev ui` would draw photos with, and the terminal's answers as they came.
+fn pictures_text(out: &mut String, p: &Value) {
+    let protocol = match s(p, "protocol").as_str() {
+        "half blocks" => t("half blocks").to_string(),
+        other => other.to_string(),
+    };
+    let chosen = match (&p["cell"], p["half_blocks_because"].as_str()) {
+        (_, Some(why)) => tf("{} ({})", &[&protocol, &crate::ui::half_blocks_reason(why)]),
+        (Value::Object(c), None) => tf(
+            "{} · {}×{} px cell",
+            &[&protocol, &c["width"], &c["height"]],
+        ),
+        _ => protocol,
+    };
+    let _ = writeln!(out, "{}: {chosen}", t("Pictures"));
+    let a = &p["answers"];
+    let mark = |k: &str| {
+        if a[k].as_bool() == Some(true) {
+            "✓"
+        } else {
+            "–"
+        }
+    };
+    let _ = writeln!(
+        out,
+        "{}",
+        tf(
+            "Answers: picture protocol {}, device attributes {}, cell size {}, status report {}",
+            &[
+                &mark("picture_protocol"),
+                &mark("device_attributes"),
+                &mark("cell_size"),
+                &mark("status_report"),
+            ],
+        )
+    );
+    let ms = &p["ms"];
+    let _ = writeln!(
+        out,
+        "{}",
+        if p["complete"].as_bool() == Some(true) {
+            tf("All answers came within {} ms.", &[ms])
+        } else {
+            tf(
+                "Not every answer came within {} ms; photos are drawn with what did, and a later answer still counts.",
+                &[ms],
+            )
+        }
+    );
+    for r in p["received"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "  +{:.1} ms  {}",
+            r["ms"].as_f64().unwrap_or_default(),
+            s(r, "bytes")
+        );
+    }
+}
+
 /// After any command that took things out (spec/emptied-place.md): the places it left empty
 /// whose theme and observations now describe what used to be there, and how to clear them.
 fn emptied_text(out: &mut String, v: &Value) {
@@ -2305,6 +2364,10 @@ fn emptied_text(out: &mut String, v: &Value) {
 )]
 fn human_body(v: &Value) -> String {
     let mut out = String::new();
+    if let Some(p) = v.get("pictures") {
+        pictures_text(&mut out, p);
+        return out;
+    }
     if v.get("overview").is_some() && v.get("tour").is_some() {
         stats_text(&mut out, v);
         return out;

@@ -1313,6 +1313,52 @@ static TR: &[(&str, &str)] = &[
         "Komut satırından: ev settings language en|tr|auto, ev settings theme dark|light|auto, ev settings resume on|off",
     ),
     ("Reopen where I left off", "Kaldığım yerden aç"),
+    ("Pictures", "Resimler"),
+    ("half blocks", "yarım bloklar"),
+    ("asking the terminal", "terminale soruluyor"),
+    ("{} · {}×{} px cell", "{} · {}×{} px hücre"),
+    (
+        "{} · {}×{} px cell (asked through tmux)",
+        "{} · {}×{} px hücre (tmux üzerinden soruldu)",
+    ),
+    ("{} ({})", "{} ({})"),
+    (
+        "Konsole draws pictures through half blocks only",
+        "Konsole resimleri yalnız yarım bloklarla çiziyor",
+    ),
+    (
+        "the terminal did not report its cell size",
+        "terminal hücre boyutunu bildirmedi",
+    ),
+    (
+        "the terminal reported no picture protocol",
+        "terminal bir resim protokolü bildirmedi",
+    ),
+    (
+        "ev ui draws photos with the terminal's picture protocol when the terminal reports one and its cell size, and with half-block characters otherwise. It asks each time it starts; this is not a setting.",
+        "ev ui fotoğrafları, terminal bir resim protokolü ve hücre boyutunu bildirirse o protokolle, bildirmezse yarım blok karakterleriyle çizer. Bunu her açılışta terminale sorar; bir ayar değildir.",
+    ),
+    ("In use: {}", "Kullanılan: {}"),
+    (
+        "Answers: picture protocol {}, device attributes {}, cell size {}, status report {}",
+        "Cevaplar: resim protokolü {}, cihaz özellikleri {}, hücre boyutu {}, durum raporu {}",
+    ),
+    (
+        "All answers came within {} ms.",
+        "Bütün cevaplar {} ms içinde geldi.",
+    ),
+    (
+        "Not every answer came within {} ms; photos are drawn with what did, and a later answer still counts.",
+        "Cevapların hepsi {} ms içinde gelmedi; fotoğraflar gelenlerle çiziliyor, sonradan gelen bir cevap da hesaba katılır.",
+    ),
+    (
+        "Waiting for the terminal's answers.",
+        "Terminalin cevapları bekleniyor.",
+    ),
+    (
+        "ev ui --probe asks the terminal again and prints its answers as they came.",
+        "ev ui --probe terminale yeniden sorar ve cevapları geldikleri gibi yazar.",
+    ),
     ("On", "Açık"),
     ("Off", "Kapalı"),
     (

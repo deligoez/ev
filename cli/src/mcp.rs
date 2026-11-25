@@ -522,7 +522,7 @@ pub(crate) fn run_args(
         return refused("this server keeps one inventory; leave --db out");
     }
     match cli.cmd {
-        Cmd::Ui => return refused("`ui` is a terminal program; run `ev ui` in a terminal"),
+        Cmd::Ui { .. } => return refused("`ui` is a terminal program; run `ev ui` in a terminal"),
         Cmd::Mcp => return refused("`mcp` is this server; it does not run inside itself"),
         _ => {}
     }

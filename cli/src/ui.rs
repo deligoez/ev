@@ -43,6 +43,7 @@ mod prefs;
 mod rows;
 
 use pictures::ImageProbe;
+pub use pictures::{half_blocks_reason, probe_terminal};
 
 const POLL: Duration = Duration::from_millis(500);
 /// How many decoded photos are kept: each is up to 1600 px a side, several megabytes.
@@ -111,6 +112,8 @@ const LOST_SECTION: i64 = -900;
 const SETTING_LANGUAGE: i64 = -1001;
 const SETTING_THEME: i64 = -1002;
 const SETTING_RESUME: i64 = -1003;
+/// Not a setting: how photos are drawn, as the terminal's answers decided it.
+const SETTING_PICTURES: i64 = -1004;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Tab {

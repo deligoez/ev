@@ -109,12 +109,16 @@ impl App {
                 t("Reopen where I left off"),
                 if self.prefs.resume { t("On") } else { t("Off") }.to_string(),
             ),
+            row(SETTING_PICTURES, t("Pictures"), self.pictures_label()),
         ]
     }
 
     /// The right pane on the Settings tab: what the selected setting does and its options.
     pub(super) fn settings_text(&self) -> Text<'static> {
         let muted = |s: String| Line::from(Span::styled(s, Style::new().fg(pal().muted)));
+        if self.selected_id() == Some(SETTING_PICTURES) {
+            return self.pictures_text();
+        }
         let mut lines = Vec::new();
         match self.selected_id() {
             Some(SETTING_LANGUAGE) => {

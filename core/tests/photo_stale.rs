@@ -135,3 +135,16 @@ fn a_place_with_no_photo_is_refused_by_name_without_offering_photo_current() {
         "{msg}"
     );
 }
+
+#[test]
+fn marking_a_photo_out_of_date_drops_its_still_current_mark() {
+    let (_dir, mut inv, photo) = setup();
+    inv.photo_add("Çekmece", &photo, None, None).unwrap();
+    let v = inv.photo_current("Çekmece").unwrap();
+    assert!(v["marks"]["photo_ok"].is_object());
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let v = inv.photo_stale_mark("Çekmece", Some("rearranged")).unwrap();
+    assert!(v["marks"]["photo_ok"].is_null());
+    assert_eq!(v["marks"]["photo_stale"]["note"], "rearranged");
+    assert_eq!(needing(&inv), [("Çekmece".into(), "marked".into())]);
+}

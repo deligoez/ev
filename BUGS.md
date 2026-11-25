@@ -6,15 +6,13 @@ that fixes them.
 
 ## Open
 
-- **`ev ui` shows half blocks in a kitty terminal when the status report answers first.**
-  Measured behind a multiplexer, both locally and over SSH, the terminal answered `CSI 16t`
-  and `CSI 5n` at once and the kitty and DA1 answers 1-20 ms later. `on_graphics` ends the
-  probe at the status report, so it decides before kitty is known and keeps half blocks for
-  the whole session. The window's pixel size is 0 there as well, so a `TIOCGWINSZ` fallback
-  would not help. Nothing on screen says which protocol was chosen or why. Also: the parser
-  drops an unfinished answer after `ESC_WAIT` (30 ms), and `TERM_PROGRAM` does not cross SSH.
-  Expected: kitty in such a terminal, the choice and its reason visible (Settings, a probe
-  command), and an override (`EV_CELL_SIZE`, a forced protocol).
+- **`ev ui` has no way to force a picture protocol or a cell size.** A terminal that reports
+  no cell size (`CSI 16 t`) and a window of 0×0 pixels gets half blocks however well it draws
+  pictures, and the Settings row can only say why. Also: the parser drops an unfinished answer
+  after `ESC_WAIT` (30 ms), so an answer split across packets with a longer gap is lost (20 ms
+  measured over SSH), and `TERM_PROGRAM` does not cross SSH, so iTerm2 is not recognised there.
+  Expected: an override (`EV_CELL_SIZE`, a forced protocol) and a longer wait for a sequence
+  already started.
 
 - **A root the inventory never inflects is still cut to a shorter written word.** `kapı` →
   `kap`, `veri` → `ver`, `mini` → `min`, `yani` → `yan`, `boya` → `boy`, `powerline` →

@@ -1,5 +1,18 @@
 Draft for the next release.
 
+## What went to a place, from the place
+
+Things owned by another household and returned to it, things given or taken there and things
+that left while lent there dropped out of `ev for <place>`, and could be found again only by
+name. `ev past --to <place>` lists them as `ev past` does, with when and how each left, and
+`ev for` says how many went there and how to list them.
+
+## A photo is either current or out of date
+
+`ev photo current` cleared an earlier out-of-date mark, but `ev photo stale` kept an earlier
+"still current" one, so `ev show` printed both for one place. Marking a photo out of date now
+drops the still-current mark too.
+
 ## Photos in `ev ui` behind a multiplexer
 
 A terminal that speaks the kitty graphics protocol showed photos in `ev ui` as half blocks when

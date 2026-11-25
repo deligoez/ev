@@ -527,24 +527,6 @@ impl App {
         }
     }
 
-    /// Gathers the picture-protocol answers; the status report ends them, and the picker built
-    /// from them replaces the half-block one the screen started with.
-    pub(super) fn on_graphics(&mut self, g: Graphics) {
-        let Some(probe) = self.probe.as_mut() else {
-            return;
-        };
-        match g {
-            Graphics::Kitty => probe.kitty = true,
-            Graphics::Attributes { sixel } => probe.sixel |= sixel,
-            Graphics::CellSize { width, height } => probe.cell = Some((width, height)),
-            Graphics::Done => {
-                self.picker = Some(probe.picker());
-                self.probe = None;
-                self.shown = None;
-            }
-        }
-    }
-
     /// Asks a terminal that never sent a mode 2031 report for its background again, so
     /// Automatic still follows a switch there, a few seconds late.
     pub(super) fn poll_background(&mut self) {

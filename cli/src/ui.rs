@@ -1793,12 +1793,14 @@ impl App {
             }
         });
         let mut parser = input::Parser::default();
-        if self.probe.is_some() {
+        if let Some(probe) = self.probe.as_mut() {
             send(input::IMAGE_QUERY);
+            probe.asked = Instant::now();
         }
         send(input::START);
         self.decoder = Some(Decoder::start(tx_wake));
         while !self.quit {
+            self.probe_deadline();
             self.take_decoded();
             terminal.draw(|f| self.draw(f)).map_err(io)?;
             match rx.recv_timeout(POLL) {
@@ -1866,7 +1868,7 @@ pub fn run(inv: Inventory, db: &std::path::Path) -> Result<()> {
     let mut terminal = ratatui::init();
     // Inside tmux the query has to be wrapped for passthrough, which ratatui-image knows how to
     // do; everywhere else `ev ui` asks itself (see `input::IMAGE_QUERY`) and starts on half
-    // blocks until the answer arrives, a few milliseconds later.
+    // blocks until the answers arrive, a few milliseconds later (`ui/pictures.rs`).
     if std::env::var_os("TMUX").is_some() {
         app.picker = Some(Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks()));
     } else {

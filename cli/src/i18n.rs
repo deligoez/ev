@@ -1314,6 +1314,11 @@ static TR: &[(&str, &str)] = &[
     ),
     ("Reopen where I left off", "Kaldığım yerden aç"),
     ("Pictures", "Resimler"),
+    ("Went to {}", "Gidenler: {}"),
+    (
+        "{} already went there: ev past --to {}",
+        "buraya daha önce {} şey gitti: ev past --to {}",
+    ),
     ("half blocks", "yarım bloklar"),
     ("asking the terminal", "terminale soruluyor"),
     ("{} · {}×{} px cell", "{} · {}×{} px hücre"),

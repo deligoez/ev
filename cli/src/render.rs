@@ -308,6 +308,23 @@ fn errands(out: &mut String, e: &Value) {
             let _ = writeln!(out, "    {}", s(n, "path_text"));
         }
     }
+    if let Some(n) = e["went"].as_i64().filter(|n| *n > 0) {
+        let _ = writeln!(
+            out,
+            "  {}",
+            tf(
+                "{} already went there: ev past --to {}",
+                &[&n, &{
+                    let name = s(&e["place"], "name");
+                    if name.contains(' ') {
+                        format!("\"{name}\"")
+                    } else {
+                        name
+                    }
+                }]
+            )
+        );
+    }
 }
 
 fn tree(out: &mut String, n: &Value, indent: usize) {

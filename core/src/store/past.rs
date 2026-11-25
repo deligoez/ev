@@ -482,7 +482,7 @@ impl Inventory {
 
 /// Ways of leaving that are no past belonging: a record that was never real, a portion that
 /// joined another, a paper kept as a copy.
-const NOT_PAST: &str = "('mistake', 'merged', 'digitize')";
+pub(super) const NOT_PAST: &str = "('mistake', 'merged', 'digitize')";
 
 /// When a record came: as said (`came`), else the earliest order date of a purchase linked to
 /// it. As SQL over `n`, a day or a partial date, or NULL when nothing says.

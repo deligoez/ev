@@ -76,12 +76,28 @@ fn nodes_at(conn: &Connection, column: &str, place: i64) -> Result<Vec<Value>> {
     list.iter().map(|id| brief_json(conn, *id)).collect()
 }
 
+/// How many past belongings went to a place (`Inventory::past_to`).
+fn went_to(conn: &Connection, place: i64) -> Result<i64> {
+    Ok(conn.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM nodes n WHERE n.state = 'gone'
+               AND n.disposition NOT IN {}
+               AND ?1 IN (n.owner_place, n.to_place, n.with_place)",
+            super::past::NOT_PAST
+        ),
+        [place],
+        |r| r.get(0),
+    )?)
+}
+
 pub(crate) fn place_errands(conn: &Connection, place: i64) -> Result<Value> {
     Ok(json!({
         "place": place_json(conn, place)?,
         "take": nodes_at(conn, "to_place", place)?,
         "return": nodes_at(conn, "owner_place", place)?,
         "collect": nodes_at(conn, "with_place", place)?,
+        // What already went there, listed by `ev past --to`.
+        "went": went_to(conn, place)?,
     }))
 }
 

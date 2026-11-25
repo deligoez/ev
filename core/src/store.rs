@@ -1840,7 +1840,29 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
     let review = crate::plan::review_of(conn, id)?;
     let observations = crate::plan::observations_of(conn, id)?;
     let tasks = crate::plan::tasks_of(conn, id)?;
-    let marks = crate::marks::marks_of(conn, id)?;
+    let mut marks = crate::marks::marks_of(conn, id)?;
+    // "Still current" and "out of date" answer one question; the later word stands. Older
+    // records carry both, from before marking one cleared the other.
+    if let (Some(ok), Some(stale)) = (
+        marks["photo_ok"]["at"].as_str(),
+        marks["photo_stale"]["at"].as_str(),
+    ) {
+        let older = if ok > stale {
+            "photo_stale"
+        } else {
+            "photo_ok"
+        };
+        if let Some(m) = marks.as_object_mut() {
+            m.remove(older);
+        }
+    }
+    // Whether its photos still show it, as the photo-needed list decides it.
+    let photo = match crate::marks::photo_stale(conn, id)? {
+        None => json!({ "current": true }),
+        Some((reason, photo_at, changed_at)) => json!({
+            "current": false, "reason": reason, "photo_at": photo_at, "changed_at": changed_at,
+        }),
+    };
     let (guess, guessed) = crate::marks::guesses_of(conn, id)?;
     // What was done to it, newest first (spec/repairs.md).
     let upkeep = crate::upkeep::upkeep_of(conn, id, Some(10))?;
@@ -1869,6 +1891,7 @@ pub(crate) fn show(conn: &Connection, id: i64) -> Result<Value> {
         "room": room,
         "tasks": tasks,
         "marks": marks,
+        "photo": photo,
         "guess": guess,
         "guessed": guessed,
         "upkeep": upkeep,

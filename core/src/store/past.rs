@@ -519,6 +519,19 @@ impl Inventory {
     /// year how many left, with the money paid for them and got for them by currency.
     /// `name` keeps those whose name holds the word; `place` those left in that place.
     pub fn past(&self, name: Option<&str>, place: Option<&str>) -> Result<Value> {
+        self.past_of(name, place, None)
+    }
+
+    /// The past belongings that went to a place: returned to it as its owner, given or taken
+    /// to it, or gone while lent to it. Answers "what went to them?" from the place.
+    pub fn past_to(&self, to: &str) -> Result<Value> {
+        let to = super::places::resolve_place(&self.conn, to)?;
+        let mut v = self.past_of(None, None, Some(to))?;
+        v["to"] = super::places::place_json(&self.conn, to)?;
+        Ok(v)
+    }
+
+    fn past_of(&self, name: Option<&str>, place: Option<&str>, to: Option<i64>) -> Result<Value> {
         let conn = &self.conn;
         // A former home of ours, else a place.
         let home_where = place.map(|p| former_home(conn, p)).transpose()?.flatten();
@@ -542,6 +555,7 @@ impl Inventory {
                LEFT JOIN nodes h ON h.id = n.parent_id AND h.kind = 'home' AND h.state = 'gone'
                LEFT JOIN nodes p ON p.id = n.parent_id
               WHERE n.state = 'gone' AND n.disposition NOT IN {NOT_PAST}
+                AND (?1 IS NULL OR ?1 IN (n.owner_place, n.to_place, n.with_place))
                 -- Homes and vehicles have a section of their own, and what left with one as
                 -- its structure (rooms, a car's compartments) is no past thing of its own.
                 AND n.kind NOT IN ('home', 'vehicle', 'room')
@@ -564,7 +578,7 @@ impl Inventory {
             bool,
         );
         let rows: Vec<Row> = stmt
-            .query_map([], |r| {
+            .query_map([to], |r| {
                 Ok((
                     r.get(0)?,
                     r.get(1)?,
@@ -682,7 +696,7 @@ impl Inventory {
         });
         // The homes and vehicles, ours now or before, lead (spec/vehicles-homes.md); a list
         // narrowed to one place has none.
-        let homes = if home_where.is_none() && place.is_none() {
+        let homes = if home_where.is_none() && place.is_none() && to.is_none() {
             self.homes_and_vehicles(word.as_deref())?
         } else {
             Vec::new()

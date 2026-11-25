@@ -43,7 +43,7 @@ pub(super) fn place_or_create(conn: &Connection, text: &str) -> Result<i64> {
     Ok(id)
 }
 
-fn place_json(conn: &Connection, id: i64) -> Result<Value> {
+pub(super) fn place_json(conn: &Connection, id: i64) -> Result<Value> {
     let name: String =
         conn.query_row("SELECT name FROM places WHERE id = ?1", [id], |r| r.get(0))?;
     let aliases = strings(

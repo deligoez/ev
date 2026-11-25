@@ -3407,6 +3407,10 @@ fn human_body(v: &Value) -> String {
             .as_array()
             .cloned()
             .unwrap_or_default();
+        // `ev past --to`: headed by the place it all went to.
+        if let Some(to) = v.get("to").filter(|t| t.is_object()) {
+            let _ = writeln!(out, "{}", tf("Went to {}", &[&s(to, "name")]));
+        }
         if count(remembered) + count(recorded) + homes.len() == 0 {
             let _ = writeln!(out, "{}", t("(nothing past)"));
             return out;

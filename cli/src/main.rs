@@ -253,6 +253,10 @@ enum Cmd {
         /// Every thing, past or present, that was ours in this year.
         #[arg(long)]
         year: Option<i32>,
+        /// Only what went to this place: returned to it as its owner, given or taken to it, or
+        /// gone while lent to it.
+        #[arg(long, conflicts_with_all = ["year", "place", "name"])]
+        to: Option<String>,
     },
     /// Every candidate, grouped by disposition.
     Disposals {
@@ -2176,10 +2180,12 @@ fn run(cli: Cli) -> Result<Value> {
         Cmd::Past {
             year: Some(y), ..
         } => inv.past_year(y),
+        Cmd::Past { to: Some(to), .. } => inv.past_to(&to),
         Cmd::Past {
             name,
             place,
             year: None,
+            to: None,
         } => inv.past(name.as_deref(), place.as_deref()),
         Cmd::Disposals { disposition: d } => {
             // Only what a thing can be set aside as has a pile.

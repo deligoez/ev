@@ -604,6 +604,9 @@ impl Inventory {
     pub fn photo_stale_mark(&mut self, reference: &str, why: Option<&str>) -> Result<Value> {
         let id = resolve(&self.conn, reference, false)?;
         set_mark(&self.conn, id, "photo_stale", None, None, why)?;
+        // Out of date now: an earlier "still current" no longer says anything, and showing
+        // both read as a contradiction.
+        clear_mark(&self.conn, id, "photo_ok")?;
         show(&self.conn, id)
     }
 

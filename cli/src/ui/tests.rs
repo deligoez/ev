@@ -217,6 +217,42 @@ fn a_status_report_answered_before_kitty_does_not_end_the_picture_probe() {
 }
 
 #[test]
+fn the_picture_probe_gives_up_after_a_wait_and_still_takes_a_late_answer() {
+    use crate::input::Graphics;
+    use ratatui_image::picker::ProtocolType;
+    if std::env::var_os("WEZTERM_EXECUTABLE").is_some()
+        || std::env::var_os("KONSOLE_VERSION").is_some()
+    {
+        return;
+    }
+    let (_dir, inv) = home();
+    let mut app = with_prefs(inv, LangPref::Fixed(Lang::En), ThemePref::Auto);
+    app.picker = Some(Picker::halfblocks());
+    let mut probe = super::ImageProbe::default();
+    probe.asked -= super::pictures::PROBE_WAIT;
+    app.probe = Some(probe);
+    app.handle(Input::Graphics(Graphics::CellSize {
+        width: 9,
+        height: 23,
+    }))
+    .unwrap();
+    app.probe_deadline();
+    assert!(matches!(
+        app.probe.as_ref().unwrap().settled,
+        Some((super::pictures::Settled::TimedOut, _))
+    ));
+    assert_eq!(
+        app.picker.as_ref().unwrap().protocol_type(),
+        ProtocolType::Halfblocks
+    );
+    app.handle(Input::Graphics(Graphics::Kitty)).unwrap();
+    assert_eq!(
+        app.picker.as_ref().unwrap().protocol_type(),
+        ProtocolType::Kitty
+    );
+}
+
+#[test]
 fn it_reopens_on_the_tree_node_it_was_on_and_on_the_top_when_that_is_gone() {
     let (_dir, inv) = led_drawer();
     let led = inv.resolve("Kırmızı LED 10 mm", false).unwrap();

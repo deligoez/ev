@@ -395,7 +395,9 @@ or Turkish: the computer's language by default, or the one picked on the Setting
 background live — switch the system or terminal theme and `ev ui` changes palette without a
 restart — or is fixed with `ev settings theme dark|light`. `ev ui` reopens the tree as it was
 left — the same nodes open, the same headings closed, the same node selected — and
-`ev settings resume off` starts it fresh at the top. Settings
+`ev settings resume off` starts it fresh at the top. Photos are drawn with the terminal's
+picture protocol (kitty, iTerm2, sixel) when it reports one, else with half blocks; the Settings
+tab says which and why, and `ev ui --probe` prints the terminal's answers. Settings
 live in `~/.ev/settings.json`, outside the database; JSON output stays English.
 
 ## Documents

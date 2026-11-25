@@ -178,7 +178,10 @@ fn the_picture_protocol_comes_from_the_answers_read_by_ev_ui() {
     {
         assert_eq!(p.protocol_type(), ProtocolType::Kitty);
     }
-    assert!(app.probe.is_none());
+    assert!(matches!(
+        app.probe.as_ref().unwrap().settled,
+        Some((super::pictures::Settled::Answered, _))
+    ));
 }
 
 #[test]

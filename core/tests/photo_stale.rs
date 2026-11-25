@@ -148,3 +148,26 @@ fn marking_a_photo_out_of_date_drops_its_still_current_mark() {
     assert_eq!(v["marks"]["photo_stale"]["note"], "rearranged");
     assert_eq!(needing(&inv), [("Çekmece".into(), "marked".into())]);
 }
+
+#[test]
+fn a_place_carrying_both_photo_marks_shows_only_the_later_one() {
+    let (dir, mut inv, photo) = setup();
+    inv.photo_add("Çekmece", &photo, None, None).unwrap();
+    let id = inv.photo_current("Çekmece").unwrap()["node"]["id"]
+        .as_i64()
+        .unwrap();
+    // Both marks, as records made before marking one cleared the other carry them.
+    rusqlite::Connection::open(dir.path().join("ev.db"))
+        .unwrap()
+        .execute(
+            "INSERT INTO marks (node_id, kind, note, at)
+             VALUES (?1, 'photo_stale', 'rearranged', '2999-01-01T00:00:00Z')",
+            [id],
+        )
+        .unwrap();
+    let v = inv.show("Çekmece", false).unwrap();
+    assert!(v["marks"]["photo_ok"].is_null());
+    assert_eq!(v["marks"]["photo_stale"]["note"], "rearranged");
+    assert_eq!(v["photo"]["current"], false);
+    assert_eq!(v["photo"]["reason"], "marked");
+}
